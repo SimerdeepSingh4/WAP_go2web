@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Environment Variables & Secrets (CRITICAL: Do not commit to git)
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Uploads / Media Storage (Multer uploads)
+uploads/
+tmp/
+temp/
+
+# OS Generated Files
+.DS_Store
+Thumbs.db
+
+# IDE & Editor Directories
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+

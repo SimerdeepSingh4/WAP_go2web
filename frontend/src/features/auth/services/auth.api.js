@@ -1,0 +1,51 @@
+import apiClient from "../../../api/client.js";
+
+export async function register(username, email, password) {
+    const payload = typeof username === "object"
+        ? username
+        : { username, email, password };
+
+    const response = await apiClient.post("/auth/register", payload);
+    return response.data;
+}
+
+export async function login(credentials, password) {
+    let payload;
+    if (typeof credentials === "string") {
+        payload = {
+            email: credentials,
+            username: credentials,
+            password,
+        };
+    } else {
+        const identifier = credentials.email || credentials.username || credentials.identifier;
+        payload = {
+            email: identifier,
+            username: identifier,
+            password: credentials.password,
+        };
+    }
+
+    const response = await apiClient.post("/auth/login", payload);
+    return response.data;
+}
+
+export async function logout() {
+    const response = await apiClient.post("/auth/logout");
+    return response.data;
+}
+
+export async function getMe() {
+    const response = await apiClient.get("/auth/me");
+    return response.data;
+}
+
+export async function getSessions() {
+    const response = await apiClient.get("/auth/sessions");
+    return response.data;
+}
+
+export async function logoutAll() {
+    const response = await apiClient.post("/auth/logout-all");
+    return response.data;
+}
