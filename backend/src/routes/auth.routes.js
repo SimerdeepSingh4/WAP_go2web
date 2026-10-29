@@ -12,11 +12,11 @@ import { protect, authorizeRoles } from "../middlewares/auth.middleware.js";
 const authRouter = Router();
 
 // Public routes
-authRouter.post("/register", register);
 authRouter.post("/login", login);
 authRouter.post("/logout", logout);
 
 // Protected routes (validates session in MongoDB)
+authRouter.post("/register", protect, authorizeRoles("Super Admin", "Reseller"), register);
 authRouter.get("/me", protect, getMe);
 authRouter.get("/sessions", protect, getActiveSessions);
 authRouter.post("/logout-all", protect, logoutAll);

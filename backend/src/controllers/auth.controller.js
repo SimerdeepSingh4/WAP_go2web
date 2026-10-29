@@ -89,24 +89,35 @@ export async function register(req, res) {
             });
         }
 
+        let assignedReseller = null;
+        let assignedRole = "User";
+
+        if (req.user?.role === "Reseller") {
+            assignedReseller = req.user._id;
+            assignedRole = "User";
+        } else if (req.user?.role === "Super Admin") {
+            assignedReseller = req.body.resellerId || null;
+            assignedRole = role || "User";
+        }
+
         const user = await userModel.create({
             username,
             email,
             password,
-            role: role || "User",
+            role: assignedRole,
+            resellerId: assignedReseller,
+            createdBy: req.user?._id || null,
         });
-
-        const { token } = await createDeviceSession(user, req, res);
 
         return res.status(201).json({
             message: "User registered successfully",
             success: true,
-            token,
             user: {
                 id: user._id,
                 username: user.username,
                 email: user.email,
                 role: user.role,
+                resellerId: user.resellerId,
             },
         });
     } catch (error) {

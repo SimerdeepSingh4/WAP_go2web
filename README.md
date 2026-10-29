@@ -1,5 +1,12 @@
 # WhatsApp & Business Messaging Portal (WAP_go2web)
 
+> [!IMPORTANT]
+> ### Instruction for AI Assistants & LLMs
+> **Before writing or modifying any code in this repository, you MUST follow this sequence:**
+> 1. **Read this root `README.md` first**: Understand the overall full-stack architecture, business hierarchy (Super Admin > Reseller > User), the 3-device FIFO session limit, and account preview mode.
+> 2. **Read `backend/README.md`**: When working on server-side logic, review the backend documentation for the API routes, MongoDB models, Mongoose hooks, and security middlewares.
+> 3. **Read `frontend/README.md`**: When working on the client-side, review the 4-layer architecture, TanStack Query (server state), Zustand (client UI state), React Router configuration, and route guards.
+
 Welcome to the **WAP_go2web** project documentation! This guide explains what the project does, how everything works under the hood, how both frontend and backend are structured, what packages are used and why, and step-by-step instructions on how to run it.
 
 ---
@@ -163,7 +170,7 @@ backend/
 ### Core API Endpoints
 | Method | Route | Access | What It Does |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/auth/register` | Public | Registers a new account and creates a session. |
+| `POST` | `/api/auth/register` | Admin / Reseller | Registers a new client account under the reseller/admin. |
 | `POST` | `/api/auth/login` | Public | Logs in via email or username, evicts 4th device if needed. |
 | `POST` | `/api/auth/logout` | Logged In | Logs out the current device and deletes session from DB. |
 | `POST` | `/api/auth/logout-all`| Logged In | Logs out from **all** devices simultaneously. |
@@ -218,6 +225,7 @@ frontend/
 | **`@tanstack/react-query`** | Manages server data caching, background re-fetching, and instant UI updates. |
 | **`axios`** | Makes API requests to the backend with automatic cookies and error formatting. |
 | **`tailwindcss`** | Fast, responsive CSS utility classes used for styling the entire portal. |
+| **`shadcn`** | Accessible, customizable component system that provides pre-styled UI building blocks (buttons, dialogs, inputs) directly inside our project. |
 | **`lucide-react`** | High-quality, modern SVG icons for buttons, locks, and badges. |
 | **`zustand`** | Minimal client-side state store (available for local UI preferences). |
 | **`vite`** | Fast developer server that bundles and runs the React app instantly. |
