@@ -40,6 +40,11 @@ const userSchema = new mongoose.Schema(
             enum: ["active", "blocked"],
             default: "active",
         },
+        ratePerMsg: {
+            type: Number,
+            default: 12, // default 12 paise per message
+            min: [0, "Rate per message cannot be negative"],
+        },
     },
     {
         timestamps: true,
