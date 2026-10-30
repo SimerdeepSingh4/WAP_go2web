@@ -47,5 +47,6 @@ authRouter.get(
         });
     }
 );
+Write an internal reusable helper: deductCredits(userId, count) and refundCredits(userId, count)
 
 export default authRouter;
