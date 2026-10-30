@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
     getBalance,
     allocateCredits,
+    reclaimCredits,
     deductCredits,
     getTransactions,
     updateRate,
@@ -29,6 +30,15 @@ creditRouter.post(
     authorizeRoles("Super Admin", "Reseller"),
     blockInPreviewMode("Credit allocation"),
     allocateCredits
+);
+
+// POST /api/credits/reclaim — Super Admin emergency administrative recall ONLY
+// Reseller transfers are final and irreversible (prevents reseller rug-pull fraud)
+creditRouter.post(
+    "/reclaim",
+    authorizeRoles("Super Admin"),
+    blockInPreviewMode("Credit reclaim"),
+    reclaimCredits
 );
 
 // POST /api/credits/deduct — Deduct credits when messages are sent

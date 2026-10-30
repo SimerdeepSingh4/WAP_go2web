@@ -8,6 +8,11 @@ const contactSchema = new mongoose.Schema(
             required: [true, "User is required"],
             index: true,
         },
+        name: {
+            type: String,
+            trim: true,
+            default: "",
+        },
         phoneNumber: {
             type: String,
             required: [true, "Phone Number is required"],

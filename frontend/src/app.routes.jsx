@@ -5,6 +5,7 @@ import ActiveDevices from "./features/auth/components/ActiveDevices.jsx";
 import RoleRoute from "./components/RoleRoute.jsx";
 import ResellerDashboard from "./features/dashboard/pages/ResellerDashboard.jsx";
 import PreviewBanner from "./components/PreviewBanner.jsx";
+import TestControlPanel from "./features/dashboard/components/TestControlPanel.jsx";
 
 function AdminPortal() {
   const { user } = useAuth();
@@ -134,6 +135,9 @@ function Dashboard() {
         </div>
 
         <ActiveDevices />
+
+        {/* Feature Test Lab Console */}
+        <TestControlPanel />
       </div>
     </div>
   );

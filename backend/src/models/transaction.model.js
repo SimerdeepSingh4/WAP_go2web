@@ -32,7 +32,7 @@ const transactionSchema = new mongoose.Schema(
         },
         type: {
             type: String,
-            enum: ["ALLOCATE", "DEDUCT", "REFUND"],
+            enum: ["ALLOCATE", "DEDUCT", "REFUND", "RECLAIM"],
             required: [true, "Transaction type is required"],
         },
         notes: {

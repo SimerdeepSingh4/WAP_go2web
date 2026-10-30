@@ -1,7 +1,13 @@
+import mongoose from "mongoose";
 import campaignModel from "../models/campaign.model.js";
 import userModel from "../models/user.model.js";
+import walletModel from "../models/wallet.model.js";
+import transactionModel from "../models/transaction.model.js";
 
 export const createCampaign = async (req, res) => {
+    const mongoSession = await mongoose.startSession();
+    mongoSession.startTransaction();
+
     try {
         const {
             campaignTitle,
@@ -11,6 +17,10 @@ export const createCampaign = async (req, res) => {
             recipients,
             schedule,
             scheduledTime,
+            images,
+            audio,
+            video,
+            thumbnail,
             attachments,
             mediaId,
             variables,
@@ -22,12 +32,25 @@ export const createCampaign = async (req, res) => {
         const missingFields = [];
         if (!campaignTitle) missingFields.push("campaignTitle");
         if (!campaignDescription) missingFields.push("campaignDescription");
-        if (!messageBody && !templateId) missingFields.push("messageBody or templateId");
+        
+        const hasContent =
+            messageBody ||
+            templateId ||
+            (images && Array.isArray(images) && images.length > 0) ||
+            (video && Array.isArray(video) && video.length > 0) ||
+            (audio && Array.isArray(audio) && audio.length > 0);
+
+        if (!hasContent) {
+            missingFields.push("messageBody, templateId, or media (images, audio, or video)");
+        }
+
         if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
             missingFields.push("recipients (non-empty array)");
         }
 
         if (missingFields.length > 0) {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
             return res.status(400).json({
                 message: `${missingFields.join(", ")} ${missingFields.length === 1 ? "is" : "are"} required`,
                 missingFields,
@@ -35,30 +58,209 @@ export const createCampaign = async (req, res) => {
             });
         }
 
-        const campaign = await campaignModel.create({
-            userId: req.user._id,
-            campaignTitle,
-            campaignDescription,
-            templateId: templateId || null,
-            messageBody: messageBody || "",
-            recipients,
-            schedule: schedule || "now",
-            scheduledTime: scheduledTime || null,
-            attachments: attachments || [],
-            mediaId: mediaId || null,
-            variables: variables || [],
-            totalRecipients: recipients.length,
-            messageType: messageType || "text",
-            status: status || (schedule === "later" ? "scheduled" : "pending"),
-            campaignStartDate: schedule === "now" ? new Date() : null,
-        });
+        // ── Single-Campaign Duplicate Detection & Phone Sanitization ──
+        const seenNumbers = new Set();
+        const duplicatesList = []; // Preserves every duplicate phone number submitted
+        const invalidList = [];    // Preserves every invalid/malformed number submitted
+        const sanitizedRecipients = [];
+
+        for (const r of recipients) {
+            const rawPhone = typeof r === "string" ? r : r.phoneNumber || "";
+            // Keep digits only
+            const clean = String(rawPhone).replace(/\D/g, "");
+
+            // International phone format validation (E.164: 10 to 15 digits)
+            if (clean.length < 10 || clean.length > 15) {
+                invalidList.push(String(rawPhone).trim());
+                continue;
+            }
+
+            if (seenNumbers.has(clean)) {
+                duplicatesList.push(clean);
+            } else {
+                seenNumbers.add(clean);
+                sanitizedRecipients.push({
+                    contactId: r.contactId || null,
+                    phoneNumber: clean,
+                    status: "queued",
+                });
+            }
+        }
+
+        if (sanitizedRecipients.length === 0) {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
+            return res.status(400).json({
+                message: `No valid phone numbers found. Rejected invalid entries: ${invalidList.slice(0, 10).join(", ")}${invalidList.length > 10 ? "..." : ""}`,
+                success: false,
+                stats: {
+                    totalSubmitted: recipients.length,
+                    invalidCount: invalidList.length,
+                    invalidNumbers: invalidList,
+                    duplicateCount: duplicatesList.length,
+                    duplicatesList,
+                },
+            });
+        }
+
+        // Only bill and queue UNIQUE, VALID phone numbers!
+        const totalRecipients = sanitizedRecipients.length;
+        const duplicateOccurrences = duplicatesList.length;
+        const invalidCount = invalidList.length;
+        let creditDeduction = null;
+
+        // Check and deduct credits for User and Reseller roles (Super Admin has unlimited pool)
+        if (req.user.role !== "Super Admin") {
+            const senderUser = await userModel
+                .findById(req.user._id)
+                .session(mongoSession);
+
+            if (!senderUser) {
+                await mongoSession.abortTransaction();
+                mongoSession.endSession();
+                return res.status(404).json({
+                    message: "Sender user not found.",
+                    success: false,
+                });
+            }
+
+            const rate = senderUser.ratePerMsg && senderUser.ratePerMsg > 0 ? senderUser.ratePerMsg : 12;
+            const requiredCredits = totalRecipients * rate;
+
+            const wallet = await walletModel
+                .findOne({ userId: req.user._id })
+                .session(mongoSession);
+
+            const currentBalance = wallet ? wallet.balance : 0;
+
+            if (!wallet || currentBalance < requiredCredits) {
+                await mongoSession.abortTransaction();
+                mongoSession.endSession();
+                return res.status(400).json({
+                    message: `Insufficient credits to launch campaign. Required: ${requiredCredits} credits (${totalRecipients} unique recipients × ${rate}/msg), Available: ${currentBalance} credits.`,
+                    success: false,
+                    required: requiredCredits,
+                    available: currentBalance,
+                    uniqueRecipients: totalRecipients,
+                    duplicatesFiltered: duplicateOccurrences,
+                });
+            }
+
+            // Deduct credits from wallet
+            wallet.balance -= requiredCredits;
+            await wallet.save({ session: mongoSession });
+
+            // Record transaction audit log
+            const auditNotes = duplicateOccurrences > 0
+                ? `Campaign "${campaignTitle}": ${totalRecipients} unique recipient(s) (${duplicateOccurrences} duplicate(s) filtered out) at rate ${rate}/msg`
+                : `Campaign "${campaignTitle}": ${totalRecipients} recipient(s) at rate ${rate}/msg`;
+
+            await transactionModel.create(
+                [
+                    {
+                        fromUser: req.user._id,
+                        toUser: req.user._id,
+                        amount: requiredCredits,
+                        type: "DEDUCT",
+                        notes: auditNotes,
+                        rateSnapshot: rate,
+                        balanceAfterFrom: wallet.balance,
+                        balanceAfterTo: wallet.balance,
+                        performedBy: req.user._id,
+                    },
+                ],
+                { session: mongoSession }
+            );
+
+            creditDeduction = {
+                amount: requiredCredits,
+                remainingBalance: wallet.balance,
+                ratePerMsg: rate,
+            };
+        }
+
+        // Determine inferred messageType if not specified
+        let resolvedMessageType = messageType || "text";
+        if (!messageType) {
+            const hasImages = images && images.length > 0;
+            const hasVideo = video && video.length > 0;
+            const hasAudio = audio && audio.length > 0;
+            const countTypes = (hasImages ? 1 : 0) + (hasVideo ? 1 : 0) + (hasAudio ? 1 : 0);
+
+            if (countTypes > 1) {
+                resolvedMessageType = "mixed";
+            } else if (hasImages) {
+                resolvedMessageType = "image";
+            } else if (hasVideo) {
+                resolvedMessageType = "video";
+            } else if (hasAudio) {
+                resolvedMessageType = "audio";
+            }
+        }
+
+        const createdCampaigns = await campaignModel.create(
+            [
+                {
+                    userId: req.user._id,
+                    campaignTitle,
+                    campaignDescription,
+                    templateId: templateId || null,
+                    messageBody: messageBody || "",
+                    recipients: sanitizedRecipients,
+                    recipientStats: {
+                        totalSubmitted: recipients.length,
+                        uniqueCount: totalRecipients,
+                        duplicateCount: duplicateOccurrences,
+                        invalidCount,
+                        duplicatesList, // Full preserved list of duplicate numbers
+                    },
+                    schedule: schedule || "now",
+                    scheduledTime: scheduledTime || null,
+                    images: images || [],
+                    audio: audio || [],
+                    video: video || [],
+                    thumbnail: thumbnail || null,
+                    attachments: attachments || [],
+                    mediaId: mediaId || null,
+                    variables: variables || [],
+                    totalRecipients,
+                    messageType: resolvedMessageType,
+                    status: status || (schedule === "later" ? "scheduled" : "pending"),
+                    campaignStartDate: schedule === "now" ? new Date() : null,
+                },
+            ],
+            { session: mongoSession }
+        );
+
+        await mongoSession.commitTransaction();
+        mongoSession.endSession();
+
+        let notice = "";
+        if (duplicateOccurrences > 0 && invalidCount > 0) {
+            notice = ` (${duplicateOccurrences} duplicates removed, ${invalidCount} invalid numbers rejected: ${invalidList.slice(0, 5).join(", ")}${invalidList.length > 5 ? "..." : ""})`;
+        } else if (duplicateOccurrences > 0) {
+            notice = ` (${duplicateOccurrences} duplicate numbers removed)`;
+        } else if (invalidCount > 0) {
+            notice = ` (${invalidCount} invalid numbers rejected: ${invalidList.slice(0, 5).join(", ")}${invalidList.length > 5 ? "..." : ""})`;
+        }
 
         return res.status(201).json({
-            message: "Campaign created successfully",
+            message: `Campaign created successfully!${notice}`,
             success: true,
-            data: campaign,
+            data: createdCampaigns[0],
+            creditDeduction,
+            duplicateStats: {
+                totalSubmitted: recipients.length,
+                uniqueRecipients: totalRecipients,
+                duplicatesFound: duplicateOccurrences,
+                duplicatesList, // Preserved in full for frontend
+                invalidCount,
+                invalidNumbers: invalidList, // Shown directly to user
+            },
         });
     } catch (error) {
+        await mongoSession.abortTransaction();
+        mongoSession.endSession();
         console.error("Create campaign error:", error);
         return res.status(500).json({
             message: error.message || "Internal server error",
@@ -162,8 +364,86 @@ export const getCampaignById = async (req, res) => {
     }
 };
 
+/**
+ * PATCH /api/campaigns/:id/status
+ * -------------------------------
+ * Update status of any campaign.
+ * STRICTLY RESTRICTED: Only Super Admin can change campaign status.
+ *
+ * Body: { status }
+ * Allowed statuses: ["draft", "pending", "sent", "failed", "scheduled", "paused", "stopped"]
+ */
+export const updateCampaignStatus = async (req, res) => {
+    try {
+        if (req.user.role !== "Super Admin") {
+            return res.status(403).json({
+                message: "Forbidden: Only Super Admin is authorized to change campaign status.",
+                success: false,
+            });
+        }
+
+        const { id } = req.params;
+        const { status } = req.body;
+
+        // Limited manual statuses allowed for Super Admin intervention:
+        // Everything else ('draft', 'scheduled', 'completed') is managed automatically by the system.
+        const allowedManualStatuses = [
+            "paused",
+            "stopped",
+            "failed",
+            "ongoing",
+        ];
+
+        if (!status || !allowedManualStatuses.includes(status)) {
+            return res.status(400).json({
+                message: `Invalid status. Super Admin manual override is limited to: ${allowedManualStatuses.join(", ")}. Lifecycle statuses ('draft', 'scheduled', 'completed') are managed automatically by the platform.`,
+                success: false,
+                allowedManualStatuses,
+            });
+        }
+
+        const campaign = await campaignModel.findById(id);
+        if (!campaign) {
+            return res.status(404).json({
+                message: "Campaign not found",
+                success: false,
+            });
+        }
+
+        const previousStatus = campaign.status;
+        campaign.status = status;
+
+        if (status === "stopped" || status === "failed") {
+            campaign.campaignEndDate = new Date();
+        } else if (status === "ongoing" && !campaign.campaignStartDate) {
+            campaign.campaignStartDate = new Date();
+        }
+
+        await campaign.save();
+
+        return res.status(200).json({
+            success: true,
+            message: `Campaign status updated from "${previousStatus}" to "${status}" successfully.`,
+            data: {
+                id: campaign._id,
+                campaignTitle: campaign.campaignTitle,
+                previousStatus,
+                status: campaign.status,
+                updatedAt: campaign.updatedAt,
+            },
+        });
+    } catch (error) {
+        console.error("Update campaign status error:", error);
+        return res.status(500).json({
+            message: error.message || "Failed to update campaign status",
+            success: false,
+        });
+    }
+};
+
 export default {
     createCampaign,
     getCampaigns,
     getCampaignById,
+    updateCampaignStatus,
 };

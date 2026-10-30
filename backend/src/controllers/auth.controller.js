@@ -4,6 +4,7 @@ import bcrypt from "bcrypt";
 import config from "../config/config.js";
 import userModel from "../models/user.model.js";
 import sessionModel from "../models/session.model.js";
+import walletModel from "../models/wallet.model.js";
 
 const MAX_CONCURRENT_DEVICES = 3;
 
@@ -100,14 +101,34 @@ export async function register(req, res) {
             assignedRole = role || "User";
         }
 
+        let customRate = 12; // default ratePerMsg
+        if (req.body.ratePerMsg !== undefined && req.body.ratePerMsg !== null && req.body.ratePerMsg !== "") {
+            const parsed = Number(req.body.ratePerMsg);
+            if (!isNaN(parsed) && parsed >= 0) {
+                customRate = parsed;
+            }
+        }
+
         const user = await userModel.create({
             username,
             email,
             password,
             role: assignedRole,
             resellerId: assignedReseller,
+            ratePerMsg: customRate,
             createdBy: req.user?._id || null,
         });
+
+        // Initialize user wallet
+        try {
+            await walletModel.create({
+                userId: user._id,
+                balance: 0,
+                resellerId: assignedReseller,
+            });
+        } catch (walletErr) {
+            console.error("Auto-wallet creation error on register:", walletErr);
+        }
 
         return res.status(201).json({
             message: "User registered successfully",
@@ -118,6 +139,7 @@ export async function register(req, res) {
                 email: user.email,
                 role: user.role,
                 resellerId: user.resellerId,
+                ratePerMsg: user.ratePerMsg,
             },
         });
     } catch (error) {

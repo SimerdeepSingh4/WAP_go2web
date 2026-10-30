@@ -98,7 +98,7 @@ export async function allocateCredits(req, res) {
     mongoSession.startTransaction();
 
     try {
-        const { toUserId, amount, notes } = req.body;
+        const { toUserId, amount, notes, password } = req.body;
 
         // ── Validation ──────────────────────────────────────────
         if (!toUserId || !amount) {
@@ -118,6 +118,19 @@ export async function allocateCredits(req, res) {
                 message: "Amount must be a positive number.",
                 success: false,
             });
+        }
+
+        // Verify password if provided (for double-confirmation security)
+        if (password) {
+            const caller = await userModel.findById(req.user._id).select("+password");
+            if (!caller || !(await caller.comparePassword(password))) {
+                await mongoSession.abortTransaction();
+                mongoSession.endSession();
+                return res.status(401).json({
+                    message: "Incorrect password. Credit transfer aborted for security.",
+                    success: false,
+                });
+            }
         }
 
         if (req.user.role === "User") {
@@ -283,6 +296,169 @@ export async function allocateCredits(req, res) {
 }
 
 /**
+ * POST /api/credits/reclaim
+ * -------------------------
+ * Reclaim credits back from a target user's wallet.
+ * - Super Admin can reclaim from Resellers or Users.
+ * - Reseller can only reclaim from their own Users (credits return to Reseller wallet).
+ *
+ * Body: { fromUserId, amount, notes? }
+ */
+export async function reclaimCredits(req, res) {
+    const mongoSession = await mongoose.startSession();
+    mongoSession.startTransaction();
+
+    try {
+        const { fromUserId, amount, notes } = req.body;
+
+        if (!fromUserId) {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
+            return res.status(400).json({
+                message: "fromUserId is required.",
+                success: false,
+            });
+        }
+
+        const reclaimAmount = Number(amount);
+        if (isNaN(reclaimAmount) || reclaimAmount <= 0) {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
+            return res.status(400).json({
+                message: "amount must be a positive number.",
+                success: false,
+            });
+        }
+
+        const fromUser = await userModel
+            .findById(fromUserId)
+            .session(mongoSession);
+
+        if (!fromUser) {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
+            return res.status(404).json({
+                message: "User to reclaim credits from not found.",
+                success: false,
+            });
+        }
+
+        // Permission check: Strictly Super Admin only to prevent Reseller rug-pull fraud
+        if (req.user.role !== "Super Admin") {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
+            return res.status(403).json({
+                message:
+                    "Forbidden: Credit reclaim is restricted to Super Admin only to prevent unauthorized balance reversals. Reseller allocations are final.",
+                success: false,
+            });
+        }
+
+        if (fromUser.role === "Super Admin") {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
+            return res.status(400).json({
+                message: "Cannot reclaim credits from another Super Admin.",
+                success: false,
+            });
+        }
+
+        // Check target user's wallet
+        const fromWallet = await walletModel
+            .findOne({ userId: fromUserId })
+            .session(mongoSession);
+
+        if (!fromWallet || fromWallet.balance < reclaimAmount) {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
+            return res.status(400).json({
+                message: `Insufficient balance to reclaim. Target balance: ${fromWallet ? fromWallet.balance : 0}, requested: ${reclaimAmount}.`,
+                success: false,
+                currentBalance: fromWallet ? fromWallet.balance : 0,
+            });
+        }
+
+        // Deduct from target user's wallet
+        fromWallet.balance -= reclaimAmount;
+        await fromWallet.save({ session: mongoSession });
+        const balanceAfterFrom = fromWallet.balance;
+
+        // If caller is Reseller, refund credits back to Reseller wallet
+        let balanceAfterTo = null;
+        if (req.user.role === "Reseller") {
+            let resellerWallet = await walletModel
+                .findOne({ userId: req.user._id })
+                .session(mongoSession);
+
+            if (!resellerWallet) {
+                const created = await walletModel.create(
+                    [
+                        {
+                            userId: req.user._id,
+                            balance: 0,
+                            resellerId: null,
+                        },
+                    ],
+                    { session: mongoSession }
+                );
+                resellerWallet = created[0];
+            }
+
+            resellerWallet.balance += reclaimAmount;
+            await resellerWallet.save({ session: mongoSession });
+            balanceAfterTo = resellerWallet.balance;
+        }
+
+        // Audit log
+        const transaction = await transactionModel.create(
+            [
+                {
+                    fromUser: fromUserId,
+                    toUser: req.user._id,
+                    amount: reclaimAmount,
+                    type: "RECLAIM",
+                    notes:
+                        notes ||
+                        `Reclaimed ${reclaimAmount} credits from ${fromUser.username}`,
+                    rateSnapshot: fromUser.ratePerMsg || null,
+                    balanceAfterFrom,
+                    balanceAfterTo,
+                    performedBy: req.user._id,
+                },
+            ],
+            { session: mongoSession }
+        );
+
+        await mongoSession.commitTransaction();
+        mongoSession.endSession();
+
+        return res.status(200).json({
+            success: true,
+            message: `Successfully reclaimed ${reclaimAmount} credits from ${fromUser.username}.`,
+            transaction: {
+                id: transaction[0]._id,
+                amount: reclaimAmount,
+                fromUser: {
+                    id: fromUser._id,
+                    username: fromUser.username,
+                    role: fromUser.role,
+                },
+                balanceAfterFrom,
+                balanceAfterTo,
+            },
+        });
+    } catch (error) {
+        await mongoSession.abortTransaction();
+        mongoSession.endSession();
+        console.error("ReclaimCredits error:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            success: false,
+        });
+    }
+}
+
+/**
  * POST /api/credits/deduct
  * ------------------------
  * Deduct credits from a user's wallet (e.g., when a message is sent).
@@ -296,23 +472,13 @@ export async function deductCredits(req, res) {
     mongoSession.startTransaction();
 
     try {
-        const { userId, messageCount = 1, amount, notes } = req.body;
+        const { userId, messageCount, amount, notes } = req.body;
 
         if (!userId) {
             await mongoSession.abortTransaction();
             mongoSession.endSession();
             return res.status(400).json({
                 message: "userId is required.",
-                success: false,
-            });
-        }
-
-        const count = Number(messageCount);
-        if (isNaN(count) || count <= 0) {
-            await mongoSession.abortTransaction();
-            mongoSession.endSession();
-            return res.status(400).json({
-                message: "messageCount must be a positive number.",
                 success: false,
             });
         }
@@ -329,18 +495,9 @@ export async function deductCredits(req, res) {
             });
         }
 
-        if (!targetUser.ratePerMsg || targetUser.ratePerMsg <= 0) {
-            await mongoSession.abortTransaction();
-            mongoSession.endSession();
-            return res.status(400).json({
-                message:
-                    "User does not have a valid rate per message configured.",
-                success: false,
-            });
-        }
-
         let deductionAmount;
-        if (amount !== undefined && amount !== null) {
+        let count = null;
+        if (amount !== undefined && amount !== null && amount !== "") {
             const amt = Number(amount);
             if (isNaN(amt) || amt <= 0) {
                 await mongoSession.abortTransaction();
@@ -352,6 +509,26 @@ export async function deductCredits(req, res) {
             }
             deductionAmount = amt;
         } else {
+            count = Number(messageCount ?? 1);
+            if (isNaN(count) || count <= 0) {
+                await mongoSession.abortTransaction();
+                mongoSession.endSession();
+                return res.status(400).json({
+                    message: "messageCount must be a positive number.",
+                    success: false,
+                });
+            }
+
+            if (!targetUser.ratePerMsg || targetUser.ratePerMsg <= 0) {
+                await mongoSession.abortTransaction();
+                mongoSession.endSession();
+                return res.status(400).json({
+                    message:
+                        "User does not have a valid rate per message configured.",
+                    success: false,
+                });
+            }
+
             deductionAmount = targetUser.ratePerMsg * count;
         }
 
@@ -469,7 +646,7 @@ export async function getTransactions(req, res) {
         const filter = {};
 
         // Type filter
-        if (type && ["ALLOCATE", "DEDUCT", "REFUND"].includes(type)) {
+        if (type && ["ALLOCATE", "DEDUCT", "REFUND", "RECLAIM"].includes(type)) {
             filter.type = type;
         }
 

@@ -55,6 +55,108 @@ const campaignSchema = new mongoose.Schema(
             type: Date,
             default: null,
         },
+        // Multiple images support
+        images: [
+            {
+                url: {
+                    type: String,
+                    required: [true, "Image URL or path is required"],
+                    trim: true,
+                },
+                caption: {
+                    type: String,
+                    trim: true,
+                    default: "",
+                },
+                filename: {
+                    type: String,
+                    trim: true,
+                },
+                mimetype: {
+                    type: String,
+                    trim: true,
+                    default: "image/jpeg",
+                },
+                size: {
+                    type: Number,
+                    default: 0,
+                },
+            },
+        ],
+        // Audio support (single or multiple, regular audio or PTT voice notes)
+        audio: [
+            {
+                url: {
+                    type: String,
+                    required: [true, "Audio URL or path is required"],
+                    trim: true,
+                },
+                filename: {
+                    type: String,
+                    trim: true,
+                },
+                mimetype: {
+                    type: String,
+                    trim: true,
+                    default: "audio/mp4",
+                },
+                isVoiceNote: {
+                    type: Boolean,
+                    default: false,
+                },
+                duration: {
+                    type: Number,
+                    default: 0,
+                },
+                size: {
+                    type: Number,
+                    default: 0,
+                },
+            },
+        ],
+        // Video support (single or multiple, with individual video thumbnails)
+        video: [
+            {
+                url: {
+                    type: String,
+                    required: [true, "Video URL or path is required"],
+                    trim: true,
+                },
+                caption: {
+                    type: String,
+                    trim: true,
+                    default: "",
+                },
+                filename: {
+                    type: String,
+                    trim: true,
+                },
+                mimetype: {
+                    type: String,
+                    trim: true,
+                    default: "video/mp4",
+                },
+                thumbnail: {
+                    type: String,
+                    trim: true,
+                    default: null,
+                },
+                duration: {
+                    type: Number,
+                    default: 0,
+                },
+                size: {
+                    type: Number,
+                    default: 0,
+                },
+            },
+        ],
+        // Top-level thumbnail option (for campaign preview, video/audio preview, or link preview)
+        thumbnail: {
+            type: String,
+            trim: true,
+            default: null,
+        },
         attachments: [
             {
                 type: mongoose.Schema.Types.ObjectId,
@@ -76,12 +178,22 @@ const campaignSchema = new mongoose.Schema(
         },
         messageType: {
             type: String,
-            enum: ["text", "image", "document", "video", "audio"],
+            enum: ["text", "image", "document", "video", "audio", "mixed", "media"],
             default: "text",
         },
         status: {
             type: String,
-            enum: ["draft", "pending", "sent", "failed", "scheduled", "paused", "stopped"],
+            enum: [
+                "draft",      // Automatic: Saved as draft
+                "scheduled",  // Automatic: Scheduled for a future time
+                "pending",    // Automatic: Queued for execution
+                "ongoing",    // Automatic: Currently dispatching messages
+                "completed",  // Automatic: All messages dispatched
+                "sent",       // Backward-compatible alias for completed
+                "paused",     // Manual Admin: Temporarily paused
+                "stopped",    // Manual Admin: Terminated / cancelled
+                "failed",     // Manual Admin / System: Encountered failure / banned
+            ],
             default: "draft",
         },
         campaignSummary: {
@@ -101,6 +213,31 @@ const campaignSchema = new mongoose.Schema(
         campaignEndDate: {
             type: Date,
             default: null,
+        },
+        // Single-campaign duplicate and recipient validation statistics
+        recipientStats: {
+            totalSubmitted: {
+                type: Number,
+                default: 0,
+            },
+            uniqueCount: {
+                type: Number,
+                default: 0,
+            },
+            duplicateCount: {
+                type: Number,
+                default: 0,
+            },
+            invalidCount: {
+                type: Number,
+                default: 0,
+            },
+            duplicatesList: [
+                {
+                    type: String,
+                    trim: true,
+                },
+            ],
         },
     },
     {

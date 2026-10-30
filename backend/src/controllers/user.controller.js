@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import config from "../config/config.js";
 import userModel from "../models/user.model.js";
 import sessionModel from "../models/session.model.js";
+import walletModel from "../models/wallet.model.js";
 
 /**
  * Get all users accessible by current user:
@@ -124,14 +125,34 @@ export async function createUser(req, res) {
             assignedRole = role || "User";
         }
 
+        let customRate = 12; // default ratePerMsg
+        if (req.body.ratePerMsg !== undefined && req.body.ratePerMsg !== null && req.body.ratePerMsg !== "") {
+            const parsed = Number(req.body.ratePerMsg);
+            if (!isNaN(parsed) && parsed >= 0) {
+                customRate = parsed;
+            }
+        }
+
         const newUser = await userModel.create({
             username,
             email,
             password,
             role: assignedRole,
             resellerId: assignedReseller,
+            ratePerMsg: customRate,
             createdBy: req.user._id,
         });
+
+        // Initialize user wallet
+        try {
+            await walletModel.create({
+                userId: newUser._id,
+                balance: 0,
+                resellerId: assignedReseller,
+            });
+        } catch (walletErr) {
+            console.error("Auto-wallet creation error on createUser:", walletErr);
+        }
 
         return res.status(201).json({
             message: "User account created successfully",
@@ -142,6 +163,7 @@ export async function createUser(req, res) {
                 email: newUser.email,
                 role: newUser.role,
                 resellerId: newUser.resellerId,
+                ratePerMsg: newUser.ratePerMsg,
             },
         });
     } catch (error) {
