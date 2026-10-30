@@ -47,6 +47,6 @@ authRouter.get(
         });
     }
 );
-Write an internal reusable helper: deductCredits(userId, count) and refundCredits(userId, count)
+// Helper functions are defined in src/helpers/credit.helper.js
 
 export default authRouter;
