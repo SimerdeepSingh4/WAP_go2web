@@ -10,7 +10,7 @@ import {
     authorizeRoles,
     blockInPreviewMode,
 } from "../middlewares/auth.middleware.js";
-
+import { uploadFiles } from "../middlewares/upload.middleware.js";
 const campaignRouter = Router();
 
 campaignRouter.use(protect);

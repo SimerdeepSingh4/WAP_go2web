@@ -20,7 +20,6 @@ export const createCampaign = async (req, res) => {
             recipients,
             schedule,
             scheduledTime,
-        
             thumbnail,
             attachments,
             mediaId,
