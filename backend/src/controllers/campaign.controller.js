@@ -3,6 +3,9 @@ import campaignModel from "../models/campaign.model.js";
 import userModel from "../models/user.model.js";
 import walletModel from "../models/wallet.model.js";
 import transactionModel from "../models/transaction.model.js";
+import fs from "fs";
+import path from "path";
+import cloudinary from "../config/cloudinary.config.js";
 
 export const createCampaign = async (req, res) => {
     const mongoSession = await mongoose.startSession();
@@ -17,9 +20,7 @@ export const createCampaign = async (req, res) => {
             recipients,
             schedule,
             scheduledTime,
-            images,
-            audio,
-            video,
+        
             thumbnail,
             attachments,
             mediaId,
@@ -28,17 +29,74 @@ export const createCampaign = async (req, res) => {
             status,
         } = req.body;
 
+        // Upload files to Cloudinary
+        const uploadField = async (field) => {
+            if (!req.files || !req.files[field]) return [];
+            const useCloudinary = process.env.USE_CLOUDINARY === "true";
+            if (useCloudinary) {
+                // Cloudinary upload
+                const uploads = await Promise.all(
+                    req.files[field].map(
+                        (file) =>
+                            new Promise((resolve, reject) => {
+                                const uploadStream = cloudinary.uploader.upload_stream(
+                                    { folder: `${field}s` },
+                                    (error, result) => {
+                                        if (error) reject(error);
+                                        else resolve(result.secure_url);
+                                    }
+                                );
+                                uploadStream.end(file.buffer);
+                            })
+                    )
+                );
+                return uploads;
+            } else {
+                // Local storage fallback
+                const localDir = path.join(__dirname, "../../../uploads", `${field}s`);
+                fs.mkdirSync(localDir, { recursive: true });
+                const uploads = await Promise.all(
+                    req.files[field].map((file) => {
+                        const filename = `${Date.now()}_${file.originalname}`;
+                        const filepath = path.join(localDir, filename);
+                        fs.writeFileSync(filepath, file.buffer);
+                        // Return a relative URL or path that can be saved in DB
+                        return `/uploads/${field}s/${filename}`;
+                    })
+                );
+                return uploads;
+            }
+        };
+
+        // Upload all media fields concurrently with error handling
+        let images = [];
+        let audio = [];
+        let video = [];
+        let documents = [];
+        try {
+            [images, audio, video, documents] = await Promise.all([
+                uploadField('images'),
+                uploadField('audio'),
+                uploadField('video'),
+                uploadField('documents'),
+            ]);
+        } catch (uploadErr) {
+            console.error('Media upload error:', uploadErr);
+            return res.status(500).json({ message: 'Failed to upload media files', error: uploadErr.message });
+        }
+
         // Check required fields (userId is securely taken from authenticated req.user._id)
         const missingFields = [];
         if (!campaignTitle) missingFields.push("campaignTitle");
         if (!campaignDescription) missingFields.push("campaignDescription");
         
-        const hasContent =
-            messageBody ||
-            templateId ||
-            (images && Array.isArray(images) && images.length > 0) ||
-            (video && Array.isArray(video) && video.length > 0) ||
-            (audio && Array.isArray(audio) && audio.length > 0);
+            const hasContent =
+                messageBody ||
+                templateId ||
+                (images && Array.isArray(images) && images.length > 0) ||
+                (video && Array.isArray(video) && video.length > 0) ||
+                (audio && Array.isArray(audio) && audio.length > 0) ||
+                (documents && Array.isArray(documents) && documents.length > 0);
 
         if (!hasContent) {
             missingFields.push("messageBody, templateId, or media (images, audio, or video)");
@@ -219,6 +277,7 @@ export const createCampaign = async (req, res) => {
                     images: images || [],
                     audio: audio || [],
                     video: video || [],
+                    documents: documents || [],
                     thumbnail: thumbnail || null,
                     attachments: attachments || [],
                     mediaId: mediaId || null,

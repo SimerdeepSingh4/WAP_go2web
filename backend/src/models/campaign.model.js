@@ -151,6 +151,30 @@ const campaignSchema = new mongoose.Schema(
                 },
             },
         ],
+        // Document (PDF) support (multiple)
+        documents: [
+            {
+                url: {
+                    type: String,
+                    required: [true, "Document URL is required"],
+                    trim: true,
+                },
+                filename: {
+                    type: String,
+                    trim: true,
+                },
+                mimetype: {
+                    type: String,
+                    trim: true,
+                    default: "application/pdf",
+                },
+                size: {
+                    type: Number,
+                    default: 0,
+                },
+            },
+        ],
+
         // Top-level thumbnail option (for campaign preview, video/audio preview, or link preview)
         thumbnail: {
             type: String,

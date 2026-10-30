@@ -15,7 +15,7 @@ const campaignRouter = Router();
 
 campaignRouter.use(protect);
 
-campaignRouter.post("/", blockInPreviewMode("Campaign creation"), createCampaign);
+campaignRouter.post("/", uploadFiles, blockInPreviewMode("Campaign creation"), createCampaign);
 campaignRouter.get("/", getCampaigns);
 campaignRouter.get("/:id", getCampaignById);
 
