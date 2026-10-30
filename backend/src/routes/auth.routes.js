@@ -47,5 +47,6 @@ authRouter.get(
         });
     }
 );
+// Helper functions are defined in src/helpers/credit.helper.js
 
 export default authRouter;
