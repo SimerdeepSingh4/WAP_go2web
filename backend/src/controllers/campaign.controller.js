@@ -229,6 +229,22 @@ export const createCampaign = async (req, res) => {
             rate = senderUser.ratePerMsg && senderUser.ratePerMsg > 0 ? senderUser.ratePerMsg : 12;
             requiredCredits = totalRecipients * rate;
 
+            // Check if wallet is expired or locked
+            const currentWallet = await walletModel.findOne({ userId: req.user._id }).session(mongoSession);
+            const isExpired = Boolean(currentWallet && currentWallet.expiresAt && new Date(currentWallet.expiresAt) <= new Date());
+            const isLocked = Boolean(currentWallet && (currentWallet.isLocked || isExpired));
+
+            if (isLocked) {
+                await mongoSession.abortTransaction();
+                mongoSession.endSession();
+                return res.status(403).json({
+                    message: "Your credit balance has expired and is locked. Please contact administrator to renew.",
+                    success: false,
+                    isLocked: true,
+                    expiresAt: currentWallet?.expiresAt,
+                });
+            }
+
             // ATOMIC ISOLATION GUARD (Compare-And-Swap):
             // Deducts strictly if current balance >= requiredCredits at DB engine level
             updatedWallet = await walletModel.findOneAndUpdate(

@@ -23,6 +23,7 @@ import {
   updateCampaignMetrics,
 } from "../services/portalTest.api.js";
 import CampaignPerformanceChart from "../../../components/dashboard/CampaignPerformanceChart.jsx";
+import { Lock } from "lucide-react";
 
 export default function TestControlPanel() {
   const { user } = useAuth();
@@ -319,6 +320,7 @@ export default function TestControlPanel() {
   const groups = groupsData?.data || [];
   const contacts = contactsData?.data || [];
   const myBalance = balanceData?.wallet?.balance ?? balanceData?.data?.balance ?? 0;
+  const isLocked = Boolean(balanceData?.wallet?.isLocked);
   const stats = dashboardStatsData?.stats;
 
   return (
@@ -812,14 +814,33 @@ export default function TestControlPanel() {
       {/* TAB FOR REGULAR USERS: WALLET & USAGE */}
       {!isManager && activeTab === "mycredits" && (
         <div className="space-y-4">
-          <div className="p-5 rounded-lg bg-[#f0f6ea] border border-[#ceddc2] flex flex-wrap items-center justify-between gap-4">
+          <div className={`p-5 rounded-lg border flex flex-wrap items-center justify-between gap-4 ${
+            isLocked
+              ? "bg-red-50 border-red-300"
+              : "bg-[#f0f6ea] border-[#ceddc2]"
+          }`}>
             <div>
-              <p className="text-xs font-semibold text-[#546848] uppercase tracking-wider">Your Balance</p>
-              <h3 className="text-3xl font-bold text-[#284f3a] mt-1">{myBalance} Messages</h3>
-              <p className="text-xs text-[#6e7d64] mt-1">Each message sent consumes 1 credit from your balance.</p>
+              <p className={`text-xs font-semibold uppercase tracking-wider ${isLocked ? "text-red-700" : "text-[#546848]"}`}>
+                Your Balance {isLocked && "(Expired & Locked)"}
+              </p>
+              <h3 className={`text-3xl font-bold mt-1 flex items-center gap-2 ${isLocked ? "text-red-600" : "text-[#284f3a]"}`}>
+                {isLocked && <Lock className="size-6 text-red-600" />}
+                {myBalance} Credits
+              </h3>
+              <p className={`text-xs mt-1 ${isLocked ? "text-red-600 font-semibold" : "text-[#6e7d64]"}`}>
+                {isLocked
+                  ? `Your credits expired on ${balanceData?.wallet?.expiresAt ? new Date(balanceData.wallet.expiresAt).toLocaleDateString() : "earlier"}. Balance is locked from sending messages until renewed.`
+                  : "Each message sent consumes credits from your balance."}
+              </p>
             </div>
-            <div className="text-xs text-[#526348] bg-white p-3 rounded-lg border border-[#dde6d4]">
-              Need more credits? Contact your reseller to recharge your account balance.
+            <div className={`text-xs p-3 rounded-lg border ${
+              isLocked
+                ? "bg-white text-red-800 border-red-200"
+                : "text-[#526348] bg-white border-[#dde6d4]"
+            }`}>
+              {isLocked
+                ? "Contact your administrator or reseller to renew your credit balance."
+                : "Need more credits? Contact your reseller to recharge your account balance."}
             </div>
           </div>
 

@@ -14,6 +14,7 @@ import {
   Percent,
   RefreshCw,
   RotateCcw,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -57,13 +58,28 @@ function AccountDetail({ account, onClose }) {
             ))}
           </dl>
 
-          <div className="rounded-lg border bg-muted/30 p-4 space-y-2">
-            <p className="text-xs font-medium text-muted-foreground">Current Wallet Balance</p>
+          <div className={`rounded-lg border p-4 space-y-2 ${balance.data?.wallet?.isLocked ? "border-red-300 bg-red-50/60" : "bg-muted/30"}`}>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-muted-foreground">Current Wallet Balance</p>
+              {balance.data?.wallet?.isLocked && (
+                <span className="inline-flex items-center gap-1 rounded-md bg-red-100 text-red-800 px-2 py-0.5 text-xs font-semibold">
+                  <Lock className="size-3 text-red-600" /> Locked & Expired
+                </span>
+              )}
+            </div>
             <QueryState query={balance}>
-              <p className="text-2xl font-bold tabular-nums text-foreground">
+              <p className={`text-2xl font-bold tabular-nums ${balance.data?.wallet?.isLocked ? "text-red-700" : "text-foreground"}`}>
                 {number(balance.data?.wallet?.balance)}{" "}
                 <span className="text-xs font-normal text-muted-foreground">credits</span>
               </p>
+              {balance.data?.wallet?.expiresAt && (
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Expires on: <strong>{dateTime(balance.data?.wallet?.expiresAt)}</strong>
+                  {balance.data?.wallet?.isExpired && (
+                    <span className="text-red-600 ml-1 font-semibold">(Expired)</span>
+                  )}
+                </p>
+              )}
             </QueryState>
           </div>
 

@@ -74,6 +74,7 @@ const DEFAULT_SETTINGS = {
   // Credits & Rates
   defaultRatePerMsg: 1.0,
   lowBalanceThreshold: 500,
+  creditExpiryYears: "2",
   autoRefundEnabled: true,
   strictOverdraftProtection: true,
 };
@@ -649,6 +650,28 @@ export default function OperatingRules() {
                 />
                 <p className="text-[11px] text-muted-foreground">
                   Show a visual warning when an account has fewer than this many credits left.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="credit-expiry" className="text-xs font-semibold">
+                  Default Credit Expiry Period
+                </Label>
+                <select
+                  id="credit-expiry"
+                  value={settings.creditExpiryYears}
+                  onChange={(e) => updateSetting("creditExpiryYears", e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs font-medium shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value="2">2 Years (Standard default)</option>
+                  <option value="1">1 Year</option>
+                  <option value="3">3 Years</option>
+                  <option value="5">5 Years</option>
+                  <option value="0.5">6 Months</option>
+                  <option value="0">Never (No Expiry)</option>
+                </select>
+                <p className="text-[11px] text-muted-foreground">
+                  Credits bought or allocated expire after this time. After expiry, balance remains visible but turns red and locked from being used.
                 </p>
               </div>
 

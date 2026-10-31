@@ -326,6 +326,7 @@ export default function Credits({ activity = false }) {
             toUserId: resellers.some((a) => a._id === allocation) ? allocation : "",
             amount: "",
             notes: "",
+            expiryYears: "2",
           }}
           fields={[
             {
@@ -338,14 +339,35 @@ export default function Credits({ activity = false }) {
               ],
             },
             { key: "amount", label: "Credits to add", required: true, type: "number", min: 0.01, step: 0.01 },
+            {
+              key: "expiryYears",
+              label: "Credit Validity / Expiry",
+              required: true,
+              options: [
+                { value: "2", label: "2 Years Validity (Default)" },
+                { value: "1", label: "1 Year Validity" },
+                { value: "3", label: "3 Years Validity" },
+                { value: "5", label: "5 Years Validity" },
+                { value: "0.5", label: "6 Months Validity" },
+                { value: "0", label: "Never Expires" },
+              ],
+            },
             { key: "notes", label: "Note (Optional)", type: "textarea", maxLength: 500 },
           ]}
-          payload={(v) => ({ toUserId: v.toUserId, amount: Number(v.amount), notes: v.notes.trim() })}
+          payload={(v) => ({
+            toUserId: v.toUserId,
+            amount: Number(v.amount),
+            expiryYears: Number(v.expiryYears),
+            notes: v.notes.trim(),
+          })}
           review={(v) => (
             <>
               <p className="font-medium">{resellers.find((a) => a._id === v.toUserId)?.username}</p>
               <p>
                 Add <strong>{number(Number(v.amount))} credits</strong> to this account.
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Validity: <strong>{v.expiryYears === "0" ? "Never expires" : `${v.expiryYears} Year(s)`}</strong> (credits will lock if expired)
               </p>
               <p className="whitespace-pre-wrap break-words text-muted-foreground text-xs mt-1">
                 {v.notes || "No note."}

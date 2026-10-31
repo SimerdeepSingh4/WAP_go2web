@@ -1,6 +1,8 @@
 import { Link, NavLink, Outlet, useLocation } from "react-router";
-import { LayoutDashboard, Megaphone, Users, Building2, Wallet, ReceiptText, SlidersHorizontal, LogOut, ChevronDown, MessageSquare, ArrowUpRight } from "lucide-react";
+import { LayoutDashboard, Megaphone, Users, Building2, Wallet, ReceiptText, SlidersHorizontal, LogOut, ChevronDown, MessageSquare, ArrowUpRight, Lock } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useResellerQuery } from "../hooks/useReseller";
+import { number } from "@/features/admin/lib/format";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -76,6 +78,9 @@ export default function ResellerLayout() {
   const { user, logout, isLoggingOut } = useAuth();
   const { pathname } = useLocation();
   const page = navigation.find((item) => item.path === pathname)?.title || "Overview";
+  const myBalance = useResellerQuery("myBalance");
+  const wallet = myBalance.data?.wallet;
+  const isLocked = Boolean(wallet?.isLocked);
 
   async function signOut() {
     try {
@@ -99,7 +104,35 @@ export default function ResellerLayout() {
                 <span aria-hidden="true" className="hidden text-muted-foreground sm:inline">/</span>
                 <span className="truncate text-sm font-medium">{page}</span>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                {/* Live Wallet Balance Pill */}
+                {wallet && (
+                  <Link
+                    to="/reseller/credits"
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                      isLocked
+                        ? "border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
+                        : "border-border bg-muted/40 text-foreground hover:bg-muted"
+                    }`}
+                    title={isLocked ? "Credits are expired & locked" : "Available Credits"}
+                  >
+                    {isLocked ? (
+                      <>
+                        <Lock className="size-3.5 text-red-600 shrink-0" />
+                        <span className="tabular-nums font-bold text-red-700">{number(wallet.balance)}</span>
+                        <span className="rounded bg-red-200/80 px-1 py-0.2 text-[9px] font-bold text-red-800 uppercase">
+                          Locked
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <Wallet className="size-3.5 text-primary shrink-0" />
+                        <span className="tabular-nums">{number(wallet.balance)} credits</span>
+                      </>
+                    )}
+                  </Link>
+                )}
+
                 <DropdownMenu>
                   <DropdownMenuTrigger render={<Button variant="ghost" className="h-10 gap-2" aria-label="Account menu" />}>
                     <Avatar className="size-7">
