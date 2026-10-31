@@ -229,7 +229,7 @@ export default function Credits({ activity = false }) {
                   Master Credit Reserve
                   <Wallet className="size-4 text-muted-foreground" />
                 </p>
-                <p className="mt-2 text-2xl font-bold tracking-tight text-primary">Uncapped</p>
+                <p className="mt-2 text-2xl font-bold tracking-tight text-primary">Unlimited</p>
                 <p className="mt-1 text-xs text-muted-foreground">Primary Issuance Authority</p>
               </CardContent>
             </Card>

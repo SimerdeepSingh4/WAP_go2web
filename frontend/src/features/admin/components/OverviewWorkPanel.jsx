@@ -88,7 +88,7 @@ export default function OverviewWorkPanel({ campaignsQuery, accountsQuery }) {
       <QueryState query={campaignsQuery}><DeliveryChart campaigns={campaignsQuery.data?.data || []} /></QueryState>
       <Card className="gap-0 rounded-lg py-0 shadow-none">
         <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4 sm:p-5">
-          <div className="flex items-center gap-3"><Wallet className="size-5 text-muted-foreground" aria-hidden="true" /><div><p className="text-xs text-muted-foreground">Master Reserve</p><p className="mt-1 text-base font-semibold">Uncapped</p></div></div>
+          <div className="flex items-center gap-3"><Wallet className="size-5 text-muted-foreground" aria-hidden="true" /><div><p className="text-xs text-muted-foreground">Master Reserve</p><p className="mt-1 text-base font-semibold">Unlimited</p></div></div>
           <Button variant="outline" size="sm" render={<Link to="/admin/credits" />}>Manage credits<ArrowRight /></Button>
         </CardContent>
       </Card>
