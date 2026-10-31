@@ -23,7 +23,7 @@ export const createCampaign = async (req, res) => {
             campaignDescription,
             templateId,
             messageBody,
-            recipients,
+            recipients: rawInputRecipients,
             schedule,
             scheduledTime,
             thumbnail,
@@ -33,6 +33,19 @@ export const createCampaign = async (req, res) => {
             messageType,
             status,
         } = req.body;
+
+        // Safely parse recipients whether sent as JSON array or via multipart/form-data
+        let recipients = rawInputRecipients;
+        if (typeof recipients === "string") {
+            try {
+                recipients = JSON.parse(recipients);
+            } catch {
+                recipients = recipients.split(/[\n,;\t]+/).map((s) => s.trim()).filter(Boolean);
+            }
+        }
+        if (!Array.isArray(recipients) && recipients) {
+            recipients = [recipients];
+        }
 
         // Upload files to Cloudinary or local fallback with size limits and image compression
         const IMG_MAX_SIZE = parseInt(process.env.IMG_MAX_SIZE_MB || "5") * 1024 * 1024; // default 5 MB

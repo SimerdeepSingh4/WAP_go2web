@@ -19,6 +19,14 @@ import {
   Sparkles,
   X,
   HelpCircle,
+  Image as ImageIcon,
+  Video as VideoIcon,
+  Volume2,
+  Trash2,
+  Plus,
+  Play,
+  Film,
+  Music,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,12 +40,24 @@ import { number } from "@/features/admin/lib/format";
 
 const WORD_LIMIT = 1024;
 
+function formatFileSize(bytes) {
+  if (!bytes) return "0 B";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export default function CreateCampaignPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
   const fileInputRef = useRef(null);
   const quillRef = useRef(null);
+
+  // Dedicated media input refs
+  const imageInputRef = useRef(null);
+  const videoInputRef = useRef(null);
+  const audioInputRef = useRef(null);
 
   // Determine base path (e.g. /reseller or /admin)
   const isReseller = location.pathname.startsWith("/reseller");
@@ -51,6 +71,11 @@ export default function CreateCampaignPage() {
   const [scheduleType, setScheduleType] = useState("now"); // "now" | "later"
   const [scheduledTime, setScheduledTime] = useState("");
   const [formError, setFormError] = useState("");
+
+  // Media files states (each item: { id, file, preview, name, size })
+  const [imageFiles, setImageFiles] = useState([]);
+  const [videoFiles, setVideoFiles] = useState([]);
+  const [audioFiles, setAudioFiles] = useState([]);
 
   // Fetch current user wallet balance
   const balanceQuery = useQuery({
@@ -122,6 +147,148 @@ export default function CreateCampaignPage() {
     }
   };
 
+  // --- Dedicated Media File Handlers ---
+  const handleImageSelect = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const MAX_IMG_SIZE = 5 * 1024 * 1024; // 5 MB
+    const newItems = [];
+
+    for (const file of files) {
+      if (file.size > MAX_IMG_SIZE) {
+        toast.add({
+          title: "Image Exceeds 5 MB",
+          description: `"${file.name}" is larger than 5 MB limit.`,
+          type: "error",
+        });
+        continue;
+      }
+      if (imageFiles.length + newItems.length >= 10) {
+        toast.add({
+          title: "Image Limit Reached",
+          description: "You can upload a maximum of 10 images per campaign.",
+          type: "error",
+        });
+        break;
+      }
+      newItems.push({
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        file,
+        preview: URL.createObjectURL(file),
+        name: file.name,
+        size: file.size,
+      });
+    }
+
+    if (newItems.length > 0) {
+      setImageFiles((prev) => [...prev, ...newItems]);
+    }
+    if (imageInputRef.current) imageInputRef.current.value = "";
+  };
+
+  const removeImage = (id) => {
+    setImageFiles((prev) => {
+      const target = prev.find((item) => item.id === id);
+      if (target?.preview) URL.revokeObjectURL(target.preview);
+      return prev.filter((item) => item.id !== id);
+    });
+  };
+
+  const handleVideoSelect = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const MAX_VID_SIZE = 7 * 1024 * 1024; // 7 MB
+    const newItems = [];
+
+    for (const file of files) {
+      if (file.size > MAX_VID_SIZE) {
+        toast.add({
+          title: "Video Exceeds 7 MB",
+          description: `"${file.name}" is larger than 7 MB limit.`,
+          type: "error",
+        });
+        continue;
+      }
+      if (videoFiles.length + newItems.length >= 5) {
+        toast.add({
+          title: "Video Limit Reached",
+          description: "You can upload a maximum of 5 videos per campaign.",
+          type: "error",
+        });
+        break;
+      }
+      newItems.push({
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        file,
+        preview: URL.createObjectURL(file),
+        name: file.name,
+        size: file.size,
+      });
+    }
+
+    if (newItems.length > 0) {
+      setVideoFiles((prev) => [...prev, ...newItems]);
+    }
+    if (videoInputRef.current) videoInputRef.current.value = "";
+  };
+
+  const removeVideo = (id) => {
+    setVideoFiles((prev) => {
+      const target = prev.find((item) => item.id === id);
+      if (target?.preview) URL.revokeObjectURL(target.preview);
+      return prev.filter((item) => item.id !== id);
+    });
+  };
+
+  const handleAudioSelect = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const MAX_AUD_SIZE = 7 * 1024 * 1024; // 7 MB
+    const newItems = [];
+
+    for (const file of files) {
+      if (file.size > MAX_AUD_SIZE) {
+        toast.add({
+          title: "Audio Exceeds 7 MB",
+          description: `"${file.name}" is larger than 7 MB limit.`,
+          type: "error",
+        });
+        continue;
+      }
+      if (audioFiles.length + newItems.length >= 5) {
+        toast.add({
+          title: "Audio Limit Reached",
+          description: "You can upload a maximum of 5 audio files per campaign.",
+          type: "error",
+        });
+        break;
+      }
+      newItems.push({
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        file,
+        preview: URL.createObjectURL(file),
+        name: file.name,
+        size: file.size,
+      });
+    }
+
+    if (newItems.length > 0) {
+      setAudioFiles((prev) => [...prev, ...newItems]);
+    }
+    if (audioInputRef.current) audioInputRef.current.value = "";
+  };
+
+  const removeAudio = (id) => {
+    setAudioFiles((prev) => {
+      const target = prev.find((item) => item.id === id);
+      if (target?.preview) URL.revokeObjectURL(target.preview);
+      return prev.filter((item) => item.id !== id);
+    });
+  };
+
   // Real-time phone numbers parsing and sanitization
   const { validRecipients, duplicatesCount, invalidCount } = useMemo(() => {
     if (!rawRecipients.trim()) {
@@ -157,6 +324,7 @@ export default function CreateCampaignPage() {
   const estimatedCost = totalRecipients; // 1 credit per contact
   const remainingBalance = currentBalance - estimatedCost;
   const hasInsufficientCredits = !isLocked && currentBalance < estimatedCost && totalRecipients > 0;
+  const totalMediaCount = imageFiles.length + videoFiles.length + audioFiles.length;
 
   // Handle CSV/TXT file upload
   const handleFileUpload = (e) => {
@@ -179,14 +347,15 @@ export default function CreateCampaignPage() {
       }
     };
     reader.readAsText(file);
-    // Reset file input
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   // Create Campaign Mutation
   const createCampaignMutation = useMutation({
     mutationFn: async (payload) => {
-      const res = await apiClient.post("/campaigns", payload);
+      const res = await apiClient.post("/campaigns", payload, {
+        headers: payload instanceof FormData ? { "Content-Type": "multipart/form-data" } : undefined,
+      });
       return res.data;
     },
     onSuccess: (data) => {
@@ -233,9 +402,10 @@ export default function CreateCampaignPage() {
       setFormError("Please provide a brief campaign description.");
       return;
     }
+
     const plainText = messageBody.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
-    if (!plainText) {
-      setFormError("Please compose the message body to be sent.");
+    if (!plainText && totalMediaCount === 0) {
+      setFormError("Please provide message content or attach media (images, video, audio).");
       return;
     }
     if (isOverWordLimit) {
@@ -255,16 +425,23 @@ export default function CreateCampaignPage() {
       return;
     }
 
-    const payload = {
-      campaignTitle: campaignTitle.trim(),
-      campaignDescription: campaignDescription.trim(),
-      messageBody: messageBody.trim(),
-      recipients: validRecipients,
-      schedule: scheduleType,
-      scheduledTime: scheduleType === "later" ? new Date(scheduledTime).toISOString() : undefined,
-    };
+    // Always use FormData to support media uploads seamlessly
+    const formData = new FormData();
+    formData.append("campaignTitle", campaignTitle.trim());
+    formData.append("campaignDescription", campaignDescription.trim());
+    formData.append("messageBody", messageBody.trim());
+    formData.append("recipients", JSON.stringify(validRecipients));
+    formData.append("schedule", scheduleType);
+    if (scheduleType === "later" && scheduledTime) {
+      formData.append("scheduledTime", new Date(scheduledTime).toISOString());
+    }
 
-    createCampaignMutation.mutate(payload);
+    // Append all selected media files
+    imageFiles.forEach((item) => formData.append("images", item.file));
+    videoFiles.forEach((item) => formData.append("video", item.file));
+    audioFiles.forEach((item) => formData.append("audio", item.file));
+
+    createCampaignMutation.mutate(formData);
   };
 
   return (
@@ -322,7 +499,7 @@ export default function CreateCampaignPage() {
             Create Campaign
           </h1>
           <p className="text-sm text-muted-foreground">
-            Configure your message, upload target audience, and dispatch your WhatsApp broadcast.
+            Configure your message, attach media files, upload target audience, and dispatch your broadcast.
           </p>
         </div>
 
@@ -497,7 +674,264 @@ export default function CreateCampaignPage() {
             </CardContent>
           </Card>
 
-          {/* Card 3: Audience & Recipients */}
+          {/* Card 3: Campaign Media (Distinct Upload Fields for Images, Video, Audio) */}
+          <Card className="rounded-xl border shadow-xs">
+            <CardHeader className="border-b pb-4">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <Film className="size-4.5 text-primary" />
+                    Campaign Media Attachments
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Upload multiple images, videos, and audio clips to broadcast to your recipients.
+                  </CardDescription>
+                </div>
+
+                {totalMediaCount > 0 && (
+                  <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
+                    {totalMediaCount} {totalMediaCount === 1 ? "file" : "files"} attached
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="pt-5 space-y-6">
+              {/* Field 1: Multiple Images */}
+              <div className="space-y-2.5 rounded-xl border p-4 bg-card">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="grid size-7 place-items-center rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      <ImageIcon className="size-4" />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-foreground">
+                        Images (Multiple allowed)
+                      </Label>
+                      <p className="text-[11px] text-muted-foreground">
+                        PNG, JPG, WebP, GIF &bull; Max 5 MB each &bull; Up to 10 images
+                      </p>
+                    </div>
+                  </div>
+
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    multiple
+                    onChange={handleImageSelect}
+                    className="hidden"
+                  />
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => imageInputRef.current?.click()}
+                    disabled={imageFiles.length >= 10}
+                    className="h-8 text-xs gap-1.5"
+                  >
+                    <Plus className="size-3.5" />
+                    Add Images ({imageFiles.length}/10)
+                  </Button>
+                </div>
+
+                {/* Images Preview Grid */}
+                {imageFiles.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3 pt-2">
+                    {imageFiles.map((item) => (
+                      <div
+                        key={item.id}
+                        className="group relative rounded-lg border bg-muted/30 overflow-hidden p-1.5 flex flex-col justify-between"
+                      >
+                        <div className="relative aspect-square w-full rounded-md overflow-hidden bg-black/5 dark:bg-white/5">
+                          <img
+                            src={item.preview}
+                            alt={item.name}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                        <div className="mt-1 flex items-center justify-between min-w-0">
+                          <span className="text-[10px] text-muted-foreground truncate max-w-[80px]" title={item.name}>
+                            {item.name}
+                          </span>
+                          <span className="text-[9px] text-muted-foreground/80 tabular-nums">
+                            {formatFileSize(item.size)}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeImage(item.id)}
+                          className="absolute top-2 right-2 grid size-5 place-items-center rounded-full bg-destructive text-destructive-foreground shadow-sm hover:scale-110 transition-transform cursor-pointer"
+                          title="Remove image"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Field 2: Multiple Videos */}
+              <div className="space-y-2.5 rounded-xl border p-4 bg-card">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="grid size-7 place-items-center rounded-md bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                      <VideoIcon className="size-4" />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-foreground">
+                        Videos (Multiple allowed)
+                      </Label>
+                      <p className="text-[11px] text-muted-foreground">
+                        MP4, MOV, WebM &bull; Max 7 MB each &bull; Up to 5 video clips
+                      </p>
+                    </div>
+                  </div>
+
+                  <input
+                    ref={videoInputRef}
+                    type="file"
+                    accept="video/mp4,video/quicktime,video/webm,video/3gpp"
+                    multiple
+                    onChange={handleVideoSelect}
+                    className="hidden"
+                  />
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => videoInputRef.current?.click()}
+                    disabled={videoFiles.length >= 5}
+                    className="h-8 text-xs gap-1.5"
+                  >
+                    <Plus className="size-3.5" />
+                    Add Video ({videoFiles.length}/5)
+                  </Button>
+                </div>
+
+                {/* Videos Preview List */}
+                {videoFiles.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    {videoFiles.map((item) => (
+                      <div
+                        key={item.id}
+                        className="relative rounded-lg border bg-muted/30 p-2.5 flex items-center justify-between gap-3 overflow-hidden"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                            <Film className="size-4.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-foreground truncate max-w-[180px]" title={item.name}>
+                              {item.name}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground tabular-nums">
+                              {formatFileSize(item.size)} &bull; Video Clip
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => removeVideo(item.id)}
+                          className="grid size-7 place-items-center rounded-md text-destructive hover:bg-destructive/10 transition-colors shrink-0 cursor-pointer"
+                          title="Remove video"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Field 3: Multiple Audio Recordings */}
+              <div className="space-y-2.5 rounded-xl border p-4 bg-card">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="grid size-7 place-items-center rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                      <Volume2 className="size-4" />
+                    </div>
+                    <div>
+                      <Label className="text-xs font-semibold text-foreground">
+                        Audio Files (Multiple allowed)
+                      </Label>
+                      <p className="text-[11px] text-muted-foreground">
+                        MP3, WAV, AAC, M4A, OGG &bull; Max 7 MB each &bull; Up to 5 audio clips
+                      </p>
+                    </div>
+                  </div>
+
+                  <input
+                    ref={audioInputRef}
+                    type="file"
+                    accept="audio/mpeg,audio/mp3,audio/wav,audio/aac,audio/m4a,audio/ogg"
+                    multiple
+                    onChange={handleAudioSelect}
+                    className="hidden"
+                  />
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => audioInputRef.current?.click()}
+                    disabled={audioFiles.length >= 5}
+                    className="h-8 text-xs gap-1.5"
+                  >
+                    <Plus className="size-3.5" />
+                    Add Audio ({audioFiles.length}/5)
+                  </Button>
+                </div>
+
+                {/* Audio Preview List */}
+                {audioFiles.length > 0 && (
+                  <div className="space-y-2 pt-2">
+                    {audioFiles.map((item) => (
+                      <div
+                        key={item.id}
+                        className="rounded-lg border bg-muted/30 p-2.5 flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                            <Music className="size-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-foreground truncate max-w-[150px] sm:max-w-[200px]" title={item.name}>
+                              {item.name}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground tabular-nums">
+                              {formatFileSize(item.size)} &bull; Audio Track
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <audio
+                            controls
+                            src={item.preview}
+                            className="h-7 w-44 sm:w-56"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeAudio(item.id)}
+                            className="grid size-7 place-items-center rounded-md text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                            title="Remove audio"
+                          >
+                            <Trash2 className="size-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Card 4: Audience & Recipients */}
           <Card className="rounded-xl border shadow-xs">
             <CardHeader className="border-b pb-4">
               <div className="flex items-center justify-between flex-wrap gap-2">
@@ -579,7 +1013,7 @@ export default function CreateCampaignPage() {
             </CardContent>
           </Card>
 
-          {/* Card 4: Execution Timing */}
+          {/* Card 5: Execution Timing */}
           <Card className="rounded-xl border shadow-xs">
             <CardHeader className="border-b pb-4">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -713,6 +1147,36 @@ export default function CreateCampaignPage() {
                   {number(remainingBalance)} Credits
                 </span>
               </div>
+
+              {/* Media Attachments Summary */}
+              {totalMediaCount > 0 && (
+                <div className="rounded-lg bg-muted/40 p-2.5 text-xs border border-border/60 space-y-1 mt-2">
+                  <p className="font-semibold text-foreground flex items-center justify-between">
+                    <span>Attached Media</span>
+                    <span className="tabular-nums text-primary">{totalMediaCount} files</span>
+                  </p>
+                  <div className="text-[11px] text-muted-foreground space-y-0.5">
+                    {imageFiles.length > 0 && (
+                      <p className="flex items-center justify-between">
+                        <span>Images:</span>
+                        <span className="font-medium text-foreground">{imageFiles.length}</span>
+                      </p>
+                    )}
+                    {videoFiles.length > 0 && (
+                      <p className="flex items-center justify-between">
+                        <span>Videos:</span>
+                        <span className="font-medium text-foreground">{videoFiles.length}</span>
+                      </p>
+                    )}
+                    {audioFiles.length > 0 && (
+                      <p className="flex items-center justify-between">
+                        <span>Audio Clips:</span>
+                        <span className="font-medium text-foreground">{audioFiles.length}</span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {hasInsufficientCredits && (
                 <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-xs font-semibold border border-destructive/20 mt-2">
