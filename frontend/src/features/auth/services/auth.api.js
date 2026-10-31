@@ -55,3 +55,9 @@ export async function logoutSession(sessionId) {
     const response = await apiClient.delete(`/auth/logout/${sessionId}`);
     return response.data;
 }
+
+export async function changePassword({ currentPassword, newPassword }) {
+    const response = await apiClient.post("/auth/change-password", { currentPassword, newPassword });
+    return response.data;
+}
+

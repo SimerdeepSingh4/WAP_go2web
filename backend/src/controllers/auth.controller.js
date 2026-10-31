@@ -411,6 +411,52 @@ export async function getActiveSessions(req, res) {
     }
 }
 
+export async function changePassword(req, res) {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({
+                message: "Current password and new password are required.",
+                success: false,
+            });
+        }
+
+        if (newPassword.length < 6) {
+            return res.status(400).json({
+                message: "New password must be at least 6 characters long.",
+                success: false,
+            });
+        }
+
+        const user = await userModel.findById(req.user._id).select("+password");
+        if (!user) {
+            return res.status(404).json({ message: "User not found.", success: false });
+        }
+
+        const isMatch = await user.comparePassword(currentPassword);
+        if (!isMatch) {
+            return res.status(400).json({
+                message: "Current password is incorrect.",
+                success: false,
+            });
+        }
+
+        user.password = await bcrypt.hash(newPassword, 10);
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Password changed successfully.",
+        });
+    } catch (error) {
+        console.error("Change password error:", error);
+        return res.status(500).json({
+            message: "Failed to change password.",
+            success: false,
+        });
+    }
+}
+
 export default {
     register,
     login,
@@ -419,4 +465,5 @@ export default {
     logoutSession,
     getMe,
     getActiveSessions,
+    changePassword,
 };

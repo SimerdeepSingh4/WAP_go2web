@@ -1,15 +1,18 @@
+import { useState } from "react";
 import { useSearchParams } from "react-router";
-import { MoreHorizontal, Eye, FileText } from "lucide-react";
+import { MoreHorizontal, Eye, FileText, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { PageHeading, SearchBox, FilterSelect, QueryState, DataTable, StatusBadge } from "@/features/admin/components/shared";
 import { useResellerQuery } from "../hooks/useReseller";
 import { number, dateTime, statusLabels, ownerName, needsReport, published, waiting } from "@/features/admin/lib/format";
 import CampaignDetail from "@/features/admin/components/CampaignDetail";
+import CreateCampaignDialog from "../components/CreateCampaignDialog";
 
 export default function ResellerCampaigns({ reports = false }) {
   const query = useResellerQuery("campaigns");
   const [params, setParams] = useSearchParams();
+  const [createOpen, setCreateOpen] = useState(false);
   const search = params.get("search") || "";
   const status = params.get("status") || "all";
   const selected = params.get("campaign");
@@ -30,9 +33,32 @@ export default function ResellerCampaigns({ reports = false }) {
     ...(!reports ? [{ key: "created", label: "Submitted", sort: (c) => new Date(c.createdAt).getTime(), render: (c) => <span className="text-xs text-muted-foreground">{dateTime(c.createdAt)}</span> }] : [{ key: "delivered", label: "Delivered", className: "text-right", render: (c) => published(c) ? number(c.campaignSummary.delivered) : "—" }]),
     { key: "actions", label: <span className="sr-only">Actions</span>, render: (c) => <DropdownMenu><DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Actions for ${c.campaignTitle}`} />}><MoreHorizontal /></DropdownMenuTrigger><DropdownMenuContent align="end" className="w-44"><DropdownMenuItem onClick={() => open(c)}><Eye />View campaign</DropdownMenuItem></DropdownMenuContent></DropdownMenu> },
   ];
-  return <><PageHeading title={reports ? "Reports" : "Campaigns"} description={reports ? "Review campaign performance reports from your users." : "Review campaign submissions from your users."} />
-    <div className="flex flex-wrap items-center justify-between gap-3"><SearchBox value={search} onChange={(value) => update("search", value)} label="Search campaigns or accounts" /><div className="flex flex-wrap items-center gap-2"><FilterSelect label="Filter campaigns" value={status} onChange={(value) => update("status", value)} options={reports ? [{ value: "all", label: "All reports" }, { value: "unreported", label: "Needs report" }, { value: "published", label: "Published" }] : [{ value: "all", label: "All statuses" }, ...Object.entries(statusLabels).filter(([key]) => !["sent", "active", "blocked"].includes(key)).map(([value, label]) => ({ value, label: value === "pending" ? "Awaiting execution" : label }))]} />{(search || status !== "all") && <Button variant="ghost" onClick={() => setParams({})}>Clear filters</Button>}</div></div>
-    <QueryState query={query} empty={!all.length} emptyTitle={reports ? "No campaign reports yet" : "No campaigns yet"} emptyDescription="Campaigns created by your users will appear here."><DataTable key={`${search}-${status}`} caption={reports ? "Campaign performance reports" : "Campaign list"} rows={rows} columns={columns} /></QueryState>
-    {selected && <CampaignDetail key={selected} id={selected} initialReport={params.get("editReport") === "1"} onClose={() => { setParams((current) => { const next = new URLSearchParams(current); next.delete("campaign"); next.delete("editReport"); return next; }); }} />}
-  </>;
+  return (
+    <>
+      <PageHeading
+        title={reports ? "Reports" : "Campaigns"}
+        description={reports ? "Review campaign performance reports from your users." : "Review and manage campaign submissions from your account."}
+        action={
+          !reports && (
+            <Button onClick={() => setCreateOpen(true)} className="gap-1.5">
+              <Plus className="size-4" />
+              Create Campaign
+            </Button>
+          )
+        }
+      />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <SearchBox value={search} onChange={(value) => update("search", value)} label="Search campaigns or accounts" />
+        <div className="flex flex-wrap items-center gap-2">
+          <FilterSelect label="Filter campaigns" value={status} onChange={(value) => update("status", value)} options={reports ? [{ value: "all", label: "All reports" }, { value: "unreported", label: "Needs report" }, { value: "published", label: "Published" }] : [{ value: "all", label: "All statuses" }, ...Object.entries(statusLabels).filter(([key]) => !["sent", "active", "blocked"].includes(key)).map(([value, label]) => ({ value, label: value === "pending" ? "Awaiting execution" : label }))]} />
+          {(search || status !== "all") && <Button variant="ghost" onClick={() => setParams({})}>Clear filters</Button>}
+        </div>
+      </div>
+      <QueryState query={query} empty={!all.length} emptyTitle={reports ? "No campaign reports yet" : "No campaigns yet"} emptyDescription="Campaigns created by you or your users will appear here.">
+        <DataTable key={`${search}-${status}`} caption={reports ? "Campaign performance reports" : "Campaign list"} rows={rows} columns={columns} />
+      </QueryState>
+      {selected && <CampaignDetail key={selected} id={selected} initialReport={params.get("editReport") === "1"} onClose={() => { setParams((current) => { const next = new URLSearchParams(current); next.delete("campaign"); next.delete("editReport"); return next; }); }} />}
+      <CreateCampaignDialog open={createOpen} onOpenChange={setCreateOpen} />
+    </>
+  );
 }

@@ -3,9 +3,6 @@ import WheelPicker from "@/components/ui/wheel-picker";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Clock } from "lucide-react";
@@ -63,14 +60,13 @@ export default function OperatingTimePicker({ id, label, value, onChange, invali
         <Clock className="size-4 text-muted-foreground" />
       </button>
 
-      {/* Wheel Picker Modal Dialog */}
+      {/* Minimal Wheel Picker Modal (no headers, no subtitles, no extra preview cards) */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[270px] p-4">
-          <DialogHeader className="p-0">
-            <DialogTitle className="text-sm font-semibold text-center">{label}</DialogTitle>
-          </DialogHeader>
-
-          <div className="flex justify-center py-2">
+        <DialogContent
+          showCloseButton={false}
+          className="w-auto sm:max-w-none p-3.5 gap-3 rounded-2xl bg-card border border-border shadow-xl inline-block"
+        >
+          <div className="flex justify-center">
             <WheelPicker
               id={`${id}-modal-wheel`}
               label={label}
@@ -81,14 +77,25 @@ export default function OperatingTimePicker({ id, label, value, onChange, invali
             />
           </div>
 
-          <DialogFooter className="flex flex-row items-center justify-end gap-2 p-0 pt-2 border-t">
-            <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setOpen(false)}
+              className="h-8 px-3 text-xs"
+            >
               Cancel
             </Button>
-            <Button type="button" size="sm" onClick={handleConfirm}>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleConfirm}
+              className="h-8 px-3 text-xs font-semibold"
+            >
               Set Time
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

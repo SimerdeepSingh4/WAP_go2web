@@ -1,5 +1,6 @@
 // src/features/reseller/pages/Overview.jsx
-import { FileText, Megaphone, RefreshCw, Users, Wallet, Lock, Coins } from "lucide-react";
+import { useState } from "react";
+import { FileText, Megaphone, RefreshCw, Users, Wallet, Lock, Coins, Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useResellerQuery } from "../hooks/useReseller";
@@ -7,6 +8,7 @@ import { PageHeading, QueryState } from "@/features/admin/components/shared";
 import { number } from "@/features/admin/lib/format";
 import { CampaignCharts } from "@/features/admin/components/OverviewCharts";
 import { toast } from "@/components/ui/toast";
+import CreateCampaignDialog from "../components/CreateCampaignDialog";
 
 export default function Overview() {
   const overview = useResellerQuery("overview");
@@ -17,6 +19,7 @@ export default function Overview() {
   const accounts = accountsQuery.data?.users || [];
   const users = accounts.filter((a) => a.role === "User");
   const stats = overview.data?.stats;
+  const [createOpen, setCreateOpen] = useState(false);
   const updated = overview.dataUpdatedAt
     ? new Intl.DateTimeFormat("en-IN", {
         timeZone: "Asia/Kolkata",
@@ -42,14 +45,23 @@ export default function Overview() {
         title="Overview"
         description="Your users, campaigns, credits, and work that needs attention."
         action={
-          <Button
-            variant="outline"
-            onClick={refresh}
-            disabled={overview.isFetching || campaignsQuery.isFetching || accountsQuery.isFetching}
-          >
-            <RefreshCw className={overview.isFetching ? "animate-spin" : ""} />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setCreateOpen(true)}
+              className="gap-1.5"
+            >
+              <Plus className="size-4" />
+              Create Campaign
+            </Button>
+            <Button
+              variant="outline"
+              onClick={refresh}
+              disabled={overview.isFetching || campaignsQuery.isFetching || accountsQuery.isFetching}
+            >
+              <RefreshCw className={overview.isFetching ? "animate-spin" : ""} />
+              Refresh
+            </Button>
+          </div>
         }
       />
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
@@ -94,6 +106,7 @@ export default function Overview() {
         <CampaignCharts campaigns={campaigns} />
       </QueryState>
       {updated && <p className="text-xs text-muted-foreground">Last refreshed {updated}</p>}
+      <CreateCampaignDialog open={createOpen} onOpenChange={setCreateOpen} />
     </>
   );
 }

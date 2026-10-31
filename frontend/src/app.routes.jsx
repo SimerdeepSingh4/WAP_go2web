@@ -8,6 +8,7 @@ import ResellerLayout from "./features/reseller/components/ResellerLayout.jsx";
 import ResellerUsers from "./features/reseller/pages/Users.jsx";
 import ResellerCredits from "./features/reseller/pages/Credits.jsx";
 import ResellerCampaigns from "./features/reseller/pages/Campaigns.jsx";
+import ResellerSettings from "./features/reseller/pages/Settings.jsx";
 import PreviewBanner from "./components/PreviewBanner.jsx";
 
 import { lazy, Suspense } from "react";
@@ -191,7 +192,7 @@ export const router = createBrowserRouter([
         { path: "users", element: <ResellerUsers /> },
         { path: "credits", element: <ResellerCredits key="credits" /> },
         { path: "activity", element: <ResellerCredits key="activity" activity /> },
-        { path: "settings", element: <AdminOperatingRules /> },
+        { path: "settings", element: <ResellerSettings /> },
       ],
     },
   {

@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet, useLocation } from "react-router";
-import { LayoutDashboard, Megaphone, Users, Building2, Wallet, ReceiptText, SlidersHorizontal, LogOut, ChevronDown, MessageSquare, ArrowUpRight, Lock } from "lucide-react";
+import { LayoutDashboard, Megaphone, Users, Building2, Wallet, ReceiptText, Settings, LogOut, ChevronDown, MessageSquare, ArrowUpRight, Lock } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useResellerQuery } from "../hooks/useReseller";
 import { number } from "@/features/admin/lib/format";
@@ -20,7 +20,7 @@ const navigation = [
   { title: "Users", path: "/reseller/users", icon: Users },
   { title: "Credits", path: "/reseller/credits", icon: Wallet },
   { title: "Activity", path: "/reseller/activity", icon: ReceiptText },
-  { title: "Limits & hours", path: "/reseller/settings", icon: SlidersHorizontal },
+  { title: "Settings", path: "/reseller/settings", icon: Settings },
 ];
 
 function Navigation() {
