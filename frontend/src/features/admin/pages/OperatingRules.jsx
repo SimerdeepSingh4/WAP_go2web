@@ -1,31 +1,25 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Laptop,
   Smartphone,
   Clock,
   Sliders,
-  Shield,
-  Cpu,
-  Zap,
   RotateCcw,
   Save,
   Coins,
-  Bell,
   CheckCircle2,
   AlertTriangle,
-  Server,
-  Layers,
-  KeyRound,
-  Trash2,
+  LogOut,
+  ShieldAlert,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
-import { PageHeading, Field } from "../components/shared";
+import { PageHeading } from "../components/shared";
 import OperatingTimePicker from "../components/OperatingTimePicker";
-import { formatOperatingTime, validateOperatingWindow } from "../lib/operatingTime";
+import { validateOperatingWindow } from "../lib/operatingTime";
 
 const DEFAULT_SETTINGS = {
   // Campaign & Hours
@@ -33,24 +27,16 @@ const DEFAULT_SETTINGS = {
   maxRecipientsPerCampaign: 50000,
   startTime: "09:00",
   endTime: "19:00",
-  timezone: "Asia/Kolkata",
   outOfWindowBehavior: "queue", // 'queue' | 'reject'
 
-  // Device & Session Management
+  // Device Management
   maxAllowedDevices: 3,
-  deviceEvictionStrategy: "fifo", // 'fifo' (evict oldest) | 'block' (reject 4th)
-  sessionTimeout: "7d",
-  forceMfaOnAdmins: false,
+  deviceEvictionStrategy: "fifo", // 'fifo' (log out oldest) | 'block' (block new login)
 
-  // Queue & Engine (BullMQ)
-  batchSize: 25,
-  throttleDelayMs: 120,
-  workerConcurrency: 5,
-  autoRefundEnabled: true,
-
-  // Credit & Billing Defaults
+  // Credits & Rates
   defaultRatePerMsg: 1.0,
   lowBalanceThreshold: 500,
+  autoRefundEnabled: true,
   strictOverdraftProtection: true,
 };
 
@@ -76,7 +62,7 @@ export default function OperatingRules() {
   const handleSave = () => {
     if (error) {
       toast.add({
-        title: "Invalid Operating Window",
+        title: "Check Sending Hours",
         description: error,
         type: "error",
       });
@@ -84,8 +70,8 @@ export default function OperatingRules() {
     }
     localStorage.setItem("admin_platform_settings", JSON.stringify(settings));
     toast.add({
-      title: "Settings Saved Successfully",
-      description: "Platform limits, device security rules, and engine parameters have been updated.",
+      title: "Settings Saved",
+      description: "Platform limits and preferences have been updated.",
       type: "success",
     });
   };
@@ -95,23 +81,22 @@ export default function OperatingRules() {
     setResetKey((prev) => prev + 1);
     localStorage.removeItem("admin_platform_settings");
     toast.add({
-      title: "Settings Restored to Defaults",
+      title: "Settings Reset to Defaults",
       type: "info",
     });
   };
 
   const tabs = [
-    { id: "campaigns", label: "Campaign & Hours", icon: Clock },
-    { id: "devices", label: "Device & Sessions", icon: Smartphone },
-    { id: "queue", label: "Sending Queue", icon: Cpu },
-    { id: "billing", label: "Credits & Pricing", icon: Coins },
+    { id: "campaigns", label: "Campaigns & Hours", icon: Clock },
+    { id: "devices", label: "Device Logins", icon: Smartphone },
+    { id: "billing", label: "Credits & Rates", icon: Coins },
   ];
 
   return (
     <>
       <PageHeading
         title="Settings"
-        description="Configure campaign limits, device logins, sending queue, and credit pricing."
+        description="Set daily campaign allowances, working hours, allowed devices, and default credit rates."
         action={
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" onClick={handleReset} className="gap-1.5 text-xs">
@@ -126,7 +111,7 @@ export default function OperatingRules() {
         }
       />
 
-      {/* Navigation Pills Bar */}
+      {/* Navigation Tabs Bar */}
       <div className="flex flex-wrap items-center gap-1.5 border-b pb-3">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -148,41 +133,41 @@ export default function OperatingRules() {
         })}
       </div>
 
-      {/* TAB 1: CAMPAIGN LIMITS & OPERATING HOURS */}
+      {/* TAB 1: CAMPAIGN LIMITS & WORKING HOURS */}
       {activeTab === "campaigns" && (
         <div className="space-y-5 max-w-3xl">
           <Card className="rounded-lg shadow-none">
             <CardHeader className="border-b pb-4">
               <div className="flex items-center gap-2">
                 <Sliders className="size-4.5 text-primary" />
-                <CardTitle className="text-base">Campaign Allowance & Rate Limits</CardTitle>
+                <CardTitle className="text-base">Campaign Limits</CardTitle>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Protect outbound WhatsApp channels against spam detection by controlling account campaign volumes.
+                Control campaign volume to protect messaging numbers and manage server capacity.
               </p>
             </CardHeader>
             <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="daily-limit" className="text-xs font-semibold">
-                  Daily Campaign Limit per Account
+                  Daily Campaigns per Account
                 </Label>
                 <Input
                   id="daily-limit"
                   type="number"
                   min="1"
-                  max="1000"
+                  max="500"
                   value={settings.dailyCampaignLimit}
                   onChange={(e) => updateSetting("dailyCampaignLimit", Number(e.target.value) || 1)}
                   className="h-9"
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  Maximum number of distinct campaigns each reseller/user may launch per calendar day.
+                  Maximum campaigns a single user or reseller can create per day.
                 </p>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="max-recipients" className="text-xs font-semibold">
-                  Max Recipients per Campaign
+                  Maximum Contacts per Campaign
                 </Label>
                 <Input
                   id="max-recipients"
@@ -194,7 +179,7 @@ export default function OperatingRules() {
                   className="h-9"
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  Bulk CSV or audience import cap enforced during campaign creation.
+                  Maximum phone numbers allowed in one uploaded contact list.
                 </p>
               </div>
             </CardContent>
@@ -204,24 +189,24 @@ export default function OperatingRules() {
             <CardHeader className="border-b pb-4">
               <div className="flex items-center gap-2">
                 <Clock className="size-4.5 text-primary" />
-                <CardTitle className="text-base">Allowed Execution Window (IST)</CardTitle>
+                <CardTitle className="text-base">Sending Window (Working Hours)</CardTitle>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Only dispatch messages during daytime business hours to comply with regulatory standards.
+                Choose the hours of the day when campaigns can be sent out to recipients.
               </p>
             </CardHeader>
             <CardContent className="space-y-5 pt-5">
               <div key={resetKey} className="grid gap-6 sm:grid-cols-2">
                 <OperatingTimePicker
                   id="start-time"
-                  label="Window Start Time"
+                  label="Start Time"
                   value={settings.startTime}
                   onChange={(value) => updateSetting("startTime", value)}
                   invalid={Boolean(error)}
                 />
                 <OperatingTimePicker
                   id="end-time"
-                  label="Window End Time"
+                  label="End Time"
                   value={settings.endTime}
                   onChange={(value) => updateSetting("endTime", value)}
                   invalid={Boolean(error)}
@@ -235,7 +220,7 @@ export default function OperatingRules() {
               )}
 
               <div className="border-t pt-4 space-y-3">
-                <Label className="text-xs font-semibold">Out-of-Window Submission Handling</Label>
+                <Label className="text-xs font-semibold">What to do outside working hours?</Label>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <button
                     type="button"
@@ -252,9 +237,9 @@ export default function OperatingRules() {
                       }`}
                     />
                     <div>
-                      <p className="text-xs font-semibold text-foreground">Hold in Queue (Recommended)</p>
+                      <p className="text-xs font-semibold text-foreground">Hold in Pending (Recommended)</p>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Campaign is scheduled and held in BullMQ until the next morning window opens.
+                        Campaign is saved and held until the next morning window opens.
                       </p>
                     </div>
                   </button>
@@ -274,9 +259,9 @@ export default function OperatingRules() {
                       }`}
                     />
                     <div>
-                      <p className="text-xs font-semibold text-foreground">Reject Immediately</p>
+                      <p className="text-xs font-semibold text-foreground">Do Not Allow</p>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Blocks submissions outside operational hours and alerts user to submit later.
+                        Show a message asking users to come back during working hours.
                       </p>
                     </div>
                   </button>
@@ -287,27 +272,27 @@ export default function OperatingRules() {
         </div>
       )}
 
-      {/* TAB 2: DEVICE HANDLING & SESSION SECURITY */}
+      {/* TAB 2: DEVICE HANDLING */}
       {activeTab === "devices" && (
         <div className="space-y-5 max-w-3xl">
           <Card className="rounded-lg shadow-none">
             <CardHeader className="border-b pb-4">
               <div className="flex items-center gap-2">
                 <Laptop className="size-4.5 text-primary" />
-                <CardTitle className="text-base">Device Concurrency & Limits</CardTitle>
+                <CardTitle className="text-base">Allowed Devices per Account</CardTitle>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Prevent credential sharing and account reselling abuse by capping simultaneous active devices.
+                Limit how many phones or computers can be signed into the same account at the same time.
               </p>
             </CardHeader>
             <CardContent className="space-y-5 pt-5">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="device-limit" className="text-xs font-semibold">
-                    Maximum Allowed Devices per Account
+                    Maximum Devices Allowed
                   </Label>
                   <span className="text-xs font-bold text-primary tabular-nums">
-                    {settings.maxAllowedDevices} Devices
+                    {settings.maxAllowedDevices} {settings.maxAllowedDevices === 1 ? "Device" : "Devices"}
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
@@ -327,12 +312,12 @@ export default function OperatingRules() {
                   ))}
                 </div>
                 <p className="text-[11px] text-muted-foreground">
-                  Default: 3 devices (e.g. Work PC, Mobile Phone, Home Laptop).
+                  Standard setting is 2 or 3 devices (for example: work computer and personal phone).
                 </p>
               </div>
 
               <div className="border-t pt-4 space-y-3">
-                <Label className="text-xs font-semibold">Eviction Strategy (When Limit is Exceeded)</Label>
+                <Label className="text-xs font-semibold">When device limit is reached:</Label>
                 <div className="grid gap-2 sm:grid-cols-2">
                   <button
                     type="button"
@@ -349,9 +334,9 @@ export default function OperatingRules() {
                       }`}
                     />
                     <div>
-                      <p className="text-xs font-semibold text-foreground">FIFO Auto-Eviction (Live WS)</p>
+                      <p className="text-xs font-semibold text-foreground">Log out oldest device (Recommended)</p>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Immediately disconnects the oldest session via Socket.IO <code>SESSION_EXPIRED</code>.
+                        New device logs in smoothly and the oldest device is signed out.
                       </p>
                     </div>
                   </button>
@@ -365,54 +350,45 @@ export default function OperatingRules() {
                         : "border-border bg-card text-muted-foreground hover:bg-muted/40"
                     }`}
                   >
-                    <Shield
+                    <AlertTriangle
                       className={`size-4 mt-0.5 shrink-0 ${
-                        settings.deviceEvictionStrategy === "block" ? "text-primary" : "text-muted-foreground"
+                        settings.deviceEvictionStrategy === "block" ? "text-amber-600" : "text-muted-foreground"
                       }`}
                     />
                     <div>
-                      <p className="text-xs font-semibold text-foreground">Strict Login Block</p>
+                      <p className="text-xs font-semibold text-foreground">Block new login</p>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Rejects the new login attempt until the user manually logs out of an existing device.
+                        Ask the user to first log out from an existing device before signing in.
                       </p>
                     </div>
                   </button>
                 </div>
               </div>
 
-              <div className="border-t pt-4 grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="session-timeout" className="text-xs font-semibold">
-                    JWT Session Token Lifespan
-                  </Label>
-                  <select
-                    id="session-timeout"
-                    value={settings.sessionTimeout}
-                    onChange={(e) => updateSetting("sessionTimeout", e.target.value)}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium outline-none focus:border-primary"
-                  >
-                    <option value="24h">24 Hours (High Security)</option>
-                    <option value="7d">7 Days (Standard Business)</option>
-                    <option value="30d">30 Days (Extended)</option>
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-xs font-semibold">Emergency Session Action</Label>
+              <div className="border-t pt-4 space-y-2">
+                <Label className="text-xs font-semibold">Security Action</Label>
+                <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-lg border bg-muted/20">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-semibold text-foreground">Log Out All Accounts</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Force all signed-in users and resellers to sign in again with their password.
+                    </p>
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
-                    className="w-full text-xs text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
+                    size="sm"
+                    className="text-xs text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30 gap-1.5"
                     onClick={() => {
                       toast.add({
-                        title: "All Stale Sessions Invalidated",
-                        description: "Global session revocation broadcast sent to Redis store.",
+                        title: "Sessions Cleared",
+                        description: "All accounts will be prompted to log in again.",
                         type: "success",
                       });
                     }}
                   >
-                    <Trash2 className="size-3.5 mr-1" />
-                    Force Invalidate Stale Sessions
+                    <LogOut className="size-3.5" />
+                    Log Out Everyone
                   </Button>
                 </div>
               </div>
@@ -421,154 +397,87 @@ export default function OperatingRules() {
         </div>
       )}
 
-      {/* TAB 3: BULLMQ WORKER & QUEUE ENGINE */}
-      {activeTab === "queue" && (
-        <div className="space-y-5 max-w-3xl">
-          <Card className="rounded-lg shadow-none">
-            <CardHeader className="border-b pb-4">
-              <div className="flex items-center gap-2">
-                <Cpu className="size-4.5 text-primary" />
-                <CardTitle className="text-base">BullMQ Worker Engine Tuning</CardTitle>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Parameters controlling Redis queue <code>campaign-dispatch-queue</code> and worker concurrency.
-              </p>
-            </CardHeader>
-            <CardContent className="grid gap-5 pt-5 sm:grid-cols-3">
-              <div className="space-y-2">
-                <Label htmlFor="batch-size" className="text-xs font-semibold flex items-center gap-1.5">
-                  <Zap className="size-3 text-amber-500" />
-                  Batch Dispatch Size
-                </Label>
-                <Input
-                  id="batch-size"
-                  type="number"
-                  min="5"
-                  max="100"
-                  value={settings.batchSize}
-                  onChange={(e) => updateSetting("batchSize", Number(e.target.value) || 25)}
-                  className="h-9"
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Recipients per batch (Default: 25).
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="throttle-delay" className="text-xs font-semibold flex items-center gap-1.5">
-                  <Clock className="size-3 text-blue-500" />
-                  Throttle Delay (ms)
-                </Label>
-                <Input
-                  id="throttle-delay"
-                  type="number"
-                  min="50"
-                  max="2000"
-                  step="10"
-                  value={settings.throttleDelayMs}
-                  onChange={(e) => updateSetting("throttleDelayMs", Number(e.target.value) || 120)}
-                  className="h-9"
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Delay between batch dispatches to prevent rate-limiting.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="worker-concurrency" className="text-xs font-semibold flex items-center gap-1.5">
-                  <Server className="size-3 text-emerald-500" />
-                  Worker Concurrency
-                </Label>
-                <Input
-                  id="worker-concurrency"
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={settings.workerConcurrency}
-                  onChange={(e) => updateSetting("workerConcurrency", Number(e.target.value) || 5)}
-                  className="h-9"
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Simultaneous parallel jobs handled by the background process.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-lg shadow-none">
-            <CardHeader className="border-b pb-4">
-              <div className="flex items-center gap-2">
-                <Shield className="size-4.5 text-emerald-600" />
-                <CardTitle className="text-base">Guaranteed Delivery & Failure Policy</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-4 space-y-4">
-              <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/20">
-                <div className="space-y-0.5">
-                  <p className="text-xs font-semibold text-foreground">Auto-Refund Failed Messages</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    Automatically refund credits back to the user when phone numbers are invalid or delivery fails.
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={settings.autoRefundEnabled}
-                  onChange={(e) => updateSetting("autoRefundEnabled", e.target.checked)}
-                  className="size-4 accent-primary rounded cursor-pointer"
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* TAB 4: CREDITS & BILLING DEFAULTS */}
+      {/* TAB 3: CREDITS & RATES */}
       {activeTab === "billing" && (
         <div className="space-y-5 max-w-3xl">
           <Card className="rounded-lg shadow-none">
             <CardHeader className="border-b pb-4">
               <div className="flex items-center gap-2">
                 <Coins className="size-4.5 text-primary" />
-                <CardTitle className="text-base">Default Credit Rates & Alerts</CardTitle>
+                <CardTitle className="text-base">Default Rates & Balance Rules</CardTitle>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Set default credit rates for new accounts.
+                Set standard pricing and balance safety rules for accounts.
               </p>
             </CardHeader>
-            <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="default-rate" className="text-xs font-semibold">
-                  Default Rate (Credits per Recipient)
-                </Label>
-                <Input
-                  id="default-rate"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={settings.defaultRatePerMsg}
-                  onChange={(e) => updateSetting("defaultRatePerMsg", Number(e.target.value) || 1)}
-                  className="h-9"
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Applied automatically to newly created reseller or user accounts.
-                </p>
+            <CardContent className="space-y-5 pt-5">
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="default-rate" className="text-xs font-semibold">
+                    Default Rate (Credits per Message)
+                  </Label>
+                  <Input
+                    id="default-rate"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={settings.defaultRatePerMsg}
+                    onChange={(e) => updateSetting("defaultRatePerMsg", Number(e.target.value) || 1)}
+                    className="h-9"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    New accounts will automatically be set to this rate (you can still edit per account).
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="low-balance" className="text-xs font-semibold">
+                    Low Balance Warning Level
+                  </Label>
+                  <Input
+                    id="low-balance"
+                    type="number"
+                    min="0"
+                    value={settings.lowBalanceThreshold}
+                    onChange={(e) => updateSetting("lowBalanceThreshold", Number(e.target.value) || 0)}
+                    className="h-9"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Show a warning when an account has fewer than this many credits left.
+                  </p>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="low-balance" className="text-xs font-semibold">
-                  Low Balance Alert Threshold
-                </Label>
-                <Input
-                  id="low-balance"
-                  type="number"
-                  min="0"
-                  value={settings.lowBalanceThreshold}
-                  onChange={(e) => updateSetting("lowBalanceThreshold", Number(e.target.value) || 0)}
-                  className="h-9"
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Triggers dashboard warning badge when client wallet balance falls below this number.
-                </p>
+              <div className="border-t pt-4 space-y-3">
+                <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/20">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-semibold text-foreground">Auto-Refund Failed Messages</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Automatically return credits back to the user if a phone number is wrong or delivery fails.
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.autoRefundEnabled}
+                    onChange={(e) => updateSetting("autoRefundEnabled", e.target.checked)}
+                    className="size-4 accent-primary rounded cursor-pointer"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/20">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-semibold text-foreground">Stop Sending on Zero Balance</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Do not allow launching new campaigns if the account does not have enough credits.
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.strictOverdraftProtection}
+                    onChange={(e) => updateSetting("strictOverdraftProtection", e.target.checked)}
+                    className="size-4 accent-primary rounded cursor-pointer"
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
