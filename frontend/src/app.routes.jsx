@@ -12,6 +12,7 @@ import AdminAccess from "./features/admin/components/AdminAccess.jsx";
 const AdminLayout = lazy(() => import("./features/admin/components/AdminLayout.jsx"));
 const AdminOverview = lazy(() => import("./features/admin/pages/Overview.jsx"));
 const AdminCampaigns = lazy(() => import("./features/admin/pages/Campaigns.jsx"));
+const AdminContacts = lazy(() => import("./features/admin/pages/Contacts.jsx"));
 const AdminAccounts = lazy(() => import("./features/admin/pages/Accounts.jsx"));
 const AdminCredits = lazy(() => import("./features/admin/pages/Credits.jsx"));
 const AdminOperatingRules = lazy(() => import("./features/admin/pages/OperatingRules.jsx"));
@@ -162,6 +163,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <AdminOverview /> },
       { path: "campaigns", element: <AdminCampaigns /> },
+      { path: "contacts", element: <AdminContacts /> },
       { path: "reports", element: <AdminCampaigns reports /> },
       { path: "resellers", element: <AdminAccounts key="resellers" role="Reseller" /> },
       { path: "users", element: <AdminAccounts key="users" role="User" /> },
