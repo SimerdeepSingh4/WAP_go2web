@@ -341,16 +341,12 @@ export default function Credits({ activity = false }) {
             { key: "amount", label: "Credits to add", required: true, type: "number", min: 0.01, step: 0.01 },
             {
               key: "expiryYears",
-              label: "Credit Validity / Expiry",
+              label: "Credit Validity in Years (Type e.g. 2, or 0 for Never)",
               required: true,
-              options: [
-                { value: "2", label: "2 Years Validity (Default)" },
-                { value: "1", label: "1 Year Validity" },
-                { value: "3", label: "3 Years Validity" },
-                { value: "5", label: "5 Years Validity" },
-                { value: "0.5", label: "6 Months Validity" },
-                { value: "0", label: "Never Expires" },
-              ],
+              type: "number",
+              min: 0,
+              step: "any",
+              hint: "Type validity in years (e.g. 2 for 2 years, 0.5 for 6 months, 0 for never expires).",
             },
             { key: "notes", label: "Note (Optional)", type: "textarea", maxLength: 500 },
           ]}

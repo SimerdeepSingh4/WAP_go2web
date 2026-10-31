@@ -74,6 +74,8 @@ const DEFAULT_SETTINGS = {
   // Credits & Rates
   defaultRatePerMsg: 1.0,
   lowBalanceThreshold: 500,
+  creditExpiryValue: 2,
+  creditExpiryUnit: "years",
   creditExpiryYears: "2",
   autoRefundEnabled: true,
   strictOverdraftProtection: true,
@@ -654,24 +656,103 @@ export default function OperatingRules() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="credit-expiry" className="text-xs font-semibold">
-                  Default Credit Expiry Period
-                </Label>
-                <select
-                  id="credit-expiry"
-                  value={settings.creditExpiryYears}
-                  onChange={(e) => updateSetting("creditExpiryYears", e.target.value)}
-                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-xs font-medium shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                >
-                  <option value="2">2 Years (Standard default)</option>
-                  <option value="1">1 Year</option>
-                  <option value="3">3 Years</option>
-                  <option value="5">5 Years</option>
-                  <option value="0.5">6 Months</option>
-                  <option value="0">Never (No Expiry)</option>
-                </select>
-                <p className="text-[11px] text-muted-foreground">
-                  Credits bought or allocated expire after this time. After expiry, balance remains visible but turns red and locked from being used.
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="credit-expiry-value" className="text-xs font-semibold">
+                    Default Credit Expiry
+                  </Label>
+                  <span className="text-xs font-bold text-primary">
+                    {settings.creditExpiryUnit === "never" || Number(settings.creditExpiryValue) === 0
+                      ? "Never Expires"
+                      : `${settings.creditExpiryValue} ${
+                          settings.creditExpiryUnit === "years"
+                            ? Number(settings.creditExpiryValue) === 1 ? "Year" : "Years"
+                            : settings.creditExpiryUnit === "months"
+                            ? Number(settings.creditExpiryValue) === 1 ? "Month" : "Months"
+                            : Number(settings.creditExpiryValue) === 1 ? "Day" : "Days"
+                        }`}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="credit-expiry-value"
+                    type="number"
+                    min="0"
+                    step="any"
+                    disabled={settings.creditExpiryUnit === "never"}
+                    value={settings.creditExpiryUnit === "never" ? "" : settings.creditExpiryValue ?? ""}
+                    onChange={(e) => {
+                      const val = e.target.value === "" ? "" : Number(e.target.value);
+                      updateSetting("creditExpiryValue", val);
+                      const num = Number(val) || 0;
+                      const factor =
+                        settings.creditExpiryUnit === "months" ? 1 / 12 :
+                        settings.creditExpiryUnit === "days" ? 1 / 365.25 : 1;
+                      updateSetting("creditExpiryYears", String(num * factor));
+                    }}
+                    placeholder={settings.creditExpiryUnit === "never" ? "No expiry" : "Type expiry number (e.g. 2)"}
+                    className="h-9 flex-1"
+                  />
+
+                  <select
+                    value={settings.creditExpiryUnit || "years"}
+                    onChange={(e) => {
+                      const unit = e.target.value;
+                      updateSetting("creditExpiryUnit", unit);
+                      const num = Number(settings.creditExpiryValue) || 0;
+                      if (unit === "never") {
+                        updateSetting("creditExpiryYears", "0");
+                      } else {
+                        const factor =
+                          unit === "months" ? 1 / 12 :
+                          unit === "days" ? 1 / 365.25 : 1;
+                        updateSetting("creditExpiryYears", String(num * factor));
+                      }
+                    }}
+                    className="flex h-9 w-28 rounded-md border border-input bg-background px-2.5 py-1 text-xs font-semibold shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="years">Years</option>
+                    <option value="months">Months</option>
+                    <option value="days">Days</option>
+                    <option value="never">Never</option>
+                  </select>
+                </div>
+
+                {/* Quick Preset Buttons */}
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                  {[
+                    { label: "6 Months", val: 6, unit: "months", yr: "0.5" },
+                    { label: "1 Year", val: 1, unit: "years", yr: "1" },
+                    { label: "2 Years", val: 2, unit: "years", yr: "2" },
+                    { label: "3 Years", val: 3, unit: "years", yr: "3" },
+                    { label: "Never", val: 0, unit: "never", yr: "0" },
+                  ].map((p) => {
+                    const isSelected =
+                      (p.unit === "never" && (settings.creditExpiryUnit === "never" || Number(settings.creditExpiryValue) === 0)) ||
+                      (settings.creditExpiryUnit === p.unit && Number(settings.creditExpiryValue) === p.val);
+                    return (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => {
+                          updateSetting("creditExpiryValue", p.val);
+                          updateSetting("creditExpiryUnit", p.unit);
+                          updateSetting("creditExpiryYears", p.yr);
+                        }}
+                        className={`rounded-md border px-2 py-0.5 text-[11px] font-medium transition-colors cursor-pointer ${
+                          isSelected
+                            ? "border-primary bg-primary text-primary-foreground font-semibold"
+                            : "border-border bg-card text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Type any number above or click a preset. Once expired, balance remains visible but turns red and locked.
                 </p>
               </div>
 
