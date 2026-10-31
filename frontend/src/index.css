@@ -97,84 +97,84 @@
 
 :root {
   /* ==========================================================================
-     Centralized Palette: Combination 73 (Calm blue)
+     Centralized Palette: Combination 70 (Urban loft)
      Edit these 4 core values to instantly update the entire website theme:
      ========================================================================== */
-  --palette-light-blue: #90D5FF;   /* Light blue (muted surfaces, hover tints, soft borders) */
-  --palette-off-white: #EEF6FF;    /* Off-white tinted (clean canvas background) */
-  --palette-brand-blue: #57B9FF;   /* Bright blue (primary brand, buttons, active states) */
-  --palette-dark-blue: #517891;    /* Dark blue (sidebar, contrast, muted text accents) */
+  --palette-concrete-gray: #9C9A9A;  /* Concrete gray (borders, dividers, subtle outlines) */
+  --palette-off-white: #F5F5F5;      /* Clean off-white canvas background */
+  --palette-brick-red: #A35E47;      /* Brick red (primary brand, buttons, active states) */
+  --palette-charcoal: #464646;       /* Dark charcoal (sidebar, secondary text, contrast) */
 
   /* Surface & Base Layout */
-  --background: #f5faff;
-  --foreground: #0f2a3f;
+  --background: #F7F6F5;
+  --foreground: #000000;
   --card: #ffffff;
-  --card-foreground: #0f2a3f;
+  --card-foreground: #000000;
   --popover: #ffffff;
-  --popover-foreground: #0f2a3f;
+  --popover-foreground: #000000;
 
-  /* Primary Brand - Bright Blue */
-  --primary: var(--palette-brand-blue);
+  /* Primary Brand - Brick Red */
+  --primary: var(--palette-brick-red);
   --primary-foreground: #ffffff;
 
   /* Secondary & Accents */
-  --secondary: #daeeff;
-  --secondary-foreground: var(--palette-dark-blue);
-  --accent: #cce8ff;
-  --accent-foreground: var(--palette-dark-blue);
-  --accent-brown: var(--palette-dark-blue);
+  --secondary: #ede8e5;
+  --secondary-foreground: var(--palette-charcoal);
+  --accent: #e5deda;
+  --accent-foreground: var(--palette-charcoal);
+  --accent-brown: var(--palette-charcoal);
   --accent-brown-foreground: #ffffff;
 
-  /* Neutrals, Muted & Borders - Light Blue */
-  --muted: #e0f2ff;
-  --muted-foreground: #517891;
-  --border: #b8daf5;
-  --input: #b8daf5;
-  --ring: var(--palette-brand-blue);
+  /* Neutrals, Muted & Borders - Concrete Gray */
+  --muted: #ebebeb;
+  --muted-foreground: #6b6b6b;
+  --border: var(--palette-concrete-gray);
+  --input: var(--palette-concrete-gray);
+  --ring: var(--palette-brick-red);
   --radius: 0.5rem;
 
   /* Sidebar Design Tokens */
-  --sidebar: #e8f4fd;
-  --sidebar-foreground: #0f2a3f;
-  --sidebar-primary: var(--palette-dark-blue);
+  --sidebar: #f0efee;
+  --sidebar-foreground: #000000;
+  --sidebar-primary: var(--palette-charcoal);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #cce8ff;
-  --sidebar-accent-foreground: var(--palette-dark-blue);
-  --sidebar-border: #b8daf5;
+  --sidebar-accent: #e5deda;
+  --sidebar-accent-foreground: var(--palette-charcoal);
+  --sidebar-border: var(--palette-concrete-gray);
 
   /* Charts & Data Visualization */
-  --chart-1: var(--palette-brand-blue);
-  --chart-2: var(--palette-dark-blue);
-  --chart-3: #77B1D4;
-  --chart-4: #90D5FF;
-  --chart-5: #0f2a3f;
+  --chart-1: var(--palette-brick-red);
+  --chart-2: var(--palette-charcoal);
+  --chart-3: #7a4535;
+  --chart-4: #9C9A9A;
+  --chart-5: #000000;
   --chart-positive: #16a34a;
   --chart-negative: #b42318;
   --chart-background: #ffffff;
-  --chart-foreground: #0f2a3f;
-  --chart-foreground-muted: #517891;
-  --chart-line-primary: var(--palette-brand-blue);
-  --chart-line-secondary: var(--palette-dark-blue);
-  --chart-crosshair: #517891;
-  --chart-grid: #c8e4f5;
-  --chart-brush-border: #c8e4f5;
+  --chart-foreground: #000000;
+  --chart-foreground-muted: #6b6b6b;
+  --chart-line-primary: var(--palette-brick-red);
+  --chart-line-secondary: var(--palette-charcoal);
+  --chart-crosshair: #6b6b6b;
+  --chart-grid: #d9d9d9;
+  --chart-brush-border: #d9d9d9;
   --chart-tooltip-background: #ffffff;
-  --chart-tooltip-foreground: #0f2a3f;
-  --chart-tooltip-muted: #517891;
-  --chart-marker-background: #f5faff;
-  --chart-marker-border: #b8daf5;
-  --chart-marker-foreground: #0f2a3f;
-  --chart-label: #517891;
+  --chart-tooltip-foreground: #000000;
+  --chart-tooltip-muted: #6b6b6b;
+  --chart-marker-background: #F7F6F5;
+  --chart-marker-border: var(--palette-concrete-gray);
+  --chart-marker-foreground: #000000;
+  --chart-label: #6b6b6b;
   --chart-scale-mix: #ffffff;
-  --chart-scale-01: #f5faff;
+  --chart-scale-01: #F7F6F5;
   --chart-scale-02: color-mix(in oklab, var(--chart-1) 35%, var(--chart-scale-mix));
   --chart-scale-03: color-mix(in oklab, var(--chart-1) 55%, var(--chart-scale-mix));
   --chart-scale-04: color-mix(in oklab, var(--chart-1) 78%, var(--chart-scale-mix));
   --chart-scale-05: var(--chart-1);
   --chart-scale-pattern-color: #ffffff;
-  --chart-indicator-color: var(--palette-brand-blue);
-  --chart-indicator-secondary-color: #b8daf5;
-  --chart-marker-badge-background: var(--palette-dark-blue);
+  --chart-indicator-color: var(--palette-brick-red);
+  --chart-indicator-secondary-color: var(--palette-concrete-gray);
+  --chart-marker-badge-background: var(--palette-charcoal);
   --chart-marker-badge-foreground: #ffffff;
   --chart-segment-background: oklch(0.756 0 0 / 0.06);
   --chart-segment-line: oklch(0.5 0 0 / 0.25);
