@@ -6,6 +6,8 @@ import {
   RotateCcw,
   ArrowUpRight,
   ArrowDownLeft,
+  ArrowDownRight,
+  ArrowRight,
   Coins,
   TrendingUp,
 } from "lucide-react";
@@ -22,6 +24,76 @@ const transactionLabels = {
   REFUND: "Auto-Refund",
   RECLAIM: "Administrative Recall",
 };
+
+/**
+ * Super Admin Accounting Perspective:
+ * - RECLAIM: Credits reclaimed from partner into Master Reserve -> Inflow (+, Green, ↙)
+ * - ALLOCATE (from Master Reserve): Credits released from Reserve to Reseller -> Outflow (-, Blue, ↗)
+ * - ALLOCATE (Reseller to User): Downstream client transfer -> Transfer (neutral, Stone, →)
+ * - DEDUCT: Message delivery consumption -> Deduction (-, Red, ↘)
+ * - REFUND: Delivery failure auto-refund -> Refund (+, Cyan, ↙)
+ */
+function getTransactionDisplay(t) {
+  const isFromMasterReserve = !t.fromUser || t.fromUser?.role === "Super Admin";
+
+  if (t.type === "RECLAIM") {
+    return {
+      label: "Administrative Recall",
+      badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-800",
+      amountClass: "text-emerald-700 font-semibold",
+      sign: "+",
+      icon: ArrowDownLeft,
+    };
+  }
+
+  if (t.type === "ALLOCATE") {
+    if (isFromMasterReserve) {
+      return {
+        label: "Allocation",
+        badgeClass: "border-blue-200 bg-blue-50 text-blue-800",
+        amountClass: "text-blue-700 font-semibold",
+        sign: "-",
+        icon: ArrowUpRight,
+      };
+    } else {
+      return {
+        label: "Client Transfer",
+        badgeClass: "border-stone-200 bg-stone-100 text-stone-700",
+        amountClass: "text-stone-700 font-medium",
+        sign: "→",
+        icon: ArrowRight,
+      };
+    }
+  }
+
+  if (t.type === "DEDUCT") {
+    return {
+      label: "Usage Deduction",
+      badgeClass: "border-red-200 bg-red-50 text-red-800",
+      amountClass: "text-red-700 font-semibold",
+      sign: "-",
+      icon: ArrowDownRight,
+    };
+  }
+
+  if (t.type === "REFUND") {
+    return {
+      label: "Auto-Refund",
+      badgeClass: "border-cyan-200 bg-cyan-50 text-cyan-800",
+      amountClass: "text-cyan-700 font-semibold",
+      sign: "+",
+      icon: ArrowDownLeft,
+    };
+  }
+
+  return {
+    label: t.type,
+    badgeClass: "border-stone-200 bg-stone-50 text-stone-700",
+    amountClass: "text-stone-700 font-medium",
+    sign: "",
+    icon: ArrowRight,
+  };
+}
 
 export default function Credits({ activity = false }) {
   const [params, setParams] = useSearchParams();
@@ -65,20 +137,12 @@ export default function Credits({ activity = false }) {
       key: "type",
       label: "Transaction Type",
       render: (t) => {
-        const isCreditIn = t.type === "ALLOCATE" || t.type === "REFUND";
-        const style =
-          t.type === "ALLOCATE"
-            ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-            : t.type === "REFUND"
-            ? "border-cyan-200 bg-cyan-50 text-cyan-800"
-            : t.type === "RECLAIM"
-            ? "border-purple-200 bg-purple-50 text-purple-800"
-            : "border-amber-200 bg-amber-50 text-amber-800";
-
+        const info = getTransactionDisplay(t);
+        const Icon = info.icon;
         return (
-          <span className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium border ${style}`}>
-            {isCreditIn ? <ArrowDownLeft className="size-3" /> : <ArrowUpRight className="size-3" />}
-            {transactionLabels[t.type] || t.type}
+          <span className={`inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-medium border ${info.badgeClass}`}>
+            <Icon className="size-3 shrink-0" />
+            {info.label}
           </span>
         );
       },
@@ -98,10 +162,10 @@ export default function Credits({ activity = false }) {
       label: "Credits",
       className: "text-right",
       render: (t) => {
-        const isPlus = t.type === "ALLOCATE" || t.type === "REFUND";
+        const info = getTransactionDisplay(t);
         return (
-          <span className={`font-semibold tabular-nums text-sm ${isPlus ? "text-emerald-700" : "text-foreground"}`}>
-            {isPlus ? "+" : "-"}{number(t.amount)}
+          <span className={`tabular-nums text-sm ${info.amountClass}`}>
+            {info.sign}{number(t.amount)}
           </span>
         );
       },
