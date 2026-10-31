@@ -51,12 +51,14 @@ export default function Campaigns({ reports = false }) {
     return matches && matchesStatus;
   });
 
-  const open = (campaign, report = false) =>
+  const open = (campaign, report = false, editStatus = false) =>
     setParams((current) => {
       const next = new URLSearchParams(current);
       next.set("campaign", campaign._id);
       if (report) next.set("editReport", "1");
       else next.delete("editReport");
+      if (editStatus) next.set("editStatus", "1");
+      else next.delete("editStatus");
       return next;
     });
 
@@ -157,6 +159,10 @@ export default function Campaigns({ reports = false }) {
             <DropdownMenuItem onClick={() => open(c)}>
               <Eye className="size-4 mr-2" />
               View campaign
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => open(c, false, true)}>
+              <Pencil className="size-4 mr-2" />
+              Change status
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => open(c, true)}>
               <FileText className="size-4 mr-2" />
@@ -300,11 +306,13 @@ export default function Campaigns({ reports = false }) {
           key={selected}
           id={selected}
           initialReport={params.get("editReport") === "1"}
+          initialStatus={params.get("editStatus") === "1"}
           onClose={() => {
             setParams((current) => {
               const next = new URLSearchParams(current);
               next.delete("campaign");
               next.delete("editReport");
+              next.delete("editStatus");
               return next;
             });
           }}

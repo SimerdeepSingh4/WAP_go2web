@@ -605,6 +605,9 @@ export const updateCampaignStatus = async (req, res) => {
         } else if (status === "completed") {
             campaign.campaignEndDate = new Date();
         } else if (status === "ongoing") {
+            if (["completed", "stopped", "failed"].includes(previousStatus)) {
+                campaign.campaignEndDate = null;
+            }
             if (!campaign.campaignStartDate) {
                 campaign.campaignStartDate = new Date();
             }
@@ -615,6 +618,9 @@ export const updateCampaignStatus = async (req, res) => {
                 console.error("[BullMQ] Failed to enqueue on start:", queueErr.message);
             }
         } else if (status === "pending") {
+            if (["completed", "stopped", "failed"].includes(previousStatus)) {
+                campaign.campaignEndDate = null;
+            }
             // Put on hold: remove from queue if scheduled
             try {
                 await cancelCampaignJob(id);

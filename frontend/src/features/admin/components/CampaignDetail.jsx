@@ -1,19 +1,52 @@
-import { useState } from "react";
-import { FileText, Pencil } from "lucide-react";
+import { useState, useEffect } from "react";
+import { FileText, Pencil, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useAdminQuery } from "../hooks/useAdmin";
 import { QueryState, StatusBadge } from "./shared";
 import { dateTime, number, ownerName, published, statusLabels, validateReport } from "../lib/format";
 import ActionForm from "./ActionForm";
 
-export default function CampaignDetail({ id, initialReport, onClose }) {
+export default function CampaignDetail({ id, initialReport, initialStatus, onClose }) {
   const query = useAdminQuery("campaign", { id });
   const [action, setAction] = useState(initialReport ? "report" : null);
+  const [showWarningModal, setShowWarningModal] = useState(false);
   const campaign = query.data?.data;
   const summary = campaign?.campaignSummary;
   const reported = campaign && published(campaign);
   const operational = Boolean(campaign);
+
+  const isFinalized = Boolean(
+    campaign && ["stopped", "completed", "sent", "failed"].includes(campaign.status)
+  );
+
+  useEffect(() => {
+    if (initialStatus && campaign) {
+      if (isFinalized) {
+        setShowWarningModal(true);
+      } else {
+        setAction("status");
+      }
+    }
+  }, [initialStatus, Boolean(campaign), isFinalized]);
+
+  const handleStatusClick = () => {
+    if (isFinalized) {
+      setShowWarningModal(true);
+    } else {
+      setAction("status");
+    }
+  };
 
   return (
     <>
@@ -106,14 +139,14 @@ export default function CampaignDetail({ id, initialReport, onClose }) {
                   <section className="space-y-3 border-t pt-5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <h2 className="text-sm font-medium">Manual Status Override</h2>
+                        <h2 className="text-sm font-medium">Campaign Status</h2>
                         <p className="text-xs text-muted-foreground">
-                          Change execution status (Ongoing, Completed, Stopped, Failed, or Pending).
+                          Current status: <strong className="text-foreground">{statusLabels[campaign.status] || campaign.status}</strong>. You can change status at any stage.
                         </p>
                       </div>
-                      <Button size="sm" variant="outline" onClick={() => setAction("status")}>
-                        <Pencil />
-                        Record status
+                      <Button size="sm" variant="outline" onClick={handleStatusClick} className="gap-1.5">
+                        <Pencil className="size-3.5" />
+                        Change status
                       </Button>
                     </div>
                   </section>
@@ -216,10 +249,47 @@ export default function CampaignDetail({ id, initialReport, onClose }) {
         />
       )}
 
+      {/* Warning Dialog when attempting to edit a Finalized Campaign */}
+      <AlertDialog open={showWarningModal} onOpenChange={setShowWarningModal}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="size-5 shrink-0" />
+              <AlertDialogTitle>Change Finalized Campaign Status?</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-xs text-muted-foreground pt-1 leading-relaxed">
+              This campaign is currently marked as{" "}
+              <strong className="text-foreground font-semibold">
+                {statusLabels[campaign?.status] || campaign?.status}
+              </strong>.
+              Changing its status will reopen or alter an already finalized campaign. Are you sure you want to proceed?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:justify-end">
+            <AlertDialogCancel onClick={() => setShowWarningModal(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+              onClick={() => {
+                setShowWarningModal(false);
+                setAction("status");
+              }}
+            >
+              Proceed to Change Status
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {campaign && action === "status" && (
         <ActionForm
-          title="Record campaign status"
-          description="Choose the current campaign status."
+          title="Change Campaign Status"
+          description={
+            isFinalized
+              ? `Warning: This campaign was already marked as ${statusLabels[campaign.status] || campaign.status}.`
+              : "Choose the new status for this campaign."
+          }
           action="status"
           successMessage="Campaign status updated"
           onClose={() => setAction(null)}
@@ -243,9 +313,19 @@ export default function CampaignDetail({ id, initialReport, onClose }) {
           review={(values) => (
             <>
               <p className="font-medium">{campaign.campaignTitle}</p>
-              <p>
-                {statusLabels[campaign.status] || campaign.status} → {statusLabels[values.status] || values.status}
+              <p className="text-sm">
+                Status will change from{" "}
+                <strong className="text-foreground">{statusLabels[campaign.status] || campaign.status}</strong>{" "}
+                → <strong className="text-primary">{statusLabels[values.status] || values.status}</strong>
               </p>
+              {isFinalized && (
+                <div className="rounded-md border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 mt-2 flex items-start gap-2">
+                  <AlertTriangle className="size-4 shrink-0 text-amber-600 mt-0.5" />
+                  <span>
+                    Warning: You are modifying a previously <strong>{statusLabels[campaign.status]}</strong> campaign.
+                  </span>
+                </div>
+              )}
             </>
           )}
           submitLabel="Update status"
