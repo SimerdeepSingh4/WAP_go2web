@@ -69,19 +69,19 @@ export default function ResellerDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] p-6 sm:p-10 font-sans text-[#1c1917]">
+    <div className="min-h-screen bg-[var(--background)] p-6 sm:p-10 font-sans text-[var(--foreground)]">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header banner */}
-        <div className="bg-white rounded-xl border border-[#e7e4dc] p-6 shadow-xs flex flex-wrap items-center justify-between gap-4">
+        <div className="bg-white rounded-xl border border-[var(--border)] p-6 shadow-xs flex flex-wrap items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-stone-100 text-stone-900 border border-stone-200">
                 {user?.role} Portal
               </span>
-              <span className="text-xs text-[#78716c]">Management Console</span>
+              <span className="text-xs text-[var(--muted-foreground)]">Management Console</span>
             </div>
-            <h1 className="text-2xl font-bold text-[#1c1917]">Client User Accounts</h1>
-            <p className="text-xs text-[#78716c]">
+            <h1 className="text-2xl font-bold text-[var(--foreground)]">Client User Accounts</h1>
+            <p className="text-xs text-[var(--muted-foreground)]">
               {user?.role === "Super Admin"
                 ? "Manage and access all client user accounts across the platform."
                 : "Manage and access user accounts assigned under your reseller balance."}
@@ -91,13 +91,13 @@ export default function ResellerDashboard() {
           <div className="flex items-center gap-3">
             <Link
               to="/"
-              className="px-3.5 py-2 text-xs font-medium text-[#1c1917] border border-[#e7e4dc] rounded-lg hover:bg-[#f4f1ea] transition-colors"
+              className="px-3.5 py-2 text-xs font-medium text-[var(--foreground)] border border-[var(--border)] rounded-lg hover:bg-[var(--muted)] transition-colors"
             >
               ← My Dashboard
             </Link>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="px-4 py-2 text-xs font-semibold text-white bg-[#18181b] rounded-lg hover:bg-[#27272a] transition-colors cursor-pointer shadow-xs"
+              className="px-4 py-2 text-xs font-semibold text-white bg-[var(--primary)] rounded-lg hover:bg-[var(--primary)] transition-colors cursor-pointer shadow-xs"
             >
               + Create Client User
             </button>
@@ -113,12 +113,12 @@ export default function ResellerDashboard() {
         {/* Modal for creating a user */}
         {showCreateModal && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-xl border border-[#e7e4dc] max-w-md w-full p-6 shadow-lg">
+            <div className="bg-white rounded-xl border border-[var(--border)] max-w-md w-full p-6 shadow-lg">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-[#1c1917]">Add New Client User</h3>
+                <h3 className="text-lg font-bold text-[var(--foreground)]">Add New Client User</h3>
                 <button
                   onClick={() => setShowCreateModal(false)}
-                  className="text-xs text-[#78716c] hover:text-black cursor-pointer"
+                  className="text-xs text-[var(--muted-foreground)] hover:text-black cursor-pointer"
                 >
                   ✕ Close
                 </button>
@@ -132,7 +132,7 @@ export default function ResellerDashboard() {
 
               <form onSubmit={handleCreateUser} className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-[#1c1917] mb-1">
+                  <label className="block text-xs font-medium text-[var(--foreground)] mb-1">
                     Username
                   </label>
                   <input
@@ -141,12 +141,12 @@ export default function ResellerDashboard() {
                     value={newUsername}
                     onChange={(e) => setNewUsername(e.target.value)}
                     placeholder="e.g. client_agency"
-                    className="w-full px-3 py-2 text-sm border border-[#e7e4dc] rounded-lg outline-none focus:border-[#ea580c] focus:ring-2 focus:ring-[#ea580c]/15"
+                    className="w-full px-3 py-2 text-sm border border-[var(--border)] rounded-lg outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-[#1c1917] mb-1">
+                  <label className="block text-xs font-medium text-[var(--foreground)] mb-1">
                     Email Address
                   </label>
                   <input
@@ -155,12 +155,12 @@ export default function ResellerDashboard() {
                     value={newEmail}
                     onChange={(e) => setNewEmail(e.target.value)}
                     placeholder="client@example.com"
-                    className="w-full px-3 py-2 text-sm border border-[#e7e4dc] rounded-lg outline-none focus:border-[#ea580c] focus:ring-2 focus:ring-[#ea580c]/15"
+                    className="w-full px-3 py-2 text-sm border border-[var(--border)] rounded-lg outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-[#1c1917] mb-1">
+                  <label className="block text-xs font-medium text-[var(--foreground)] mb-1">
                     Password
                   </label>
                   <input
@@ -169,7 +169,7 @@ export default function ResellerDashboard() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full px-3 py-2 text-sm border border-[#e7e4dc] rounded-lg outline-none focus:border-[#ea580c] focus:ring-2 focus:ring-[#ea580c]/15"
+                    className="w-full px-3 py-2 text-sm border border-[var(--border)] rounded-lg outline-none focus:border-[var(--primary)] focus:ring-2 focus:ring-[var(--primary)]/15"
                   />
                 </div>
 
@@ -177,14 +177,14 @@ export default function ResellerDashboard() {
                   <button
                     type="button"
                     onClick={() => setShowCreateModal(false)}
-                    className="px-3 py-2 text-xs text-[#78716c] hover:underline"
+                    className="px-3 py-2 text-xs text-[var(--muted-foreground)] hover:underline"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={createMutation.isPending}
-                    className="px-4 py-2 text-xs font-semibold text-white bg-[#18181b] rounded-lg hover:bg-[#27272a] disabled:opacity-50"
+                    className="px-4 py-2 text-xs font-semibold text-white bg-[var(--primary)] rounded-lg hover:bg-[var(--primary)] disabled:opacity-50"
                   >
                     {createMutation.isPending ? "Creating..." : "Save Account"}
                   </button>
@@ -195,46 +195,46 @@ export default function ResellerDashboard() {
         )}
 
         {/* Users list table */}
-        <div className="bg-white rounded-xl border border-[#e7e4dc] p-6 shadow-xs">
+        <div className="bg-white rounded-xl border border-[var(--border)] p-6 shadow-xs">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-semibold text-[#1c1917]">
+            <h2 className="text-base font-semibold text-[var(--foreground)]">
               Assigned Accounts ({users.length})
             </h2>
             <button
               onClick={() => refetch()}
-              className="text-xs font-semibold text-[#ea580c] hover:underline cursor-pointer"
+              className="text-xs font-semibold text-[var(--primary)] hover:underline cursor-pointer"
             >
               Refresh List
             </button>
           </div>
 
           {isLoading ? (
-            <p className="text-xs text-[#78716c]">Loading user accounts...</p>
+            <p className="text-xs text-[var(--muted-foreground)]">Loading user accounts...</p>
           ) : users.length === 0 ? (
-            <div className="text-center py-8 text-xs text-[#78716c]">
+            <div className="text-center py-8 text-xs text-[var(--muted-foreground)]">
               No client users found under your account. Click "+ Create Client User" to add one.
             </div>
           ) : (
-            <div className="divide-y divide-[#e7e4dc]">
+            <div className="divide-y divide-[var(--border)]">
               {users.map((client) => (
                 <div
                   key={client._id}
-                  className="py-3.5 flex flex-wrap items-center justify-between gap-3 hover:bg-[#f4f1ea] px-2 rounded-lg transition-colors"
+                  className="py-3.5 flex flex-wrap items-center justify-between gap-3 hover:bg-[var(--muted)] px-2 rounded-lg transition-colors"
                 >
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-[#1c1917]">
+                      <span className="text-sm font-semibold text-[var(--foreground)]">
                         {client.username}
                       </span>
                       <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
                         {client.role}
                       </span>
-                      <span className="text-[10px] text-[#78716c]">
+                      <span className="text-[10px] text-[var(--muted-foreground)]">
                         Status: {client.status}
                       </span>
                     </div>
-                    <p className="text-xs text-[#78716c]">{client.email}</p>
-                    <p className="text-[10px] text-[#a8a29e]">
+                    <p className="text-xs text-[var(--muted-foreground)]">{client.email}</p>
+                    <p className="text-[10px] text-[var(--muted-foreground)]">
                       Created: {new Date(client.createdAt).toLocaleDateString()}
                     </p>
                   </div>
@@ -243,7 +243,7 @@ export default function ResellerDashboard() {
                     <button
                       onClick={() => accessMutation.mutate(client._id)}
                       disabled={accessMutation.isPending}
-                      className="px-3 py-1.5 text-xs font-semibold text-white bg-[#18181b] hover:bg-[#27272a] rounded-md transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                      className="px-3 py-1.5 text-xs font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary)] rounded-md transition-all cursor-pointer shadow-xs disabled:opacity-50"
                       title="Switch into this user account to view their campaigns and messages"
                     >
                       {accessMutation.isPending ? "Switching..." : "Access User Account →"}

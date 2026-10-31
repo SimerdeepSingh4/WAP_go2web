@@ -28,9 +28,9 @@ function PortalIcon({ type = "network", className = "size-5" }) {
 
 function PanelBrand({ name }) {
   return (
-    <div className="inline-flex items-center gap-3 text-[#1c1917]">
-      <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-[#e7e4dc] bg-[#e9e5db] shadow-xs">
-        <PortalIcon type="network" className="size-5 text-[#ea580c]" />
+    <div className="inline-flex items-center gap-3 text-foreground">
+      <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-border bg-accent text-primary shadow-xs">
+        <PortalIcon type="network" className="size-5" />
       </span>
       <span className="text-[17px] font-semibold tracking-[-0.3px]">
         {name}
@@ -59,8 +59,8 @@ function CampaignWorkflowIllustration() {
   ];
 
   return (
-    <div aria-hidden="true" className="mt-8 border-y border-[#e7e4dc] py-5">
-      <div className="flex items-center justify-between gap-4 font-mono text-[10.5px] uppercase tracking-[1.8px] text-[#78716c]">
+    <div aria-hidden="true" className="mt-8 border-y border-border py-5">
+      <div className="flex items-center justify-between gap-4 font-mono text-[10.5px] uppercase tracking-[1.8px] text-muted-foreground">
         <span>Campaign workflow</span>
       </div>
 
@@ -71,21 +71,21 @@ function CampaignWorkflowIllustration() {
             className="relative flex items-center gap-3.5"
           >
             {index < stages.length - 1 && (
-              <span className="absolute top-9 bottom-[-16px] left-[19px] w-px bg-[#e7e4dc]" />
+              <span className="absolute top-9 bottom-[-16px] left-[19px] w-px bg-border" />
             )}
-            <span className="relative z-10 grid size-10 shrink-0 place-items-center rounded-xl border border-[#e7e4dc] bg-white text-[#1c1917] shadow-xs">
+            <span className="relative z-10 grid size-10 shrink-0 place-items-center rounded-xl border border-border bg-card text-foreground shadow-xs">
               <PortalIcon type={stage.icon} className="size-4.5" />
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-[13.5px] font-semibold text-[#1c1917]">
+                <p className="text-[13.5px] font-semibold text-foreground">
                   {stage.title}
                 </p>
-                <span className="font-mono text-[11px] font-semibold text-[#ea580c]">
+                <span className="font-mono text-[11px] font-semibold text-primary">
                   0{index + 1}
                 </span>
               </div>
-              <p className="text-xs leading-normal text-[#78716c] mt-0.5">
+              <p className="text-xs leading-normal text-muted-foreground mt-0.5">
                 {stage.description}
               </p>
             </div>
@@ -132,33 +132,33 @@ export default function LoginPage({ onLogin, panelName = "go2web" }) {
   }
 
   const inputClasses =
-    "min-h-[46px] w-full rounded-lg border border-[#e7e4dc] bg-white px-3.5 py-2.5 text-sm text-[#1c1917] outline-none placeholder:text-[#a8a29e] focus:border-[#ea580c] focus:ring-3 focus:ring-[#ea580c]/15 disabled:cursor-wait disabled:bg-[#f4f1ea] transition-all";
+    "min-h-[46px] w-full rounded-lg border border-border bg-card px-3.5 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary focus:ring-3 focus:ring-primary/15 disabled:cursor-wait disabled:bg-muted transition-all";
 
   return (
-    <main className="grid h-screen max-h-screen w-full bg-[#faf8f5] font-sans text-[#1c1917] antialiased selection:bg-[#fed7aa]/50 selection:text-[#7c2d12] md:grid-cols-[0.95fr_1.05fr] lg:grid-cols-2 overflow-hidden">
+    <main className="grid h-screen max-h-screen w-full bg-background font-sans text-foreground antialiased selection:bg-primary/20 selection:text-primary md:grid-cols-[0.95fr_1.05fr] lg:grid-cols-2 overflow-hidden">
       {/* Left Column: Branding & Editorial Story */}
       <section
         aria-label="About your business messaging portal"
-        className="hidden min-w-0 h-full flex-col justify-between border-r border-[#e7e4dc] bg-[#f4f1ea] px-10 py-10 md:flex lg:px-14 xl:px-20 lg:py-12 overflow-hidden"
+        className="hidden min-w-0 h-full flex-col justify-between border-r border-border bg-muted/40 px-10 py-10 md:flex lg:px-14 xl:px-20 lg:py-12 overflow-hidden"
       >
         <PanelBrand name={panelName} />
 
         <div className="w-full max-w-[480px] my-auto py-4">
-          <p className="text-xs font-semibold uppercase tracking-[2px] text-[#ea580c]">
+          <p className="text-xs font-semibold uppercase tracking-[2px] text-primary">
             Connect • Broadcast • Engage
           </p>
-          <h1 className="mt-3.5 mb-3.5 text-3xl lg:text-[40px] xl:text-[44px] leading-[1.12] font-semibold tracking-tight text-[#1c1917]">
+          <h1 className="mt-3.5 mb-3.5 text-3xl lg:text-[40px] xl:text-[44px] leading-[1.12] font-semibold tracking-tight text-foreground">
             Direct outreach.
             <br />
             Reliable delivery.
           </h1>
-          <p className="max-w-[400px] text-sm leading-relaxed text-[#78716c]">
+          <p className="max-w-[400px] text-sm leading-relaxed text-muted-foreground">
             Launch targeted WhatsApp campaigns, manage customer directories, and track deliverability metrics with enterprise precision.
           </p>
           <CampaignWorkflowIllustration />
         </div>
 
-        <p className="text-xs text-[#a8a29e]">
+        <p className="text-xs text-muted-foreground">
           Built for dependable, high-volume customer communication.
         </p>
       </section>
@@ -166,7 +166,7 @@ export default function LoginPage({ onLogin, panelName = "go2web" }) {
       {/* Right Column: Clean Editorial Form */}
       <section
         aria-labelledby="login-heading"
-        className="flex h-full min-w-0 flex-col justify-between bg-[#faf8f5] px-8 py-10 sm:px-12 md:px-12 lg:px-16 xl:px-24 lg:py-12 overflow-y-auto md:overflow-hidden"
+        className="flex h-full min-w-0 flex-col justify-between bg-background px-8 py-10 sm:px-12 md:px-12 lg:px-16 xl:px-24 lg:py-12 overflow-y-auto md:overflow-hidden"
       >
         <div className="md:hidden">
           <PanelBrand name={panelName} />
@@ -174,16 +174,16 @@ export default function LoginPage({ onLogin, panelName = "go2web" }) {
 
         <div className="flex flex-1 items-center justify-center py-4">
           <div className="w-full max-w-[420px]">
-            <p className="text-[11px] font-semibold uppercase tracking-[2px] text-[#ea580c]">
+            <p className="text-[11px] font-semibold uppercase tracking-[2px] text-primary">
               Messaging Workspace
             </p>
             <h2
               id="login-heading"
-              className="mt-2 text-3xl sm:text-[36px] font-bold tracking-tight text-[#1c1917]"
+              className="mt-2 text-3xl sm:text-[36px] font-bold tracking-tight text-foreground"
             >
               Welcome back.
             </h2>
-            <p className="mt-1.5 mb-7 text-sm text-[#78716c]">
+            <p className="mt-1.5 mb-7 text-sm text-muted-foreground">
               Sign in to manage campaigns, audience directories, and credits.
             </p>
 
@@ -193,7 +193,7 @@ export default function LoginPage({ onLogin, panelName = "go2web" }) {
                 id="login-error"
                 role="alert"
                 tabIndex={-1}
-                className="mb-5 rounded-lg border border-[#fecaca] bg-[#fef2f2] px-4 py-3 text-sm leading-relaxed text-[#b91c1c] outline-none focus-visible:ring-2 focus-visible:ring-[#b91c1c]/30"
+                className="mb-5 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm leading-relaxed text-destructive outline-none focus-visible:ring-2 focus-visible:ring-destructive/30"
               >
                 {errorMsg}
               </div>
@@ -201,7 +201,7 @@ export default function LoginPage({ onLogin, panelName = "go2web" }) {
 
             <form onSubmit={handleSubmit} aria-busy={isLoggingIn} className="space-y-5">
               <div>
-                <label htmlFor="identifier" className="mb-2 block text-sm font-medium text-[#1c1917]">
+                <label htmlFor="identifier" className="mb-2 block text-sm font-medium text-foreground">
                   Email or Username
                 </label>
                 <input
@@ -222,7 +222,7 @@ export default function LoginPage({ onLogin, panelName = "go2web" }) {
               </div>
 
               <div>
-                <label htmlFor="password" className="mb-2 block text-sm font-medium text-[#1c1917]">
+                <label htmlFor="password" className="mb-2 block text-sm font-medium text-foreground">
                   Password
                 </label>
                 <div className="relative">
@@ -245,7 +245,7 @@ export default function LoginPage({ onLogin, panelName = "go2web" }) {
                     aria-label={showPassword ? "Hide password" : "Show password"}
                     aria-controls="password"
                     aria-pressed={showPassword}
-                    className="absolute inset-y-1 right-1.5 min-w-14 cursor-pointer rounded-md px-2 text-xs font-semibold text-[#78716c] hover:bg-[#f4f1ea] hover:text-[#1c1917] focus-visible:outline-none transition-colors"
+                    className="absolute inset-y-1 right-1.5 min-w-14 cursor-pointer rounded-md px-2 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none transition-colors"
                   >
                     {showPassword ? "Hide" : "Show"}
                   </button>
@@ -255,7 +255,7 @@ export default function LoginPage({ onLogin, panelName = "go2web" }) {
               <button
                 type="submit"
                 disabled={isLoggingIn}
-                className="flex min-h-[46px] w-full cursor-pointer items-center justify-between gap-3 rounded-lg bg-[#18181b] hover:bg-[#27272a] px-5 py-3 text-sm font-semibold text-white transition-all shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ea580c] disabled:cursor-wait disabled:opacity-70 mt-3"
+                className="flex min-h-[46px] w-full cursor-pointer items-center justify-between gap-3 rounded-lg bg-primary hover:bg-primary/90 px-5 py-3 text-sm font-semibold text-primary-foreground transition-all shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-70 mt-3"
               >
                 <span role="status" aria-live="polite">
                   {isLoggingIn ? "Signing in…" : "Sign in"}
@@ -273,15 +273,15 @@ export default function LoginPage({ onLogin, panelName = "go2web" }) {
               </button>
             </form>
 
-            <p className="mt-6 text-center text-xs text-[#a8a29e]">
+            <p className="mt-6 text-center text-xs text-muted-foreground">
               Need access? Contact your account administrator.
             </p>
           </div>
         </div>
 
-        <p className="text-center text-xs text-[#a8a29e]">
+        <p className="text-center text-xs text-muted-foreground">
           {panelName}
-          <span aria-hidden="true" className="mx-2.5 text-[#d6d3d1]">/</span>
+          <span aria-hidden="true" className="mx-2.5 text-border">/</span>
           Business Messaging Platform
         </p>
       </section>

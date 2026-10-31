@@ -42,7 +42,7 @@ export function CampaignCharts({ campaigns }) {
         {total ? <div role="img" aria-label={`${number(total)} campaigns created in the last ${days} days. Exact daily counts are available below.`}>
           <AreaChart data={trend} xDataKey="date" className="h-56 w-full" aspectRatio="auto" animationDuration={reducedMotion ? 0 : 500} margin={{ top: 16, right: 12, bottom: 28, left: 12 }}>
             <Grid numTicksRows={3} />
-            <Area dataKey="Campaigns" curve={curveLinear} fill="#ea580c" stroke="#ea580c" fillOpacity={0.15} gradientToOpacity={0.05} fadeEdges={false} animate={!reducedMotion} />
+            <Area dataKey="Campaigns" curve={curveLinear} fill="var(--chart-1)" stroke="var(--chart-1)" fillOpacity={0.15} gradientToOpacity={0.05} fadeEdges={false} animate={!reducedMotion} />
             <XAxis labels={labels} numTicks={4} />
             <ChartTooltip showDots={false} showDatePill={false} content={({ point }) => <div className="p-3 text-xs"><p className="text-muted-foreground">{dayLabel(point.date)}</p><p className="mt-1 font-medium">{number(point.Campaigns)} campaigns</p></div>} />
           </AreaChart>
@@ -73,7 +73,7 @@ export function DeliveryChart({ campaigns }) {
     {reportCount ? <><div role="img" aria-label="Message totals from published reports. Sent, delivered, and read are overlapping stages, not separate audiences. Exact counts are available below.">
       <BarChart data={rows} xDataKey="name" className="h-40 w-full" aspectRatio="auto" barGap={0.5} animationDuration={reducedMotion ? 0 : 500} margin={{ top: 8, right: 4, bottom: 26, left: 4 }}>
         <Grid numTicksRows={3} strokeDasharray="3,4" fadeHorizontal={false} />
-        <Bar dataKey="Messages" fill="#ea580c" lineCap={4} animate={!reducedMotion} />
+        <Bar dataKey="Messages" fill="var(--chart-1)" lineCap={4} animate={!reducedMotion} />
         <BarXAxis />
         <ChartTooltip showDots={false} showDatePill={false} content={({ point }) => <div className="p-3 text-xs"><p className="text-muted-foreground">{point.name}</p><p className="mt-1 font-medium">{number(point.Messages)} messages</p></div>} />
       </BarChart>

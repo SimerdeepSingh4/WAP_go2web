@@ -45,11 +45,11 @@ if (user?.role === "Reseller") {
   };
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] p-8">
+    <div className="min-h-screen bg-background p-8">
       <div className="max-w-5xl mx-auto space-y-6">
-        <div className="bg-white rounded-xl border border-[#e7e4dc] p-6 shadow-xs">
+        <div className="bg-card rounded-xl border border-border p-6 shadow-xs">
           <div className="flex items-center justify-between mb-2">
-            <h1 className="text-2xl font-bold text-[#1c1917]">Welcome, {user?.username}!</h1>
+            <h1 className="text-2xl font-bold text-foreground">Welcome, {user?.username}!</h1>
             <span
               className={`px-3 py-0.5 text-xs font-semibold rounded-full border ${getRoleBadgeColor(
                 user?.role
@@ -58,23 +58,23 @@ if (user?.role === "Reseller") {
               Role: {user?.role}
             </span>
           </div>
-          <p className="text-sm text-[#78716c] mb-5">Email: {user?.email}</p>
+          <p className="text-sm text-muted-foreground mb-5">Email: {user?.email}</p>
 
           {/* Quick RBAC navigation test links */}
-          <div className="mb-6 p-4 rounded-lg bg-[#f4f1ea] border border-[#e7e4dc]">
-            <p className="text-xs font-semibold uppercase tracking-wider text-[#ea580c] mb-3">
+          <div className="mb-6 p-4 rounded-lg bg-muted/60 border border-border">
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary mb-3">
               Test Role-Based Access Control (RBAC):
             </p>
             <div className="flex flex-wrap gap-2.5">
               <Link
                 to="/admin"
-                className="inline-flex items-center px-3 py-1.5 rounded-md bg-white border border-[#e7e4dc] text-xs font-medium text-[#1c1917] hover:border-[#ea580c] transition-colors"
+                className="inline-flex items-center px-3 py-1.5 rounded-md bg-card border border-border text-xs font-medium text-foreground hover:border-primary transition-colors"
               >
                 Go to /admin (Super Admin only)
               </Link>
               <Link
                 to="/reseller"
-                className="inline-flex items-center px-3 py-1.5 rounded-md bg-white border border-[#e7e4dc] text-xs font-medium text-[#1c1917] hover:border-[#ea580c] transition-colors"
+                className="inline-flex items-center px-3 py-1.5 rounded-md bg-card border border-border text-xs font-medium text-foreground hover:border-primary transition-colors"
               >
                 Go to /reseller (Reseller + Admin)
               </Link>
@@ -85,14 +85,14 @@ if (user?.role === "Reseller") {
             <button
               onClick={() => logout()}
               disabled={isLoggingOut || isLoggingOutAll}
-              className="px-4 py-2 bg-[#18181b] text-white text-sm font-medium rounded-md hover:bg-[#27272a] cursor-pointer disabled:opacity-50 transition-colors shadow-xs"
+              className="px-4 py-2 bg-primary text-primary-foreground text-sm font-medium rounded-md hover:bg-primary/90 cursor-pointer disabled:opacity-50 transition-colors shadow-xs"
             >
               {isLoggingOut ? "Logging out..." : "Log out"}
             </button>
             <button
               onClick={() => logoutAll()}
               disabled={isLoggingOut || isLoggingOutAll}
-              className="px-4 py-2 border border-[#e7e4dc] text-[#1c1917] hover:bg-[#f4f1ea] text-sm font-medium rounded-md cursor-pointer disabled:opacity-50 transition-colors"
+              className="px-4 py-2 border border-border text-foreground hover:bg-muted text-sm font-medium rounded-md cursor-pointer disabled:opacity-50 transition-colors"
             >
               {isLoggingOutAll ? "Logging out all..." : "Log out from all devices"}
             </button>
@@ -113,8 +113,8 @@ function ProtectedRoute({ children }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#faf8f5] text-[#18181b]">
-        <div className="animate-spin size-8 border-4 border-[#18181b] border-t-transparent rounded-full" />
+      <div className="min-h-screen flex items-center justify-center bg-background text-primary">
+        <div className="animate-spin size-8 border-4 border-primary border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -136,8 +136,8 @@ function PublicRoute({ children }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#faf8f5] text-[#18181b]">
-        <div className="animate-spin size-8 border-4 border-[#18181b] border-t-transparent rounded-full" />
+      <div className="min-h-screen flex items-center justify-center bg-background text-primary">
+        <div className="animate-spin size-8 border-4 border-primary border-t-transparent rounded-full" />
       </div>
     );
   }

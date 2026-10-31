@@ -24,6 +24,7 @@ import {
   Trash2,
   Plus,
   RefreshCw,
+  CheckCheck,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1143,6 +1144,105 @@ export default function CreateCampaignPage() {
               </Button>
             </CardFooter>
           </Card>
+
+          {/* WhatsApp Live Broadcast Preview Card */}
+          <div className="rounded-2xl border overflow-hidden shadow-xs bg-card">
+            {/* WhatsApp Header Bar */}
+            <div className="bg-primary text-primary-foreground p-3.5 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="grid size-9 place-items-center rounded-full bg-primary-foreground/20 text-primary-foreground font-bold text-xs uppercase">
+                  GW
+                </div>
+                <div>
+                  <p className="text-xs font-semibold leading-tight">go2web Broadcast</p>
+                  <p className="text-[10px] text-primary-foreground/80 leading-tight">online</p>
+                </div>
+              </div>
+              <span className="rounded-full bg-primary-foreground/20 px-2.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                Live Preview
+              </span>
+            </div>
+
+            {/* Chat Area Background */}
+            <div className="bg-[#f0ebe3] dark:bg-muted/30 p-4 min-h-[180px] max-h-[380px] overflow-y-auto space-y-3 flex flex-col justify-between">
+              {/* Today Date Divider */}
+              <div className="flex justify-center">
+                <span className="bg-card/90 dark:bg-card px-2.5 py-0.5 rounded-full text-[10px] font-semibold text-muted-foreground shadow-2xs uppercase tracking-wider">
+                  Today
+                </span>
+              </div>
+
+              {/* WhatsApp Speech Bubble */}
+              <div className="self-end max-w-[92%] rounded-xl rounded-tr-xs bg-[#d9fdd3] dark:bg-primary/20 text-foreground p-3 shadow-2xs space-y-2 border border-emerald-200/50 dark:border-primary/30">
+                {/* 1 Image Preview */}
+                {imageFile?.preview && (
+                  <div className="rounded-lg overflow-hidden border border-black/5 bg-black/5">
+                    <img
+                      src={imageFile.preview}
+                      alt={imageFile.name}
+                      className="w-full max-h-40 object-cover"
+                    />
+                  </div>
+                )}
+
+                {/* 1 Video Preview */}
+                {videoFile?.preview && (
+                  <div className="rounded-lg overflow-hidden border border-black/5 bg-black/10 p-2 flex items-center gap-2">
+                    <div className="grid size-8 place-items-center rounded-md bg-primary text-primary-foreground shrink-0">
+                      <VideoIcon className="size-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium truncate text-foreground">{videoFile.name}</p>
+                      <p className="text-[10px] text-muted-foreground">{formatFileSize(videoFile.size)}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* 1 PDF Preview */}
+                {pdfFile && (
+                  <div className="rounded-lg overflow-hidden border border-black/5 bg-card/80 p-2 flex items-center gap-2">
+                    <div className="grid size-8 place-items-center rounded-md bg-red-600 text-white shrink-0 font-bold text-[10px]">
+                      PDF
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium truncate text-foreground">{pdfFile.name}</p>
+                      <p className="text-[10px] text-muted-foreground">{formatFileSize(pdfFile.size)}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Message Body Render */}
+                {charCount > 0 ? (
+                  <div
+                    className="prose prose-sm dark:prose-invert max-w-none text-xs leading-relaxed break-words"
+                    dangerouslySetInnerHTML={{ __html: messageBody }}
+                  />
+                ) : (
+                  <p className="text-xs text-muted-foreground/80 italic leading-relaxed">
+                    Your composed WhatsApp broadcast message will appear here in real-time…
+                  </p>
+                )}
+
+                {/* Timestamp & Double Checkmark */}
+                <div className="flex items-center justify-end gap-1 text-[10px] text-muted-foreground/90 pt-0.5">
+                  <span>
+                    {new Intl.DateTimeFormat("en-IN", {
+                      timeZone: "Asia/Kolkata",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: true,
+                    }).format(new Date())}
+                  </span>
+                  <CheckCheck className="size-3.5 text-sky-600 dark:text-sky-400" />
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Guarantee Banner */}
+            <div className="bg-[#1c1917] text-[#a8a29e] text-center text-[11px] py-2 px-3">
+              Recipient will receive message formatted exactly as rendered above.
+            </div>
+          </div>
         </div>
       </form>
     </div>
