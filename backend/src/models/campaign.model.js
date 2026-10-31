@@ -225,9 +225,31 @@ const campaignSchema = new mongoose.Schema(
                 type: Number,
                 default: 0,
             },
+            delivered: {
+                type: Number,
+                default: 0,
+            },
+            read: {
+                type: Number,
+                default: 0,
+            },
             failed: {
                 type: Number,
                 default: 0,
+            },
+            adminNotes: {
+                type: String,
+                trim: true,
+                default: "",
+            },
+            reportedAt: {
+                type: Date,
+                default: null,
+            },
+            reportedBy: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "User",
+                default: null,
             },
         },
         campaignStartDate: {

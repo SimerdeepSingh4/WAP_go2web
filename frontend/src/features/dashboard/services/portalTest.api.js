@@ -102,3 +102,21 @@ export async function deleteContact(id) {
     return res.data;
 }
 
+// --- Dashboard & Metrics ---
+export async function getDashboardStats() {
+    const res = await apiClient.get("/dashboard/stats");
+    return res.data;
+}
+
+export async function updateCampaignMetrics({ campaignId, sent, delivered, read, failed, adminNotes, status }) {
+    const res = await apiClient.patch(`/campaigns/${campaignId}/metrics`, {
+        sent,
+        delivered,
+        read,
+        failed,
+        adminNotes,
+        status,
+    });
+    return res.data;
+}
+

@@ -533,9 +533,113 @@ export const updateCampaignStatus = async (req, res) => {
     }
 };
 
+/**
+ * Super Admin ONLY: Manually update campaign response and delivery metrics.
+ * Since actual messaging is dispatched via external services, Super Admin inputs
+ * real delivery stats (sent, delivered, read, failed, adminNotes, and optionally completed status).
+ */
+export const updateCampaignMetrics = async (req, res) => {
+    try {
+        if (req.user.role !== "Super Admin") {
+            return res.status(403).json({
+                message: "Forbidden: Only Super Admin is authorized to record campaign delivery metrics.",
+                success: false,
+            });
+        }
+
+        const { id } = req.params;
+        const { sent, delivered, read = 0, failed = 0, adminNotes = "", status } = req.body;
+
+        if (sent === undefined || delivered === undefined) {
+            return res.status(400).json({
+                message: "Missing required delivery metrics: 'sent' and 'delivered' counts are required.",
+                success: false,
+            });
+        }
+
+        const numSent = Number(sent);
+        const numDelivered = Number(delivered);
+        const numRead = Number(read);
+        const numFailed = Number(failed);
+
+        if (
+            isNaN(numSent) || numSent < 0 ||
+            isNaN(numDelivered) || numDelivered < 0 ||
+            isNaN(numRead) || numRead < 0 ||
+            isNaN(numFailed) || numFailed < 0
+        ) {
+            return res.status(400).json({
+                message: "Metrics 'sent', 'delivered', 'read', and 'failed' must be non-negative numbers.",
+                success: false,
+            });
+        }
+
+        const campaign = await campaignModel.findById(id);
+        if (!campaign) {
+            return res.status(404).json({
+                message: "Campaign not found",
+                success: false,
+            });
+        }
+
+        // Update campaign summary metrics
+        campaign.campaignSummary = {
+            sent: numSent,
+            delivered: numDelivered,
+            read: numRead,
+            failed: numFailed,
+            adminNotes: typeof adminNotes === "string" ? adminNotes.trim() : "",
+            reportedAt: new Date(),
+            reportedBy: req.user._id,
+        };
+
+        // If status is provided, update status as well
+        if (status) {
+            const allowedStatuses = [
+                "draft",
+                "scheduled",
+                "pending",
+                "ongoing",
+                "completed",
+                "sent",
+                "paused",
+                "stopped",
+                "failed",
+            ];
+            if (allowedStatuses.includes(status)) {
+                campaign.status = status;
+                if (status === "completed" || status === "sent" || status === "stopped" || status === "failed") {
+                    campaign.campaignEndDate = new Date();
+                }
+            }
+        }
+
+        await campaign.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Campaign delivery metrics recorded successfully.",
+            data: {
+                id: campaign._id,
+                campaignTitle: campaign.campaignTitle,
+                status: campaign.status,
+                campaignSummary: campaign.campaignSummary,
+                updatedAt: campaign.updatedAt,
+            },
+        });
+    } catch (error) {
+        console.error("Update campaign metrics error:", error);
+        return res.status(500).json({
+            message: error.message || "Failed to update campaign metrics",
+            success: false,
+        });
+    }
+};
+
 export default {
     createCampaign,
     getCampaigns,
     getCampaignById,
     updateCampaignStatus,
+    updateCampaignMetrics,
 };

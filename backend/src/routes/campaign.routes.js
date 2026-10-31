@@ -4,6 +4,7 @@ import {
     getCampaigns,
     getCampaignById,
     updateCampaignStatus,
+    updateCampaignMetrics,
 } from "../controllers/campaign.controller.js";
 import {
     protect,
@@ -25,6 +26,14 @@ campaignRouter.patch(
     authorizeRoles("Super Admin"),
     blockInPreviewMode("Campaign status update"),
     updateCampaignStatus
+);
+
+// STRICTLY Super Admin ONLY: Input actual campaign response and delivery metrics
+campaignRouter.patch(
+    "/:id/metrics",
+    authorizeRoles("Super Admin"),
+    blockInPreviewMode("Campaign metrics update"),
+    updateCampaignMetrics
 );
 
 export default campaignRouter;
