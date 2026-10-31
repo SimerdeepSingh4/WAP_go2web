@@ -1,4 +1,3 @@
-import { notifyUser, notifyRole, notifyReseller } from "../services/socket.service.js";
 import mongoose from "mongoose";
 import campaignModel from "../models/campaign.model.js";
 import userModel from "../models/user.model.js";
@@ -8,6 +7,8 @@ import sharp from "sharp";
 import fs from "fs";
 import path from "path";
 import cloudinary from "../config/cloudinary.config.js";
+import { notifyUser, notifyRole, notifyReseller } from "../services/socket.service.js";
+import { scheduleCampaignJob, cancelCampaignJob } from "../queues/campaign.queue.js";
 
 export const createCampaign = async (req, res) => {
     const mongoSession = await mongoose.startSession();
@@ -74,7 +75,7 @@ export const createCampaign = async (req, res) => {
             if (useCloudinary) {
                 // Upload to Cloudinary
                 const uploads = await Promise.all(
-                    buffers.map((buf, idx) =>
+                    buffers.map((buf) =>
                         new Promise((resolve, reject) => {
                             const uploadStream = cloudinary.uploader.upload_stream(
                                 { folder: `${field}s` },
@@ -90,7 +91,7 @@ export const createCampaign = async (req, res) => {
                 return uploads;
             } else {
                 // Local storage fallback
-                const localDir = path.join(__dirname, "../../../uploads", `${field}s`);
+                const localDir = path.join(process.cwd(), "uploads", `${field}s`);
                 fs.mkdirSync(localDir, { recursive: true });
                 const uploads = await Promise.all(
                     buffers.map((buf, idx) => {
@@ -112,14 +113,16 @@ export const createCampaign = async (req, res) => {
         let documents = [];
         try {
             [images, audio, video, documents] = await Promise.all([
-                uploadField('images'),
-                uploadField('audio'),
-                uploadField('video'),
-                uploadField('documents'),
+                uploadField("images"),
+                uploadField("audio"),
+                uploadField("video"),
+                uploadField("documents"),
             ]);
         } catch (uploadErr) {
-            console.error('Media upload error:', uploadErr);
-            return res.status(500).json({ message: 'Failed to upload media files', error: uploadErr.message });
+            console.error("Media upload error:", uploadErr);
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
+            return res.status(500).json({ message: "Failed to upload media files", error: uploadErr.message });
         }
 
         // Check required fields (userId is securely taken from authenticated req.user._id)
@@ -127,16 +130,17 @@ export const createCampaign = async (req, res) => {
         if (!campaignTitle) missingFields.push("campaignTitle");
         if (!campaignDescription) missingFields.push("campaignDescription");
         
-            const hasContent =
-                messageBody ||
-                templateId ||
-                (images && Array.isArray(images) && images.length > 0) ||
-                (video && Array.isArray(video) && video.length > 0) ||
-                (audio && Array.isArray(audio) && audio.length > 0) ||
-                (documents && Array.isArray(documents) && documents.length > 0);
+        const hasContent =
+            messageBody ||
+            templateId ||
+            (images && Array.isArray(images) && images.length > 0) ||
+            (video && Array.isArray(video) && video.length > 0) ||
+            (audio && Array.isArray(audio) && audio.length > 0) ||
+            (documents && Array.isArray(documents) && documents.length > 0) ||
+            (attachments && Array.isArray(attachments) && attachments.length > 0);
 
         if (!hasContent) {
-            missingFields.push("messageBody, templateId, or media (images, audio, video, documents)");
+            missingFields.push("messageBody, templateId, or media (images, audio, video, documents, attachments)");
         }
 
         if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
@@ -203,12 +207,11 @@ export const createCampaign = async (req, res) => {
         const duplicateOccurrences = duplicatesList.length;
         const invalidCount = invalidList.length;
         let creditDeduction = null;
-
-        // Check and deduct credits for User and Reseller roles (Super Admin has unlimited pool)
         let updatedWallet = null;
         let rate = null;
         let requiredCredits = 0;
 
+        // Check and deduct credits for User and Reseller roles (Super Admin has unlimited pool)
         if (req.user.role !== "Super Admin") {
             const senderUser = await userModel
                 .findById(req.user._id)
@@ -310,11 +313,11 @@ export const createCampaign = async (req, res) => {
                     mediaId: mediaId || null,
                     variables: variables || [],
                     totalRecipients,
+                    creditsDeducted: creditDeduction ? creditDeduction.amount : 0,
+                    rateSnapshot: rate,
                     messageType: resolvedMessageType,
                     status: status || (schedule === "later" ? "scheduled" : "pending"),
                     campaignStartDate: schedule === "now" ? new Date() : null,
-                    creditsDeducted: creditDeduction ? creditDeduction.amount : 0,
-                    rateSnapshot: rate,
                 },
             ],
             { session: mongoSession }
@@ -348,37 +351,43 @@ export const createCampaign = async (req, res) => {
         await mongoSession.commitTransaction();
         mongoSession.endSession();
 
+        const newCampaign = createdCampaigns[0];
+
         // ── Real-Time WebSockets (POST-COMMIT) ────────────────────
-        // 1. Notify client's other tabs & active view of updated balance
         if (creditDeduction && updatedWallet) {
             notifyUser(req.user._id, "WALLET_UPDATED", {
                 newBalance: updatedWallet.balance,
                 delta: -requiredCredits,
                 reason: "DEDUCT",
                 campaignTitle,
-                campaignId: createdCampaigns[0]._id,
+                campaignId: newCampaign._id,
             });
         }
 
-        // 2. Notify Super Admin live triage queue
         notifyRole("Super Admin", "NEW_CAMPAIGN_SUBMITTED", {
-            campaignId: createdCampaigns[0]._id,
+            campaignId: newCampaign._id,
             campaignTitle,
             totalRecipients,
             submittedBy: req.user.username || req.user.email,
             role: req.user.role,
-            submittedAt: createdCampaigns[0].createdAt,
+            submittedAt: newCampaign.createdAt,
         });
 
-        // 3. Notify Reseller if this was launched by their client
         if (req.user.resellerId) {
             notifyReseller(req.user.resellerId, "CLIENT_CAMPAIGN_LAUNCHED", {
                 clientId: req.user._id,
                 clientName: req.user.username,
-                campaignId: createdCampaigns[0]._id,
+                campaignId: newCampaign._id,
                 campaignTitle,
                 totalRecipients,
             });
+        }
+
+        // ── BullMQ: Enqueue for Delayed Scheduling or Background Execution ──
+        try {
+            await scheduleCampaignJob(newCampaign);
+        } catch (queueErr) {
+            console.error("[BullMQ] Failed to enqueue campaign job:", queueErr.message);
         }
 
         let notice = "";
@@ -393,15 +402,15 @@ export const createCampaign = async (req, res) => {
         return res.status(201).json({
             message: `Campaign created successfully!${notice}`,
             success: true,
-            data: createdCampaigns[0],
+            data: newCampaign,
             creditDeduction,
             duplicateStats: {
                 totalSubmitted: recipients.length,
                 uniqueRecipients: totalRecipients,
                 duplicatesFound: duplicateOccurrences,
-                duplicatesList, // Preserved in full for frontend
+                duplicatesList,
                 invalidCount,
-                invalidNumbers: invalidList, // Shown directly to user
+                invalidNumbers: invalidList,
             },
         });
     } catch (error) {
@@ -426,19 +435,14 @@ export const getCampaigns = async (req, res) => {
         let filter = {};
 
         if (req.user.role === "Super Admin") {
-            // Super Admin sees everything
             filter = {};
         } else if (req.user.role === "Reseller") {
-            // Find all client users created under this reseller
             const clientUsers = await userModel.find({ resellerId: req.user._id }).select("_id");
             const clientIds = clientUsers.map((u) => u._id);
-
-            // Reseller sees their own campaigns + their client users' campaigns
             filter = {
                 userId: { $in: [req.user._id, ...clientIds] },
             };
         } else {
-            // Regular User sees only their own campaigns
             filter = { userId: req.user._id };
         }
 
@@ -515,9 +519,6 @@ export const getCampaignById = async (req, res) => {
  * -------------------------------
  * Update status of any campaign.
  * STRICTLY RESTRICTED: Only Super Admin can change campaign status.
- *
- * Body: { status }
- * Allowed statuses: ["draft", "pending", "sent", "failed", "scheduled", "paused", "stopped"]
  */
 export const updateCampaignStatus = async (req, res) => {
     try {
@@ -531,8 +532,6 @@ export const updateCampaignStatus = async (req, res) => {
         const { id } = req.params;
         const { status } = req.body;
 
-        // Limited manual statuses allowed for Super Admin intervention:
-        // Everything else ('draft', 'scheduled', 'completed') is managed automatically by the system.
         const allowedManualStatuses = [
             "paused",
             "stopped",
@@ -542,7 +541,7 @@ export const updateCampaignStatus = async (req, res) => {
 
         if (!status || !allowedManualStatuses.includes(status)) {
             return res.status(400).json({
-                message: `Invalid status. Super Admin manual override is limited to: ${allowedManualStatuses.join(", ")}. Lifecycle statuses ('draft', 'scheduled', 'completed') are managed automatically by the platform.`,
+                message: `Invalid status. Super Admin manual override is limited to: ${allowedManualStatuses.join(", ")}.`,
                 success: false,
                 allowedManualStatuses,
             });
@@ -561,6 +560,12 @@ export const updateCampaignStatus = async (req, res) => {
 
         if (status === "stopped" || status === "failed") {
             campaign.campaignEndDate = new Date();
+            // Cancel BullMQ job if it was waiting in queue
+            try {
+                await cancelCampaignJob(id);
+            } catch (queueErr) {
+                console.error("[BullMQ] Failed to cancel job:", queueErr.message);
+            }
         } else if (status === "ongoing" && !campaign.campaignStartDate) {
             campaign.campaignStartDate = new Date();
         }
@@ -606,8 +611,6 @@ export const updateCampaignStatus = async (req, res) => {
 
 /**
  * Super Admin ONLY: Manually update campaign response and delivery metrics.
- * Since actual messaging is dispatched via external services, Super Admin inputs
- * real delivery stats (sent, delivered, read, failed, adminNotes, and optionally completed status).
  */
 export const updateCampaignMetrics = async (req, res) => {
     const mongoSession = await mongoose.startSession();
@@ -683,13 +686,11 @@ export const updateCampaignMetrics = async (req, res) => {
                 const rate = campaign.rateSnapshot || campaignOwner.ratePerMsg || 12;
                 let refundAmount = numFailed * rate;
 
-                // Cap refund so it never exceeds total credits deducted
                 if (campaign.creditsDeducted > 0 && refundAmount > campaign.creditsDeducted) {
                     refundAmount = campaign.creditsDeducted;
                 }
 
                 if (refundAmount > 0) {
-                    // Atomic Guarded Increment on user's wallet
                     updatedUserWallet = await walletModel.findOneAndUpdate(
                         { userId: campaign.userId },
                         {
@@ -703,7 +704,6 @@ export const updateCampaignMetrics = async (req, res) => {
                         }
                     );
 
-                    // Insert immutable ledger record (with partial unique index guard on { campaignId: 1, type: "REFUND" })
                     const refundTransaction = await transactionModel.create(
                         [
                             {
@@ -742,7 +742,6 @@ export const updateCampaignMetrics = async (req, res) => {
         campaign.campaignSummary.reportedAt = new Date();
         campaign.campaignSummary.reportedBy = req.user._id;
 
-        // If status is provided, update status as well
         if (status) {
             const allowedStatuses = [
                 "draft",
@@ -769,7 +768,6 @@ export const updateCampaignMetrics = async (req, res) => {
         mongoSession.endSession();
 
         // ── Real-Time WebSockets (POST-COMMIT) ────────────────────
-        // 1. If refund was issued, immediately notify client's wallet
         if (refundInfo && updatedUserWallet) {
             notifyUser(campaign.userId, "WALLET_UPDATED", {
                 newBalance: updatedUserWallet.balance,
@@ -781,7 +779,6 @@ export const updateCampaignMetrics = async (req, res) => {
             });
         }
 
-        // 2. Notify client of campaign delivery metrics and status update
         notifyUser(campaign.userId, "CAMPAIGN_UPDATED", {
             campaignId: campaign._id,
             campaignTitle: campaign.campaignTitle,
@@ -794,7 +791,6 @@ export const updateCampaignMetrics = async (req, res) => {
             updatedAt: campaign.updatedAt,
         });
 
-        // 3. Notify Super Admin & Reseller
         notifyRole("Super Admin", "CAMPAIGN_UPDATED", {
             campaignId: campaign._id,
             status: campaign.status,
