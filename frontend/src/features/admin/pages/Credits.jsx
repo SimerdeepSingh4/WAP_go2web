@@ -19,26 +19,26 @@ import ActionForm from "../components/ActionForm";
 import { dateTime, number, ownerName } from "../lib/format";
 
 const transactionLabels = {
-  ALLOCATE: "Allocation",
-  DEDUCT: "Usage Deduction",
-  REFUND: "Auto-Refund",
-  RECLAIM: "Administrative Recall",
+  ALLOCATE: "Credit Added",
+  DEDUCT: "Campaign Usage",
+  REFUND: "Refund",
+  RECLAIM: "Credit Deducted",
 };
 
 /**
- * Super Admin Accounting Perspective:
- * - RECLAIM: Credits reclaimed from partner into Master Reserve -> Inflow (+, Green, ↙)
- * - ALLOCATE (from Master Reserve): Credits released from Reserve to Reseller -> Outflow (-, Blue, ↗)
- * - ALLOCATE (Reseller to User): Downstream client transfer -> Transfer (neutral, Stone, →)
- * - DEDUCT: Message delivery consumption -> Deduction (-, Red, ↘)
- * - REFUND: Delivery failure auto-refund -> Refund (+, Cyan, ↙)
+ * Super Admin Transaction Display:
+ * - RECLAIM: Credits deducted/returned from reseller -> Inflow (+, Green, ↙)
+ * - ALLOCATE (from Super Admin): Credits given to Reseller -> Outflow (-, Blue, ↗)
+ * - ALLOCATE (Reseller to User): Client transfer -> Transfer (neutral, Stone, →)
+ * - DEDUCT: Message delivery usage -> Deduction (-, Red, ↘)
+ * - REFUND: Delivery failure refund -> Refund (+, Cyan, ↙)
  */
 function getTransactionDisplay(t) {
-  const isFromMasterReserve = !t.fromUser || t.fromUser?.role === "Super Admin";
+  const isFromSuperAdmin = !t.fromUser || t.fromUser?.role === "Super Admin";
 
   if (t.type === "RECLAIM") {
     return {
-      label: "Administrative Recall",
+      label: "Credit Deducted",
       badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-800",
       amountClass: "text-emerald-700 font-semibold",
       sign: "+",
@@ -47,9 +47,9 @@ function getTransactionDisplay(t) {
   }
 
   if (t.type === "ALLOCATE") {
-    if (isFromMasterReserve) {
+    if (isFromSuperAdmin) {
       return {
-        label: "Allocation",
+        label: "Credit Added",
         badgeClass: "border-blue-200 bg-blue-50 text-blue-800",
         amountClass: "text-blue-700 font-semibold",
         sign: "-",
@@ -57,7 +57,7 @@ function getTransactionDisplay(t) {
       };
     } else {
       return {
-        label: "Client Transfer",
+        label: "Transfer",
         badgeClass: "border-stone-200 bg-stone-100 text-stone-700",
         amountClass: "text-stone-700 font-medium",
         sign: "→",
@@ -68,7 +68,7 @@ function getTransactionDisplay(t) {
 
   if (t.type === "DEDUCT") {
     return {
-      label: "Usage Deduction",
+      label: "Campaign Usage",
       badgeClass: "border-red-200 bg-red-50 text-red-800",
       amountClass: "text-red-700 font-semibold",
       sign: "-",
@@ -78,7 +78,7 @@ function getTransactionDisplay(t) {
 
   if (t.type === "REFUND") {
     return {
-      label: "Auto-Refund",
+      label: "Refund",
       badgeClass: "border-cyan-200 bg-cyan-50 text-cyan-800",
       amountClass: "text-cyan-700 font-semibold",
       sign: "+",
@@ -130,12 +130,12 @@ export default function Credits({ activity = false }) {
   const columns = [
     {
       key: "date",
-      label: "Timestamp",
+      label: "Date",
       render: (t) => <span className="text-xs text-muted-foreground">{dateTime(t.createdAt)}</span>,
     },
     {
       key: "type",
-      label: "Transaction Type",
+      label: "Type",
       render: (t) => {
         const info = getTransactionDisplay(t);
         const Icon = info.icon;
@@ -149,12 +149,12 @@ export default function Credits({ activity = false }) {
     },
     {
       key: "from",
-      label: "Source",
-      render: (t) => (t.fromUser ? <span className="text-xs">{ownerName(t.fromUser)}</span> : <span className="text-xs font-medium text-muted-foreground">Master Reserve</span>),
+      label: "From",
+      render: (t) => (t.fromUser ? <span className="text-xs">{ownerName(t.fromUser)}</span> : <span className="text-xs font-medium text-muted-foreground">Super Admin</span>),
     },
     {
       key: "to",
-      label: "Beneficiary",
+      label: "To",
       render: (t) => <span className="text-xs font-medium">{ownerName(t.toUser)}</span>,
     },
     {
@@ -172,12 +172,12 @@ export default function Credits({ activity = false }) {
     },
     {
       key: "actor",
-      label: "Authorized By",
+      label: "By",
       render: (t) => <span className="text-xs text-muted-foreground">{ownerName(t.performedBy)}</span>,
     },
     {
       key: "note",
-      label: "Reference Note",
+      label: "Note",
       render: (t) => (
         <span className="block max-w-64 whitespace-normal break-words text-xs text-muted-foreground">
           {t.notes || "—"}
@@ -189,11 +189,11 @@ export default function Credits({ activity = false }) {
   return (
     <>
       <PageHeading
-        title={activity ? "Audit Log & Journal" : "Credit Treasury & Disbursement"}
+        title={activity ? "Credit History" : "Credits"}
         description={
           activity
-            ? "Inspect double-entry journal records, campaign usage deductions, automatic refunds, and administrative actions."
-            : "Disburse messaging credits to reseller partners, manage balance reserves, and audit transaction records."
+            ? "View all credit transactions, campaign usage, and refunds."
+            : "Add or deduct credits for resellers, and view transaction history."
         }
         action={
           !activity && (
@@ -205,7 +205,7 @@ export default function Credits({ activity = false }) {
                 className="gap-1.5 text-xs"
               >
                 <RotateCcw className="size-3.5 text-amber-600" />
-                Emergency Recall
+                Deduct Credits
               </Button>
               <Button
                 onClick={() => update("allocate", "new")}
@@ -213,7 +213,7 @@ export default function Credits({ activity = false }) {
                 className="gap-1.5"
               >
                 <Plus className="size-4" />
-                Disburse Credits
+                Add Credits
               </Button>
             </div>
           )
@@ -226,37 +226,37 @@ export default function Credits({ activity = false }) {
             <Card className="rounded-lg shadow-none">
               <CardContent className="p-4 sm:p-5">
                 <p className="flex items-center justify-between text-xs text-muted-foreground">
-                  Master Credit Reserve
+                  Super Admin Balance
                   <Wallet className="size-4 text-muted-foreground" />
                 </p>
                 <p className="mt-2 text-2xl font-bold tracking-tight text-primary">Unlimited</p>
-                <p className="mt-1 text-xs text-muted-foreground">Primary Issuance Authority</p>
+                <p className="mt-1 text-xs text-muted-foreground">Unlimited sending credits</p>
               </CardContent>
             </Card>
 
             <Card className="rounded-lg shadow-none">
               <CardContent className="p-4 sm:p-5">
                 <p className="flex items-center justify-between text-xs text-muted-foreground">
-                  Total Disbursed
+                  Total Credits Given
                   <Coins className="size-4 text-emerald-600" />
                 </p>
                 <p className="mt-2 text-2xl font-bold tracking-tight tabular-nums">
                   {number(overview.data?.stats?.credits?.totalAllocatedBySuperAdmin)}
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">Cumulative network allocations</p>
+                <p className="mt-1 text-xs text-muted-foreground">Total credits added to resellers</p>
               </CardContent>
             </Card>
 
             <Card className="rounded-lg shadow-none">
               <CardContent className="p-4 sm:p-5">
                 <p className="flex items-center justify-between text-xs text-muted-foreground">
-                  Active Circulation
+                  Reseller Balances
                   <TrendingUp className="size-4 text-blue-600" />
                 </p>
                 <p className="mt-2 text-2xl font-bold tracking-tight tabular-nums">
                   {number(overview.data?.stats?.credits?.totalCreditsInCirculation)}
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">Outstanding reseller balances</p>
+                <p className="mt-1 text-xs text-muted-foreground">Current credits held by resellers</p>
               </CardContent>
             </Card>
           </div>
@@ -265,14 +265,14 @@ export default function Credits({ activity = false }) {
 
       {/* Transaction Filter Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-        <h2 className="text-sm font-semibold">Transaction Journal</h2>
+        <h2 className="text-sm font-semibold">Transactions</h2>
         <div className="flex flex-wrap gap-2">
           <FilterSelect
             label="Transaction type"
             value={type}
             onChange={(value) => update("type", value)}
             options={[
-              { value: "all", label: "All transaction types" },
+              { value: "all", label: "All types" },
               ...Object.entries(transactionLabels).map(([value, label]) => ({ value, label })),
             ]}
           />
@@ -317,10 +317,10 @@ export default function Credits({ activity = false }) {
       {/* Credit Allocation Dialog */}
       {allocation && accountsQuery.isSuccess && resellers.length > 0 && (
         <ActionForm
-          title="Disburse Credits"
-          description="Credits will be transferred to the selected reseller's operational wallet from the master reserve."
+          title="Add Credits"
+          description="Add credits to the selected reseller's wallet."
           action="allocate"
-          successMessage="Credits disbursed successfully"
+          successMessage="Credits added successfully"
           onClose={() => update("allocate", null)}
           initialValues={{
             toUserId: resellers.some((a) => a._id === allocation) ? allocation : "",
@@ -330,66 +330,66 @@ export default function Credits({ activity = false }) {
           fields={[
             {
               key: "toUserId",
-              label: "Target Reseller Account",
+              label: "Select Reseller",
               required: true,
               options: [
                 { value: "", label: "Select reseller" },
                 ...resellers.map((a) => ({ value: a._id, label: `${a.username} · ${a.email}` })),
               ],
             },
-            { key: "amount", label: "Credits to Disburse", required: true, type: "number", min: 0.01, step: 0.01 },
-            { key: "notes", label: "Invoice / Reference Note", type: "textarea", maxLength: 500 },
+            { key: "amount", label: "Credits to add", required: true, type: "number", min: 0.01, step: 0.01 },
+            { key: "notes", label: "Note (Optional)", type: "textarea", maxLength: 500 },
           ]}
           payload={(v) => ({ toUserId: v.toUserId, amount: Number(v.amount), notes: v.notes.trim() })}
           review={(v) => (
             <>
               <p className="font-medium">{resellers.find((a) => a._id === v.toUserId)?.username}</p>
               <p>
-                Disburse <strong>{number(Number(v.amount))} credits</strong> to this account.
+                Add <strong>{number(Number(v.amount))} credits</strong> to this account.
               </p>
               <p className="whitespace-pre-wrap break-words text-muted-foreground text-xs mt-1">
-                {v.notes || "No reference note."}
+                {v.notes || "No note."}
               </p>
             </>
           )}
-          submitLabel="Confirm Disbursement"
+          submitLabel="Add Credits"
         />
       )}
 
-      {/* Emergency Reclaim Dialog */}
+      {/* Deduct Credits Dialog */}
       {reclaimOpen && accountsQuery.isSuccess && (
         <ActionForm
-          title="Administrative Credit Recall"
-          description="Recall unspent credits from a partner account back into the primary reserve."
+          title="Deduct Credits"
+          description="Take back unused credits from a reseller account."
           action="reclaim"
-          successMessage="Credits recalled successfully"
+          successMessage="Credits deducted successfully"
           onClose={() => setReclaimOpen(false)}
           initialValues={{ fromUserId: "", amount: "", notes: "" }}
           fields={[
             {
               key: "fromUserId",
-              label: "Source Account",
+              label: "Select Reseller",
               required: true,
               options: [
                 { value: "", label: "Select reseller" },
                 ...resellers.map((a) => ({ value: a._id, label: `${a.username} · ${a.email}` })),
               ],
             },
-            { key: "amount", label: "Credits to Recall", required: true, type: "number", min: 0.01, step: 0.01 },
-            { key: "notes", label: "Justification / Audit Reason", required: true, type: "textarea", maxLength: 500 },
+            { key: "amount", label: "Credits to deduct", required: true, type: "number", min: 0.01, step: 0.01 },
+            { key: "notes", label: "Reason", required: true, type: "textarea", maxLength: 500 },
           ]}
           payload={(v) => ({ fromUserId: v.fromUserId, amount: Number(v.amount), notes: v.notes.trim() })}
           review={(v) => (
             <>
-              <p className="font-semibold text-destructive">Administrative Recall Notice</p>
+              <p className="font-semibold text-destructive">Deduct Credits</p>
               <p>
-                Recalling <strong>{number(Number(v.amount))} credits</strong> from{" "}
+                Taking back <strong>{number(Number(v.amount))} credits</strong> from{" "}
                 {resellers.find((a) => a._id === v.fromUserId)?.username}.
               </p>
-              <p className="text-muted-foreground text-xs mt-1">Audit reason: {v.notes}</p>
+              <p className="text-muted-foreground text-xs mt-1">Reason: {v.notes}</p>
             </>
           )}
-          submitLabel="Execute Recall"
+          submitLabel="Deduct Credits"
         />
       )}
     </>

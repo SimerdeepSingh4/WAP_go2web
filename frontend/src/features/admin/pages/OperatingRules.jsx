@@ -103,15 +103,15 @@ export default function OperatingRules() {
   const tabs = [
     { id: "campaigns", label: "Campaign & Hours", icon: Clock },
     { id: "devices", label: "Device & Sessions", icon: Smartphone },
-    { id: "queue", label: "BullMQ Engine", icon: Cpu },
-    { id: "billing", label: "Treasury & Credits", icon: Coins },
+    { id: "queue", label: "Sending Queue", icon: Cpu },
+    { id: "billing", label: "Credits & Pricing", icon: Coins },
   ];
 
   return (
     <>
       <PageHeading
-        title="Platform Settings & Rules"
-        description="Configure account sending limits, multi-device access security, BullMQ execution workers, and treasury billing."
+        title="Settings"
+        description="Configure campaign limits, device logins, sending queue, and credit pricing."
         action={
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" onClick={handleReset} className="gap-1.5 text-xs">
@@ -450,7 +450,7 @@ export default function OperatingRules() {
                   className="h-9"
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  Recipients grouped per atomic batch (Default: 25).
+                  Recipients per batch (Default: 25).
                 </p>
               </div>
 
@@ -505,9 +505,9 @@ export default function OperatingRules() {
             <CardContent className="pt-4 space-y-4">
               <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/20">
                 <div className="space-y-0.5">
-                  <p className="text-xs font-semibold text-foreground">Atomic CAS Auto-Refund</p>
+                  <p className="text-xs font-semibold text-foreground">Auto-Refund Failed Messages</p>
                   <p className="text-[11px] text-muted-foreground">
-                    Automatically credits back user wallet balance when phone numbers are invalid or delivery drops.
+                    Automatically refund credits back to the user when phone numbers are invalid or delivery fails.
                   </p>
                 </div>
                 <input
@@ -522,17 +522,17 @@ export default function OperatingRules() {
         </div>
       )}
 
-      {/* TAB 4: TREASURY & BILLING DEFAULTS */}
+      {/* TAB 4: CREDITS & BILLING DEFAULTS */}
       {activeTab === "billing" && (
         <div className="space-y-5 max-w-3xl">
           <Card className="rounded-lg shadow-none">
             <CardHeader className="border-b pb-4">
               <div className="flex items-center gap-2">
                 <Coins className="size-4.5 text-primary" />
-                <CardTitle className="text-base">Treasury & Default Pricing Rates</CardTitle>
+                <CardTitle className="text-base">Default Credit Rates & Alerts</CardTitle>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Set baseline credit rates assigned when registering new accounts.
+                Set default credit rates for new accounts.
               </p>
             </CardHeader>
             <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">

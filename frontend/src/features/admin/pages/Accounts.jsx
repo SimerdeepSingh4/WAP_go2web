@@ -67,12 +67,12 @@ function AccountDetail({ account, onClose }) {
             </QueryState>
           </div>
 
-          {/* Financial Ledger Integrity Audit Section */}
+          {/* Balance Check Section */}
           <div className="border-t pt-4 space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold">Ledger Invariant Audit</p>
-                <p className="text-xs text-muted-foreground">Verify Balance = Inflows − Outflows</p>
+                <p className="text-sm font-semibold">Balance Check</p>
+                <p className="text-xs text-muted-foreground">Check if transactions match wallet balance</p>
               </div>
               <Button
                 variant="outline"
@@ -82,7 +82,7 @@ function AccountDetail({ account, onClose }) {
                 className="gap-1.5 text-xs"
               >
                 <RefreshCw className={`size-3.5 ${reconcile.isFetching ? "animate-spin" : ""}`} />
-                {showAudit ? "Re-audit" : "Audit"}
+                {showAudit ? "Re-check" : "Check Balance"}
               </Button>
             </div>
 
@@ -100,31 +100,31 @@ function AccountDetail({ account, onClose }) {
                       {reconcile.data.reconciliation?.isBalanced ? (
                         <>
                           <ShieldCheck className="size-4 text-emerald-600" />
-                          <span>Audit Passed: Zero Ledger Discrepancy</span>
+                          <span>Balance Verified: Transactions match wallet balance</span>
                         </>
                       ) : (
                         <>
                           <ShieldAlert className="size-4 text-red-600" />
-                          <span>Discrepancy Detected!</span>
+                          <span>Balance Mismatch Detected</span>
                         </>
                       )}
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 pt-1 border-t border-muted/50 text-[11px]">
                       <div>
-                        <span className="text-muted-foreground">Inflows:</span>{" "}
+                        <span className="text-muted-foreground">Added:</span>{" "}
                         <strong className="tabular-nums">+{number(reconcile.data.reconciliation?.totalInflow)}</strong>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Outflows:</span>{" "}
+                        <span className="text-muted-foreground">Used:</span>{" "}
                         <strong className="tabular-nums">-{number(reconcile.data.reconciliation?.totalOutflow)}</strong>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Calculated:</span>{" "}
+                        <span className="text-muted-foreground">Calculated Balance:</span>{" "}
                         <strong className="tabular-nums">{number(reconcile.data.reconciliation?.calculatedBalance)}</strong>
                       </div>
                       <div>
-                        <span className="text-muted-foreground">Wallet:</span>{" "}
+                        <span className="text-muted-foreground">Wallet Balance:</span>{" "}
                         <strong className="tabular-nums">{number(reconcile.data.reconciliation?.walletBalance)}</strong>
                       </div>
                     </div>
@@ -268,8 +268,8 @@ export default function Accounts({ role }) {
         title={role === "Reseller" ? "Resellers Network" : "User Accounts"}
         description={
           role === "Reseller"
-            ? "Manage independent reseller partners, allocate credit pools, set per-message rates, and audit financial ledgers."
-            : "Review sub-accounts managed under resellers and inspect credit consumption."
+            ? "Manage reseller accounts, add credits, set message rates, and check balances."
+            : "Review sub-accounts managed under resellers and check credit usage."
         }
         action={
           <Button
@@ -435,27 +435,27 @@ export default function Accounts({ role }) {
 
       {modal?.type === "reclaim" && (
         <ActionForm
-          title="Reclaim Credits (Emergency Recall)"
-          description="Recall unspent credits from this reseller back into the administrative pool."
+          title="Deduct Credits"
+          description="Take back unused credits from this reseller."
           action="reclaim"
-          successMessage="Credits reclaimed successfully"
+          successMessage="Credits deducted successfully"
           onClose={() => setModal(null)}
           initialValues={{ fromUserId: modal.account._id, amount: "", notes: "" }}
           fields={[
-            { key: "amount", label: "Credits to reclaim", required: true, type: "number", min: 0.01, step: 0.01 },
-            { key: "notes", label: "Administrative audit reason", required: true, type: "textarea", maxLength: 500 },
+            { key: "amount", label: "Credits to deduct", required: true, type: "number", min: 0.01, step: 0.01 },
+            { key: "notes", label: "Reason", required: true, type: "textarea", maxLength: 500 },
           ]}
           payload={(v) => ({ fromUserId: modal.account._id, amount: Number(v.amount), notes: v.notes.trim() })}
           review={(v) => (
             <>
-              <p className="font-medium text-destructive">Administrative Reclaim Warning</p>
+              <p className="font-medium text-destructive">Deduct Credits</p>
               <p>
                 Deducting <strong>{number(Number(v.amount))} credits</strong> from {modal.account.username}.
               </p>
               <p className="text-muted-foreground text-xs mt-1">Reason: {v.notes}</p>
             </>
           )}
-          submitLabel="Confirm Reclaim"
+          submitLabel="Deduct Credits"
         />
       )}
     </>
