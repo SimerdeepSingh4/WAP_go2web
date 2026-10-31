@@ -15,9 +15,6 @@ import {
   FileText,
   Lock,
   Sparkles,
-  Smartphone,
-  Check,
-  CheckCheck,
   X,
   HelpCircle,
 } from "lucide-react";
@@ -279,8 +276,8 @@ export default function CreateCampaignPage() {
 
       {/* Main 2-Column Responsive Workspace */}
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Form Fields (7 cols) */}
-        <div className="lg:col-span-7 space-y-6">
+        {/* Left Column: Form Fields (8 cols) */}
+        <div className="lg:col-span-8 space-y-6">
           {/* Card 1: Campaign Details */}
           <Card className="rounded-xl border shadow-xs">
             <CardHeader className="border-b pb-4">
@@ -548,59 +545,8 @@ export default function CreateCampaignPage() {
           </Card>
         </div>
 
-        {/* Right Column: Live WhatsApp Mobile Preview & Order Summary (5 cols) */}
-        <div className="lg:col-span-5 space-y-6 lg:sticky lg:top-4">
-          {/* WhatsApp Live Device Mockup */}
-          <Card className="rounded-2xl border shadow-md overflow-hidden bg-zinc-900 text-white">
-            <div className="bg-[#075E54] px-4 py-3 flex items-center justify-between border-b border-[#128C7E]/40">
-              <div className="flex items-center gap-3">
-                <div className="size-8 rounded-full bg-white/20 grid place-items-center text-xs font-bold text-white">
-                  GW
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-white leading-tight">go2web Broadcast</p>
-                  <p className="text-[10px] text-emerald-200 leading-tight">online</p>
-                </div>
-              </div>
-              <Badge className="bg-[#128C7E] text-white hover:bg-[#128C7E] text-[10px] border-0">
-                Live Preview
-              </Badge>
-            </div>
-
-            {/* Chat Canvas */}
-            <div className="p-4 min-h-[220px] max-h-[340px] overflow-y-auto bg-[#EFEAE2] dark:bg-zinc-800 flex flex-col justify-end space-y-2">
-              <div className="self-center bg-white/80 dark:bg-zinc-700/80 text-[10px] text-zinc-600 dark:text-zinc-300 px-2.5 py-0.5 rounded-md shadow-2xs font-medium">
-                TODAY
-              </div>
-
-              {/* Chat Bubble */}
-              <div className="self-end max-w-[85%] bg-[#D9FDD3] dark:bg-[#005c4b] text-zinc-900 dark:text-white rounded-lg rounded-tr-none p-3 shadow-xs space-y-1.5 text-xs">
-                <p className="whitespace-pre-wrap break-words leading-relaxed">
-                  {messageBody.trim() || (
-                    <span className="text-zinc-400 italic">
-                      Your composed WhatsApp broadcast message will appear here in real-time...
-                    </span>
-                  )}
-                </p>
-
-                <div className="flex items-center justify-end gap-1 text-[10px] text-zinc-500 dark:text-emerald-200">
-                  <span>
-                    {new Intl.DateTimeFormat("en-IN", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: true,
-                    }).format(new Date())}
-                  </span>
-                  <CheckCheck className="size-3.5 text-sky-500" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-zinc-950 px-4 py-2 text-center text-[11px] text-zinc-400 border-t border-zinc-800">
-              Recipient will receive message formatted exactly as rendered above.
-            </div>
-          </Card>
-
+        {/* Right Column: Credits & Execution Summary (4 cols) */}
+        <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-4">
           {/* Credits Summary Card */}
           <Card className="rounded-xl border shadow-xs">
             <CardHeader className="border-b pb-4">
@@ -686,3 +632,4 @@ export default function CreateCampaignPage() {
     </div>
   );
 }
+
