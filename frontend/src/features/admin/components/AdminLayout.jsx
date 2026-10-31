@@ -7,7 +7,7 @@ import {
   Building2,
   Wallet,
   ReceiptText,
-  SlidersHorizontal,
+  Settings,
   LogOut,
   ChevronDown,
   MessageSquare,
@@ -59,7 +59,7 @@ const adminNavigation = [
   { title: "Users", path: "/admin/users", icon: Users },
   { title: "Credits", path: "/admin/credits", icon: Wallet },
   { title: "Activity", path: "/admin/activity", icon: ReceiptText },
-  { title: "Limits & hours", path: "/admin/settings", icon: SlidersHorizontal },
+  { title: "Settings", path: "/admin/settings", icon: Settings },
 ];
 
 function Navigation() {
