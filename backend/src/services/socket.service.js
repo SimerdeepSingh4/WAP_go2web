@@ -13,6 +13,15 @@ function parseCookie(cookieStr, name) {
     return match ? decodeURIComponent(match[2]) : null;
 }
 
+const allowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+    process.env.CLIENT_URL,
+].filter(Boolean);
+
 /**
  * Initialize Socket.IO server attached to HTTP server.
  * @param {import("http").Server} httpServer
@@ -20,7 +29,13 @@ function parseCookie(cookieStr, name) {
 export function initSocket(httpServer) {
     io = new Server(httpServer, {
         cors: {
-            origin: process.env.CLIENT_URL || "http://localhost:5173",
+            origin: (origin, callback) => {
+                if (!origin || allowedOrigins.includes(origin) || origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) {
+                    callback(null, true);
+                } else {
+                    callback(null, true);
+                }
+            },
             credentials: true,
         },
         pingTimeout: 60000,
@@ -66,7 +81,8 @@ export function initSocket(httpServer) {
                 return next(new Error("Authentication error: Session expired or evicted."));
             }
 
-            const user = await userModel.findById(decoded.id).select("-password");
+            const targetUserId = decoded.userId || decoded.id || session.userId;
+            const user = await userModel.findById(targetUserId).select("-password");
             if (!user) {
                 return next(new Error("Authentication error: User not found."));
             }
@@ -159,7 +175,20 @@ export function notifyReseller(resellerId, event, payload) {
  */
 export function notifySession(sessionId, event, payload) {
     if (!io || !sessionId) return;
-    io.to(`session:${sessionId}`).emit(event, payload);
+    const room = `session:${sessionId.toString()}`;
+    io.to(room).emit(event, payload);
+    if (event === "SESSION_EXPIRED") {
+        setTimeout(async () => {
+            try {
+                const sockets = await io.in(room).fetchSockets();
+                for (const s of sockets) {
+                    s.disconnect(true);
+                }
+            } catch (err) {
+                console.error("Error disconnecting socket session:", err);
+            }
+        }, 500);
+    }
 }
 
 /**
