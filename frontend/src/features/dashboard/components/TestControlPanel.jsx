@@ -324,8 +324,8 @@ export default function TestControlPanel() {
   const stats = dashboardStatsData?.stats;
 
   return (
-    <div className="mt-8 rounded-xl border border-[#e7e4dc] bg-white p-6 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e7e4dc] pb-4">
+    <div className="mt-8 rounded-xl border border-[var(--background)] bg-white p-6 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--background)] pb-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span
@@ -339,7 +339,7 @@ export default function TestControlPanel() {
             >
               {role} Console
             </span>
-            <span className="text-xs text-[#718067]">
+            <span className="text-xs text-[var(--muted-foreground)]">
               {isSuperAdmin
                 ? "Full Platform Access"
                 : isReseller
@@ -347,26 +347,26 @@ export default function TestControlPanel() {
                 : "Customer Messaging Workspace"}
             </span>
           </div>
-          <h2 className="text-xl font-bold text-[#2d3a29]">
+          <h2 className="text-xl font-bold text-[var(--foreground)]">
             Workspace Controls
           </h2>
         </div>
 
         {/* Live balance badge */}
-        <div className="flex items-center gap-2 rounded-lg bg-[#f0f6ea] px-3.5 py-1.5 border border-[#ceddc2]">
-          <span className="text-xs font-medium text-[#46573c]">Available Credits:</span>
-          <span className="text-base font-bold text-[#284f3a]">
+        <div className="flex items-center gap-2 rounded-lg bg-[var(--muted)] px-3.5 py-1.5 border border-[var(--border)]">
+          <span className="text-xs font-medium text-[var(--foreground)]">Available Credits:</span>
+          <span className="text-base font-bold text-[var(--primary)]">
             {isSuperAdmin ? "Unlimited" : myBalance}
           </span>
         </div>
       </div>
 
       {statusMsg && (
-        <div className="my-4 rounded-lg bg-[#edf4e8] border border-[#cbdcbf] p-3 text-xs font-semibold text-[#284f3a] flex items-center justify-between">
+        <div className="my-4 rounded-lg bg-[var(--muted)] border border-[var(--border)] p-3 text-xs font-semibold text-[var(--primary)] flex items-center justify-between">
           <span>{statusMsg}</span>
           <button
             onClick={() => setStatusMsg("")}
-            className="text-[11px] underline cursor-pointer text-[#4e6142]"
+            className="text-[11px] underline cursor-pointer text-[var(--primary)]"
           >
             Dismiss
           </button>
@@ -376,66 +376,66 @@ export default function TestControlPanel() {
       {/* TOP DASHBOARD SUMMARY METRICS CARDS */}
       <div className="pt-4 pb-2">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-[#55664d] flex items-center gap-1.5">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--primary)] flex items-center gap-1.5">
             <span>Dashboard Overview</span>
             {isDashboardLoading && (
-              <span className="size-2 rounded-full bg-[#284f3a] animate-ping inline-block" />
+              <span className="size-2 rounded-full bg-[var(--primary)] animate-ping inline-block" />
             )}
           </h3>
-          <span className="text-[10px] text-[#819079]">Live Metrics</span>
+          <span className="text-[10px] text-[var(--muted-foreground)]">Live Metrics</span>
         </div>
 
         {/* 1. Super Admin Summary Cards */}
         {isSuperAdmin && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
-              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+            <div className="p-3.5 rounded-xl border border-[var(--border)] bg-gradient-to-br from-white to-[var(--background)] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[var(--muted-foreground)] mb-1">
                 <span>Total Platform Users</span>
                 <span className="text-base">👥</span>
               </div>
-              <div className="text-2xl font-black text-[#22351e]">
+              <div className="text-2xl font-black text-[var(--foreground)]">
                 {stats?.accounts?.totalUsers ?? 0}
               </div>
-              <div className="text-[11px] text-[#718269] mt-1">
+              <div className="text-[11px] text-[var(--muted-foreground)] mt-1">
                 +{stats?.accounts?.totalResellers ?? 0} Resellers ({stats?.accounts?.totalPlatformAccounts ?? 0} total)
               </div>
             </div>
 
-            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
-              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+            <div className="p-3.5 rounded-xl border border-[var(--border)] bg-gradient-to-br from-white to-[var(--background)] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[var(--muted-foreground)] mb-1">
                 <span>Active Resellers</span>
                 <span className="text-base">🏢</span>
               </div>
-              <div className="text-2xl font-black text-[#284f3a]">
+              <div className="text-2xl font-black text-[var(--primary)]">
                 {stats?.accounts?.activeResellers ?? 0}
               </div>
-              <div className="text-[11px] text-[#718269] mt-1">
+              <div className="text-[11px] text-[var(--muted-foreground)] mt-1">
                 Out of {stats?.accounts?.totalResellers ?? 0} registered
               </div>
             </div>
 
-            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
-              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+            <div className="p-3.5 rounded-xl border border-[var(--border)] bg-gradient-to-br from-white to-[var(--background)] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[var(--muted-foreground)] mb-1">
                 <span>Credits in Circulation</span>
                 <span className="text-base">💳</span>
               </div>
-              <div className="text-2xl font-black text-[#1e3a2b]">
+              <div className="text-2xl font-black text-[var(--foreground)]">
                 {stats?.credits?.totalCreditsInCirculation?.toLocaleString() ?? 0}
               </div>
-              <div className="text-[11px] text-[#718269] mt-1">
+              <div className="text-[11px] text-[var(--muted-foreground)] mt-1">
                 Allocated: {stats?.credits?.totalAllocatedBySuperAdmin?.toLocaleString() ?? 0}
               </div>
             </div>
 
-            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
-              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+            <div className="p-3.5 rounded-xl border border-[var(--border)] bg-gradient-to-br from-white to-[var(--background)] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[var(--muted-foreground)] mb-1">
                 <span>Total Messages Sent/Deliv.</span>
                 <span className="text-base">🚀</span>
               </div>
-              <div className="text-2xl font-black text-[#284f3a]">
+              <div className="text-2xl font-black text-[var(--primary)]">
                 {stats?.campaigns?.totalMessagesSent?.toLocaleString() ?? 0}
               </div>
-              <div className="text-[11px] text-[#718269] mt-1 flex items-center gap-1.5">
+              <div className="text-[11px] text-[var(--muted-foreground)] mt-1 flex items-center gap-1.5">
                 <span className="text-emerald-700 font-semibold">✓ {stats?.campaigns?.totalMessagesDelivered?.toLocaleString() ?? 0} deliv.</span>
                 <span>•</span>
                 <span className="text-rose-700">✗ {stats?.campaigns?.totalMessagesFailed?.toLocaleString() ?? 0} fail</span>
@@ -447,54 +447,54 @@ export default function TestControlPanel() {
         {/* 2. Reseller Summary Cards */}
         {isReseller && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
-              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+            <div className="p-3.5 rounded-xl border border-[var(--border)] bg-gradient-to-br from-white to-[var(--background)] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[var(--muted-foreground)] mb-1">
                 <span>My Balance</span>
                 <span className="text-base">💰</span>
               </div>
-              <div className="text-2xl font-black text-[#284f3a]">
+              <div className="text-2xl font-black text-[var(--primary)]">
                 {stats?.wallet?.myBalance?.toLocaleString() ?? 0}
               </div>
-              <div className="text-[11px] text-[#718269] mt-1">
+              <div className="text-[11px] text-[var(--muted-foreground)] mt-1">
                 Available to distribute to clients
               </div>
             </div>
 
-            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
-              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+            <div className="p-3.5 rounded-xl border border-[var(--border)] bg-gradient-to-br from-white to-[var(--background)] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[var(--muted-foreground)] mb-1">
                 <span>Total Clients</span>
                 <span className="text-base">👥</span>
               </div>
-              <div className="text-2xl font-black text-[#22351e]">
+              <div className="text-2xl font-black text-[var(--foreground)]">
                 {stats?.clients?.totalClients ?? 0}
               </div>
-              <div className="text-[11px] text-[#718269] mt-1">
+              <div className="text-[11px] text-[var(--muted-foreground)] mt-1">
                 {stats?.clients?.activeClients ?? 0} active client account(s)
               </div>
             </div>
 
-            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
-              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+            <div className="p-3.5 rounded-xl border border-[var(--border)] bg-gradient-to-br from-white to-[var(--background)] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[var(--muted-foreground)] mb-1">
                 <span>Credits Distributed</span>
                 <span className="text-base">🤝</span>
               </div>
-              <div className="text-2xl font-black text-[#1e3a2b]">
+              <div className="text-2xl font-black text-[var(--foreground)]">
                 {stats?.wallet?.creditsDistributedToClients?.toLocaleString() ?? 0}
               </div>
-              <div className="text-[11px] text-[#718269] mt-1">
+              <div className="text-[11px] text-[var(--muted-foreground)] mt-1">
                 Client wallets: {stats?.wallet?.clientWalletsTotal?.toLocaleString() ?? 0}
               </div>
             </div>
 
-            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
-              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+            <div className="p-3.5 rounded-xl border border-[var(--border)] bg-gradient-to-br from-white to-[var(--background)] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[var(--muted-foreground)] mb-1">
                 <span>Client Messages Sent</span>
                 <span className="text-base">📨</span>
               </div>
-              <div className="text-2xl font-black text-[#284f3a]">
+              <div className="text-2xl font-black text-[var(--primary)]">
                 {stats?.campaigns?.clientMessagesSent?.toLocaleString() ?? 0}
               </div>
-              <div className="text-[11px] text-[#718269] mt-1 flex items-center gap-1.5">
+              <div className="text-[11px] text-[var(--muted-foreground)] mt-1 flex items-center gap-1.5">
                 <span className="text-emerald-700 font-semibold">✓ {stats?.campaigns?.clientMessagesDelivered?.toLocaleString() ?? 0} deliv.</span>
                 <span>•</span>
                 <span className="text-rose-700">✗ {stats?.campaigns?.clientMessagesFailed?.toLocaleString() ?? 0} fail</span>
@@ -506,57 +506,57 @@ export default function TestControlPanel() {
         {/* 3. User Summary Cards */}
         {!isSuperAdmin && !isReseller && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
-              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+            <div className="p-3.5 rounded-xl border border-[var(--border)] bg-gradient-to-br from-white to-[var(--background)] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[var(--muted-foreground)] mb-1">
                 <span>My Balance</span>
                 <span className="text-base">💳</span>
               </div>
-              <div className="text-2xl font-black text-[#284f3a]">
+              <div className="text-2xl font-black text-[var(--primary)]">
                 {stats?.wallet?.myBalance?.toLocaleString() ?? 0}
               </div>
-              <div className="text-[11px] text-[#718269] mt-1">
+              <div className="text-[11px] text-[var(--muted-foreground)] mt-1">
                 ~{stats?.wallet?.messagesRemaining ?? 0} msgs (@ {stats?.wallet?.ratePerMsg ?? 12} cr)
               </div>
             </div>
 
-            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
-              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+            <div className="p-3.5 rounded-xl border border-[var(--border)] bg-gradient-to-br from-white to-[var(--background)] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[var(--muted-foreground)] mb-1">
                 <span>Messages Sent</span>
                 <span className="text-base">📤</span>
               </div>
-              <div className="text-2xl font-black text-[#22351e]">
+              <div className="text-2xl font-black text-[var(--foreground)]">
                 {stats?.campaigns?.messagesSent?.toLocaleString() ?? 0}
               </div>
-              <div className="text-[11px] text-[#718269] mt-1">
+              <div className="text-[11px] text-[var(--muted-foreground)] mt-1">
                 {stats?.campaigns?.totalRecipients?.toLocaleString() ?? 0} recipients requested
               </div>
             </div>
 
-            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
-              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+            <div className="p-3.5 rounded-xl border border-[var(--border)] bg-gradient-to-br from-white to-[var(--background)] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[var(--muted-foreground)] mb-1">
                 <span>Delivered / Failed</span>
                 <span className="text-base">✅</span>
               </div>
-              <div className="text-2xl font-black text-[#284f3a]">
+              <div className="text-2xl font-black text-[var(--primary)]">
                 {stats?.campaigns?.messagesDelivered?.toLocaleString() ?? 0}
                 <span className="text-sm font-normal text-rose-700 ml-1.5">
                   / {stats?.campaigns?.messagesFailed?.toLocaleString() ?? 0} fail
                 </span>
               </div>
-              <div className="text-[11px] text-[#718269] mt-1">
+              <div className="text-[11px] text-[var(--muted-foreground)] mt-1">
                 Read: {stats?.campaigns?.messagesRead?.toLocaleString() ?? 0} recipient(s)
               </div>
             </div>
 
-            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
-              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+            <div className="p-3.5 rounded-xl border border-[var(--border)] bg-gradient-to-br from-white to-[var(--background)] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[var(--muted-foreground)] mb-1">
                 <span>Total Contacts</span>
                 <span className="text-base">📇</span>
               </div>
-              <div className="text-2xl font-black text-[#1e3a2b]">
+              <div className="text-2xl font-black text-[var(--foreground)]">
                 {stats?.assets?.totalContacts ?? 0}
               </div>
-              <div className="text-[11px] text-[#718269] mt-1">
+              <div className="text-[11px] text-[var(--muted-foreground)] mt-1">
                 Across {stats?.assets?.totalGroups ?? 0} group(s)
               </div>
             </div>
@@ -572,8 +572,8 @@ export default function TestControlPanel() {
             onClick={() => setActiveTab(tab.id)}
             className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
               activeTab === tab.id
-                ? "bg-[#284f3a] text-white"
-                : "bg-[#f4f6ef] text-[#55664d] hover:bg-[#e7ebd9]"
+                ? "bg-[var(--primary)] text-white"
+                : "bg-[#f4f6ef] text-[var(--primary)] hover:bg-[#e7ebd9]"
             }`}
           >
             {tab.label}
@@ -599,8 +599,8 @@ export default function TestControlPanel() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* 1. Allocate Credits */}
-            <div className="rounded-lg bg-[#faf8f5] border border-[#e7e4dc] p-4">
-              <h3 className="text-sm font-bold text-[#2d3a29] mb-1">
+            <div className="rounded-lg bg-[#faf8f5] border border-[var(--background)] p-4">
+              <h3 className="text-sm font-bold text-[var(--foreground)] mb-1">
                 Allocate Credits
               </h3>
               <p className="text-[11px] text-[#6b7b64] mb-3">
@@ -657,7 +657,7 @@ export default function TestControlPanel() {
                 <button
                   type="submit"
                   disabled={allocateMutation.isPending}
-                  className="w-full bg-[#284f3a] text-white text-xs font-semibold rounded p-2 hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
+                  className="w-full bg-[var(--primary)] text-white text-xs font-semibold rounded p-2 hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
                 >
                   Review & Confirm Transfer →
                 </button>
@@ -732,7 +732,7 @@ export default function TestControlPanel() {
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-base">🔒</span>
-                    <h3 className="text-sm font-bold text-[#2d3a29]">
+                    <h3 className="text-sm font-bold text-[var(--foreground)]">
                       Irreversible Allocation Policy
                     </h3>
                   </div>
@@ -753,10 +753,10 @@ export default function TestControlPanel() {
 
           {/* Transaction History */}
           <div>
-            <h3 className="text-sm font-bold text-[#2d3a29] mb-2">
+            <h3 className="text-sm font-bold text-[var(--foreground)] mb-2">
               Credit Transfer Audit Log ({transactions.length})
             </h3>
-            <div className="overflow-x-auto rounded-lg border border-[#e7e4dc]">
+            <div className="overflow-x-auto rounded-lg border border-[var(--background)]">
               <table className="w-full text-left text-xs text-[#3b4735]">
                 <thead className="bg-[#f0f4ea] text-[11px] font-semibold uppercase text-[#54644a]">
                   <tr>
@@ -817,13 +817,13 @@ export default function TestControlPanel() {
           <div className={`p-5 rounded-lg border flex flex-wrap items-center justify-between gap-4 ${
             isLocked
               ? "bg-red-50 border-red-300"
-              : "bg-[#f0f6ea] border-[#ceddc2]"
+              : "bg-[var(--muted)] border-[var(--border)]"
           }`}>
             <div>
               <p className={`text-xs font-semibold uppercase tracking-wider ${isLocked ? "text-red-700" : "text-[#546848]"}`}>
                 Your Balance {isLocked && "(Expired & Locked)"}
               </p>
-              <h3 className={`text-3xl font-bold mt-1 flex items-center gap-2 ${isLocked ? "text-red-600" : "text-[#284f3a]"}`}>
+              <h3 className={`text-3xl font-bold mt-1 flex items-center gap-2 ${isLocked ? "text-red-600" : "text-[var(--primary)]"}`}>
                 {isLocked && <Lock className="size-6 text-red-600" />}
                 {myBalance} Credits
               </h3>
@@ -845,8 +845,8 @@ export default function TestControlPanel() {
           </div>
 
           <div>
-            <h3 className="text-sm font-bold text-[#2d3a29] mb-2">My Credit History</h3>
-            <div className="overflow-x-auto rounded-lg border border-[#e7e4dc]">
+            <h3 className="text-sm font-bold text-[var(--foreground)] mb-2">My Credit History</h3>
+            <div className="overflow-x-auto rounded-lg border border-[var(--background)]">
               <table className="w-full text-left text-xs text-[#3b4735]">
                 <thead className="bg-[#f0f4ea] text-[11px] font-semibold uppercase text-[#54644a]">
                   <tr>
@@ -865,7 +865,7 @@ export default function TestControlPanel() {
                     transactions.map((tx) => (
                       <tr key={tx._id} className="hover:bg-[#faf8f5]">
                         <td className="p-2.5">{new Date(tx.createdAt).toLocaleDateString()}</td>
-                        <td className="p-2.5 font-semibold text-[#284f3a]">{tx.type}</td>
+                        <td className="p-2.5 font-semibold text-[var(--primary)]">{tx.type}</td>
                         <td className="p-2.5 font-bold">{tx.amount}</td>
                         <td className="p-2.5 text-[#6c7b64]">{tx.notes || "—"}</td>
                       </tr>
@@ -881,8 +881,8 @@ export default function TestControlPanel() {
       {/* TAB 2: MANAGE ACCOUNTS (Super Admin & Reseller ONLY) */}
       {isManager && activeTab === "accounts" && (
         <div className="space-y-6">
-          <div className="rounded-lg bg-[#faf8f5] border border-[#e7e4dc] p-4">
-            <h3 className="text-sm font-bold text-[#2d3a29] mb-2">
+          <div className="rounded-lg bg-[#faf8f5] border border-[var(--background)] p-4">
+            <h3 className="text-sm font-bold text-[var(--foreground)] mb-2">
               Create New Account ({isSuperAdmin ? "Create Resellers or Users" : "Create Client Users"})
             </h3>
             <form
@@ -937,7 +937,7 @@ export default function TestControlPanel() {
                   <option value="User">Role: User</option>
                 </select>
               ) : (
-                <span className="text-xs p-2 rounded border border-[#cfd6c7] bg-stone-100 text-[#55664d] flex items-center">
+                <span className="text-xs p-2 rounded border border-[#cfd6c7] bg-stone-100 text-[var(--primary)] flex items-center">
                   Role: User (Client)
                 </span>
               )}
@@ -945,7 +945,7 @@ export default function TestControlPanel() {
               <button
                 type="submit"
                 disabled={createAccountMutation.isPending}
-                className="bg-[#284f3a] text-white text-xs font-semibold rounded p-2 hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
+                className="bg-[var(--primary)] text-white text-xs font-semibold rounded p-2 hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
               >
                 {createAccountMutation.isPending ? "Creating..." : "+ Add Account"}
               </button>
@@ -953,10 +953,10 @@ export default function TestControlPanel() {
           </div>
 
           <div>
-            <h3 className="text-sm font-bold text-[#2d3a29] mb-2">
+            <h3 className="text-sm font-bold text-[var(--foreground)] mb-2">
               {isSuperAdmin ? "All System Users" : "Clients Assigned To You"} ({managedUsers.length})
             </h3>
-            <div className="overflow-x-auto rounded-lg border border-[#e7e4dc]">
+            <div className="overflow-x-auto rounded-lg border border-[var(--background)]">
               <table className="w-full text-left text-xs text-[#3b4735]">
                 <thead className="bg-[#f0f4ea] text-[11px] font-semibold uppercase text-[#54644a]">
                   <tr>
@@ -984,9 +984,9 @@ export default function TestControlPanel() {
                           {u.role}
                         </span>
                       </td>
-                      <td className="p-2.5 font-medium text-[#2d3a29]">{u.ratePerMsg ?? 12} credits</td>
+                      <td className="p-2.5 font-medium text-[var(--foreground)]">{u.ratePerMsg ?? 12} credits</td>
                       <td className="p-2.5">{u.status}</td>
-                      <td className="p-2.5 font-mono text-[10px] text-[#718067]">{u._id}</td>
+                      <td className="p-2.5 font-mono text-[10px] text-[var(--muted-foreground)]">{u._id}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1002,8 +1002,8 @@ export default function TestControlPanel() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* 1. GROUPS SECTION */}
             <div className="space-y-4">
-              <div className="rounded-lg bg-[#faf8f5] border border-[#e7e4dc] p-4">
-                <h3 className="text-sm font-bold text-[#2d3a29] mb-1">
+              <div className="rounded-lg bg-[#faf8f5] border border-[var(--background)] p-4">
+                <h3 className="text-sm font-bold text-[var(--foreground)] mb-1">
                   Create Contact Group
                 </h3>
                 <p className="text-[11px] text-[#6b7b64] mb-3">
@@ -1034,7 +1034,7 @@ export default function TestControlPanel() {
                   <button
                     type="submit"
                     disabled={createGroupMutation.isPending}
-                    className="w-full bg-[#284f3a] text-white text-xs font-semibold rounded p-2 hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
+                    className="w-full bg-[var(--primary)] text-white text-xs font-semibold rounded p-2 hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
                   >
                     {createGroupMutation.isPending ? "Creating Group..." : "+ Create Group"}
                   </button>
@@ -1042,10 +1042,10 @@ export default function TestControlPanel() {
               </div>
 
               <div>
-                <h3 className="text-sm font-bold text-[#2d3a29] mb-2">
+                <h3 className="text-sm font-bold text-[var(--foreground)] mb-2">
                   Contact Groups ({groups.length})
                 </h3>
-                <div className="overflow-x-auto rounded-lg border border-[#e7e4dc]">
+                <div className="overflow-x-auto rounded-lg border border-[var(--background)]">
                   <table className="w-full text-left text-xs text-[#3b4735]">
                     <thead className="bg-[#f0f4ea] text-[11px] font-semibold uppercase text-[#54644a]">
                       <tr>
@@ -1073,7 +1073,7 @@ export default function TestControlPanel() {
                                 </span>
                               )}
                             </td>
-                            <td className="p-2.5 font-semibold text-[#284f3a]">
+                            <td className="p-2.5 font-semibold text-[var(--primary)]">
                               <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
                                 {g.totalContacts ?? 0} contact(s)
                               </span>
@@ -1105,8 +1105,8 @@ export default function TestControlPanel() {
 
             {/* 2. CONTACTS SECTION */}
             <div className="space-y-4">
-              <div className="rounded-lg bg-[#faf8f5] border border-[#e7e4dc] p-4">
-                <h3 className="text-sm font-bold text-[#2d3a29] mb-1">
+              <div className="rounded-lg bg-[#faf8f5] border border-[var(--background)] p-4">
+                <h3 className="text-sm font-bold text-[var(--foreground)] mb-1">
                   Add Contacts
                 </h3>
                 <p className="text-[11px] text-[#6b7b64] mb-3">
@@ -1153,7 +1153,7 @@ export default function TestControlPanel() {
                   <button
                     type="submit"
                     disabled={createContactMutation.isPending}
-                    className="w-full bg-[#284f3a] text-white text-xs font-semibold rounded p-2 hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
+                    className="w-full bg-[var(--primary)] text-white text-xs font-semibold rounded p-2 hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
                   >
                     {createContactMutation.isPending ? "Adding Contacts..." : "+ Add Contacts"}
                   </button>
@@ -1162,7 +1162,7 @@ export default function TestControlPanel() {
 
               <div>
                 <div className="flex items-center justify-between gap-2 mb-2">
-                  <h3 className="text-sm font-bold text-[#2d3a29]">
+                  <h3 className="text-sm font-bold text-[var(--foreground)]">
                     Contacts List ({contacts.length})
                   </h3>
                   <select
@@ -1179,7 +1179,7 @@ export default function TestControlPanel() {
                   </select>
                 </div>
 
-                <div className="overflow-x-auto rounded-lg border border-[#e7e4dc]">
+                <div className="overflow-x-auto rounded-lg border border-[var(--background)]">
                   <table className="w-full text-left text-xs text-[#3b4735]">
                     <thead className="bg-[#f0f4ea] text-[11px] font-semibold uppercase text-[#54644a]">
                       <tr>
@@ -1240,8 +1240,8 @@ export default function TestControlPanel() {
       {/* TAB 3: CAMPAIGNS (Visible to ALL roles) */}
       {activeTab === "campaigns" && (
         <div className="space-y-6">
-          <div className="rounded-lg bg-[#faf8f5] border border-[#e7e4dc] p-4">
-            <h3 className="text-sm font-bold text-[#2d3a29] mb-2">
+          <div className="rounded-lg bg-[#faf8f5] border border-[var(--background)] p-4">
+            <h3 className="text-sm font-bold text-[var(--foreground)] mb-2">
               Launch WhatsApp Blast
             </h3>
             <form
@@ -1280,7 +1280,7 @@ export default function TestControlPanel() {
               />
 
               <div className="space-y-1">
-                <div className="flex items-center justify-between text-[11px] text-[#55664d]">
+                <div className="flex items-center justify-between text-[11px] text-[var(--primary)]">
                   <label className="font-semibold">Recipients Phone Numbers:</label>
                   {groups.length > 0 && (
                     <select
@@ -1324,7 +1324,7 @@ export default function TestControlPanel() {
               <button
                 type="submit"
                 disabled={campaignMutation.isPending}
-                className="bg-[#284f3a] text-white text-xs font-semibold rounded px-4 py-2 hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
+                className="bg-[var(--primary)] text-white text-xs font-semibold rounded px-4 py-2 hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
               >
                 {campaignMutation.isPending ? "Dispatching..." : "Send Campaign →"}
               </button>
@@ -1332,7 +1332,7 @@ export default function TestControlPanel() {
           </div>
 
           <div>
-            <h3 className="text-sm font-bold text-[#2d3a29] mb-2">
+            <h3 className="text-sm font-bold text-[var(--foreground)] mb-2">
               {isSuperAdmin
                 ? "All System Campaigns"
                 : isReseller
@@ -1347,7 +1347,7 @@ export default function TestControlPanel() {
                 campaigns.map((c) => (
                   <div
                     key={c._id}
-                    className="p-3 rounded-lg border border-[#e7e4dc] bg-[#faf8f5] flex flex-wrap items-center justify-between gap-3 text-xs"
+                    className="p-3 rounded-lg border border-[var(--background)] bg-[#faf8f5] flex flex-wrap items-center justify-between gap-3 text-xs"
                   >
                     <div>
                       <div className="flex items-center gap-2">
@@ -1408,7 +1408,7 @@ export default function TestControlPanel() {
                                   });
                                 }
                               }}
-                              className="text-[10px] font-semibold py-0.5 px-1 rounded border border-[#b2c8a9] bg-white text-[#253d1d] cursor-pointer hover:border-[#284f3a]"
+                              className="text-[10px] font-semibold py-0.5 px-1 rounded border border-[#b2c8a9] bg-white text-[#253d1d] cursor-pointer hover:border-[var(--primary)]"
                               title="Super Admin: Manual Action"
                             >
                               <option value="">Admin Action ▾</option>
@@ -1443,7 +1443,7 @@ export default function TestControlPanel() {
                     </div>
 
                     <div className="text-right">
-                      <span className="font-bold text-[#284f3a] block">
+                      <span className="font-bold text-[var(--primary)] block">
                         {c.totalRecipients} unique recipient(s)
                       </span>
                       {c.recipientStats?.duplicateCount > 0 && (
@@ -1478,8 +1478,8 @@ export default function TestControlPanel() {
       {/* TAB 4: TEMPLATES (Visible to ALL roles) */}
       {activeTab === "templates" && (
         <div className="space-y-6">
-          <div className="rounded-lg bg-[#faf8f5] border border-[#e7e4dc] p-4">
-            <h3 className="text-sm font-bold text-[#2d3a29] mb-2">Create Message Template</h3>
+          <div className="rounded-lg bg-[#faf8f5] border border-[var(--background)] p-4">
+            <h3 className="text-sm font-bold text-[var(--foreground)] mb-2">Create Message Template</h3>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -1518,7 +1518,7 @@ export default function TestControlPanel() {
               <button
                 type="submit"
                 disabled={templateMutation.isPending}
-                className="bg-[#284f3a] text-white text-xs font-semibold rounded px-4 py-2 hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
+                className="bg-[var(--primary)] text-white text-xs font-semibold rounded px-4 py-2 hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
               >
                 {templateMutation.isPending ? "Saving..." : "Save Template"}
               </button>
@@ -1526,7 +1526,7 @@ export default function TestControlPanel() {
           </div>
 
           <div>
-            <h3 className="text-sm font-bold text-[#2d3a29] mb-2">
+            <h3 className="text-sm font-bold text-[var(--foreground)] mb-2">
               Saved Templates ({templates.length})
             </h3>
             <div className="space-y-2">
@@ -1534,15 +1534,15 @@ export default function TestControlPanel() {
                 <p className="text-xs text-[#73836a] text-center py-4">No templates created yet.</p>
               ) : (
                 templates.map((tpl) => (
-                  <div key={tpl._id} className="p-3 rounded-lg border border-[#e7e4dc] bg-[#faf8f5] text-xs">
+                  <div key={tpl._id} className="p-3 rounded-lg border border-[var(--background)] bg-[#faf8f5] text-xs">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-[#283923]">{tpl.title}</span>
-                      <span className="text-[10px] text-[#718067]">
+                      <span className="text-[10px] text-[var(--muted-foreground)]">
                         Created: {new Date(tpl.createdAt).toLocaleDateString()}
                       </span>
                     </div>
                     <p className="text-[#586751] mt-0.5">{tpl.description}</p>
-                    <div className="mt-2 p-2 rounded bg-white border border-[#e7e4dc] font-mono text-[11px] text-[#3b4b35]">
+                    <div className="mt-2 p-2 rounded bg-white border border-[var(--background)] font-mono text-[11px] text-[#3b4b35]">
                       {tpl.body}
                     </div>
                   </div>
@@ -1556,7 +1556,7 @@ export default function TestControlPanel() {
       {/* DOUBLE-CONFIRMATION MODAL (Banking Rule) */}
       {confirmTransferModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl border border-[#e7e4dc] space-y-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl border border-[var(--background)] space-y-4">
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="text-base font-bold text-[#233120]">
@@ -1575,10 +1575,10 @@ export default function TestControlPanel() {
               </button>
             </div>
 
-            <div className="bg-[#f7f9f4] p-3.5 rounded-lg border border-[#e7e4dc] space-y-2 text-xs">
+            <div className="bg-[var(--background)] p-3.5 rounded-lg border border-[var(--background)] space-y-2 text-xs">
               <div className="flex justify-between py-1 border-b border-[#e5ebe0]">
                 <span className="text-[#6c7d62]">Recipient User:</span>
-                <span className="font-bold text-[#2d3a29]">
+                <span className="font-bold text-[var(--foreground)]">
                   {confirmTransferModal.toUser?.username} ({confirmTransferModal.toUser?.role})
                 </span>
               </div>
@@ -1588,7 +1588,7 @@ export default function TestControlPanel() {
               </div>
               <div className="flex justify-between py-1 border-b border-[#e5ebe0]">
                 <span className="text-[#6c7d62]">Amount:</span>
-                <span className="text-base font-bold text-[#284f3a]">
+                <span className="text-base font-bold text-[var(--primary)]">
                   {Number(confirmTransferModal.amount).toLocaleString()} Credits
                 </span>
               </div>
@@ -1626,7 +1626,7 @@ export default function TestControlPanel() {
                   placeholder="Your account password"
                   value={confirmTransferModal.password}
                   onChange={(e) => setConfirmTransferModal({ ...confirmTransferModal, password: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[#284f3a]"
+                  className="w-full text-xs p-2.5 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[var(--primary)]"
                 />
               </div>
 
@@ -1634,14 +1634,14 @@ export default function TestControlPanel() {
                 <button
                   type="button"
                   onClick={() => setConfirmTransferModal({ ...confirmTransferModal, isOpen: false })}
-                  className="px-4 py-2 text-xs font-semibold rounded border border-[#cfd6c7] text-[#55664d] hover:bg-stone-50 cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold rounded border border-[#cfd6c7] text-[var(--primary)] hover:bg-stone-50 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={allocateMutation.isPending}
-                  className="px-4 py-2 text-xs font-bold rounded bg-[#284f3a] text-white hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 text-xs font-bold rounded bg-[var(--primary)] text-white hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
                 >
                   {allocateMutation.isPending ? "Verifying & Transferring..." : `Confirm & Allocate (${Number(confirmTransferModal.amount).toLocaleString()} Credits)`}
                 </button>
@@ -1654,7 +1654,7 @@ export default function TestControlPanel() {
       {/* INSPECT DUPLICATE & EXCLUDED NUMBERS MODAL */}
       {inspectDuplicatesModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl border border-[#e7e4dc] space-y-4">
+          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl border border-[var(--background)] space-y-4">
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="text-base font-bold text-[#233120]">
@@ -1673,7 +1673,7 @@ export default function TestControlPanel() {
               </button>
             </div>
 
-            <div className="flex items-center justify-between text-xs bg-[#faf8f5] p-3 rounded-lg border border-[#e7e4dc]">
+            <div className="flex items-center justify-between text-xs bg-[#faf8f5] p-3 rounded-lg border border-[var(--background)]">
               <div>
                 <span className="text-[#65765f]">Duplicates Preserved: </span>
                 <span className="font-bold text-amber-900">{inspectDuplicatesModal.duplicatesList.length} numbers</span>
@@ -1684,7 +1684,7 @@ export default function TestControlPanel() {
                   navigator.clipboard.writeText(inspectDuplicatesModal.duplicatesList.join("\n"));
                   setStatusMsg("Copied all duplicate numbers to clipboard!");
                 }}
-                className="px-2.5 py-1 text-[11px] font-bold rounded bg-white border border-[#cfd6c7] text-[#284f3a] hover:bg-stone-50 cursor-pointer"
+                className="px-2.5 py-1 text-[11px] font-bold rounded bg-white border border-[#cfd6c7] text-[var(--primary)] hover:bg-stone-50 cursor-pointer"
               >
                 📋 Copy All Duplicates
               </button>
@@ -1714,7 +1714,7 @@ export default function TestControlPanel() {
               <button
                 type="button"
                 onClick={() => setInspectDuplicatesModal({ isOpen: false, campaignTitle: "", duplicatesList: [] })}
-                className="px-4 py-2 text-xs font-semibold rounded bg-[#284f3a] text-white hover:bg-[#1f3f2d] cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold rounded bg-[var(--primary)] text-white hover:bg-[#1f3f2d] cursor-pointer"
               >
                 Close
               </button>
@@ -1726,7 +1726,7 @@ export default function TestControlPanel() {
       {/* SUPER ADMIN DELIVERY REPORT MODAL */}
       {deliveryReportModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl border border-[#e7e4dc] space-y-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl border border-[var(--background)] space-y-4">
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="text-base font-bold text-[#233120]">
@@ -1745,7 +1745,7 @@ export default function TestControlPanel() {
               </button>
             </div>
 
-            <p className="text-[11px] text-[#607157] bg-[#f8faf5] p-2.5 rounded border border-[#e7e4dc]">
+            <p className="text-[11px] text-[#607157] bg-[#f8faf5] p-2.5 rounded border border-[var(--background)]">
               Since messages are dispatched via external WhatsApp servers, record the final actual counts delivered/failed for user dashboard reporting.
             </p>
 
@@ -1775,7 +1775,7 @@ export default function TestControlPanel() {
                     required
                     value={deliveryReportModal.sent}
                     onChange={(e) => setDeliveryReportModal({ ...deliveryReportModal, sent: e.target.value })}
-                    className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[#284f3a]"
+                    className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[var(--primary)]"
                   />
                 </div>
                 <div>
@@ -1788,7 +1788,7 @@ export default function TestControlPanel() {
                     required
                     value={deliveryReportModal.delivered}
                     onChange={(e) => setDeliveryReportModal({ ...deliveryReportModal, delivered: e.target.value })}
-                    className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[#284f3a]"
+                    className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[var(--primary)]"
                   />
                 </div>
               </div>
@@ -1803,7 +1803,7 @@ export default function TestControlPanel() {
                     min="0"
                     value={deliveryReportModal.read}
                     onChange={(e) => setDeliveryReportModal({ ...deliveryReportModal, read: e.target.value })}
-                    className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[#284f3a]"
+                    className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[var(--primary)]"
                   />
                 </div>
                 <div>
@@ -1815,7 +1815,7 @@ export default function TestControlPanel() {
                     min="0"
                     value={deliveryReportModal.failed}
                     onChange={(e) => setDeliveryReportModal({ ...deliveryReportModal, failed: e.target.value })}
-                    className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[#284f3a]"
+                    className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[var(--primary)]"
                   />
                 </div>
               </div>
@@ -1827,7 +1827,7 @@ export default function TestControlPanel() {
                 <select
                   value={deliveryReportModal.status}
                   onChange={(e) => setDeliveryReportModal({ ...deliveryReportModal, status: e.target.value })}
-                  className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[#284f3a]"
+                  className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[var(--primary)]"
                 >
                   <option value="completed">Completed</option>
                   <option value="ongoing">Ongoing</option>
@@ -1844,7 +1844,7 @@ export default function TestControlPanel() {
                   placeholder="e.g. Dispatched node #3, 5 invalid carrier routes"
                   value={deliveryReportModal.adminNotes}
                   onChange={(e) => setDeliveryReportModal({ ...deliveryReportModal, adminNotes: e.target.value })}
-                  className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[#284f3a]"
+                  className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[var(--primary)]"
                 />
               </div>
 
@@ -1852,14 +1852,14 @@ export default function TestControlPanel() {
                 <button
                   type="button"
                   onClick={() => setDeliveryReportModal({ ...deliveryReportModal, isOpen: false })}
-                  className="px-4 py-2 text-xs font-semibold rounded border border-[#cfd6c7] text-[#55664d] hover:bg-stone-50 cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold rounded border border-[#cfd6c7] text-[var(--primary)] hover:bg-stone-50 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={updateMetricsMutation.isPending}
-                  className="px-4 py-2 text-xs font-bold rounded bg-[#284f3a] text-white hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 text-xs font-bold rounded bg-[var(--primary)] text-white hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
                 >
                   {updateMetricsMutation.isPending ? "Saving..." : "Save Delivery Report"}
                 </button>

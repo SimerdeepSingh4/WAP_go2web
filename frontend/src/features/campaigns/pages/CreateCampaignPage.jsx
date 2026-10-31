@@ -1239,7 +1239,7 @@ export default function CreateCampaignPage() {
             </div>
 
             {/* Bottom Guarantee Banner */}
-            <div className="bg-[#1c1917] text-[#a8a29e] text-center text-[11px] py-2 px-3">
+            <div className="bg-foreground text-muted-foreground/70 text-center text-[11px] py-2 px-3">
               Recipient will receive message formatted exactly as rendered above.
             </div>
           </div>
