@@ -1,6 +1,8 @@
 import { useState, useMemo, useRef } from "react";
 import { useNavigate, useLocation, Link } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import ReactQuill from "react-quill-new";
+import "react-quill-new/dist/quill.snow.css";
 import {
   ArrowLeft,
   Send,
@@ -28,11 +30,14 @@ import { toast } from "@/components/ui/toast";
 import apiClient from "@/api/client";
 import { number } from "@/features/admin/lib/format";
 
+const WORD_LIMIT = 1024;
+
 export default function CreateCampaignPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
   const fileInputRef = useRef(null);
+  const quillRef = useRef(null);
 
   // Determine base path (e.g. /reseller or /admin)
   const isReseller = location.pathname.startsWith("/reseller");
@@ -59,6 +64,63 @@ export default function CreateCampaignPage() {
   const wallet = balanceQuery.data?.wallet || {};
   const currentBalance = wallet.balance || 0;
   const isLocked = wallet.isLocked || false;
+
+  // Quill Editor Configuration
+  const quillModules = useMemo(
+    () => ({
+      toolbar: [
+        ["bold", "italic", "underline", "strike"],
+        [{ list: "ordered" }, { list: "bullet" }],
+        ["blockquote", "code-block"],
+        ["clean"],
+      ],
+    }),
+    []
+  );
+
+  const quillFormats = [
+    "bold",
+    "italic",
+    "underline",
+    "strike",
+    "list",
+    "bullet",
+    "blockquote",
+    "code-block",
+  ];
+
+  // Calculate live word count & character count
+  const wordCount = useMemo(() => {
+    if (!messageBody) return 0;
+    const text = messageBody
+      .replace(/<[^>]*>/g, " ")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&#39;/g, "'")
+      .replace(/&quot;/g, '"')
+      .trim();
+    if (!text) return 0;
+    return text.split(/\s+/).filter(Boolean).length;
+  }, [messageBody]);
+
+  const charCount = useMemo(() => {
+    if (!messageBody) return 0;
+    return messageBody.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim().length;
+  }, [messageBody]);
+
+  const isOverWordLimit = wordCount > WORD_LIMIT;
+
+  // Insert tag into Quill editor at cursor position
+  const insertVariable = (tag) => {
+    const editor = quillRef.current?.getEditor();
+    if (editor) {
+      const range = editor.getSelection(true);
+      const position = range ? range.index : editor.getLength() - 1;
+      editor.insertText(position, `{{${tag}}} `);
+      editor.setSelection(position + tag.length + 5);
+    } else {
+      setMessageBody((prev) => `${prev} {{${tag}}} `);
+    }
+  };
 
   // Real-time phone numbers parsing and sanitization
   const { validRecipients, duplicatesCount, invalidCount } = useMemo(() => {
@@ -121,11 +183,6 @@ export default function CreateCampaignPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // Insert variable into message body
-  const insertVariable = (tag) => {
-    setMessageBody((prev) => `${prev} {{${tag}}}`);
-  };
-
   // Create Campaign Mutation
   const createCampaignMutation = useMutation({
     mutationFn: async (payload) => {
@@ -176,8 +233,13 @@ export default function CreateCampaignPage() {
       setFormError("Please provide a brief campaign description.");
       return;
     }
-    if (!messageBody.trim()) {
+    const plainText = messageBody.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+    if (!plainText) {
       setFormError("Please compose the message body to be sent.");
+      return;
+    }
+    if (isOverWordLimit) {
+      setFormError(`Message exceeds the maximum limit of ${WORD_LIMIT} words (currently ${wordCount} words). Please shorten your message.`);
       return;
     }
     if (totalRecipients === 0) {
@@ -207,6 +269,45 @@ export default function CreateCampaignPage() {
 
   return (
     <div className="space-y-6 pb-12 max-w-7xl mx-auto">
+      {/* Quill Custom Scoped Styling */}
+      <style>{`
+        .quill-editor-container .ql-toolbar.ql-snow {
+          border-top-left-radius: 0.75rem;
+          border-top-right-radius: 0.75rem;
+          border-color: var(--border);
+          background-color: var(--muted);
+          padding: 0.5rem 0.75rem;
+        }
+        .quill-editor-container .ql-container.ql-snow {
+          border-bottom-left-radius: 0.75rem;
+          border-bottom-right-radius: 0.75rem;
+          border-color: var(--border);
+          background-color: var(--card);
+          font-family: inherit;
+          font-size: 0.875rem;
+          min-height: 180px;
+        }
+        .quill-editor-container .ql-editor {
+          min-height: 160px;
+          font-size: 0.875rem;
+          line-height: 1.6;
+          color: var(--foreground);
+        }
+        .quill-editor-container .ql-editor.ql-blank::before {
+          color: var(--muted-foreground);
+          font-style: normal;
+        }
+        .dark .quill-editor-container .ql-snow .ql-stroke {
+          stroke: var(--foreground);
+        }
+        .dark .quill-editor-container .ql-snow .ql-fill {
+          fill: var(--foreground);
+        }
+        .dark .quill-editor-container .ql-snow .ql-picker {
+          color: var(--foreground);
+        }
+      `}</style>
+
       {/* Top Header with Breadcrumbs and Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-4">
         <div className="space-y-1">
@@ -239,7 +340,7 @@ export default function CreateCampaignPage() {
           <Button
             type="button"
             onClick={handleSubmit}
-            disabled={createCampaignMutation.isPending || isLocked || hasInsufficientCredits}
+            disabled={createCampaignMutation.isPending || isLocked || hasInsufficientCredits || isOverWordLimit}
             className="font-semibold shadow-xs"
           >
             {createCampaignMutation.isPending ? (
@@ -320,10 +421,10 @@ export default function CreateCampaignPage() {
             </CardContent>
           </Card>
 
-          {/* Card 2: Message Content */}
+          {/* Card 2: Message Content (Powered by Quill with 1024 Words Limit) */}
           <Card className="rounded-xl border shadow-xs">
             <CardHeader className="border-b pb-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
                   <CardTitle className="text-base font-semibold flex items-center gap-2">
                     <Sparkles className="size-4.5 text-primary" />
@@ -333,9 +434,24 @@ export default function CreateCampaignPage() {
                     Draft your WhatsApp message text with formatting and personalization tags.
                   </CardDescription>
                 </div>
-                <Badge variant="outline" className="text-xs tabular-nums">
-                  {messageBody.length} chars
-                </Badge>
+
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className={`text-xs tabular-nums font-semibold transition-colors ${
+                      isOverWordLimit
+                        ? "border-destructive bg-destructive/10 text-destructive font-bold"
+                        : wordCount > 900
+                        ? "border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                        : "border-border text-foreground"
+                    }`}
+                  >
+                    {number(wordCount)} / {number(WORD_LIMIT)} words
+                  </Badge>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    ({number(charCount)} chars)
+                  </span>
+                </div>
               </div>
             </CardHeader>
             <CardContent className="pt-5 space-y-3">
@@ -344,38 +460,40 @@ export default function CreateCampaignPage() {
                 <button
                   type="button"
                   onClick={() => insertVariable("name")}
-                  className="px-2.5 py-1 text-xs rounded-md bg-muted hover:bg-muted/80 text-foreground font-mono transition-colors"
+                  className="px-2.5 py-1 text-xs rounded-md bg-muted hover:bg-muted/80 text-foreground font-mono transition-colors border border-border/60 hover:border-primary/40 cursor-pointer"
                 >
                   &#123;&#123;name&#125;&#125;
                 </button>
                 <button
                   type="button"
                   onClick={() => insertVariable("phone")}
-                  className="px-2.5 py-1 text-xs rounded-md bg-muted hover:bg-muted/80 text-foreground font-mono transition-colors"
+                  className="px-2.5 py-1 text-xs rounded-md bg-muted hover:bg-muted/80 text-foreground font-mono transition-colors border border-border/60 hover:border-primary/40 cursor-pointer"
                 >
                   &#123;&#123;phone&#125;&#125;
                 </button>
               </div>
 
-              <Textarea
-                id="message"
-                rows={6}
-                value={messageBody}
-                onChange={(e) => setMessageBody(e.target.value)}
-                placeholder="Hello {{name}}, we are thrilled to bring you our exclusive festival discounts! Visit our store or reply to claim your coupon code today."
-                className="text-sm resize-y leading-relaxed"
-                required
-              />
-
-              <div className="rounded-lg bg-muted/40 p-2.5 text-[11px] text-muted-foreground space-y-1">
-                <p className="font-semibold text-foreground">WhatsApp formatting guide:</p>
-                <div className="flex items-center gap-4 flex-wrap">
-                  <span>*bold* &rarr; <b>bold</b></span>
-                  <span>_italic_ &rarr; <i>italic</i></span>
-                  <span>~strike~ &rarr; <del>strike</del></span>
-                  <span>```mono``` &rarr; <code className="text-[10px]">mono</code></span>
-                </div>
+              {/* React Quill Editor Container */}
+              <div className="quill-editor-container">
+                <ReactQuill
+                  ref={quillRef}
+                  theme="snow"
+                  value={messageBody}
+                  onChange={setMessageBody}
+                  modules={quillModules}
+                  formats={quillFormats}
+                  placeholder="Hello {{name}}, we are thrilled to bring you our exclusive discounts! Type your message here..."
+                />
               </div>
+
+              {isOverWordLimit && (
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-destructive/10 text-destructive text-xs font-semibold border border-destructive/20 animate-shake">
+                  <AlertTriangle className="size-4 shrink-0" />
+                  <span>
+                    Word limit exceeded! Your message has {number(wordCount)} words (maximum allowed is {number(WORD_LIMIT)} words). Please reduce text by {number(wordCount - WORD_LIMIT)} words.
+                  </span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -601,12 +719,18 @@ export default function CreateCampaignPage() {
                   Insufficient balance! You need {number(estimatedCost - currentBalance)} more credits to dispatch this campaign.
                 </div>
               )}
+
+              {isOverWordLimit && (
+                <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-xs font-semibold border border-destructive/20 mt-2">
+                  Cannot launch: Message exceeds the 1024 words limit ({number(wordCount)} words).
+                </div>
+              )}
             </CardContent>
 
             <CardFooter className="border-t pt-4 flex flex-col gap-2">
               <Button
                 type="submit"
-                disabled={createCampaignMutation.isPending || isLocked || hasInsufficientCredits}
+                disabled={createCampaignMutation.isPending || isLocked || hasInsufficientCredits || isOverWordLimit}
                 className="w-full font-semibold h-10 shadow-xs"
               >
                 {createCampaignMutation.isPending ? (
@@ -632,4 +756,3 @@ export default function CreateCampaignPage() {
     </div>
   );
 }
-
