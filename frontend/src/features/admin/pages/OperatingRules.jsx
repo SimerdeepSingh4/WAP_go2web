@@ -220,7 +220,7 @@ export default function OperatingRules() {
 
       {/* TAB 1: CAMPAIGN LIMITS & WORKING HOURS */}
       {activeTab === "campaigns" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+        <div className="space-y-5 max-w-3xl">
           <Card className="rounded-lg shadow-none">
             <CardHeader className="border-b pb-4">
               <div className="flex items-center gap-2">
@@ -231,7 +231,7 @@ export default function OperatingRules() {
                 Control campaign volume to protect messaging numbers and manage server capacity.
               </p>
             </CardHeader>
-            <CardContent className="space-y-5 pt-5">
+            <CardContent className="grid gap-5 pt-5 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="daily-limit" className="text-xs font-semibold">
                   Daily Campaigns per Account
@@ -246,7 +246,7 @@ export default function OperatingRules() {
                   className="h-9"
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  Maximum campaigns a single user or reseller can create per calendar day.
+                  Maximum campaigns a single user or reseller can create per day.
                 </p>
               </div>
 
@@ -267,14 +267,6 @@ export default function OperatingRules() {
                   Maximum phone numbers allowed in one uploaded contact list.
                 </p>
               </div>
-
-              <div className="rounded-lg border bg-muted/20 p-3.5 space-y-1">
-                <p className="text-xs font-semibold text-foreground">Rule Summary</p>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Accounts are capped at <strong>{settings.dailyCampaignLimit} campaigns/day</strong> with up to{" "}
-                  <strong>{Number(settings.maxRecipientsPerCampaign).toLocaleString()} recipients</strong> each.
-                </p>
-              </div>
             </CardContent>
           </Card>
 
@@ -289,7 +281,7 @@ export default function OperatingRules() {
               </p>
             </CardHeader>
             <CardContent className="space-y-5 pt-5">
-              <div key={resetKey} className="grid gap-4 sm:grid-cols-2">
+              <div key={resetKey} className="grid gap-6 sm:grid-cols-2">
                 <OperatingTimePicker
                   id="start-time"
                   label="Start Time"
@@ -314,11 +306,11 @@ export default function OperatingRules() {
 
               <div className="border-t pt-4 space-y-3">
                 <Label className="text-xs font-semibold">What to do outside working hours?</Label>
-                <div className="grid gap-2.5 sm:grid-cols-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   <button
                     type="button"
                     onClick={() => updateSetting("outOfWindowBehavior", "queue")}
-                    className={`flex items-start gap-3 rounded-lg border p-3 text-left transition-colors cursor-pointer ${
+                    className={`flex items-start gap-3 rounded-lg border p-3 text-left transition-colors ${
                       settings.outOfWindowBehavior === "queue"
                         ? "border-primary bg-primary/5 text-foreground"
                         : "border-border bg-card text-muted-foreground hover:bg-muted/40"
@@ -340,7 +332,7 @@ export default function OperatingRules() {
                   <button
                     type="button"
                     onClick={() => updateSetting("outOfWindowBehavior", "reject")}
-                    className={`flex items-start gap-3 rounded-lg border p-3 text-left transition-colors cursor-pointer ${
+                    className={`flex items-start gap-3 rounded-lg border p-3 text-left transition-colors ${
                       settings.outOfWindowBehavior === "reject"
                         ? "border-primary bg-primary/5 text-foreground"
                         : "border-border bg-card text-muted-foreground hover:bg-muted/40"
@@ -354,7 +346,7 @@ export default function OperatingRules() {
                     <div>
                       <p className="text-xs font-semibold text-foreground">Do Not Allow</p>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Show a message asking users to submit during working hours.
+                        Show a message asking users to come back during working hours.
                       </p>
                     </div>
                   </button>
@@ -367,7 +359,7 @@ export default function OperatingRules() {
 
       {/* TAB 2: DEVICE HANDLING */}
       {activeTab === "devices" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+        <div className="space-y-5 max-w-3xl">
           <Card className="rounded-lg shadow-none">
             <CardHeader className="border-b pb-4">
               <div className="flex items-center gap-2">
@@ -604,115 +596,85 @@ export default function OperatingRules() {
 
       {/* TAB 3: CREDITS & RATES */}
       {activeTab === "billing" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+        <div className="space-y-5 max-w-3xl">
           <Card className="rounded-lg shadow-none">
             <CardHeader className="border-b pb-4">
               <div className="flex items-center gap-2">
                 <Coins className="size-4.5 text-primary" />
-                <CardTitle className="text-base">Default Rates & Balance Limits</CardTitle>
+                <CardTitle className="text-base">Default Rates & Balance Rules</CardTitle>
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Set standard pricing and balance thresholds for all accounts.
+                Set standard pricing and balance safety rules for accounts.
               </p>
             </CardHeader>
             <CardContent className="space-y-5 pt-5">
-              <div className="space-y-2">
-                <Label htmlFor="default-rate" className="text-xs font-semibold">
-                  Default Rate (Credits per Message)
-                </Label>
-                <Input
-                  id="default-rate"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={settings.defaultRatePerMsg}
-                  onChange={(e) => updateSetting("defaultRatePerMsg", Number(e.target.value) || 1)}
-                  className="h-9"
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  New accounts will automatically be set to this rate (you can still customize rates per account in Accounts).
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="low-balance" className="text-xs font-semibold">
-                  Low Balance Warning Level
-                </Label>
-                <Input
-                  id="low-balance"
-                  type="number"
-                  min="0"
-                  value={settings.lowBalanceThreshold}
-                  onChange={(e) => updateSetting("lowBalanceThreshold", Number(e.target.value) || 0)}
-                  className="h-9"
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Show a visual warning when an account has fewer than this many credits left.
-                </p>
-              </div>
-
-              <div className="rounded-lg border bg-muted/20 p-3.5 space-y-1">
-                <p className="text-xs font-semibold text-foreground">Pricing Example</p>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  At <strong>{settings.defaultRatePerMsg} credits/msg</strong>, an audience of{" "}
-                  <strong>10,000 recipients</strong> will cost{" "}
-                  <strong>{(10000 * (Number(settings.defaultRatePerMsg) || 1)).toLocaleString()} credits</strong>.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-lg shadow-none">
-            <CardHeader className="border-b pb-4">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="size-4.5 text-primary" />
-                <CardTitle className="text-base">Safety & Automation Rules</CardTitle>
-              </div>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Protect balances and prevent unexpected credit overdrafts.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-4 pt-5">
-              <div className="flex items-start justify-between gap-4 p-3.5 rounded-lg border bg-card hover:bg-muted/30 transition-colors">
-                <div className="space-y-1 min-w-0">
-                  <p className="text-xs font-semibold text-foreground">Auto-Refund Failed Messages</p>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    Automatically return credits back to the user or reseller if a phone number is invalid or delivery fails.
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="default-rate" className="text-xs font-semibold">
+                    Default Rate (Credits per Message)
+                  </Label>
+                  <Input
+                    id="default-rate"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={settings.defaultRatePerMsg}
+                    onChange={(e) => updateSetting("defaultRatePerMsg", Number(e.target.value) || 1)}
+                    className="h-9"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    New accounts will automatically be set to this rate (you can still edit per account).
                   </p>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={settings.autoRefundEnabled}
-                  onChange={(e) => updateSetting("autoRefundEnabled", e.target.checked)}
-                  className="size-4.5 accent-primary rounded cursor-pointer mt-0.5 shrink-0"
-                />
-              </div>
 
-              <div className="flex items-start justify-between gap-4 p-3.5 rounded-lg border bg-card hover:bg-muted/30 transition-colors">
-                <div className="space-y-1 min-w-0">
-                  <p className="text-xs font-semibold text-foreground">Stop Sending on Zero Balance</p>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    Do not allow launching or processing new campaigns if the account does not have sufficient credit balance.
+                <div className="space-y-2">
+                  <Label htmlFor="low-balance" className="text-xs font-semibold">
+                    Low Balance Warning Level
+                  </Label>
+                  <Input
+                    id="low-balance"
+                    type="number"
+                    min="0"
+                    value={settings.lowBalanceThreshold}
+                    onChange={(e) => updateSetting("lowBalanceThreshold", Number(e.target.value) || 0)}
+                    className="h-9"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Show a warning when an account has fewer than this many credits left.
                   </p>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={settings.strictOverdraftProtection}
-                  onChange={(e) => updateSetting("strictOverdraftProtection", e.target.checked)}
-                  className="size-4.5 accent-primary rounded cursor-pointer mt-0.5 shrink-0"
-                />
               </div>
 
-              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3.5 space-y-1">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-primary">
-                  <CheckCircle2 className="size-3.5" />
-                  <span>Active Balance Protection</span>
+              <div className="border-t pt-4 space-y-3">
+                <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/20">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-semibold text-foreground">Auto-Refund Failed Messages</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Automatically return credits back to the user if a phone number is wrong or delivery fails.
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.autoRefundEnabled}
+                    onChange={(e) => updateSetting("autoRefundEnabled", e.target.checked)}
+                    className="size-4 accent-primary rounded cursor-pointer"
+                  />
                 </div>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  {settings.strictOverdraftProtection
-                    ? "Negative balances are strictly prevented across all users and resellers."
-                    : "Overdraft is allowed in grace mode; accounts can run campaigns even if balance drops to zero."}
-                </p>
+
+                <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/20">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-semibold text-foreground">Stop Sending on Zero Balance</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Do not allow launching new campaigns if the account does not have enough credits.
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.strictOverdraftProtection}
+                    onChange={(e) => updateSetting("strictOverdraftProtection", e.target.checked)}
+                    className="size-4 accent-primary rounded cursor-pointer"
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>

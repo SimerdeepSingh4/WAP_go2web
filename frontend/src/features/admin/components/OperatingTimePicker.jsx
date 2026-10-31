@@ -5,11 +5,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Clock, Pencil, Check } from "lucide-react";
+import { Clock } from "lucide-react";
 import { formatOperatingTime, timeToWheelValue, wheelValueToTime } from "../lib/operatingTime";
 
 const hours = Array.from({ length: 12 }, (_, index) => {
@@ -47,66 +46,46 @@ export default function OperatingTimePicker({ id, label, value, onChange, invali
         {label}
       </label>
 
-      {/* Clickable Card Trigger showing current time */}
+      {/* Clickable Time Input */}
       <button
         id={id}
         type="button"
         onClick={handleOpen}
-        className={`flex w-full items-center justify-between gap-3 rounded-lg border p-3.5 text-left transition-all cursor-pointer ${
+        className={`flex w-full items-center justify-between rounded-lg border px-3.5 py-2.5 text-left transition-colors cursor-pointer ${
           invalid
             ? "border-destructive bg-destructive/5 hover:border-destructive"
-            : "border-border bg-card hover:border-primary/50 hover:bg-muted/30"
+            : "border-border bg-background hover:bg-muted/40"
         }`}
       >
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="grid size-9 shrink-0 place-items-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
-            <Clock className="size-4.5" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-base font-bold tabular-nums text-foreground tracking-tight">
-              {formatOperatingTime(value)}
-            </p>
-            <p className="text-[11px] text-muted-foreground truncate">India Standard Time (IST)</p>
-          </div>
-        </div>
-
-        <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/60 px-2.5 py-1 text-xs font-medium text-muted-foreground shrink-0 hover:text-foreground">
-          <Pencil className="size-3" />
-          Change Time
+        <span className="text-sm font-semibold tabular-nums text-foreground">
+          {formatOperatingTime(value)}
         </span>
+        <Clock className="size-4 text-muted-foreground" />
       </button>
 
       {/* Wheel Picker Modal Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-xs p-5">
-          <DialogHeader className="text-center sm:text-center pb-1">
-            <DialogTitle className="text-base">Set {label}</DialogTitle>
-            <DialogDescription className="text-xs">
-              Spin the wheels to choose the hour, minute, and AM/PM.
-            </DialogDescription>
+        <DialogContent className="sm:max-w-[270px] p-4">
+          <DialogHeader className="p-0">
+            <DialogTitle className="text-sm font-semibold text-center">{label}</DialogTitle>
           </DialogHeader>
 
-          <div className="flex flex-col items-center justify-center py-2">
+          <div className="flex justify-center py-2">
             <WheelPicker
               id={`${id}-modal-wheel`}
-              label={`${label} time picker`}
+              label={label}
               columns={columns}
               value={timeToWheelValue(tempValue)}
               onValueChange={(selection) => setTempValue(wheelValueToTime(selection))}
-              className="rounded-lg border bg-muted/20"
+              className="border-0 shadow-none bg-transparent px-0"
             />
-
-            <p className="mt-3.5 text-xl font-bold tabular-nums tracking-tight text-primary">
-              {formatOperatingTime(tempValue)}
-            </p>
           </div>
 
-          <DialogFooter className="flex flex-row items-center justify-end gap-2 pt-3 border-t -mx-5 -mb-5 p-4 bg-muted/30">
+          <DialogFooter className="flex flex-row items-center justify-end gap-2 p-0 pt-2 border-t">
             <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="button" size="sm" onClick={handleConfirm} className="gap-1.5">
-              <Check className="size-3.5" />
+            <Button type="button" size="sm" onClick={handleConfirm}>
               Set Time
             </Button>
           </DialogFooter>
