@@ -316,7 +316,7 @@ export const createCampaign = async (req, res) => {
                     creditsDeducted: creditDeduction ? creditDeduction.amount : 0,
                     rateSnapshot: rate,
                     messageType: resolvedMessageType,
-                    status: status || (schedule === "later" ? "scheduled" : "pending"),
+                    status: status || (schedule === "later" && scheduledTime && new Date(scheduledTime) > new Date() ? "scheduled" : "pending"),
                     campaignStartDate: schedule === "now" ? new Date() : null,
                 },
             ],
@@ -432,6 +432,17 @@ export const createCampaign = async (req, res) => {
  */
 export const getCampaigns = async (req, res) => {
     try {
+        // Auto-transition scheduled campaigns whose scheduled time has passed to pending
+        await campaignModel.updateMany(
+            {
+                status: "scheduled",
+                scheduledTime: { $lte: new Date() },
+            },
+            {
+                $set: { status: "pending" },
+            }
+        );
+
         let filter = {};
 
         if (req.user.role === "Super Admin") {
@@ -533,10 +544,12 @@ export const updateCampaignStatus = async (req, res) => {
         const { status } = req.body;
 
         const allowedManualStatuses = [
-            "paused",
+            "ongoing",
+            "completed",
             "stopped",
             "failed",
-            "ongoing",
+            "pending",
+            "paused",
         ];
 
         if (!status || !allowedManualStatuses.includes(status)) {
@@ -566,6 +579,8 @@ export const updateCampaignStatus = async (req, res) => {
             } catch (queueErr) {
                 console.error("[BullMQ] Failed to cancel job:", queueErr.message);
             }
+        } else if (status === "completed") {
+            campaign.campaignEndDate = new Date();
         } else if (status === "ongoing" && !campaign.campaignStartDate) {
             campaign.campaignStartDate = new Date();
         }

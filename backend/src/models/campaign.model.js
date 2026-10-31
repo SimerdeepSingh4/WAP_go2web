@@ -226,7 +226,7 @@ const campaignSchema = new mongoose.Schema(
                 "stopped",    // Manual Admin: Terminated / cancelled
                 "failed",     // Manual Admin / System: Encountered failure / banned
             ],
-            default: "draft",
+            default: "pending",
         },
         campaignSummary: {
             sent: {
