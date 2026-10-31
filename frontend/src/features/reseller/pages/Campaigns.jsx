@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useSearchParams } from "react-router";
+import { useSearchParams, Link } from "react-router";
 import { MoreHorizontal, Eye, FileText, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
@@ -7,12 +6,10 @@ import { PageHeading, SearchBox, FilterSelect, QueryState, DataTable, StatusBadg
 import { useResellerQuery } from "../hooks/useReseller";
 import { number, dateTime, statusLabels, ownerName, needsReport, published, waiting } from "@/features/admin/lib/format";
 import CampaignDetail from "@/features/admin/components/CampaignDetail";
-import CreateCampaignDialog from "../components/CreateCampaignDialog";
 
 export default function ResellerCampaigns({ reports = false }) {
   const query = useResellerQuery("campaigns");
   const [params, setParams] = useSearchParams();
-  const [createOpen, setCreateOpen] = useState(false);
   const search = params.get("search") || "";
   const status = params.get("status") || "all";
   const selected = params.get("campaign");
@@ -40,7 +37,7 @@ export default function ResellerCampaigns({ reports = false }) {
         description={reports ? "Review campaign performance reports from your users." : "Review and manage campaign submissions from your account."}
         action={
           !reports && (
-            <Button onClick={() => setCreateOpen(true)} className="gap-1.5">
+            <Button render={<Link to="/reseller/campaigns/create" />} className="gap-1.5 font-semibold">
               <Plus className="size-4" />
               Create Campaign
             </Button>
@@ -58,7 +55,6 @@ export default function ResellerCampaigns({ reports = false }) {
         <DataTable key={`${search}-${status}`} caption={reports ? "Campaign performance reports" : "Campaign list"} rows={rows} columns={columns} />
       </QueryState>
       {selected && <CampaignDetail key={selected} id={selected} initialReport={params.get("editReport") === "1"} onClose={() => { setParams((current) => { const next = new URLSearchParams(current); next.delete("campaign"); next.delete("editReport"); return next; }); }} />}
-      <CreateCampaignDialog open={createOpen} onOpenChange={setCreateOpen} />
     </>
   );
 }

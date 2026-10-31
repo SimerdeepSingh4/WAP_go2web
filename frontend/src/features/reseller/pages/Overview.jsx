@@ -1,5 +1,5 @@
 // src/features/reseller/pages/Overview.jsx
-import { useState } from "react";
+import { Link } from "react-router";
 import { FileText, Megaphone, RefreshCw, Users, Wallet, Lock, Coins, Plus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,6 @@ import { PageHeading, QueryState } from "@/features/admin/components/shared";
 import { number } from "@/features/admin/lib/format";
 import { CampaignCharts } from "@/features/admin/components/OverviewCharts";
 import { toast } from "@/components/ui/toast";
-import CreateCampaignDialog from "../components/CreateCampaignDialog";
 
 export default function Overview() {
   const overview = useResellerQuery("overview");
@@ -19,7 +18,6 @@ export default function Overview() {
   const accounts = accountsQuery.data?.users || [];
   const users = accounts.filter((a) => a.role === "User");
   const stats = overview.data?.stats;
-  const [createOpen, setCreateOpen] = useState(false);
   const updated = overview.dataUpdatedAt
     ? new Intl.DateTimeFormat("en-IN", {
         timeZone: "Asia/Kolkata",
@@ -47,8 +45,8 @@ export default function Overview() {
         action={
           <div className="flex items-center gap-2">
             <Button
-              onClick={() => setCreateOpen(true)}
-              className="gap-1.5"
+              render={<Link to="/reseller/campaigns/create" />}
+              className="gap-1.5 font-semibold"
             >
               <Plus className="size-4" />
               Create Campaign
@@ -106,7 +104,6 @@ export default function Overview() {
         <CampaignCharts campaigns={campaigns} />
       </QueryState>
       {updated && <p className="text-xs text-muted-foreground">Last refreshed {updated}</p>}
-      <CreateCampaignDialog open={createOpen} onOpenChange={setCreateOpen} />
     </>
   );
 }

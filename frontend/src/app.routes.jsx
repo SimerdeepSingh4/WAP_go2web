@@ -9,6 +9,7 @@ import ResellerUsers from "./features/reseller/pages/Users.jsx";
 import ResellerCredits from "./features/reseller/pages/Credits.jsx";
 import ResellerCampaigns from "./features/reseller/pages/Campaigns.jsx";
 import ResellerSettings from "./features/reseller/pages/Settings.jsx";
+import CreateCampaignPage from "./features/campaigns/pages/CreateCampaignPage.jsx";
 import PreviewBanner from "./components/PreviewBanner.jsx";
 
 import { lazy, Suspense } from "react";
@@ -171,6 +172,8 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <AdminOverview /> },
       { path: "campaigns", element: <AdminCampaigns /> },
+      { path: "campaigns/create", element: <CreateCampaignPage /> },
+      { path: "campaigns/new", element: <CreateCampaignPage /> },
       { path: "contacts", element: <AdminContacts /> },
       { path: "reports", element: <AdminCampaigns reports /> },
       { path: "resellers", element: <AdminAccounts key="resellers" role="Reseller" /> },
@@ -188,6 +191,8 @@ export const router = createBrowserRouter([
       children: [
         { index: true, element: <ResellerOverview /> },
         { path: "campaigns", element: <ResellerCampaigns /> },
+        { path: "campaigns/create", element: <CreateCampaignPage /> },
+        { path: "campaigns/new", element: <CreateCampaignPage /> },
         { path: "reports", element: <ResellerCampaigns reports /> },
         { path: "users", element: <ResellerUsers /> },
         { path: "credits", element: <ResellerCredits key="credits" /> },
