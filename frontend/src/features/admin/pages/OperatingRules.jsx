@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Laptop,
   Smartphone,
+  Tablet,
   Clock,
   Sliders,
   RotateCcw,
@@ -11,6 +13,9 @@ import {
   AlertTriangle,
   LogOut,
   ShieldAlert,
+  RefreshCw,
+  MonitorSmartphone,
+  Globe,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -20,6 +25,38 @@ import { toast } from "@/components/ui/toast";
 import { PageHeading } from "../components/shared";
 import OperatingTimePicker from "../components/OperatingTimePicker";
 import { validateOperatingWindow } from "../lib/operatingTime";
+import { getSessions, logoutSession, logoutAll } from "@/features/auth/services/auth.api";
+import { dateTime } from "../lib/format";
+
+function parseDeviceDetails(userAgent = "") {
+  const ua = userAgent.toLowerCase();
+  let browser = "Web Browser";
+  let os = "Desktop";
+  let type = "desktop";
+
+  // Browser detection
+  if (ua.includes("edg/")) browser = "Microsoft Edge";
+  else if (ua.includes("chrome") && !ua.includes("edg/")) browser = "Google Chrome";
+  else if (ua.includes("safari") && !ua.includes("chrome")) browser = "Apple Safari";
+  else if (ua.includes("firefox")) browser = "Mozilla Firefox";
+  else if (ua.includes("opera") || ua.includes("opr/")) browser = "Opera";
+
+  // Operating System & Device category
+  if (ua.includes("windows")) os = "Windows PC";
+  else if (ua.includes("macintosh") || ua.includes("mac os")) os = "macOS";
+  else if (ua.includes("android")) {
+    os = "Android Device";
+    type = "mobile";
+  } else if (ua.includes("iphone")) {
+    os = "Apple iPhone";
+    type = "mobile";
+  } else if (ua.includes("ipad")) {
+    os = "Apple iPad";
+    type = "tablet";
+  } else if (ua.includes("linux")) os = "Linux PC";
+
+  return { browser, os, type, label: `${browser} on ${os}` };
+}
 
 const DEFAULT_SETTINGS = {
   // Campaign & Hours
@@ -52,6 +89,54 @@ export default function OperatingRules() {
 
   const [activeTab, setActiveTab] = useState("campaigns");
   const [resetKey, setResetKey] = useState(0);
+
+  // Live Active Sessions Query
+  const sessionsQuery = useQuery({
+    queryKey: ["activeSessions"],
+    queryFn: getSessions,
+    refetchInterval: 5000,
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: logoutSession,
+    onSuccess: () => {
+      sessionsQuery.refetch();
+      toast.add({
+        title: "Device Disconnected",
+        description: "The selected device session has been terminated.",
+        type: "success",
+      });
+    },
+    onError: (err) => {
+      toast.add({
+        title: "Failed to Disconnect Device",
+        description: err.response?.data?.message || err.message,
+        type: "error",
+      });
+    },
+  });
+
+  const logoutAllMutation = useMutation({
+    mutationFn: logoutAll,
+    onSuccess: () => {
+      sessionsQuery.refetch();
+      toast.add({
+        title: "All Devices Logged Out",
+        description: "All remote sessions have been terminated.",
+        type: "success",
+      });
+    },
+    onError: (err) => {
+      toast.add({
+        title: "Failed to Log Out Devices",
+        description: err.response?.data?.message || err.message,
+        type: "error",
+      });
+    },
+  });
+
+  const activeSessions = sessionsQuery.data?.sessions || [];
+  const activeCount = sessionsQuery.data?.activeCount || activeSessions.length;
 
   const error = validateOperatingWindow(settings.startTime, settings.endTime);
 
@@ -371,27 +456,139 @@ export default function OperatingRules() {
                   <div className="space-y-0.5">
                     <p className="text-xs font-semibold text-foreground">Log Out All Accounts</p>
                     <p className="text-[11px] text-muted-foreground">
-                      Force all signed-in users and resellers to sign in again with their password.
+                      Force all other devices and accounts to sign in again with their password.
                     </p>
                   </div>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
+                    disabled={logoutAllMutation.isPending}
                     className="text-xs text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30 gap-1.5"
-                    onClick={() => {
-                      toast.add({
-                        title: "Sessions Cleared",
-                        description: "All accounts will be prompted to log in again.",
-                        type: "success",
-                      });
-                    }}
+                    onClick={() => logoutAllMutation.mutate()}
                   >
                     <LogOut className="size-3.5" />
-                    Log Out Everyone
+                    {logoutAllMutation.isPending ? "Logging out..." : "Log Out Everyone"}
                   </Button>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Currently Logged-in Devices Card */}
+          <Card className="rounded-lg shadow-none">
+            <CardHeader className="border-b pb-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <MonitorSmartphone className="size-4.5 text-primary" />
+                  <CardTitle className="text-base">
+                    Currently Logged-in Devices ({activeCount})
+                  </CardTitle>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => sessionsQuery.refetch()}
+                  disabled={sessionsQuery.isFetching}
+                  className="gap-1.5 text-xs h-8"
+                >
+                  <RefreshCw className={`size-3.5 ${sessionsQuery.isFetching ? "animate-spin" : ""}`} />
+                  Refresh
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Review all computers, phones, and browsers currently signed in.
+              </p>
+            </CardHeader>
+            <CardContent className="pt-5 space-y-3">
+              {sessionsQuery.isLoading ? (
+                <div className="py-8 text-center text-xs text-muted-foreground">
+                  <RefreshCw className="size-4 animate-spin mx-auto mb-2 text-primary" />
+                  Loading active devices...
+                </div>
+              ) : activeSessions.length === 0 ? (
+                <div className="py-6 text-center text-xs text-muted-foreground">
+                  No active device sessions found.
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {activeSessions.map((session, index) => {
+                    const parsed = parseDeviceDetails(session.userAgent);
+                    const DeviceIcon =
+                      parsed.type === "mobile"
+                        ? Smartphone
+                        : parsed.type === "tablet"
+                        ? Tablet
+                        : Laptop;
+
+                    return (
+                      <div
+                        key={session.id || index}
+                        className={`flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-lg border transition-all ${
+                          session.isCurrentDevice
+                            ? "border-primary/40 bg-primary/5"
+                            : "border-border bg-card hover:bg-muted/30"
+                        }`}
+                      >
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div
+                            className={`grid size-9 shrink-0 place-items-center rounded-lg border ${
+                              session.isCurrentDevice
+                                ? "border-primary/30 bg-primary/10 text-primary"
+                                : "border-border bg-muted/50 text-muted-foreground"
+                            }`}
+                          >
+                            <DeviceIcon className="size-4.5" />
+                          </div>
+
+                          <div className="min-w-0 space-y-0.5">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs font-semibold text-foreground truncate">
+                                {parsed.label}
+                              </span>
+                              {session.isCurrentDevice && (
+                                <span className="rounded-full bg-primary px-2 py-0.2 text-[10px] font-semibold text-primary-foreground">
+                                  This Device
+                                </span>
+                              )}
+                              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                Active
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+                              <span>
+                                IP: <strong className="text-foreground/80 font-mono">{session.ip || "127.0.0.1"}</strong>
+                              </span>
+                              <span>•</span>
+                              <span>Signed in: {dateTime(session.createdAt)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 ml-auto">
+                          {session.isCurrentDevice ? (
+                            <span className="text-[11px] font-medium text-muted-foreground px-2 py-1 rounded bg-muted/50">
+                              Current Session
+                            </span>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={disconnectMutation.isPending}
+                              onClick={() => disconnectMutation.mutate(session.id)}
+                              className="text-xs text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200 h-8"
+                            >
+                              Disconnect
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
