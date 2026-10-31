@@ -1,5 +1,5 @@
 // src/features/reseller/pages/Overview.jsx
-import { FileText, Megaphone, RefreshCw, Users, Wallet, Lock } from "lucide-react";
+import { FileText, Megaphone, RefreshCw, Users, Wallet, Lock, Coins } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useResellerQuery } from "../hooks/useReseller";
@@ -64,10 +64,10 @@ export default function Overview() {
           ["My users", users.length, `${users.filter((u) => u.status === "active").length} active`, Users, false],
           ["Total campaigns", campaigns.length, "From your users", Megaphone, false],
           [
-            "Credits allocated",
-            number(stats?.credits?.totalAllocatedBySuperAdmin ?? stats?.wallet?.totalAllocatedBySuperAdmin ?? 0),
-            "Received from admin",
-            FileText,
+            "Credits purchased",
+            number(stats?.credits?.creditsPurchasedThisMonth ?? stats?.wallet?.creditsPurchasedThisMonth ?? 0),
+            "This month",
+            Coins,
             false,
           ],
         ].map(([label, value, caption, Icon, isLocked]) => (
