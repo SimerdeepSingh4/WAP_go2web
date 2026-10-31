@@ -1,14 +1,45 @@
-import multer from 'multer';
+import multer from "multer";
+import path from "path";
 
-// Use memory storage so files are kept in RAM and can be processed/uploaded elsewhere
+// In-Memory Storage: buffers files directly in RAM for zero disk-cleanup overhead
 const storage = multer.memoryStorage();
 
-// Define expected fields and max count per field (adjust as needed)
-const upload = multer({ storage });
+// 1. Campaign Media Upload (Images, Audio, Video, Documents)
+const mediaUpload = multer({ storage });
 
-export const uploadFiles = upload.fields([
-  { name: 'images', maxCount: 10 },
-  { name: 'audio', maxCount: 5 },
-  { name: 'video', maxCount: 5 },
-  { name: 'documents', maxCount: 10 },
+export const uploadFiles = mediaUpload.fields([
+    { name: "images", maxCount: 10 },
+    { name: "audio", maxCount: 5 },
+    { name: "video", maxCount: 5 },
+    { name: "documents", maxCount: 10 },
 ]);
+
+// 2. Contact Import Spreadsheet Upload (.csv, .xlsx, .xls)
+const documentFilter = (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedExtensions = [".csv", ".xlsx", ".xls"];
+
+    if (allowedExtensions.includes(ext)) {
+        cb(null, true);
+    } else {
+        cb(
+            new Error(
+                `Unsupported file format: "${ext}". Please upload a valid CSV (.csv) or Excel spreadsheet (.xlsx, .xls).`
+            ),
+            false
+        );
+    }
+};
+
+export const uploadDocument = multer({
+    storage,
+    limits: {
+        fileSize: 15 * 1024 * 1024, // 15 MB limit
+    },
+    fileFilter: documentFilter,
+});
+
+export default {
+    uploadFiles,
+    uploadDocument,
+};

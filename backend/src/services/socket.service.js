@@ -82,7 +82,7 @@ export function initSocket(httpServer) {
 
     // ── Connection & Dynamic Room Assignment ──────────────────────
     io.on("connection", (socket) => {
-        const { _id, role, resellerId, username } = socket.user;
+        const { _id, role, resellerId } = socket.user;
         const userIdStr = _id.toString();
 
         // 1. Personal Room: for wallet updates, personal refunds, notifications
@@ -99,7 +99,7 @@ export function initSocket(httpServer) {
         // 4. Session Room: for targeted eviction of a specific device
         socket.join(`session:${socket.sessionId}`);
 
-        socket.on("disconnect", (reason) => {
+        socket.on("disconnect", () => {
             // Cleanup happens automatically in Socket.IO
         });
     });
@@ -125,7 +125,7 @@ export function getIO() {
  * @param {object} payload
  */
 export function notifyUser(userId, event, payload) {
-    if (!io) return;
+    if (!io || !userId) return;
     io.to(`user:${userId.toString()}`).emit(event, payload);
 }
 
@@ -136,7 +136,7 @@ export function notifyUser(userId, event, payload) {
  * @param {object} payload
  */
 export function notifyRole(role, event, payload) {
-    if (!io) return;
+    if (!io || !role) return;
     io.to(`role:${role}`).emit(event, payload);
 }
 
@@ -181,4 +181,3 @@ export default {
     notifySession,
     broadcastAll,
 };
-
