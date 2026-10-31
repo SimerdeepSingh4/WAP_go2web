@@ -49,3 +49,9 @@ export async function logoutAll() {
     const response = await apiClient.post("/auth/logout-all");
     return response.data;
 }
+
+// Logout a single session by its ID
+export async function logoutSession(sessionId) {
+    const response = await apiClient.delete(`/auth/logout/${sessionId}`);
+    return response.data;
+}

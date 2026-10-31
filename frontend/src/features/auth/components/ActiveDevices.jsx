@@ -1,12 +1,18 @@
 import React from "react";
-import { useQuery } from "@tanstack/react-query";
-import { getSessions, logoutAll } from "../services/auth.api";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { getSessions, logoutAll, logoutSession } from "../services/auth.api";
 
 export default function ActiveDevices() {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["activeSessions"],
     queryFn: getSessions,
     refetchInterval: 3000, 
+  });
+  const logoutMutation = useMutation({
+    mutationFn: (sessionId) => logoutSession(sessionId),
+    onSuccess: () => {
+      refetch();
+    },
   });
 
   const sessions = data?.sessions || [];
@@ -83,6 +89,14 @@ export default function ActiveDevices() {
                   <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
                   Active
                 </span>
+                { !session.isCurrentDevice && (
+                  <button
+                    onClick={() => logoutMutation.mutate(session.id)}
+                    className="ml-2 text-xs text-red-600 hover:underline"
+                  >
+                    Logout
+                  </button>
+                ) }
               </div>
             );
           })}

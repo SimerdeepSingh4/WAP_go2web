@@ -3,6 +3,7 @@ import campaignModel from "../models/campaign.model.js";
 import userModel from "../models/user.model.js";
 import walletModel from "../models/wallet.model.js";
 import transactionModel from "../models/transaction.model.js";
+import sharp from "sharp";
 import fs from "fs";
 import path from "path";
 import cloudinary from "../config/cloudinary.config.js";
@@ -28,25 +29,58 @@ export const createCampaign = async (req, res) => {
             status,
         } = req.body;
 
-        // Upload files to Cloudinary
+        // Upload files to Cloudinary or local fallback with size limits and image compression
+        const IMG_MAX_SIZE = parseInt(process.env.IMG_MAX_SIZE_MB || "5") * 1024 * 1024; // default 5 MB
+        const AUDIO_MAX_SIZE = parseInt(process.env.AUDIO_MAX_SIZE_MB || "7") * 1024 * 1024; // default 7 MB
+        const VIDEO_MAX_SIZE = parseInt(process.env.VIDEO_MAX_SIZE_MB || "7") * 1024 * 1024; // default 7 MB
+        const DOC_MAX_SIZE = parseInt(process.env.DOC_MAX_SIZE_MB || "3") * 1024 * 1024; // default 3 MB
+
         const uploadField = async (field) => {
             if (!req.files || !req.files[field]) return [];
             const useCloudinary = process.env.USE_CLOUDINARY === "true";
+            const limitMap = {
+                images: IMG_MAX_SIZE,
+                audio: AUDIO_MAX_SIZE,
+                video: VIDEO_MAX_SIZE,
+                documents: DOC_MAX_SIZE,
+            };
+            const fieldLimit = limitMap[field] || IMG_MAX_SIZE;
+
+            // Validate size limits
+            const oversized = req.files[field].find((file) => file.size > fieldLimit);
+            if (oversized) {
+                throw new Error(`${field} file ${oversized.originalname} exceeds size limit of ${fieldLimit / (1024 * 1024)} MB`);
+            }
+
+            // Prepare buffers (compress images)
+            const buffers = await Promise.all(
+                req.files[field].map(async (file) => {
+                    if (field === "images") {
+                        // Compress image to WebP using sharp
+                        return await sharp(file.buffer)
+                            .rotate()
+                            .resize({ width: 1920, withoutEnlargement: true })
+                            .webp({ quality: 80 })
+                            .toBuffer();
+                    }
+                    return file.buffer;
+                })
+            );
+
             if (useCloudinary) {
-                // Cloudinary upload
+                // Upload to Cloudinary
                 const uploads = await Promise.all(
-                    req.files[field].map(
-                        (file) =>
-                            new Promise((resolve, reject) => {
-                                const uploadStream = cloudinary.uploader.upload_stream(
-                                    { folder: `${field}s` },
-                                    (error, result) => {
-                                        if (error) reject(error);
-                                        else resolve(result.secure_url);
-                                    }
-                                );
-                                uploadStream.end(file.buffer);
-                            })
+                    buffers.map((buf, idx) =>
+                        new Promise((resolve, reject) => {
+                            const uploadStream = cloudinary.uploader.upload_stream(
+                                { folder: `${field}s` },
+                                (error, result) => {
+                                    if (error) reject(error);
+                                    else resolve(result.secure_url);
+                                }
+                            );
+                            uploadStream.end(buf);
+                        })
                     )
                 );
                 return uploads;
@@ -55,11 +89,11 @@ export const createCampaign = async (req, res) => {
                 const localDir = path.join(__dirname, "../../../uploads", `${field}s`);
                 fs.mkdirSync(localDir, { recursive: true });
                 const uploads = await Promise.all(
-                    req.files[field].map((file) => {
-                        const filename = `${Date.now()}_${file.originalname}`;
+                    buffers.map((buf, idx) => {
+                        const originalName = req.files[field][idx].originalname;
+                        const filename = `${Date.now()}_${originalName}`;
                         const filepath = path.join(localDir, filename);
-                        fs.writeFileSync(filepath, file.buffer);
-                        // Return a relative URL or path that can be saved in DB
+                        fs.writeFileSync(filepath, buf);
                         return `/uploads/${field}s/${filename}`;
                     })
                 );
@@ -98,7 +132,7 @@ export const createCampaign = async (req, res) => {
                 (documents && Array.isArray(documents) && documents.length > 0);
 
         if (!hasContent) {
-            missingFields.push("messageBody, templateId, or media (images, audio, or video)");
+            missingFields.push("messageBody, templateId, or media (images, audio, video, documents)");
         }
 
         if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {

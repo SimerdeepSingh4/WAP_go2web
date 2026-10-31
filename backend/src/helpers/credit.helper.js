@@ -117,9 +117,7 @@ export async function refundCredits(userId, count, session = null) {
       wallet = wallet[0];
     }
 
-    wallet.balance += refundAmount;
-    await wallet.save({ session: mongoSession });
-
+    wallet.balance += refundAmount;[]
     if (ownSession) {
       await mongoSession.commitTransaction();
       mongoSession.endSession();

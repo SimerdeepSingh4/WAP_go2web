@@ -4,6 +4,7 @@ import {
     login,
     logout,
     logoutAll,
+    logoutSession,
     getMe,
     getActiveSessions,
 } from "../controllers/auth.controller.js";
@@ -20,6 +21,7 @@ authRouter.post("/register", protect, authorizeRoles("Super Admin", "Reseller"),
 authRouter.get("/me", protect, getMe);
 authRouter.get("/sessions", protect, getActiveSessions);
 authRouter.post("/logout-all", protect, logoutAll);
+authRouter.delete("/logout/:sessionId", protect, logoutSession);
 
 // RBAC Protected routes
 authRouter.get(

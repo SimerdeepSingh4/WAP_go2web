@@ -257,6 +257,42 @@ export async function logoutAll(req, res) {
     }
 }
 
+// Logout a single session (device) by its session ID without affecting other sessions
+export async function logoutSession(req, res) {
+    try {
+        const { sessionId } = req.params; // session ID to logout
+        if (!sessionId) {
+            return res.status(400).json({
+                message: "Session ID is required",
+                success: false,
+            });
+        }
+        // Ensure the session belongs to the authenticated user
+        const session = await sessionModel.findOne({ _id: sessionId, userId: req.user._id });
+        if (!session) {
+            return res.status(404).json({
+                message: "Session not found or does not belong to the user",
+                success: false,
+            });
+        }
+        await sessionModel.deleteOne({ _id: sessionId });
+        // If the session being deleted is the current one, also clear cookie
+        if (req.session && req.session._id && req.session._id.toString() === sessionId) {
+            res.clearCookie("token");
+        }
+        return res.status(200).json({
+            message: "Session logged out successfully",
+            success: true,
+        });
+    } catch (error) {
+        console.error("Logout session error:", error);
+        return res.status(500).json({
+            message: "Internal server error",
+            success: false,
+        });
+    }
+}
+
 export async function getMe(req, res) {
     try {
         return res.status(200).json({
@@ -321,6 +357,7 @@ export default {
     login,
     logout,
     logoutAll,
+    logoutSession,
     getMe,
     getActiveSessions,
 };
