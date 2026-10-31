@@ -196,6 +196,14 @@ const campaignSchema = new mongoose.Schema(
             type: Array,
             default: [],
         },
+        creditsDeducted: {
+            type: Number,
+            default: 0,
+        },
+        rateSnapshot: {
+            type: Number,
+            default: null,
+        },
         totalRecipients: {
             type: Number,
             default: 0,
@@ -234,6 +242,10 @@ const campaignSchema = new mongoose.Schema(
                 default: 0,
             },
             failed: {
+                type: Number,
+                default: 0,
+            },
+            creditsRefunded: {
                 type: Number,
                 default: 0,
             },

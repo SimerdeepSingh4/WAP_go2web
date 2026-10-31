@@ -1,3 +1,4 @@
+import { notifyUser, notifyRole, notifyReseller } from "../services/socket.service.js";
 import mongoose from "mongoose";
 import campaignModel from "../models/campaign.model.js";
 import userModel from "../models/user.model.js";
@@ -10,7 +11,10 @@ import cloudinary from "../config/cloudinary.config.js";
 
 export const createCampaign = async (req, res) => {
     const mongoSession = await mongoose.startSession();
-    mongoSession.startTransaction();
+    mongoSession.startTransaction({
+        readConcern: { level: "snapshot" },
+        writeConcern: { w: "majority", j: true },
+    });
 
     try {
         const {
@@ -201,6 +205,10 @@ export const createCampaign = async (req, res) => {
         let creditDeduction = null;
 
         // Check and deduct credits for User and Reseller roles (Super Admin has unlimited pool)
+        let updatedWallet = null;
+        let rate = null;
+        let requiredCredits = 0;
+
         if (req.user.role !== "Super Admin") {
             const senderUser = await userModel
                 .findById(req.user._id)
@@ -215,57 +223,43 @@ export const createCampaign = async (req, res) => {
                 });
             }
 
-            const rate = senderUser.ratePerMsg && senderUser.ratePerMsg > 0 ? senderUser.ratePerMsg : 12;
-            const requiredCredits = totalRecipients * rate;
+            rate = senderUser.ratePerMsg && senderUser.ratePerMsg > 0 ? senderUser.ratePerMsg : 12;
+            requiredCredits = totalRecipients * rate;
 
-            const wallet = await walletModel
-                .findOne({ userId: req.user._id })
-                .session(mongoSession);
+            // ATOMIC ISOLATION GUARD (Compare-And-Swap):
+            // Deducts strictly if current balance >= requiredCredits at DB engine level
+            updatedWallet = await walletModel.findOneAndUpdate(
+                {
+                    userId: req.user._id,
+                    balance: { $gte: requiredCredits },
+                },
+                {
+                    $inc: { balance: -requiredCredits },
+                },
+                {
+                    new: true,
+                    session: mongoSession,
+                }
+            );
 
-            const currentBalance = wallet ? wallet.balance : 0;
-
-            if (!wallet || currentBalance < requiredCredits) {
+            if (!updatedWallet) {
+                const currentWallet = await walletModel.findOne({ userId: req.user._id }).session(mongoSession);
+                const available = currentWallet ? currentWallet.balance : 0;
                 await mongoSession.abortTransaction();
                 mongoSession.endSession();
                 return res.status(400).json({
-                    message: `Insufficient credits to launch campaign. Required: ${requiredCredits} credits (${totalRecipients} unique recipients × ${rate}/msg), Available: ${currentBalance} credits.`,
+                    message: `Insufficient credits to launch campaign. Required: ${requiredCredits} credits (${totalRecipients} unique recipients × ${rate}/msg), Available: ${available} credits.`,
                     success: false,
                     required: requiredCredits,
-                    available: currentBalance,
+                    available,
                     uniqueRecipients: totalRecipients,
                     duplicatesFiltered: duplicateOccurrences,
                 });
             }
 
-            // Deduct credits from wallet
-            wallet.balance -= requiredCredits;
-            await wallet.save({ session: mongoSession });
-
-            // Record transaction audit log
-            const auditNotes = duplicateOccurrences > 0
-                ? `Campaign "${campaignTitle}": ${totalRecipients} unique recipient(s) (${duplicateOccurrences} duplicate(s) filtered out) at rate ${rate}/msg`
-                : `Campaign "${campaignTitle}": ${totalRecipients} recipient(s) at rate ${rate}/msg`;
-
-            await transactionModel.create(
-                [
-                    {
-                        fromUser: req.user._id,
-                        toUser: req.user._id,
-                        amount: requiredCredits,
-                        type: "DEDUCT",
-                        notes: auditNotes,
-                        rateSnapshot: rate,
-                        balanceAfterFrom: wallet.balance,
-                        balanceAfterTo: wallet.balance,
-                        performedBy: req.user._id,
-                    },
-                ],
-                { session: mongoSession }
-            );
-
             creditDeduction = {
                 amount: requiredCredits,
-                remainingBalance: wallet.balance,
+                remainingBalance: updatedWallet.balance,
                 ratePerMsg: rate,
             };
         }
@@ -319,13 +313,73 @@ export const createCampaign = async (req, res) => {
                     messageType: resolvedMessageType,
                     status: status || (schedule === "later" ? "scheduled" : "pending"),
                     campaignStartDate: schedule === "now" ? new Date() : null,
+                    creditsDeducted: creditDeduction ? creditDeduction.amount : 0,
+                    rateSnapshot: rate,
                 },
             ],
             { session: mongoSession }
         );
 
+        // Record transaction audit log linking campaignId
+        if (creditDeduction && updatedWallet) {
+            const auditNotes = duplicateOccurrences > 0
+                ? `Campaign "${campaignTitle}": ${totalRecipients} unique recipient(s) (${duplicateOccurrences} duplicate(s) filtered out) at rate ${rate}/msg`
+                : `Campaign "${campaignTitle}": ${totalRecipients} recipient(s) at rate ${rate}/msg`;
+
+            await transactionModel.create(
+                [
+                    {
+                        fromUser: req.user._id,
+                        toUser: req.user._id,
+                        amount: requiredCredits,
+                        type: "DEDUCT",
+                        campaignId: createdCampaigns[0]._id,
+                        notes: auditNotes,
+                        rateSnapshot: rate,
+                        balanceAfterFrom: updatedWallet.balance,
+                        balanceAfterTo: updatedWallet.balance,
+                        performedBy: req.user._id,
+                    },
+                ],
+                { session: mongoSession }
+            );
+        }
+
         await mongoSession.commitTransaction();
         mongoSession.endSession();
+
+        // ── Real-Time WebSockets (POST-COMMIT) ────────────────────
+        // 1. Notify client's other tabs & active view of updated balance
+        if (creditDeduction && updatedWallet) {
+            notifyUser(req.user._id, "WALLET_UPDATED", {
+                newBalance: updatedWallet.balance,
+                delta: -requiredCredits,
+                reason: "DEDUCT",
+                campaignTitle,
+                campaignId: createdCampaigns[0]._id,
+            });
+        }
+
+        // 2. Notify Super Admin live triage queue
+        notifyRole("Super Admin", "NEW_CAMPAIGN_SUBMITTED", {
+            campaignId: createdCampaigns[0]._id,
+            campaignTitle,
+            totalRecipients,
+            submittedBy: req.user.username || req.user.email,
+            role: req.user.role,
+            submittedAt: createdCampaigns[0].createdAt,
+        });
+
+        // 3. Notify Reseller if this was launched by their client
+        if (req.user.resellerId) {
+            notifyReseller(req.user.resellerId, "CLIENT_CAMPAIGN_LAUNCHED", {
+                clientId: req.user._id,
+                clientName: req.user.username,
+                campaignId: createdCampaigns[0]._id,
+                campaignTitle,
+                totalRecipients,
+            });
+        }
 
         let notice = "";
         if (duplicateOccurrences > 0 && invalidCount > 0) {
@@ -513,6 +567,23 @@ export const updateCampaignStatus = async (req, res) => {
 
         await campaign.save();
 
+        // ── Real-Time WebSockets ──────────────────────────────────
+        notifyUser(campaign.userId, "CAMPAIGN_UPDATED", {
+            campaignId: campaign._id,
+            campaignTitle: campaign.campaignTitle,
+            previousStatus,
+            status: campaign.status,
+            updatedAt: campaign.updatedAt,
+        });
+
+        notifyRole("Super Admin", "CAMPAIGN_UPDATED", {
+            campaignId: campaign._id,
+            campaignTitle: campaign.campaignTitle,
+            previousStatus,
+            status: campaign.status,
+            updatedAt: campaign.updatedAt,
+        });
+
         return res.status(200).json({
             success: true,
             message: `Campaign status updated from "${previousStatus}" to "${status}" successfully.`,
@@ -539,8 +610,16 @@ export const updateCampaignStatus = async (req, res) => {
  * real delivery stats (sent, delivered, read, failed, adminNotes, and optionally completed status).
  */
 export const updateCampaignMetrics = async (req, res) => {
+    const mongoSession = await mongoose.startSession();
+    mongoSession.startTransaction({
+        readConcern: { level: "snapshot" },
+        writeConcern: { w: "majority", j: true },
+    });
+
     try {
         if (req.user.role !== "Super Admin") {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
             return res.status(403).json({
                 message: "Forbidden: Only Super Admin is authorized to record campaign delivery metrics.",
                 success: false,
@@ -551,6 +630,8 @@ export const updateCampaignMetrics = async (req, res) => {
         const { sent, delivered, read = 0, failed = 0, adminNotes = "", status } = req.body;
 
         if (sent === undefined || delivered === undefined) {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
             return res.status(400).json({
                 message: "Missing required delivery metrics: 'sent' and 'delivered' counts are required.",
                 success: false,
@@ -568,30 +649,98 @@ export const updateCampaignMetrics = async (req, res) => {
             isNaN(numRead) || numRead < 0 ||
             isNaN(numFailed) || numFailed < 0
         ) {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
             return res.status(400).json({
                 message: "Metrics 'sent', 'delivered', 'read', and 'failed' must be non-negative numbers.",
                 success: false,
             });
         }
 
-        const campaign = await campaignModel.findById(id);
+        const campaign = await campaignModel.findById(id).session(mongoSession);
         if (!campaign) {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
             return res.status(404).json({
                 message: "Campaign not found",
                 success: false,
             });
         }
 
+        // ── Automated Wrong / Failed Number Refund Flow ───────────
+        let refundInfo = null;
+        let updatedUserWallet = null;
+
+        const campaignOwner = await userModel.findById(campaign.userId).session(mongoSession);
+        const isEligibleForRefund = campaignOwner && campaignOwner.role !== "Super Admin";
+
+        if (isEligibleForRefund && numFailed > 0) {
+            const alreadyRefunded = campaign.campaignSummary?.creditsRefunded || 0;
+
+            if (alreadyRefunded > 0) {
+                console.log(`Campaign ${campaign._id} was already refunded ${alreadyRefunded} credits. Skipping duplicate refund.`);
+            } else {
+                const rate = campaign.rateSnapshot || campaignOwner.ratePerMsg || 12;
+                let refundAmount = numFailed * rate;
+
+                // Cap refund so it never exceeds total credits deducted
+                if (campaign.creditsDeducted > 0 && refundAmount > campaign.creditsDeducted) {
+                    refundAmount = campaign.creditsDeducted;
+                }
+
+                if (refundAmount > 0) {
+                    // Atomic Guarded Increment on user's wallet
+                    updatedUserWallet = await walletModel.findOneAndUpdate(
+                        { userId: campaign.userId },
+                        {
+                            $inc: { balance: refundAmount },
+                            $setOnInsert: { resellerId: campaignOwner.resellerId || null },
+                        },
+                        {
+                            new: true,
+                            upsert: true,
+                            session: mongoSession,
+                        }
+                    );
+
+                    // Insert immutable ledger record (with partial unique index guard on { campaignId: 1, type: "REFUND" })
+                    const refundTransaction = await transactionModel.create(
+                        [
+                            {
+                                fromUser: req.user._id,
+                                toUser: campaign.userId,
+                                amount: refundAmount,
+                                type: "REFUND",
+                                campaignId: campaign._id,
+                                notes: `Automated refund for ${numFailed} failed/wrong number(s) on campaign "${campaign.campaignTitle}" at rate ${rate}/msg`,
+                                rateSnapshot: rate,
+                                balanceAfterTo: updatedUserWallet.balance,
+                                performedBy: req.user._id,
+                            },
+                        ],
+                        { session: mongoSession }
+                    );
+
+                    campaign.campaignSummary.creditsRefunded = refundAmount;
+                    refundInfo = {
+                        amount: refundAmount,
+                        failedCount: numFailed,
+                        rate,
+                        newBalance: updatedUserWallet.balance,
+                        transactionId: refundTransaction[0]._id,
+                    };
+                }
+            }
+        }
+
         // Update campaign summary metrics
-        campaign.campaignSummary = {
-            sent: numSent,
-            delivered: numDelivered,
-            read: numRead,
-            failed: numFailed,
-            adminNotes: typeof adminNotes === "string" ? adminNotes.trim() : "",
-            reportedAt: new Date(),
-            reportedBy: req.user._id,
-        };
+        campaign.campaignSummary.sent = numSent;
+        campaign.campaignSummary.delivered = numDelivered;
+        campaign.campaignSummary.read = numRead;
+        campaign.campaignSummary.failed = numFailed;
+        campaign.campaignSummary.adminNotes = typeof adminNotes === "string" ? adminNotes.trim() : "";
+        campaign.campaignSummary.reportedAt = new Date();
+        campaign.campaignSummary.reportedBy = req.user._id;
 
         // If status is provided, update status as well
         if (status) {
@@ -614,11 +763,59 @@ export const updateCampaignMetrics = async (req, res) => {
             }
         }
 
-        await campaign.save();
+        await campaign.save({ session: mongoSession });
+
+        await mongoSession.commitTransaction();
+        mongoSession.endSession();
+
+        // ── Real-Time WebSockets (POST-COMMIT) ────────────────────
+        // 1. If refund was issued, immediately notify client's wallet
+        if (refundInfo && updatedUserWallet) {
+            notifyUser(campaign.userId, "WALLET_UPDATED", {
+                newBalance: updatedUserWallet.balance,
+                delta: +refundInfo.amount,
+                reason: "REFUND",
+                campaignTitle: campaign.campaignTitle,
+                campaignId: campaign._id,
+                failedCount: numFailed,
+            });
+        }
+
+        // 2. Notify client of campaign delivery metrics and status update
+        notifyUser(campaign.userId, "CAMPAIGN_UPDATED", {
+            campaignId: campaign._id,
+            campaignTitle: campaign.campaignTitle,
+            status: campaign.status,
+            delivered: numDelivered,
+            sent: numSent,
+            failed: numFailed,
+            read: numRead,
+            creditsRefunded: campaign.campaignSummary.creditsRefunded,
+            updatedAt: campaign.updatedAt,
+        });
+
+        // 3. Notify Super Admin & Reseller
+        notifyRole("Super Admin", "CAMPAIGN_UPDATED", {
+            campaignId: campaign._id,
+            status: campaign.status,
+            delivered: numDelivered,
+            failed: numFailed,
+        });
+
+        if (campaignOwner && campaignOwner.resellerId) {
+            notifyReseller(campaignOwner.resellerId, "CLIENT_CAMPAIGN_UPDATED", {
+                clientId: campaign.userId,
+                campaignId: campaign._id,
+                campaignTitle: campaign.campaignTitle,
+                status: campaign.status,
+                delivered: numDelivered,
+                failed: numFailed,
+            });
+        }
 
         return res.status(200).json({
             success: true,
-            message: "Campaign delivery metrics recorded successfully.",
+            message: "Campaign delivery metrics recorded successfully." + (refundInfo ? ` ${refundInfo.amount} credits refunded for ${refundInfo.failedCount} failed messages.` : ""),
             data: {
                 id: campaign._id,
                 campaignTitle: campaign.campaignTitle,
@@ -626,8 +823,11 @@ export const updateCampaignMetrics = async (req, res) => {
                 campaignSummary: campaign.campaignSummary,
                 updatedAt: campaign.updatedAt,
             },
+            refund: refundInfo,
         });
     } catch (error) {
+        await mongoSession.abortTransaction();
+        mongoSession.endSession();
         console.error("Update campaign metrics error:", error);
         return res.status(500).json({
             message: error.message || "Failed to update campaign metrics",

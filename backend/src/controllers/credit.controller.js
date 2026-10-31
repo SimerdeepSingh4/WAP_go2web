@@ -1,3 +1,5 @@
+import { notifyUser } from "../services/socket.service.js";
+import { reconcileWallet as verifyReconcile } from "../helpers/credit.helper.js";
 import mongoose from "mongoose";
 import walletModel from "../models/wallet.model.js";
 import transactionModel from "../models/transaction.model.js";
@@ -215,34 +217,47 @@ export async function allocateCredits(req, res) {
                 });
             }
 
-            // Deduct from Reseller
-            fromWallet.balance -= creditAmount;
-            await fromWallet.save({ session: mongoSession });
-            balanceAfterFrom = fromWallet.balance;
-        }
-
-        // ── Add credits to target user's wallet ─────────────────
-        let toWallet = await walletModel
-            .findOne({ userId: toUserId })
-            .session(mongoSession);
-
-        if (!toWallet) {
-            toWallet = await walletModel.create(
-                [
-                    {
-                        userId: toUserId,
-                        balance: 0,
-                        resellerId: toUser.resellerId || null,
-                    },
-                ],
-                { session: mongoSession }
+            // Atomic CAS Guard: Deduct from Reseller strictly if balance >= creditAmount
+            const updatedFrom = await walletModel.findOneAndUpdate(
+                {
+                    userId: req.user._id,
+                    balance: { $gte: creditAmount },
+                },
+                {
+                    $inc: { balance: -creditAmount },
+                },
+                {
+                    new: true,
+                    session: mongoSession,
+                }
             );
-            toWallet = toWallet[0];
+
+            if (!updatedFrom) {
+                await mongoSession.abortTransaction();
+                mongoSession.endSession();
+                return res.status(400).json({
+                    message: `Insufficient balance or concurrent transaction in progress. Your balance: ${fromWallet.balance}, requested: ${creditAmount}.`,
+                    success: false,
+                    currentBalance: fromWallet.balance,
+                });
+            }
+            balanceAfterFrom = updatedFrom.balance;
         }
 
-        toWallet.balance += creditAmount;
-        await toWallet.save({ session: mongoSession });
-        const balanceAfterTo = toWallet.balance;
+        // ── Add credits to target user's wallet (Atomic Upsert Increment) ─
+        const updatedToWallet = await walletModel.findOneAndUpdate(
+            { userId: toUserId },
+            {
+                $inc: { balance: creditAmount },
+                $setOnInsert: { resellerId: toUser.resellerId || null },
+            },
+            {
+                new: true,
+                upsert: true,
+                session: mongoSession,
+            }
+        );
+        const balanceAfterTo = updatedToWallet.balance;
 
         // ── Create audit log ────────────────────────────────────
         const transaction = await transactionModel.create(
@@ -267,6 +282,22 @@ export async function allocateCredits(req, res) {
 
         await mongoSession.commitTransaction();
         mongoSession.endSession();
+
+        // ── Real-Time WebSockets (POST-COMMIT) ────────────────────
+        if (balanceAfterFrom !== null) {
+            notifyUser(req.user._id, "WALLET_UPDATED", {
+                newBalance: balanceAfterFrom,
+                delta: -creditAmount,
+                reason: "ALLOCATE",
+                toUser: toUser.username,
+            });
+        }
+        notifyUser(toUserId, "WALLET_UPDATED", {
+            newBalance: balanceAfterTo,
+            delta: +creditAmount,
+            reason: "ALLOCATE",
+            fromUser: req.user.username,
+        });
 
         return res.status(200).json({
             success: true,
@@ -555,23 +586,33 @@ export async function deductCredits(req, res) {
             }
         }
 
-        const wallet = await walletModel
-            .findOne({ userId })
-            .session(mongoSession);
+        // ATOMIC ISOLATION GUARD: Deduct only if balance >= deductionAmount
+        const wallet = await walletModel.findOneAndUpdate(
+            {
+                userId,
+                balance: { $gte: deductionAmount },
+            },
+            {
+                $inc: { balance: -deductionAmount },
+            },
+            {
+                new: true,
+                session: mongoSession,
+            }
+        );
 
-        if (!wallet || wallet.balance < deductionAmount) {
+        if (!wallet) {
+            const currentWallet = await walletModel.findOne({ userId }).session(mongoSession);
+            const available = currentWallet ? currentWallet.balance : 0;
             await mongoSession.abortTransaction();
             mongoSession.endSession();
             return res.status(400).json({
-                message: `Insufficient credits. Required: ${deductionAmount}, Available: ${wallet ? wallet.balance : 0}.`,
+                message: `Insufficient credits or concurrent deduction in progress. Required: ${deductionAmount}, Available: ${available}.`,
                 success: false,
                 required: deductionAmount,
-                available: wallet ? wallet.balance : 0,
+                available,
             });
         }
-
-        wallet.balance -= deductionAmount;
-        await wallet.save({ session: mongoSession });
 
         // Audit log
         await transactionModel.create(
@@ -807,10 +848,48 @@ export async function updateRate(req, res) {
     }
 }
 
+
+/**
+ * GET /api/credits/reconcile
+ * --------------------------
+ * Reconciles the user's wallet balance against the immutable ledger.
+ * Invariant: Wallet Balance === Total Inflows - Total Outflows.
+ * Super Admin can pass ?userId=xxx to audit any user.
+ */
+export async function reconcileCreditBalance(req, res) {
+    try {
+        let targetUserId = req.user._id;
+
+        if (req.query.userId) {
+            if (req.user.role !== "Super Admin") {
+                return res.status(403).json({
+                    message: "Only Super Admin can audit other accounts.",
+                    success: false,
+                });
+            }
+            targetUserId = req.query.userId;
+        }
+
+        const report = await verifyReconcile(targetUserId);
+
+        return res.status(200).json({
+            success: true,
+            report,
+        });
+    } catch (error) {
+        console.error("Reconcile balance error:", error);
+        return res.status(500).json({
+            message: error.message || "Failed to reconcile balance",
+            success: false,
+        });
+    }
+}
+
 export default {
     getBalance,
     allocateCredits,
     deductCredits,
     getTransactions,
     updateRate,
+    reconcileCreditBalance,
 };

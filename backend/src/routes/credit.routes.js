@@ -6,6 +6,7 @@ import {
     deductCredits,
     getTransactions,
     updateRate,
+    reconcileCreditBalance,
 } from "../controllers/credit.controller.js";
 import {
     protect,
@@ -21,6 +22,10 @@ creditRouter.use(protect);
 // GET /api/credits/balance — Any logged-in user can check their own balance
 // Super Admin / Reseller can also pass ?userId=xxx to check another user's balance
 creditRouter.get("/balance", getBalance);
+
+// GET /api/credits/reconcile — Invariant audit: Wallet Balance === Total Inflows - Total Outflows
+// Any user can reconcile their own wallet; Super Admin can audit any user with ?userId=xxx
+creditRouter.get("/reconcile", reconcileCreditBalance);
 
 // POST /api/credits/allocate — Super Admin / Reseller only
 // Super Admin → Reseller (unlimited pool)

@@ -57,6 +57,12 @@ const transactionSchema = new mongoose.Schema(
             ref: "User",
             required: true, // The admin/reseller/system who initiated this
         },
+        campaignId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Campaign",
+            default: null,
+            index: true,
+        },
     },
     {
         timestamps: true,
@@ -68,6 +74,12 @@ transactionSchema.index({ fromUser: 1, createdAt: -1 });
 transactionSchema.index({ toUser: 1, createdAt: -1 });
 transactionSchema.index({ performedBy: 1, createdAt: -1 });
 transactionSchema.index({ type: 1, createdAt: -1 });
+
+// Idempotency Index: Ensures a campaign cannot be refunded more than once
+transactionSchema.index(
+    { campaignId: 1, type: 1 },
+    { unique: true, partialFilterExpression: { type: "REFUND" } }
+);
 
 const transactionModel =
     mongoose.models.Transaction ||
