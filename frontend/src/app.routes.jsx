@@ -3,9 +3,13 @@ import LoginPage from "./features/auth/pages/Login.jsx";
 import { useAuth } from "./features/auth/hooks/useAuth.js";
 import ActiveDevices from "./features/auth/components/ActiveDevices.jsx";
 import RoleRoute from "./components/RoleRoute.jsx";
-import ResellerDashboard from "./features/dashboard/pages/ResellerDashboard.jsx";
+import ResellerOverview from "./features/reseller/pages/Overview.jsx";
+import ResellerLayout from "./features/reseller/components/ResellerLayout.jsx";
+import ResellerUsers from "./features/reseller/pages/Users.jsx";
+import ResellerCredits from "./features/reseller/pages/Credits.jsx";
+import ResellerCampaigns from "./features/reseller/pages/Campaigns.jsx";
 import PreviewBanner from "./components/PreviewBanner.jsx";
-import TestControlPanel from "./features/dashboard/components/TestControlPanel.jsx";
+
 import { lazy, Suspense } from "react";
 import AdminAccess from "./features/admin/components/AdminAccess.jsx";
 
@@ -20,8 +24,11 @@ function Dashboard() {
   const { user, logout, isLoggingOut, logoutAll, isLoggingOutAll } = useAuth();
 
   if (user?.role === "Super Admin" && !user?.isPreview) {
-    return <Navigate to="/admin" replace />;
-  }
+  return <Navigate to="/admin" replace />;
+}
+if (user?.role === "Reseller") {
+  return <Navigate to="/reseller" replace />;
+}
 
   const getRoleBadgeColor = (role) => {
     switch (role) {
@@ -92,7 +99,7 @@ function Dashboard() {
         <ActiveDevices />
 
         {/* Feature Test Lab Console */}
-        <TestControlPanel />
+
       </div>
     </div>
   );
@@ -170,14 +177,21 @@ export const router = createBrowserRouter([
       { path: "settings", element: <AdminOperatingRules /> },
     ],
   },
-  {
-    path: "/reseller",
-    element: (
-      <RoleRoute allowedRoles={["Super Admin", "Reseller"]}>
-        <ResellerDashboard />
-      </RoleRoute>
-    ),
-  },
+  { path: "/reseller", element: (
+        <RoleRoute allowedRoles={["Super Admin", "Reseller"]}>
+          <ResellerLayout />
+        </RoleRoute>
+      ),
+      children: [
+        { index: true, element: <ResellerOverview /> },
+        { path: "campaigns", element: <ResellerCampaigns /> },
+        { path: "reports", element: <ResellerCampaigns reports /> },
+        { path: "users", element: <ResellerUsers /> },
+        { path: "credits", element: <ResellerCredits key="credits" /> },
+        { path: "activity", element: <ResellerCredits key="activity" activity /> },
+        { path: "settings", element: <AdminOperatingRules /> },
+      ],
+    },
   {
     path: "/login",
     element: (
