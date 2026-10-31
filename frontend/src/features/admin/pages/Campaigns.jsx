@@ -1,5 +1,5 @@
 import { useSearchParams } from "react-router";
-import { MoreHorizontal, Eye, FileText, Megaphone, Clock, CheckCircle, AlertTriangle, RefreshCw } from "lucide-react";
+import { MoreHorizontal, Eye, FileText, Megaphone, Clock, CheckCircle, AlertTriangle, RefreshCw, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
@@ -33,6 +33,8 @@ export default function Campaigns({ reports = false }) {
   const pendingCount = all.filter(waiting).length;
   const ongoingCount = all.filter((c) => c.status === "ongoing").length;
   const completedCount = all.filter((c) => ["completed", "sent"].includes(c.status)).length;
+  const stoppedCount = all.filter((c) => c.status === "stopped").length;
+  const failedCount = all.filter((c) => c.status === "failed").length;
   const needsReportCount = all.filter(needsReport).length;
 
   const rows = all.filter((c) => {
@@ -182,9 +184,11 @@ export default function Campaigns({ reports = false }) {
       ]
     : [
         { label: "All", val: "all", count: totalCount },
-        { label: "Queued / Pending", val: "pending", count: pendingCount },
+        { label: "Pending", val: "pending", count: pendingCount },
         { label: "Ongoing", val: "ongoing", count: ongoingCount },
         { label: "Completed", val: "completed", count: completedCount },
+        { label: "Stopped", val: "stopped", count: stoppedCount },
+        { label: "Failed", val: "failed", count: failedCount },
         { label: "Needs Report", val: "unreported", count: needsReportCount },
       ];
 
@@ -195,7 +199,7 @@ export default function Campaigns({ reports = false }) {
         description={
           reports
             ? "Publish actual campaign results, deliver metrics, and review execution performance."
-            : "Monitor the BullMQ campaign dispatch queue, manage submissions, and update execution status."
+            : "Monitor active campaign deliveries, manage submissions, and update execution status."
         }
         action={
           <Button
