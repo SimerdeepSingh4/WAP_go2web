@@ -97,84 +97,84 @@
 
 :root {
   /* ==========================================================================
-     Centralized Palette: Combination 57 (Quite clear)
+     Centralized Palette: Combination 73 (Calm blue)
      Edit these 4 core values to instantly update the entire website theme:
      ========================================================================== */
-  --palette-cool-gray: #CBCBCB;    /* Cool gray (borders, dividers, subtle outlines) */
-  --palette-off-white: #F2F2F2;    /* Off-white (clean neutral canvas background) */
-  --palette-deep-green: #174D38;   /* Deep green (primary brand, active states, buttons) */
-  --palette-rich-brown: #4D1717;   /* Rich brown (secondary accent, badges, contrast) */
+  --palette-light-blue: #90D5FF;   /* Light blue (muted surfaces, hover tints, soft borders) */
+  --palette-off-white: #EEF6FF;    /* Off-white tinted (clean canvas background) */
+  --palette-brand-blue: #57B9FF;   /* Bright blue (primary brand, buttons, active states) */
+  --palette-dark-blue: #517891;    /* Dark blue (sidebar, contrast, muted text accents) */
 
   /* Surface & Base Layout */
-  --background: var(--palette-off-white);
-  --foreground: #1c1917;
+  --background: #f5faff;
+  --foreground: #0f2a3f;
   --card: #ffffff;
-  --card-foreground: #1c1917;
+  --card-foreground: #0f2a3f;
   --popover: #ffffff;
-  --popover-foreground: #1c1917;
+  --popover-foreground: #0f2a3f;
 
-  /* Primary Brand - Deep Green */
-  --primary: var(--palette-deep-green);
+  /* Primary Brand - Bright Blue */
+  --primary: var(--palette-brand-blue);
   --primary-foreground: #ffffff;
 
   /* Secondary & Accents */
-  --secondary: #e6ede9;
-  --secondary-foreground: var(--palette-deep-green);
-  --accent: #dfe9e3;
-  --accent-foreground: var(--palette-deep-green);
-  --accent-brown: var(--palette-rich-brown);
+  --secondary: #daeeff;
+  --secondary-foreground: var(--palette-dark-blue);
+  --accent: #cce8ff;
+  --accent-foreground: var(--palette-dark-blue);
+  --accent-brown: var(--palette-dark-blue);
   --accent-brown-foreground: #ffffff;
 
-  /* Neutrals, Muted & Borders - Cool Gray */
-  --muted: #e7e7e7;
-  --muted-foreground: #5a5f5c;
-  --border: var(--palette-cool-gray);
-  --input: var(--palette-cool-gray);
-  --ring: var(--palette-deep-green);
+  /* Neutrals, Muted & Borders - Light Blue */
+  --muted: #e0f2ff;
+  --muted-foreground: #517891;
+  --border: #b8daf5;
+  --input: #b8daf5;
+  --ring: var(--palette-brand-blue);
   --radius: 0.5rem;
 
   /* Sidebar Design Tokens */
-  --sidebar: var(--palette-off-white);
-  --sidebar-foreground: #1c1917;
-  --sidebar-primary: var(--palette-deep-green);
+  --sidebar: #e8f4fd;
+  --sidebar-foreground: #0f2a3f;
+  --sidebar-primary: var(--palette-dark-blue);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e6ede9;
-  --sidebar-accent-foreground: var(--palette-deep-green);
-  --sidebar-border: var(--palette-cool-gray);
+  --sidebar-accent: #cce8ff;
+  --sidebar-accent-foreground: var(--palette-dark-blue);
+  --sidebar-border: #b8daf5;
 
   /* Charts & Data Visualization */
-  --chart-1: var(--palette-deep-green);
-  --chart-2: var(--palette-rich-brown);
-  --chart-3: #2d6a4f;
-  --chart-4: #8c2d2d;
-  --chart-5: #1c1917;
-  --chart-positive: var(--palette-deep-green);
+  --chart-1: var(--palette-brand-blue);
+  --chart-2: var(--palette-dark-blue);
+  --chart-3: #77B1D4;
+  --chart-4: #90D5FF;
+  --chart-5: #0f2a3f;
+  --chart-positive: #16a34a;
   --chart-negative: #b42318;
   --chart-background: #ffffff;
-  --chart-foreground: #1c1917;
-  --chart-foreground-muted: #5a5f5c;
-  --chart-line-primary: var(--palette-deep-green);
-  --chart-line-secondary: var(--palette-rich-brown);
-  --chart-crosshair: #5a5f5c;
-  --chart-grid: var(--palette-cool-gray);
-  --chart-brush-border: var(--palette-cool-gray);
+  --chart-foreground: #0f2a3f;
+  --chart-foreground-muted: #517891;
+  --chart-line-primary: var(--palette-brand-blue);
+  --chart-line-secondary: var(--palette-dark-blue);
+  --chart-crosshair: #517891;
+  --chart-grid: #c8e4f5;
+  --chart-brush-border: #c8e4f5;
   --chart-tooltip-background: #ffffff;
-  --chart-tooltip-foreground: #1c1917;
-  --chart-tooltip-muted: #5a5f5c;
-  --chart-marker-background: var(--palette-off-white);
-  --chart-marker-border: var(--palette-cool-gray);
-  --chart-marker-foreground: #1c1917;
-  --chart-label: #5a5f5c;
+  --chart-tooltip-foreground: #0f2a3f;
+  --chart-tooltip-muted: #517891;
+  --chart-marker-background: #f5faff;
+  --chart-marker-border: #b8daf5;
+  --chart-marker-foreground: #0f2a3f;
+  --chart-label: #517891;
   --chart-scale-mix: #ffffff;
-  --chart-scale-01: var(--palette-off-white);
+  --chart-scale-01: #f5faff;
   --chart-scale-02: color-mix(in oklab, var(--chart-1) 35%, var(--chart-scale-mix));
   --chart-scale-03: color-mix(in oklab, var(--chart-1) 55%, var(--chart-scale-mix));
   --chart-scale-04: color-mix(in oklab, var(--chart-1) 78%, var(--chart-scale-mix));
   --chart-scale-05: var(--chart-1);
   --chart-scale-pattern-color: #ffffff;
-  --chart-indicator-color: var(--palette-deep-green);
-  --chart-indicator-secondary-color: var(--palette-cool-gray);
-  --chart-marker-badge-background: var(--palette-deep-green);
+  --chart-indicator-color: var(--palette-brand-blue);
+  --chart-indicator-secondary-color: #b8daf5;
+  --chart-marker-badge-background: var(--palette-dark-blue);
   --chart-marker-badge-foreground: #ffffff;
   --chart-segment-background: oklch(0.756 0 0 / 0.06);
   --chart-segment-line: oklch(0.5 0 0 / 0.25);
