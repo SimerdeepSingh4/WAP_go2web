@@ -7,11 +7,17 @@
 @theme inline {
   --font-sans: "Geist Variable", sans-serif;
 
-  /* Centralized Master Palette Tokens */
-  --color-cool-gray: var(--palette-cool-gray);
-  --color-off-white: var(--palette-off-white);
-  --color-deep-green: var(--palette-deep-green);
-  --color-rich-brown: var(--palette-rich-brown);
+  /* Centralized Master Palette Tokens: Combination 58 (Gothic noir) */
+  --color-gothic-black: var(--palette-black);
+  --color-gothic-light-gray: var(--palette-light-gray);
+  --color-gothic-taupe: var(--palette-taupe);
+  --color-gothic-dark-taupe: var(--palette-dark-taupe);
+
+  /* Legacy alias variables for backwards-compatibility */
+  --color-cool-gray: var(--palette-light-gray);
+  --color-off-white: var(--palette-light-gray);
+  --color-deep-green: var(--palette-black);
+  --color-rich-brown: var(--palette-dark-taupe);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -97,84 +103,96 @@
 
 :root {
   /* ==========================================================================
-     Centralized Palette: Combination 70 (Urban loft)
+     Centralized Palette: Combination 58 (Gothic noir)
      Edit these 4 core values to instantly update the entire website theme:
      ========================================================================== */
-  --palette-concrete-gray: #9C9A9A;  /* Concrete gray (borders, dividers, subtle outlines) */
-  --palette-off-white: #F5F5F5;      /* Clean off-white canvas background */
-  --palette-brick-red: #A35E47;      /* Brick red (primary brand, buttons, active states) */
-  --palette-charcoal: #464646;       /* Dark charcoal (sidebar, secondary text, contrast) */
+  --palette-black: #000000;        /* Pitch black (brand, primary buttons, bold typography) */
+  --palette-light-gray: #D1D0D0;   /* Light gray (canvas background & borders) */
+  --palette-taupe: #988686;        /* Taupe (mid-tone accent, charts, badges) */
+  --palette-dark-taupe: #5C4E4E;   /* Dark taupe (contrast secondary, muted text, headers) */
 
-  /* Surface & Base Layout */
-  --background: #F7F6F5;
-  --foreground: #000000;
+  /* Backwards-compatibility aliases */
+  --palette-cool-gray: var(--palette-light-gray);
+  --palette-off-white: #f5f4f4;
+  --palette-deep-green: var(--palette-black);
+  --palette-rich-brown: var(--palette-dark-taupe);
+
+  /* Surface & Base Layout - using lightest shade for background */
+  --background: #f4f3f3;
+  --foreground: #111111;
   --card: #ffffff;
-  --card-foreground: #000000;
+  --card-foreground: #111111;
   --popover: #ffffff;
-  --popover-foreground: #000000;
+  --popover-foreground: #111111;
 
-  /* Primary Brand - Brick Red */
-  --primary: var(--palette-brick-red);
+  /* Primary Brand - Black */
+  --primary: var(--palette-black);
   --primary-foreground: #ffffff;
 
-  /* Secondary & Accents */
-  --secondary: #ede8e5;
-  --secondary-foreground: var(--palette-charcoal);
-  --accent: #e5deda;
-  --accent-foreground: var(--palette-charcoal);
-  --accent-brown: var(--palette-charcoal);
+  /* Secondary & Accents - Taupe shades */
+  --secondary: #e8e5e5;
+  --secondary-foreground: var(--palette-dark-taupe);
+  --accent: #dfdbdb;
+  --accent-foreground: var(--palette-dark-taupe);
+  --accent-brown: var(--palette-dark-taupe);
   --accent-brown-foreground: #ffffff;
 
-  /* Neutrals, Muted & Borders - Concrete Gray */
-  --muted: #ebebeb;
-  --muted-foreground: #6b6b6b;
-  --border: var(--palette-concrete-gray);
-  --input: var(--palette-concrete-gray);
-  --ring: var(--palette-brick-red);
+  /* Neutrals, Muted & Borders - Light Gray (#D1D0D0) */
+  --muted: #e7e5e5;
+  --muted-foreground: var(--palette-dark-taupe);
+  --border: var(--palette-light-gray);
+  --input: var(--palette-light-gray);
+  --ring: var(--palette-black);
   --radius: 0.5rem;
 
   /* Sidebar Design Tokens */
-  --sidebar: #f0efee;
-  --sidebar-foreground: #000000;
-  --sidebar-primary: var(--palette-charcoal);
+  --sidebar: #eeecec;
+  --sidebar-foreground: #111111;
+  --sidebar-primary: var(--palette-black);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e5deda;
-  --sidebar-accent-foreground: var(--palette-charcoal);
-  --sidebar-border: var(--palette-concrete-gray);
+  --sidebar-accent: #e0dede;
+  --sidebar-accent-foreground: var(--palette-black);
+  --sidebar-border: var(--palette-light-gray);
 
   /* Charts & Data Visualization */
-  --chart-1: var(--palette-brick-red);
-  --chart-2: var(--palette-charcoal);
-  --chart-3: #7a4535;
-  --chart-4: #9C9A9A;
-  --chart-5: #000000;
-  --chart-positive: #16a34a;
+  --chart-1: var(--palette-black);
+  --chart-2: var(--palette-dark-taupe);
+  --chart-3: var(--palette-taupe);
+  --chart-4: #403636;
+  --chart-5: #756666;
+  --chart-positive: #2e6930;
   --chart-negative: #b42318;
   --chart-background: #ffffff;
-  --chart-foreground: #000000;
-  --chart-foreground-muted: #6b6b6b;
-  --chart-line-primary: var(--palette-brick-red);
-  --chart-line-secondary: var(--palette-charcoal);
-  --chart-crosshair: #6b6b6b;
-  --chart-grid: #d9d9d9;
-  --chart-brush-border: #d9d9d9;
+  --chart-foreground: #111111;
+  --chart-foreground-muted: var(--palette-dark-taupe);
+  --chart-line-primary: var(--palette-black);
+  --chart-line-secondary: var(--palette-dark-taupe);
+  --chart-crosshair: var(--palette-taupe);
+  --chart-grid: var(--palette-light-gray);
+  --chart-brush-border: var(--palette-light-gray);
   --chart-tooltip-background: #ffffff;
-  --chart-tooltip-foreground: #000000;
-  --chart-tooltip-muted: #6b6b6b;
-  --chart-marker-background: #F7F6F5;
-  --chart-marker-border: var(--palette-concrete-gray);
-  --chart-marker-foreground: #000000;
-  --chart-label: #6b6b6b;
+  --chart-tooltip-foreground: #111111;
+  --chart-tooltip-muted: var(--palette-dark-taupe);
+  --chart-marker-background: var(--palette-light-gray);
+  --chart-marker-border: var(--palette-dark-taupe);
+  --chart-marker-foreground: #111111;
+  --chart-label: var(--palette-dark-taupe);
   --chart-scale-mix: #ffffff;
-  --chart-scale-01: #F7F6F5;
+  --chart-scale-01: #eeecec;
   --chart-scale-02: color-mix(in oklab, var(--chart-1) 35%, var(--chart-scale-mix));
   --chart-scale-03: color-mix(in oklab, var(--chart-1) 55%, var(--chart-scale-mix));
   --chart-scale-04: color-mix(in oklab, var(--chart-1) 78%, var(--chart-scale-mix));
   --chart-scale-05: var(--chart-1);
   --chart-scale-pattern-color: #ffffff;
-  --chart-indicator-color: var(--palette-brick-red);
-  --chart-indicator-secondary-color: var(--palette-concrete-gray);
-  --chart-marker-badge-background: var(--palette-charcoal);
+  --chart-indicator-color: var(--palette-black);
+  --chart-indicator-secondary-color: var(--palette-light-gray);
+  --chart-marker-badge-background: var(--palette-black);
+  --chart-marker-badge-foreground: #ffffff;
+  --chart-segment-background: oklch(0.756 0 0 / 0.06);
+  --chart-segment-line: oklch(0.5 0 0 / 0.25);
+  --chart-indicator-color: var(--palette-deep-green);
+  --chart-indicator-secondary-color: var(--palette-cool-gray);
+  --chart-marker-badge-background: var(--palette-deep-green);
   --chart-marker-badge-foreground: #ffffff;
   --chart-segment-background: oklch(0.756 0 0 / 0.06);
   --chart-segment-line: oklch(0.5 0 0 / 0.25);
