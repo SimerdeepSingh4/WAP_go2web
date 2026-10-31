@@ -5,6 +5,7 @@ import config from "../config/config.js";
 import userModel from "../models/user.model.js";
 import sessionModel from "../models/session.model.js";
 import walletModel from "../models/wallet.model.js";
+import { notifySession, notifyUser, notifyRole } from "../services/socket.service.js";
 
 const MAX_CONCURRENT_DEVICES = 3;
 
@@ -34,6 +35,14 @@ async function createDeviceSession(user, req, res) {
         const sessionIdsToEvict = sessionsToEvict.map((s) => s._id);
 
         await sessionModel.deleteMany({ _id: { $in: sessionIdsToEvict } });
+
+        // Instantly notify evicted devices to log them out
+        for (const s of sessionsToEvict) {
+            notifySession(s._id.toString(), "SESSION_EXPIRED", {
+                reason: `Logged out: Device limit of ${MAX_CONCURRENT_DEVICES} reached by a new login.`,
+                forceLogout: true,
+            });
+        }
     }
 
     // 4. Generate new unique session token
@@ -66,6 +75,17 @@ async function createDeviceSession(user, req, res) {
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
         maxAge: 24 * 60 * 60 * 1000,
+    });
+
+    // 6. Realtime notification: inform active sessions query that devices changed
+    notifyUser(user._id.toString(), "SESSIONS_CHANGED", {
+        action: "login",
+        sessionId: session._id.toString(),
+    });
+    notifyRole("Super Admin", "SESSIONS_CHANGED", {
+        action: "login",
+        userId: user._id.toString(),
+        sessionId: session._id.toString(),
     });
 
     return { token, session };
@@ -221,7 +241,12 @@ export async function logout(req, res) {
 
         if (token) {
             const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-            await sessionModel.deleteOne({ tokenHash });
+            const session = await sessionModel.findOne({ tokenHash });
+            if (session) {
+                await sessionModel.deleteOne({ _id: session._id });
+                notifyUser(session.userId.toString(), "SESSIONS_CHANGED", { action: "logout", sessionId: session._id.toString() });
+                notifyRole("Super Admin", "SESSIONS_CHANGED", { action: "logout", sessionId: session._id.toString() });
+            }
         }
 
         res.clearCookie("token");
@@ -241,8 +266,22 @@ export async function logout(req, res) {
 
 export async function logoutAll(req, res) {
     try {
+        const sessions = await sessionModel.find({ userId: req.user._id });
+        const sessionIds = sessions.map((s) => s._id.toString());
+
         await sessionModel.deleteMany({ userId: req.user._id });
         res.clearCookie("token");
+
+        // Realtime: notify each evicted device session
+        for (const sId of sessionIds) {
+            notifySession(sId, "SESSION_EXPIRED", {
+                reason: "All devices have been logged out.",
+                forceLogout: true,
+            });
+        }
+
+        notifyUser(req.user._id.toString(), "SESSIONS_CHANGED", { action: "logout_all" });
+        notifyRole("Super Admin", "SESSIONS_CHANGED", { action: "logout_all" });
 
         return res.status(200).json({
             message: "Logged out from all devices successfully",
@@ -267,19 +306,39 @@ export async function logoutSession(req, res) {
                 success: false,
             });
         }
-        // Ensure the session belongs to the authenticated user
-        const session = await sessionModel.findOne({ _id: sessionId, userId: req.user._id });
+        // Super Admin can disconnect any session; other users can disconnect only their own
+        const query = req.user.role === "Super Admin" ? { _id: sessionId } : { _id: sessionId, userId: req.user._id };
+        const session = await sessionModel.findOne(query);
         if (!session) {
             return res.status(404).json({
                 message: "Session not found or does not belong to the user",
                 success: false,
             });
         }
+
         await sessionModel.deleteOne({ _id: sessionId });
+
+        // Instantly notify the disconnected device via its dedicated socket room
+        notifySession(sessionId.toString(), "SESSION_EXPIRED", {
+            reason: "This device was disconnected from another browser or administrator.",
+            forceLogout: true,
+        });
+
+        // Notify user & Super Admin that active sessions changed
+        notifyUser(session.userId.toString(), "SESSIONS_CHANGED", {
+            action: "logout",
+            sessionId,
+        });
+        notifyRole("Super Admin", "SESSIONS_CHANGED", {
+            action: "logout",
+            sessionId,
+        });
+
         // If the session being deleted is the current one, also clear cookie
         if (req.session && req.session._id && req.session._id.toString() === sessionId) {
             res.clearCookie("token");
         }
+
         return res.status(200).json({
             message: "Session logged out successfully",
             success: true,
