@@ -322,8 +322,8 @@ export default function TestControlPanel() {
   const stats = dashboardStatsData?.stats;
 
   return (
-    <div className="mt-8 rounded-xl border border-[#dde3d5] bg-white p-6 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e5ebd9] pb-4">
+    <div className="mt-8 rounded-xl border border-[#e7e4dc] bg-white p-6 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e7e4dc] pb-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span
@@ -597,7 +597,7 @@ export default function TestControlPanel() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* 1. Allocate Credits */}
-            <div className="rounded-lg bg-[#fafbf8] border border-[#e1e7d8] p-4">
+            <div className="rounded-lg bg-[#faf8f5] border border-[#e7e4dc] p-4">
               <h3 className="text-sm font-bold text-[#2d3a29] mb-1">
                 Allocate Credits
               </h3>
@@ -754,7 +754,7 @@ export default function TestControlPanel() {
             <h3 className="text-sm font-bold text-[#2d3a29] mb-2">
               Credit Transfer Audit Log ({transactions.length})
             </h3>
-            <div className="overflow-x-auto rounded-lg border border-[#e5ebd9]">
+            <div className="overflow-x-auto rounded-lg border border-[#e7e4dc]">
               <table className="w-full text-left text-xs text-[#3b4735]">
                 <thead className="bg-[#f0f4ea] text-[11px] font-semibold uppercase text-[#54644a]">
                   <tr>
@@ -785,7 +785,7 @@ export default function TestControlPanel() {
                           : "bg-blue-100 text-blue-800 border-blue-300";
 
                       return (
-                        <tr key={tx._id} className="hover:bg-[#fafbf8]">
+                        <tr key={tx._id} className="hover:bg-[#faf8f5]">
                           <td className="p-2.5 text-[11px] whitespace-nowrap">
                             {new Date(tx.createdAt).toLocaleTimeString()}
                           </td>
@@ -825,7 +825,7 @@ export default function TestControlPanel() {
 
           <div>
             <h3 className="text-sm font-bold text-[#2d3a29] mb-2">My Credit History</h3>
-            <div className="overflow-x-auto rounded-lg border border-[#e5ebd9]">
+            <div className="overflow-x-auto rounded-lg border border-[#e7e4dc]">
               <table className="w-full text-left text-xs text-[#3b4735]">
                 <thead className="bg-[#f0f4ea] text-[11px] font-semibold uppercase text-[#54644a]">
                   <tr>
@@ -842,7 +842,7 @@ export default function TestControlPanel() {
                     </tr>
                   ) : (
                     transactions.map((tx) => (
-                      <tr key={tx._id} className="hover:bg-[#fafbf8]">
+                      <tr key={tx._id} className="hover:bg-[#faf8f5]">
                         <td className="p-2.5">{new Date(tx.createdAt).toLocaleDateString()}</td>
                         <td className="p-2.5 font-semibold text-[#284f3a]">{tx.type}</td>
                         <td className="p-2.5 font-bold">{tx.amount}</td>
@@ -860,7 +860,7 @@ export default function TestControlPanel() {
       {/* TAB 2: MANAGE ACCOUNTS (Super Admin & Reseller ONLY) */}
       {isManager && activeTab === "accounts" && (
         <div className="space-y-6">
-          <div className="rounded-lg bg-[#fafbf8] border border-[#e1e7d8] p-4">
+          <div className="rounded-lg bg-[#faf8f5] border border-[#e7e4dc] p-4">
             <h3 className="text-sm font-bold text-[#2d3a29] mb-2">
               Create New Account ({isSuperAdmin ? "Create Resellers or Users" : "Create Client Users"})
             </h3>
@@ -935,7 +935,7 @@ export default function TestControlPanel() {
             <h3 className="text-sm font-bold text-[#2d3a29] mb-2">
               {isSuperAdmin ? "All System Users" : "Clients Assigned To You"} ({managedUsers.length})
             </h3>
-            <div className="overflow-x-auto rounded-lg border border-[#e5ebd9]">
+            <div className="overflow-x-auto rounded-lg border border-[#e7e4dc]">
               <table className="w-full text-left text-xs text-[#3b4735]">
                 <thead className="bg-[#f0f4ea] text-[11px] font-semibold uppercase text-[#54644a]">
                   <tr>
@@ -949,7 +949,7 @@ export default function TestControlPanel() {
                 </thead>
                 <tbody className="divide-y divide-[#edf1e7]">
                   {managedUsers.map((u) => (
-                    <tr key={u._id} className="hover:bg-[#fafbf8]">
+                    <tr key={u._id} className="hover:bg-[#faf8f5]">
                       <td className="p-2.5 font-bold">{u.username}</td>
                       <td className="p-2.5 text-[#5e6d56]">{u.email}</td>
                       <td className="p-2.5">
@@ -981,7 +981,7 @@ export default function TestControlPanel() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* 1. GROUPS SECTION */}
             <div className="space-y-4">
-              <div className="rounded-lg bg-[#fafbf8] border border-[#e1e7d8] p-4">
+              <div className="rounded-lg bg-[#faf8f5] border border-[#e7e4dc] p-4">
                 <h3 className="text-sm font-bold text-[#2d3a29] mb-1">
                   Create Contact Group
                 </h3>
@@ -1024,7 +1024,7 @@ export default function TestControlPanel() {
                 <h3 className="text-sm font-bold text-[#2d3a29] mb-2">
                   Contact Groups ({groups.length})
                 </h3>
-                <div className="overflow-x-auto rounded-lg border border-[#e5ebd9]">
+                <div className="overflow-x-auto rounded-lg border border-[#e7e4dc]">
                   <table className="w-full text-left text-xs text-[#3b4735]">
                     <thead className="bg-[#f0f4ea] text-[11px] font-semibold uppercase text-[#54644a]">
                       <tr>
@@ -1043,7 +1043,7 @@ export default function TestControlPanel() {
                         </tr>
                       ) : (
                         groups.map((g) => (
-                          <tr key={g._id} className="hover:bg-[#fafbf8]">
+                          <tr key={g._id} className="hover:bg-[#faf8f5]">
                             <td className="p-2.5 font-bold text-[#283823]">
                               {g.name}
                               {g.description && (
@@ -1084,7 +1084,7 @@ export default function TestControlPanel() {
 
             {/* 2. CONTACTS SECTION */}
             <div className="space-y-4">
-              <div className="rounded-lg bg-[#fafbf8] border border-[#e1e7d8] p-4">
+              <div className="rounded-lg bg-[#faf8f5] border border-[#e7e4dc] p-4">
                 <h3 className="text-sm font-bold text-[#2d3a29] mb-1">
                   Add Contacts
                 </h3>
@@ -1158,7 +1158,7 @@ export default function TestControlPanel() {
                   </select>
                 </div>
 
-                <div className="overflow-x-auto rounded-lg border border-[#e5ebd9]">
+                <div className="overflow-x-auto rounded-lg border border-[#e7e4dc]">
                   <table className="w-full text-left text-xs text-[#3b4735]">
                     <thead className="bg-[#f0f4ea] text-[11px] font-semibold uppercase text-[#54644a]">
                       <tr>
@@ -1177,7 +1177,7 @@ export default function TestControlPanel() {
                         </tr>
                       ) : (
                         contacts.map((c) => (
-                          <tr key={c._id} className="hover:bg-[#fafbf8]">
+                          <tr key={c._id} className="hover:bg-[#faf8f5]">
                             <td className="p-2.5 font-medium">{c.name || "—"}</td>
                             <td className="p-2.5 font-mono text-[11px] font-bold text-[#273822]">
                               {c.phoneNumber}
@@ -1219,7 +1219,7 @@ export default function TestControlPanel() {
       {/* TAB 3: CAMPAIGNS (Visible to ALL roles) */}
       {activeTab === "campaigns" && (
         <div className="space-y-6">
-          <div className="rounded-lg bg-[#fafbf8] border border-[#e1e7d8] p-4">
+          <div className="rounded-lg bg-[#faf8f5] border border-[#e7e4dc] p-4">
             <h3 className="text-sm font-bold text-[#2d3a29] mb-2">
               Launch WhatsApp Blast
             </h3>
@@ -1326,7 +1326,7 @@ export default function TestControlPanel() {
                 campaigns.map((c) => (
                   <div
                     key={c._id}
-                    className="p-3 rounded-lg border border-[#e5ebd9] bg-[#fafbf8] flex flex-wrap items-center justify-between gap-3 text-xs"
+                    className="p-3 rounded-lg border border-[#e7e4dc] bg-[#faf8f5] flex flex-wrap items-center justify-between gap-3 text-xs"
                   >
                     <div>
                       <div className="flex items-center gap-2">
@@ -1457,7 +1457,7 @@ export default function TestControlPanel() {
       {/* TAB 4: TEMPLATES (Visible to ALL roles) */}
       {activeTab === "templates" && (
         <div className="space-y-6">
-          <div className="rounded-lg bg-[#fafbf8] border border-[#e1e7d8] p-4">
+          <div className="rounded-lg bg-[#faf8f5] border border-[#e7e4dc] p-4">
             <h3 className="text-sm font-bold text-[#2d3a29] mb-2">Create Message Template</h3>
             <form
               onSubmit={(e) => {
@@ -1513,7 +1513,7 @@ export default function TestControlPanel() {
                 <p className="text-xs text-[#73836a] text-center py-4">No templates created yet.</p>
               ) : (
                 templates.map((tpl) => (
-                  <div key={tpl._id} className="p-3 rounded-lg border border-[#e5ebd9] bg-[#fafbf8] text-xs">
+                  <div key={tpl._id} className="p-3 rounded-lg border border-[#e7e4dc] bg-[#faf8f5] text-xs">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-[#283923]">{tpl.title}</span>
                       <span className="text-[10px] text-[#718067]">
@@ -1521,7 +1521,7 @@ export default function TestControlPanel() {
                       </span>
                     </div>
                     <p className="text-[#586751] mt-0.5">{tpl.description}</p>
-                    <div className="mt-2 p-2 rounded bg-white border border-[#e1e7d8] font-mono text-[11px] text-[#3b4b35]">
+                    <div className="mt-2 p-2 rounded bg-white border border-[#e7e4dc] font-mono text-[11px] text-[#3b4b35]">
                       {tpl.body}
                     </div>
                   </div>
@@ -1535,7 +1535,7 @@ export default function TestControlPanel() {
       {/* DOUBLE-CONFIRMATION MODAL (Banking Rule) */}
       {confirmTransferModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl border border-[#dde3d5] space-y-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl border border-[#e7e4dc] space-y-4">
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="text-base font-bold text-[#233120]">
@@ -1554,7 +1554,7 @@ export default function TestControlPanel() {
               </button>
             </div>
 
-            <div className="bg-[#f7f9f4] p-3.5 rounded-lg border border-[#e2e8da] space-y-2 text-xs">
+            <div className="bg-[#f7f9f4] p-3.5 rounded-lg border border-[#e7e4dc] space-y-2 text-xs">
               <div className="flex justify-between py-1 border-b border-[#e5ebe0]">
                 <span className="text-[#6c7d62]">Recipient User:</span>
                 <span className="font-bold text-[#2d3a29]">
@@ -1633,7 +1633,7 @@ export default function TestControlPanel() {
       {/* INSPECT DUPLICATE & EXCLUDED NUMBERS MODAL */}
       {inspectDuplicatesModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl border border-[#dde3d5] space-y-4">
+          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl border border-[#e7e4dc] space-y-4">
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="text-base font-bold text-[#233120]">
@@ -1652,7 +1652,7 @@ export default function TestControlPanel() {
               </button>
             </div>
 
-            <div className="flex items-center justify-between text-xs bg-[#fafbf8] p-3 rounded-lg border border-[#e2e8da]">
+            <div className="flex items-center justify-between text-xs bg-[#faf8f5] p-3 rounded-lg border border-[#e7e4dc]">
               <div>
                 <span className="text-[#65765f]">Duplicates Preserved: </span>
                 <span className="font-bold text-amber-900">{inspectDuplicatesModal.duplicatesList.length} numbers</span>
@@ -1705,7 +1705,7 @@ export default function TestControlPanel() {
       {/* SUPER ADMIN DELIVERY REPORT MODAL */}
       {deliveryReportModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl border border-[#dde3d5] space-y-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl border border-[#e7e4dc] space-y-4">
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="text-base font-bold text-[#233120]">
@@ -1724,7 +1724,7 @@ export default function TestControlPanel() {
               </button>
             </div>
 
-            <p className="text-[11px] text-[#607157] bg-[#f8faf5] p-2.5 rounded border border-[#e2e8da]">
+            <p className="text-[11px] text-[#607157] bg-[#f8faf5] p-2.5 rounded border border-[#e7e4dc]">
               Since messages are dispatched via external WhatsApp servers, record the final actual counts delivered/failed for user dashboard reporting.
             </p>
 
