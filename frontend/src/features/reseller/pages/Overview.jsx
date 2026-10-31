@@ -63,7 +63,13 @@ export default function Overview() {
           ],
           ["My users", users.length, `${users.filter((u) => u.status === "active").length} active`, Users, false],
           ["Total campaigns", campaigns.length, "From your users", Megaphone, false],
-          ["Credits allocated", number(stats?.credits?.totalAllocatedBySuperAdmin), "Received from admin", FileText, false],
+          [
+            "Credits allocated",
+            number(stats?.credits?.totalAllocatedBySuperAdmin ?? stats?.wallet?.totalAllocatedBySuperAdmin ?? 0),
+            "Received from admin",
+            FileText,
+            false,
+          ],
         ].map(([label, value, caption, Icon, isLocked]) => (
           <Card key={label} className={`gap-3 rounded-lg shadow-none ${isLocked ? "border-red-300 bg-red-50/60" : ""}`}>
             <CardHeader className="flex flex-row items-center justify-between gap-2">

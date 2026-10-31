@@ -126,7 +126,7 @@ export const getDashboardStats = async (req, res) => {
         // 2. RESELLER METRICS
         // ─────────────────────────────────────────────────────────────
         if (role === "Reseller") {
-            const [clientUsers, myWallet, distributedResult, clientWalletsResult] =
+            const [clientUsers, myWallet, distributedResult, clientWalletsResult, receivedResult] =
                 await Promise.all([
                     userModel.find({ resellerId: userId }).select("_id status"),
                     walletModel.findOne({ userId }),
@@ -137,6 +137,10 @@ export const getDashboardStats = async (req, res) => {
                     walletModel.aggregate([
                         { $match: { resellerId: userId } },
                         { $group: { _id: null, total: { $sum: "$balance" } } },
+                    ]),
+                    transactionModel.aggregate([
+                        { $match: { toUser: userId, type: "ALLOCATE" } },
+                        { $group: { _id: null, total: { $sum: "$amount" } } },
                     ]),
                 ]);
 
@@ -183,6 +187,7 @@ export const getDashboardStats = async (req, res) => {
             const myBalance = myWallet ? myWallet.balance : 0;
             const creditsDistributed = distributedResult[0]?.total || 0;
             const clientWalletsTotal = clientWalletsResult[0]?.total || 0;
+            const totalAllocatedBySuperAdmin = receivedResult[0]?.total || 0;
             const agg = campaignAggregation[0] || {};
             const clientMessagesSent = agg.totalSent || 0;
             const clientMessagesDelivered = agg.totalDelivered || 0;
@@ -200,6 +205,12 @@ export const getDashboardStats = async (req, res) => {
                 stats: {
                     wallet: {
                         myBalance,
+                        totalAllocatedBySuperAdmin,
+                        creditsDistributedToClients: creditsDistributed,
+                        clientWalletsTotal,
+                    },
+                    credits: {
+                        totalAllocatedBySuperAdmin,
                         creditsDistributedToClients: creditsDistributed,
                         clientWalletsTotal,
                     },
