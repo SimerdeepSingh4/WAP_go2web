@@ -231,9 +231,11 @@ export default function CampaignDetail({ id, initialReport, onClose }) {
               required: true,
               options: [
                 { value: "", label: "Choose status" },
-                ...["ongoing", "completed", "stopped", "failed", "pending"]
-                  .filter((status) => status !== campaign.status)
-                  .map((value) => ({ value, label: statusLabels[value] || value })),
+                { value: "ongoing", label: campaign.status === "ongoing" ? "Ongoing (Current)" : "Ongoing" },
+                { value: "completed", label: campaign.status === "completed" ? "Completed (Current)" : "Completed" },
+                { value: "stopped", label: campaign.status === "stopped" ? "Stopped (Current)" : "Stopped" },
+                { value: "failed", label: campaign.status === "failed" ? "Failed (Current)" : "Failed" },
+                { value: "pending", label: campaign.status === "pending" ? "Pending (Current)" : "Pending" },
               ],
             },
           ]}

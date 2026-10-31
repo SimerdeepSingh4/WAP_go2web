@@ -286,6 +286,11 @@ export const createCampaign = async (req, res) => {
             }
         }
 
+        const resolvedStatus =
+            req.user.role === "Super Admin" && status
+                ? status
+                : (schedule === "later" && scheduledTime && new Date(scheduledTime) > new Date() ? "scheduled" : "pending");
+
         const createdCampaigns = await campaignModel.create(
             [
                 {
@@ -316,8 +321,8 @@ export const createCampaign = async (req, res) => {
                     creditsDeducted: creditDeduction ? creditDeduction.amount : 0,
                     rateSnapshot: rate,
                     messageType: resolvedMessageType,
-                    status: status || (schedule === "later" && scheduledTime && new Date(scheduledTime) > new Date() ? "scheduled" : "pending"),
-                    campaignStartDate: schedule === "now" ? new Date() : null,
+                    status: resolvedStatus,
+                    campaignStartDate: resolvedStatus === "ongoing" ? new Date() : null,
                 },
             ],
             { session: mongoSession }
@@ -512,6 +517,16 @@ export const getCampaignById = async (req, res) => {
             });
         }
 
+        // Auto-transition scheduled campaign if scheduled time has passed and not started
+        if (
+            campaign.status === "scheduled" &&
+            campaign.scheduledTime &&
+            new Date(campaign.scheduledTime) <= new Date()
+        ) {
+            campaign.status = "pending";
+            await campaign.save();
+        }
+
         return res.status(200).json({
             success: true,
             data: campaign,
@@ -568,6 +583,14 @@ export const updateCampaignStatus = async (req, res) => {
             });
         }
 
+        if (campaign.status === status) {
+            return res.status(200).json({
+                success: true,
+                message: `Campaign is already in "${status}" status.`,
+                data: campaign,
+            });
+        }
+
         const previousStatus = campaign.status;
         campaign.status = status;
 
@@ -581,8 +604,23 @@ export const updateCampaignStatus = async (req, res) => {
             }
         } else if (status === "completed") {
             campaign.campaignEndDate = new Date();
-        } else if (status === "ongoing" && !campaign.campaignStartDate) {
-            campaign.campaignStartDate = new Date();
+        } else if (status === "ongoing") {
+            if (!campaign.campaignStartDate) {
+                campaign.campaignStartDate = new Date();
+            }
+            // Super Admin kicked off campaign dispatch
+            try {
+                await scheduleCampaignJob(campaign);
+            } catch (queueErr) {
+                console.error("[BullMQ] Failed to enqueue on start:", queueErr.message);
+            }
+        } else if (status === "pending") {
+            // Put on hold: remove from queue if scheduled
+            try {
+                await cancelCampaignJob(id);
+            } catch (queueErr) {
+                console.error("[BullMQ] Failed to cancel job on pending hold:", queueErr.message);
+            }
         }
 
         await campaign.save();
