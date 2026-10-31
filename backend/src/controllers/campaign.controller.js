@@ -54,7 +54,12 @@ export const createCampaign = async (req, res) => {
         const DOC_MAX_SIZE = parseInt(process.env.DOC_MAX_SIZE_MB || "3") * 1024 * 1024; // default 3 MB
 
         const uploadField = async (field) => {
-            if (!req.files || !req.files[field]) return [];
+            const fileList =
+                req.files?.[field] ||
+                (field === "images" ? req.files?.image : null) ||
+                (field === "documents" ? (req.files?.pdf || req.files?.document) : null) ||
+                [];
+            if (!fileList || fileList.length === 0) return [];
             const useCloudinary = process.env.USE_CLOUDINARY === "true";
             const limitMap = {
                 images: IMG_MAX_SIZE,
@@ -65,14 +70,14 @@ export const createCampaign = async (req, res) => {
             const fieldLimit = limitMap[field] || IMG_MAX_SIZE;
 
             // Validate size limits
-            const oversized = req.files[field].find((file) => file.size > fieldLimit);
+            const oversized = fileList.find((file) => file.size > fieldLimit);
             if (oversized) {
                 throw new Error(`${field} file ${oversized.originalname} exceeds size limit of ${fieldLimit / (1024 * 1024)} MB`);
             }
 
             // Prepare buffers (compress images)
             const buffers = await Promise.all(
-                req.files[field].map(async (file) => {
+                fileList.map(async (file) => {
                     if (field === "images") {
                         // Compress image to WebP using sharp
                         return await sharp(file.buffer)
@@ -108,7 +113,7 @@ export const createCampaign = async (req, res) => {
                 fs.mkdirSync(localDir, { recursive: true });
                 const uploads = await Promise.all(
                     buffers.map((buf, idx) => {
-                        const originalName = req.files[field][idx].originalname;
+                        const originalName = fileList[idx].originalname;
                         const filename = `${Date.now()}_${originalName}`;
                         const filepath = path.join(localDir, filename);
                         fs.writeFileSync(filepath, buf);
@@ -338,10 +343,10 @@ export const createCampaign = async (req, res) => {
                     },
                     schedule: schedule || "now",
                     scheduledTime: scheduledTime || null,
-                    images: images || [],
-                    audio: audio || [],
-                    video: video || [],
-                    documents: documents || [],
+                    images: (images || []).map((img) => (typeof img === "string" ? { url: img } : img)),
+                    audio: (audio || []).map((aud) => (typeof aud === "string" ? { url: aud } : aud)),
+                    video: (video || []).map((vid) => (typeof vid === "string" ? { url: vid } : vid)),
+                    documents: (documents || []).map((doc) => (typeof doc === "string" ? { url: doc } : doc)),
                     thumbnail: thumbnail || null,
                     attachments: attachments || [],
                     mediaId: mediaId || null,

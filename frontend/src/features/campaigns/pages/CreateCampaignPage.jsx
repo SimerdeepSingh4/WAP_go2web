@@ -21,12 +21,9 @@ import {
   HelpCircle,
   Image as ImageIcon,
   Video as VideoIcon,
-  Volume2,
   Trash2,
   Plus,
-  Play,
-  Film,
-  Music,
+  RefreshCw,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,10 +51,10 @@ export default function CreateCampaignPage() {
   const fileInputRef = useRef(null);
   const quillRef = useRef(null);
 
-  // Dedicated media input refs
+  // Dedicated media input refs: 1 Image, 1 Video, 1 PDF
   const imageInputRef = useRef(null);
   const videoInputRef = useRef(null);
-  const audioInputRef = useRef(null);
+  const pdfInputRef = useRef(null);
 
   // Determine base path (e.g. /reseller or /admin)
   const isReseller = location.pathname.startsWith("/reseller");
@@ -72,10 +69,10 @@ export default function CreateCampaignPage() {
   const [scheduledTime, setScheduledTime] = useState("");
   const [formError, setFormError] = useState("");
 
-  // Media files states (each item: { id, file, preview, name, size })
-  const [imageFiles, setImageFiles] = useState([]);
-  const [videoFiles, setVideoFiles] = useState([]);
-  const [audioFiles, setAudioFiles] = useState([]);
+  // Media files states: Exactly 1 Image, 1 Video, 1 PDF (nothing else)
+  const [imageFile, setImageFile] = useState(null); // { file, preview, name, size }
+  const [videoFile, setVideoFile] = useState(null); // { file, preview, name, size }
+  const [pdfFile, setPdfFile] = useState(null); // { file, name, size }
 
   // Fetch current user wallet balance
   const balanceQuery = useQuery({
@@ -147,146 +144,102 @@ export default function CreateCampaignPage() {
     }
   };
 
-  // --- Dedicated Media File Handlers ---
+  // --- 1 Image Handler ---
   const handleImageSelect = (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
 
     const MAX_IMG_SIZE = 5 * 1024 * 1024; // 5 MB
-    const newItems = [];
-
-    for (const file of files) {
-      if (file.size > MAX_IMG_SIZE) {
-        toast.add({
-          title: "Image Exceeds 5 MB",
-          description: `"${file.name}" is larger than 5 MB limit.`,
-          type: "error",
-        });
-        continue;
-      }
-      if (imageFiles.length + newItems.length >= 10) {
-        toast.add({
-          title: "Image Limit Reached",
-          description: "You can upload a maximum of 10 images per campaign.",
-          type: "error",
-        });
-        break;
-      }
-      newItems.push({
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        file,
-        preview: URL.createObjectURL(file),
-        name: file.name,
-        size: file.size,
+    if (file.size > MAX_IMG_SIZE) {
+      toast.add({
+        title: "Image Exceeds 5 MB",
+        description: `"${file.name}" is larger than 5 MB limit.`,
+        type: "error",
       });
+      if (imageInputRef.current) imageInputRef.current.value = "";
+      return;
     }
 
-    if (newItems.length > 0) {
-      setImageFiles((prev) => [...prev, ...newItems]);
-    }
+    if (imageFile?.preview) URL.revokeObjectURL(imageFile.preview);
+
+    setImageFile({
+      file,
+      preview: URL.createObjectURL(file),
+      name: file.name,
+      size: file.size,
+    });
+
     if (imageInputRef.current) imageInputRef.current.value = "";
   };
 
-  const removeImage = (id) => {
-    setImageFiles((prev) => {
-      const target = prev.find((item) => item.id === id);
-      if (target?.preview) URL.revokeObjectURL(target.preview);
-      return prev.filter((item) => item.id !== id);
-    });
+  const removeImage = () => {
+    if (imageFile?.preview) URL.revokeObjectURL(imageFile.preview);
+    setImageFile(null);
+    if (imageInputRef.current) imageInputRef.current.value = "";
   };
 
+  // --- 1 Video Handler ---
   const handleVideoSelect = (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
 
     const MAX_VID_SIZE = 7 * 1024 * 1024; // 7 MB
-    const newItems = [];
-
-    for (const file of files) {
-      if (file.size > MAX_VID_SIZE) {
-        toast.add({
-          title: "Video Exceeds 7 MB",
-          description: `"${file.name}" is larger than 7 MB limit.`,
-          type: "error",
-        });
-        continue;
-      }
-      if (videoFiles.length + newItems.length >= 5) {
-        toast.add({
-          title: "Video Limit Reached",
-          description: "You can upload a maximum of 5 videos per campaign.",
-          type: "error",
-        });
-        break;
-      }
-      newItems.push({
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        file,
-        preview: URL.createObjectURL(file),
-        name: file.name,
-        size: file.size,
+    if (file.size > MAX_VID_SIZE) {
+      toast.add({
+        title: "Video Exceeds 7 MB",
+        description: `"${file.name}" is larger than 7 MB limit.`,
+        type: "error",
       });
+      if (videoInputRef.current) videoInputRef.current.value = "";
+      return;
     }
 
-    if (newItems.length > 0) {
-      setVideoFiles((prev) => [...prev, ...newItems]);
-    }
+    if (videoFile?.preview) URL.revokeObjectURL(videoFile.preview);
+
+    setVideoFile({
+      file,
+      preview: URL.createObjectURL(file),
+      name: file.name,
+      size: file.size,
+    });
+
     if (videoInputRef.current) videoInputRef.current.value = "";
   };
 
-  const removeVideo = (id) => {
-    setVideoFiles((prev) => {
-      const target = prev.find((item) => item.id === id);
-      if (target?.preview) URL.revokeObjectURL(target.preview);
-      return prev.filter((item) => item.id !== id);
-    });
+  const removeVideo = () => {
+    if (videoFile?.preview) URL.revokeObjectURL(videoFile.preview);
+    setVideoFile(null);
+    if (videoInputRef.current) videoInputRef.current.value = "";
   };
 
-  const handleAudioSelect = (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
+  // --- 1 PDF Handler ---
+  const handlePdfSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    const MAX_AUD_SIZE = 7 * 1024 * 1024; // 7 MB
-    const newItems = [];
-
-    for (const file of files) {
-      if (file.size > MAX_AUD_SIZE) {
-        toast.add({
-          title: "Audio Exceeds 7 MB",
-          description: `"${file.name}" is larger than 7 MB limit.`,
-          type: "error",
-        });
-        continue;
-      }
-      if (audioFiles.length + newItems.length >= 5) {
-        toast.add({
-          title: "Audio Limit Reached",
-          description: "You can upload a maximum of 5 audio files per campaign.",
-          type: "error",
-        });
-        break;
-      }
-      newItems.push({
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        file,
-        preview: URL.createObjectURL(file),
-        name: file.name,
-        size: file.size,
+    const MAX_PDF_SIZE = 5 * 1024 * 1024; // 5 MB
+    if (file.size > MAX_PDF_SIZE) {
+      toast.add({
+        title: "PDF Exceeds 5 MB",
+        description: `"${file.name}" is larger than 5 MB limit.`,
+        type: "error",
       });
+      if (pdfInputRef.current) pdfInputRef.current.value = "";
+      return;
     }
 
-    if (newItems.length > 0) {
-      setAudioFiles((prev) => [...prev, ...newItems]);
-    }
-    if (audioInputRef.current) audioInputRef.current.value = "";
+    setPdfFile({
+      file,
+      name: file.name,
+      size: file.size,
+    });
+
+    if (pdfInputRef.current) pdfInputRef.current.value = "";
   };
 
-  const removeAudio = (id) => {
-    setAudioFiles((prev) => {
-      const target = prev.find((item) => item.id === id);
-      if (target?.preview) URL.revokeObjectURL(target.preview);
-      return prev.filter((item) => item.id !== id);
-    });
+  const removePdf = () => {
+    setPdfFile(null);
+    if (pdfInputRef.current) pdfInputRef.current.value = "";
   };
 
   // Real-time phone numbers parsing and sanitization
@@ -324,9 +277,9 @@ export default function CreateCampaignPage() {
   const estimatedCost = totalRecipients; // 1 credit per contact
   const remainingBalance = currentBalance - estimatedCost;
   const hasInsufficientCredits = !isLocked && currentBalance < estimatedCost && totalRecipients > 0;
-  const totalMediaCount = imageFiles.length + videoFiles.length + audioFiles.length;
+  const totalMediaCount = (imageFile ? 1 : 0) + (videoFile ? 1 : 0) + (pdfFile ? 1 : 0);
 
-  // Handle CSV/TXT file upload
+  // Handle CSV/TXT recipient file upload
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -405,7 +358,7 @@ export default function CreateCampaignPage() {
 
     const plainText = messageBody.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
     if (!plainText && totalMediaCount === 0) {
-      setFormError("Please provide message content or attach media (images, video, audio).");
+      setFormError("Please provide message content or attach media (image, video, or PDF).");
       return;
     }
     if (isOverWordLimit) {
@@ -436,10 +389,16 @@ export default function CreateCampaignPage() {
       formData.append("scheduledTime", new Date(scheduledTime).toISOString());
     }
 
-    // Append all selected media files
-    imageFiles.forEach((item) => formData.append("images", item.file));
-    videoFiles.forEach((item) => formData.append("video", item.file));
-    audioFiles.forEach((item) => formData.append("audio", item.file));
+    // Append 1 Image, 1 Video, 1 PDF (nothing else)
+    if (imageFile) {
+      formData.append("images", imageFile.file);
+    }
+    if (videoFile) {
+      formData.append("video", videoFile.file);
+    }
+    if (pdfFile) {
+      formData.append("documents", pdfFile.file);
+    }
 
     createCampaignMutation.mutate(formData);
   };
@@ -598,7 +557,7 @@ export default function CreateCampaignPage() {
             </CardContent>
           </Card>
 
-          {/* Card 2: Message Content (Powered by Quill with 1024 Words Limit) */}
+          {/* Card 2: Message Content (Quill with 1024 Words Limit) */}
           <Card className="rounded-xl border shadow-xs">
             <CardHeader className="border-b pb-4">
               <div className="flex items-center justify-between flex-wrap gap-2">
@@ -674,41 +633,42 @@ export default function CreateCampaignPage() {
             </CardContent>
           </Card>
 
-          {/* Card 3: Campaign Media (Distinct Upload Fields for Images, Video, Audio) */}
+          {/* Card 3: Campaign Attachments (1 Image, 1 Video, 1 PDF nothing else) */}
           <Card className="rounded-xl border shadow-xs">
             <CardHeader className="border-b pb-4">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
                   <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <Film className="size-4.5 text-primary" />
-                    Campaign Media Attachments
+                    <Upload className="size-4.5 text-primary" />
+                    Campaign Attachments
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    Upload multiple images, videos, and audio clips to broadcast to your recipients.
+                    Attach 1 Image, 1 Video, and 1 PDF document to your broadcast.
                   </CardDescription>
                 </div>
 
                 {totalMediaCount > 0 && (
                   <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
-                    {totalMediaCount} {totalMediaCount === 1 ? "file" : "files"} attached
+                    {totalMediaCount} / 3 attached
                   </Badge>
                 )}
               </div>
             </CardHeader>
-            <CardContent className="pt-5 space-y-6">
-              {/* Field 1: Multiple Images */}
-              <div className="space-y-2.5 rounded-xl border p-4 bg-card">
+            <CardContent className="pt-5 space-y-4">
+              {/* Field 1: Exactly 1 Image */}
+              <div className="rounded-xl border p-3.5 bg-card space-y-2.5">
                 <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="grid size-7 place-items-center rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                      <ImageIcon className="size-4" />
+                  <div className="flex items-center gap-2.5">
+                    <div className="grid size-8 place-items-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      <ImageIcon className="size-4.5" />
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold text-foreground">
-                        Images (Multiple allowed)
+                      <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        Image
+                        <span className="text-[10px] text-muted-foreground font-normal">(1 file max)</span>
                       </Label>
                       <p className="text-[11px] text-muted-foreground">
-                        PNG, JPG, WebP, GIF &bull; Max 5 MB each &bull; Up to 10 images
+                        PNG, JPG, WebP &bull; Max 5 MB
                       </p>
                     </div>
                   </div>
@@ -716,75 +676,69 @@ export default function CreateCampaignPage() {
                   <input
                     ref={imageInputRef}
                     type="file"
-                    accept="image/png,image/jpeg,image/webp,image/gif"
-                    multiple
+                    accept="image/png,image/jpeg,image/webp"
                     onChange={handleImageSelect}
                     className="hidden"
                   />
 
                   <Button
                     type="button"
-                    variant="outline"
+                    variant={imageFile ? "outline" : "default"}
                     size="sm"
                     onClick={() => imageInputRef.current?.click()}
-                    disabled={imageFiles.length >= 10}
                     className="h-8 text-xs gap-1.5"
                   >
-                    <Plus className="size-3.5" />
-                    Add Images ({imageFiles.length}/10)
+                    {imageFile ? <RefreshCw className="size-3" /> : <Plus className="size-3" />}
+                    {imageFile ? "Change Image" : "Choose Image"}
                   </Button>
                 </div>
 
-                {/* Images Preview Grid */}
-                {imageFiles.length > 0 && (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-3 pt-2">
-                    {imageFiles.map((item) => (
-                      <div
-                        key={item.id}
-                        className="group relative rounded-lg border bg-muted/30 overflow-hidden p-1.5 flex flex-col justify-between"
-                      >
-                        <div className="relative aspect-square w-full rounded-md overflow-hidden bg-black/5 dark:bg-white/5">
-                          <img
-                            src={item.preview}
-                            alt={item.name}
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                        <div className="mt-1 flex items-center justify-between min-w-0">
-                          <span className="text-[10px] text-muted-foreground truncate max-w-[80px]" title={item.name}>
-                            {item.name}
-                          </span>
-                          <span className="text-[9px] text-muted-foreground/80 tabular-nums">
-                            {formatFileSize(item.size)}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeImage(item.id)}
-                          className="absolute top-2 right-2 grid size-5 place-items-center rounded-full bg-destructive text-destructive-foreground shadow-sm hover:scale-110 transition-transform cursor-pointer"
-                          title="Remove image"
-                        >
-                          <X className="size-3" />
-                        </button>
+                {imageFile && (
+                  <div className="rounded-lg border bg-muted/30 p-2 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="size-10 rounded-md overflow-hidden bg-black/5 shrink-0 border">
+                        <img
+                          src={imageFile.preview}
+                          alt={imageFile.name}
+                          className="h-full w-full object-cover"
+                        />
                       </div>
-                    ))}
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-foreground truncate max-w-[200px]" title={imageFile.name}>
+                          {imageFile.name}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground tabular-nums">
+                          {formatFileSize(imageFile.size)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={removeImage}
+                      className="grid size-7 place-items-center rounded-md text-destructive hover:bg-destructive/10 transition-colors shrink-0 cursor-pointer"
+                      title="Remove image"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
                   </div>
                 )}
               </div>
 
-              {/* Field 2: Multiple Videos */}
-              <div className="space-y-2.5 rounded-xl border p-4 bg-card">
+              {/* Field 2: Exactly 1 Video */}
+              <div className="rounded-xl border p-3.5 bg-card space-y-2.5">
                 <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="grid size-7 place-items-center rounded-md bg-sky-500/10 text-sky-600 dark:text-sky-400">
-                      <VideoIcon className="size-4" />
+                  <div className="flex items-center gap-2.5">
+                    <div className="grid size-8 place-items-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                      <VideoIcon className="size-4.5" />
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold text-foreground">
-                        Videos (Multiple allowed)
+                      <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        Video
+                        <span className="text-[10px] text-muted-foreground font-normal">(1 file max)</span>
                       </Label>
                       <p className="text-[11px] text-muted-foreground">
-                        MP4, MOV, WebM &bull; Max 7 MB each &bull; Up to 5 video clips
+                        MP4, MOV, WebM &bull; Max 7 MB
                       </p>
                     </div>
                   </div>
@@ -792,139 +746,113 @@ export default function CreateCampaignPage() {
                   <input
                     ref={videoInputRef}
                     type="file"
-                    accept="video/mp4,video/quicktime,video/webm,video/3gpp"
-                    multiple
+                    accept="video/mp4,video/quicktime,video/webm"
                     onChange={handleVideoSelect}
                     className="hidden"
                   />
 
                   <Button
                     type="button"
-                    variant="outline"
+                    variant={videoFile ? "outline" : "default"}
                     size="sm"
                     onClick={() => videoInputRef.current?.click()}
-                    disabled={videoFiles.length >= 5}
                     className="h-8 text-xs gap-1.5"
                   >
-                    <Plus className="size-3.5" />
-                    Add Video ({videoFiles.length}/5)
+                    {videoFile ? <RefreshCw className="size-3" /> : <Plus className="size-3" />}
+                    {videoFile ? "Change Video" : "Choose Video"}
                   </Button>
                 </div>
 
-                {/* Videos Preview List */}
-                {videoFiles.length > 0 && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                    {videoFiles.map((item) => (
-                      <div
-                        key={item.id}
-                        className="relative rounded-lg border bg-muted/30 p-2.5 flex items-center justify-between gap-3 overflow-hidden"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
-                            <Film className="size-4.5" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-xs font-medium text-foreground truncate max-w-[180px]" title={item.name}>
-                              {item.name}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground tabular-nums">
-                              {formatFileSize(item.size)} &bull; Video Clip
-                            </p>
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => removeVideo(item.id)}
-                          className="grid size-7 place-items-center rounded-md text-destructive hover:bg-destructive/10 transition-colors shrink-0 cursor-pointer"
-                          title="Remove video"
-                        >
-                          <Trash2 className="size-4" />
-                        </button>
+                {videoFile && (
+                  <div className="rounded-lg border bg-muted/30 p-2.5 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                        <VideoIcon className="size-4.5" />
                       </div>
-                    ))}
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-foreground truncate max-w-[200px]" title={videoFile.name}>
+                          {videoFile.name}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground tabular-nums">
+                          {formatFileSize(videoFile.size)} &bull; Video Clip
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={removeVideo}
+                      className="grid size-7 place-items-center rounded-md text-destructive hover:bg-destructive/10 transition-colors shrink-0 cursor-pointer"
+                      title="Remove video"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
                   </div>
                 )}
               </div>
 
-              {/* Field 3: Multiple Audio Recordings */}
-              <div className="space-y-2.5 rounded-xl border p-4 bg-card">
+              {/* Field 3: Exactly 1 PDF */}
+              <div className="rounded-xl border p-3.5 bg-card space-y-2.5">
                 <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="grid size-7 place-items-center rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                      <Volume2 className="size-4" />
+                  <div className="flex items-center gap-2.5">
+                    <div className="grid size-8 place-items-center rounded-lg bg-red-500/10 text-red-600 dark:text-red-400">
+                      <FileText className="size-4.5" />
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold text-foreground">
-                        Audio Files (Multiple allowed)
+                      <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                        PDF Document
+                        <span className="text-[10px] text-muted-foreground font-normal">(1 file max)</span>
                       </Label>
                       <p className="text-[11px] text-muted-foreground">
-                        MP3, WAV, AAC, M4A, OGG &bull; Max 7 MB each &bull; Up to 5 audio clips
+                        PDF only &bull; Max 5 MB
                       </p>
                     </div>
                   </div>
 
                   <input
-                    ref={audioInputRef}
+                    ref={pdfInputRef}
                     type="file"
-                    accept="audio/mpeg,audio/mp3,audio/wav,audio/aac,audio/m4a,audio/ogg"
-                    multiple
-                    onChange={handleAudioSelect}
+                    accept="application/pdf,.pdf"
+                    onChange={handlePdfSelect}
                     className="hidden"
                   />
 
                   <Button
                     type="button"
-                    variant="outline"
+                    variant={pdfFile ? "outline" : "default"}
                     size="sm"
-                    onClick={() => audioInputRef.current?.click()}
-                    disabled={audioFiles.length >= 5}
+                    onClick={() => pdfInputRef.current?.click()}
                     className="h-8 text-xs gap-1.5"
                   >
-                    <Plus className="size-3.5" />
-                    Add Audio ({audioFiles.length}/5)
+                    {pdfFile ? <RefreshCw className="size-3" /> : <Plus className="size-3" />}
+                    {pdfFile ? "Change PDF" : "Choose PDF"}
                   </Button>
                 </div>
 
-                {/* Audio Preview List */}
-                {audioFiles.length > 0 && (
-                  <div className="space-y-2 pt-2">
-                    {audioFiles.map((item) => (
-                      <div
-                        key={item.id}
-                        className="rounded-lg border bg-muted/30 p-2.5 flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap"
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                            <Music className="size-4" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-xs font-medium text-foreground truncate max-w-[150px] sm:max-w-[200px]" title={item.name}>
-                              {item.name}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground tabular-nums">
-                              {formatFileSize(item.size)} &bull; Audio Track
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 shrink-0">
-                          <audio
-                            controls
-                            src={item.preview}
-                            className="h-7 w-44 sm:w-56"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeAudio(item.id)}
-                            className="grid size-7 place-items-center rounded-md text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
-                            title="Remove audio"
-                          >
-                            <Trash2 className="size-4" />
-                          </button>
-                        </div>
+                {pdfFile && (
+                  <div className="rounded-lg border bg-muted/30 p-2.5 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 font-bold text-xs">
+                        PDF
                       </div>
-                    ))}
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-foreground truncate max-w-[200px]" title={pdfFile.name}>
+                          {pdfFile.name}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground tabular-nums">
+                          {formatFileSize(pdfFile.size)} &bull; Document
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={removePdf}
+                      className="grid size-7 place-items-center rounded-md text-destructive hover:bg-destructive/10 transition-colors shrink-0 cursor-pointer"
+                      title="Remove PDF"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
                   </div>
                 )}
               </div>
@@ -1153,25 +1081,25 @@ export default function CreateCampaignPage() {
                 <div className="rounded-lg bg-muted/40 p-2.5 text-xs border border-border/60 space-y-1 mt-2">
                   <p className="font-semibold text-foreground flex items-center justify-between">
                     <span>Attached Media</span>
-                    <span className="tabular-nums text-primary">{totalMediaCount} files</span>
+                    <span className="tabular-nums text-primary">{totalMediaCount} / 3</span>
                   </p>
                   <div className="text-[11px] text-muted-foreground space-y-0.5">
-                    {imageFiles.length > 0 && (
+                    {imageFile && (
                       <p className="flex items-center justify-between">
-                        <span>Images:</span>
-                        <span className="font-medium text-foreground">{imageFiles.length}</span>
+                        <span>Image:</span>
+                        <span className="font-medium text-foreground truncate max-w-[140px]">{imageFile.name}</span>
                       </p>
                     )}
-                    {videoFiles.length > 0 && (
+                    {videoFile && (
                       <p className="flex items-center justify-between">
-                        <span>Videos:</span>
-                        <span className="font-medium text-foreground">{videoFiles.length}</span>
+                        <span>Video:</span>
+                        <span className="font-medium text-foreground truncate max-w-[140px]">{videoFile.name}</span>
                       </p>
                     )}
-                    {audioFiles.length > 0 && (
+                    {pdfFile && (
                       <p className="flex items-center justify-between">
-                        <span>Audio Clips:</span>
-                        <span className="font-medium text-foreground">{audioFiles.length}</span>
+                        <span>PDF:</span>
+                        <span className="font-medium text-foreground truncate max-w-[140px]">{pdfFile.name}</span>
                       </p>
                     )}
                   </div>
