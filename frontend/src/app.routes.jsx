@@ -6,67 +6,22 @@ import RoleRoute from "./components/RoleRoute.jsx";
 import ResellerDashboard from "./features/dashboard/pages/ResellerDashboard.jsx";
 import PreviewBanner from "./components/PreviewBanner.jsx";
 import TestControlPanel from "./features/dashboard/components/TestControlPanel.jsx";
+import { lazy, Suspense } from "react";
+import AdminAccess from "./features/admin/components/AdminAccess.jsx";
 
-function AdminPortal() {
-  const { user } = useAuth();
-  return (
-    <div className="min-h-screen bg-[#fafbf8] p-8">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="bg-white rounded-xl border border-[#dde3d5] p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-700">
-              Super Admin Area
-            </span>
-            <Link to="/" className="text-xs text-[#315e48] hover:underline">
-              ← Back to Main Dashboard
-            </Link>
-          </div>
-          <h1 className="text-2xl font-bold text-[#334331]">Platform Administration</h1>
-          <p className="text-sm text-[#68765a] mt-1 mb-4">
-            Only Super Admins can access this page. Here you manage platform-wide settings and reseller allocations.
-          </p>
-          <div className="p-4 rounded-lg bg-[#f3f5ee] text-xs text-[#405036] space-y-1">
-            <p><strong>Signed in as:</strong> {user?.email}</p>
-            <p><strong>Role:</strong> {user?.role}</p>
-            <p><strong>Permissions:</strong> Full Global Admin</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ResellerPortal() {
-  const { user } = useAuth();
-  return (
-    <div className="min-h-screen bg-[#fafbf8] p-8">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="bg-white rounded-xl border border-[#dde3d5] p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <span className="px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700">
-              Reseller & Admin Area
-            </span>
-            <Link to="/" className="text-xs text-[#315e48] hover:underline">
-              ← Back to Main Dashboard
-            </Link>
-          </div>
-          <h1 className="text-2xl font-bold text-[#334331]">Reseller Credits Portal</h1>
-          <p className="text-sm text-[#68765a] mt-1 mb-4">
-            Accessible by Resellers and Super Admins. Here resellers manage their clients and assign credit quotas.
-          </p>
-          <div className="p-4 rounded-lg bg-[#f3f5ee] text-xs text-[#405036] space-y-1">
-            <p><strong>Signed in as:</strong> {user?.email}</p>
-            <p><strong>Role:</strong> {user?.role}</p>
-            <p><strong>Permissions:</strong> Reseller Credit Management</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+const AdminLayout = lazy(() => import("./features/admin/components/AdminLayout.jsx"));
+const AdminOverview = lazy(() => import("./features/admin/pages/Overview.jsx"));
+const AdminCampaigns = lazy(() => import("./features/admin/pages/Campaigns.jsx"));
+const AdminAccounts = lazy(() => import("./features/admin/pages/Accounts.jsx"));
+const AdminCredits = lazy(() => import("./features/admin/pages/Credits.jsx"));
+const AdminOperatingRules = lazy(() => import("./features/admin/pages/OperatingRules.jsx"));
 
 function Dashboard() {
   const { user, logout, isLoggingOut, logoutAll, isLoggingOutAll } = useAuth();
+
+  if (user?.role === "Super Admin" && !user?.isPreview) {
+    return <Navigate to="/admin" replace />;
+  }
 
   const getRoleBadgeColor = (role) => {
     switch (role) {
@@ -81,7 +36,7 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen bg-[#fafbf8] p-8">
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="max-w-5xl mx-auto space-y-6">
         <div className="bg-white rounded-xl border border-[#dde3d5] p-6 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <h1 className="text-2xl font-bold text-[#334331]">Welcome, {user?.username}!</h1>
@@ -196,10 +151,24 @@ export const router = createBrowserRouter([
   {
     path: "/admin",
     element: (
-      <RoleRoute allowedRoles={["Super Admin"]}>
-        <AdminPortal />
-      </RoleRoute>
+      <ProtectedRoute>
+        <AdminAccess>
+          <Suspense fallback={<div role="status" className="p-8 text-sm text-muted-foreground">Loading workspace…</div>}>
+            <AdminLayout />
+          </Suspense>
+        </AdminAccess>
+      </ProtectedRoute>
     ),
+    children: [
+      { index: true, element: <AdminOverview /> },
+      { path: "campaigns", element: <AdminCampaigns /> },
+      { path: "reports", element: <AdminCampaigns reports /> },
+      { path: "resellers", element: <AdminAccounts key="resellers" role="Reseller" /> },
+      { path: "users", element: <AdminAccounts key="users" role="User" /> },
+      { path: "credits", element: <AdminCredits key="credits" /> },
+      { path: "activity", element: <AdminCredits key="activity" activity /> },
+      { path: "settings", element: <AdminOperatingRules /> },
+    ],
   },
   {
     path: "/reseller",

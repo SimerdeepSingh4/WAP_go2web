@@ -8,6 +8,7 @@ import campaignRouter from "./routes/campaign.routes.js";
 import templateRouter from "./routes/template.routes.js";
 import groupRouter from "./routes/group.routes.js";
 import contactRouter from "./routes/contact.routes.js";
+import dashboardRouter from "./routes/dashboard.routes.js";
 import cookieParser from "cookie-parser";
 import morgan from "morgan";
 import helmet from "helmet";
@@ -35,5 +36,6 @@ app.use("/api/campaigns", campaignRouter);
 app.use("/api/templates", templateRouter);
 app.use("/api/groups", groupRouter);
 app.use("/api/contacts", contactRouter);
+app.use("/api/dashboard", dashboardRouter);
 
 export default app;

@@ -19,7 +19,10 @@ import {
   createContact,
   getContacts,
   deleteContact,
+  getDashboardStats,
+  updateCampaignMetrics,
 } from "../services/portalTest.api.js";
+import CampaignPerformanceChart from "../../../components/dashboard/CampaignPerformanceChart.jsx";
 
 export default function TestControlPanel() {
   const { user } = useAuth();
@@ -42,6 +45,7 @@ export default function TestControlPanel() {
     tabs.push({ id: "contacts", label: "Contacts & Groups" });
     tabs.push({ id: "campaigns", label: "WhatsApp Campaigns" });
     tabs.push({ id: "templates", label: "Message Templates" });
+    tabs.push({ id: "analytics", label: "📈 Performance Chart" });
     return tabs;
   };
 
@@ -101,9 +105,28 @@ export default function TestControlPanel() {
     invalidList: [],
   });
 
+  // Super Admin delivery report modal state
+  const [deliveryReportModal, setDeliveryReportModal] = useState({
+    isOpen: false,
+    campaignId: "",
+    campaignTitle: "",
+    sent: "",
+    delivered: "",
+    read: "",
+    failed: "",
+    adminNotes: "",
+    status: "completed",
+  });
+
   const [statusMsg, setStatusMsg] = useState("");
 
   // Queries (only enabled for roles that are allowed to make them)
+  const { data: dashboardStatsData, isLoading: isDashboardLoading } = useQuery({
+    queryKey: ["dashboardStats"],
+    queryFn: () => getDashboardStats(),
+    refetchInterval: 5000,
+  });
+
   const { data: balanceData } = useQuery({
     queryKey: ["myBalance"],
     queryFn: () => getCreditBalance(),
@@ -222,8 +245,30 @@ export default function TestControlPanel() {
     onSuccess: (res) => {
       setStatusMsg(`Success: ${res.message}`);
       queryClient.invalidateQueries({ queryKey: ["campaignsList"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
     },
     onError: (err) => setStatusMsg(`Error updating status: ${err.message}`),
+  });
+
+  const updateMetricsMutation = useMutation({
+    mutationFn: updateCampaignMetrics,
+    onSuccess: (res) => {
+      setStatusMsg(`Delivery report recorded: ${res.message}`);
+      setDeliveryReportModal({
+        isOpen: false,
+        campaignId: "",
+        campaignTitle: "",
+        sent: "",
+        delivered: "",
+        read: "",
+        failed: "",
+        adminNotes: "",
+        status: "completed",
+      });
+      queryClient.invalidateQueries({ queryKey: ["campaignsList"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
+    },
+    onError: (err) => setStatusMsg(`Error recording delivery report: ${err.message}`),
   });
 
   const createGroupMutation = useMutation({
@@ -274,6 +319,7 @@ export default function TestControlPanel() {
   const groups = groupsData?.data || [];
   const contacts = contactsData?.data || [];
   const myBalance = balanceData?.wallet?.balance ?? balanceData?.data?.balance ?? 0;
+  const stats = dashboardStatsData?.stats;
 
   return (
     <div className="mt-8 rounded-xl border border-[#dde3d5] bg-white p-6 shadow-sm">
@@ -325,6 +371,197 @@ export default function TestControlPanel() {
         </div>
       )}
 
+      {/* TOP DASHBOARD SUMMARY METRICS CARDS */}
+      <div className="pt-4 pb-2">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[#55664d] flex items-center gap-1.5">
+            <span>Dashboard Overview</span>
+            {isDashboardLoading && (
+              <span className="size-2 rounded-full bg-[#284f3a] animate-ping inline-block" />
+            )}
+          </h3>
+          <span className="text-[10px] text-[#819079]">Live Metrics</span>
+        </div>
+
+        {/* 1. Super Admin Summary Cards */}
+        {isSuperAdmin && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+                <span>Total Platform Users</span>
+                <span className="text-base">👥</span>
+              </div>
+              <div className="text-2xl font-black text-[#22351e]">
+                {stats?.accounts?.totalUsers ?? 0}
+              </div>
+              <div className="text-[11px] text-[#718269] mt-1">
+                +{stats?.accounts?.totalResellers ?? 0} Resellers ({stats?.accounts?.totalPlatformAccounts ?? 0} total)
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+                <span>Active Resellers</span>
+                <span className="text-base">🏢</span>
+              </div>
+              <div className="text-2xl font-black text-[#284f3a]">
+                {stats?.accounts?.activeResellers ?? 0}
+              </div>
+              <div className="text-[11px] text-[#718269] mt-1">
+                Out of {stats?.accounts?.totalResellers ?? 0} registered
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+                <span>Credits in Circulation</span>
+                <span className="text-base">💳</span>
+              </div>
+              <div className="text-2xl font-black text-[#1e3a2b]">
+                {stats?.credits?.totalCreditsInCirculation?.toLocaleString() ?? 0}
+              </div>
+              <div className="text-[11px] text-[#718269] mt-1">
+                Allocated: {stats?.credits?.totalAllocatedBySuperAdmin?.toLocaleString() ?? 0}
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+                <span>Total Messages Sent/Deliv.</span>
+                <span className="text-base">🚀</span>
+              </div>
+              <div className="text-2xl font-black text-[#284f3a]">
+                {stats?.campaigns?.totalMessagesSent?.toLocaleString() ?? 0}
+              </div>
+              <div className="text-[11px] text-[#718269] mt-1 flex items-center gap-1.5">
+                <span className="text-emerald-700 font-semibold">✓ {stats?.campaigns?.totalMessagesDelivered?.toLocaleString() ?? 0} deliv.</span>
+                <span>•</span>
+                <span className="text-rose-700">✗ {stats?.campaigns?.totalMessagesFailed?.toLocaleString() ?? 0} fail</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 2. Reseller Summary Cards */}
+        {isReseller && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+                <span>My Balance</span>
+                <span className="text-base">💰</span>
+              </div>
+              <div className="text-2xl font-black text-[#284f3a]">
+                {stats?.wallet?.myBalance?.toLocaleString() ?? 0}
+              </div>
+              <div className="text-[11px] text-[#718269] mt-1">
+                Available to distribute to clients
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+                <span>Total Clients</span>
+                <span className="text-base">👥</span>
+              </div>
+              <div className="text-2xl font-black text-[#22351e]">
+                {stats?.clients?.totalClients ?? 0}
+              </div>
+              <div className="text-[11px] text-[#718269] mt-1">
+                {stats?.clients?.activeClients ?? 0} active client account(s)
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+                <span>Credits Distributed</span>
+                <span className="text-base">🤝</span>
+              </div>
+              <div className="text-2xl font-black text-[#1e3a2b]">
+                {stats?.wallet?.creditsDistributedToClients?.toLocaleString() ?? 0}
+              </div>
+              <div className="text-[11px] text-[#718269] mt-1">
+                Client wallets: {stats?.wallet?.clientWalletsTotal?.toLocaleString() ?? 0}
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+                <span>Client Messages Sent</span>
+                <span className="text-base">📨</span>
+              </div>
+              <div className="text-2xl font-black text-[#284f3a]">
+                {stats?.campaigns?.clientMessagesSent?.toLocaleString() ?? 0}
+              </div>
+              <div className="text-[11px] text-[#718269] mt-1 flex items-center gap-1.5">
+                <span className="text-emerald-700 font-semibold">✓ {stats?.campaigns?.clientMessagesDelivered?.toLocaleString() ?? 0} deliv.</span>
+                <span>•</span>
+                <span className="text-rose-700">✗ {stats?.campaigns?.clientMessagesFailed?.toLocaleString() ?? 0} fail</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 3. User Summary Cards */}
+        {!isSuperAdmin && !isReseller && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+                <span>My Balance</span>
+                <span className="text-base">💳</span>
+              </div>
+              <div className="text-2xl font-black text-[#284f3a]">
+                {stats?.wallet?.myBalance?.toLocaleString() ?? 0}
+              </div>
+              <div className="text-[11px] text-[#718269] mt-1">
+                ~{stats?.wallet?.messagesRemaining ?? 0} msgs (@ {stats?.wallet?.ratePerMsg ?? 12} cr)
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+                <span>Messages Sent</span>
+                <span className="text-base">📤</span>
+              </div>
+              <div className="text-2xl font-black text-[#22351e]">
+                {stats?.campaigns?.messagesSent?.toLocaleString() ?? 0}
+              </div>
+              <div className="text-[11px] text-[#718269] mt-1">
+                {stats?.campaigns?.totalRecipients?.toLocaleString() ?? 0} recipients requested
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+                <span>Delivered / Failed</span>
+                <span className="text-base">✅</span>
+              </div>
+              <div className="text-2xl font-black text-[#284f3a]">
+                {stats?.campaigns?.messagesDelivered?.toLocaleString() ?? 0}
+                <span className="text-sm font-normal text-rose-700 ml-1.5">
+                  / {stats?.campaigns?.messagesFailed?.toLocaleString() ?? 0} fail
+                </span>
+              </div>
+              <div className="text-[11px] text-[#718269] mt-1">
+                Read: {stats?.campaigns?.messagesRead?.toLocaleString() ?? 0} recipient(s)
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl border border-[#dce4d5] bg-gradient-to-br from-white to-[#f7f9f4] shadow-xs">
+              <div className="flex items-center justify-between text-xs text-[#67775f] mb-1">
+                <span>Total Contacts</span>
+                <span className="text-base">📇</span>
+              </div>
+              <div className="text-2xl font-black text-[#1e3a2b]">
+                {stats?.assets?.totalContacts ?? 0}
+              </div>
+              <div className="text-[11px] text-[#718269] mt-1">
+                Across {stats?.assets?.totalGroups ?? 0} group(s)
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Role-Specific Navigation Tabs */}
       <div className="flex flex-wrap gap-2 pt-4 pb-6">
         {availableTabs.map((tab) => (
@@ -341,6 +578,19 @@ export default function TestControlPanel() {
           </button>
         ))}
       </div>
+
+      {/* TAB: PERFORMANCE CHART (Exact visual match from preview) */}
+      {activeTab === "analytics" && (
+        <div className="space-y-4">
+          <CampaignPerformanceChart
+            title="Revenue & Dispatch Trajectory"
+            primaryLabel="Revenue ($)"
+            secondaryLabel="Costs ($)"
+            y1={14000}
+            y2={19000}
+          />
+        </div>
+      )}
 
       {/* TAB 1: CREDIT ALLOCATION (Super Admin & Reseller ONLY) */}
       {isManager && activeTab === "credits" && (
@@ -1106,7 +1356,27 @@ export default function TestControlPanel() {
 
                         {/* Super Admin Limited Manual Override */}
                         {isSuperAdmin && (
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setDeliveryReportModal({
+                                  isOpen: true,
+                                  campaignId: c._id,
+                                  campaignTitle: c.campaignTitle,
+                                  sent: c.campaignSummary?.sent ?? c.totalRecipients ?? "",
+                                  delivered: c.campaignSummary?.delivered ?? c.totalRecipients ?? "",
+                                  read: c.campaignSummary?.read ?? "",
+                                  failed: c.campaignSummary?.failed ?? 0,
+                                  adminNotes: c.campaignSummary?.adminNotes ?? "",
+                                  status: c.status === "completed" ? "completed" : "completed",
+                                })
+                              }
+                              className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200 cursor-pointer"
+                              title="Super Admin: Manually input actual campaign response and delivery numbers"
+                            >
+                              📊 Delivery Report
+                            </button>
                             <select
                               value=""
                               onChange={(e) => {
@@ -1131,6 +1401,24 @@ export default function TestControlPanel() {
                       </div>
                       <p className="text-[#5d6d55] mt-0.5">{c.campaignDescription}</p>
                       <p className="text-[11px] text-[#788870] mt-1 italic">"{c.messageBody}"</p>
+
+                      {/* Manual Delivery Report (if reported by Super Admin) */}
+                      {c.campaignSummary?.reportedAt && (
+                        <div className="mt-2 p-2 rounded bg-emerald-50/70 border border-emerald-200 text-[11px] text-[#243f1f] flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-3">
+                            <span className="font-bold text-emerald-800">📊 Delivery Results:</span>
+                            <span>Sent: <strong>{c.campaignSummary.sent}</strong></span>
+                            <span>Delivered: <strong className="text-emerald-700">{c.campaignSummary.delivered}</strong></span>
+                            <span>Read: <strong>{c.campaignSummary.read ?? 0}</strong></span>
+                            <span>Failed: <strong className="text-rose-700">{c.campaignSummary.failed ?? 0}</strong></span>
+                          </div>
+                          {c.campaignSummary.adminNotes && (
+                            <span className="text-[10px] text-emerald-700 italic">
+                              Note: "{c.campaignSummary.adminNotes}"
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="text-right">
@@ -1410,6 +1698,152 @@ export default function TestControlPanel() {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUPER ADMIN DELIVERY REPORT MODAL */}
+      {deliveryReportModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl border border-[#dde3d5] space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-base font-bold text-[#233120]">
+                  Record WhatsApp Delivery Report
+                </h3>
+                <p className="text-xs text-[#6e7d64]">
+                  Campaign: <span className="font-semibold text-[#273921]">{deliveryReportModal.campaignTitle}</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeliveryReportModal({ ...deliveryReportModal, isOpen: false })}
+                className="text-stone-400 hover:text-stone-700 text-lg font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-[11px] text-[#607157] bg-[#f8faf5] p-2.5 rounded border border-[#e2e8da]">
+              Since messages are dispatched via external WhatsApp servers, record the final actual counts delivered/failed for user dashboard reporting.
+            </p>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                updateMetricsMutation.mutate({
+                  campaignId: deliveryReportModal.campaignId,
+                  sent: Number(deliveryReportModal.sent),
+                  delivered: Number(deliveryReportModal.delivered),
+                  read: Number(deliveryReportModal.read || 0),
+                  failed: Number(deliveryReportModal.failed || 0),
+                  adminNotes: deliveryReportModal.adminNotes,
+                  status: deliveryReportModal.status,
+                });
+              }}
+              className="space-y-3"
+            >
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#374533] mb-1">
+                    Total Sent:
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={deliveryReportModal.sent}
+                    onChange={(e) => setDeliveryReportModal({ ...deliveryReportModal, sent: e.target.value })}
+                    className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[#284f3a]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#374533] mb-1">
+                    Delivered:
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={deliveryReportModal.delivered}
+                    onChange={(e) => setDeliveryReportModal({ ...deliveryReportModal, delivered: e.target.value })}
+                    className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[#284f3a]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#374533] mb-1">
+                    Read (Optional):
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={deliveryReportModal.read}
+                    onChange={(e) => setDeliveryReportModal({ ...deliveryReportModal, read: e.target.value })}
+                    className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[#284f3a]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#374533] mb-1">
+                    Failed / Undelivered:
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={deliveryReportModal.failed}
+                    onChange={(e) => setDeliveryReportModal({ ...deliveryReportModal, failed: e.target.value })}
+                    className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[#284f3a]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-[#374533] mb-1">
+                  Update Lifecycle Status:
+                </label>
+                <select
+                  value={deliveryReportModal.status}
+                  onChange={(e) => setDeliveryReportModal({ ...deliveryReportModal, status: e.target.value })}
+                  className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[#284f3a]"
+                >
+                  <option value="completed">Completed</option>
+                  <option value="ongoing">Ongoing</option>
+                  <option value="failed">Failed</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-[#374533] mb-1">
+                  Super Admin Delivery Notes:
+                </label>
+                <textarea
+                  rows="2"
+                  placeholder="e.g. Dispatched node #3, 5 invalid carrier routes"
+                  value={deliveryReportModal.adminNotes}
+                  onChange={(e) => setDeliveryReportModal({ ...deliveryReportModal, adminNotes: e.target.value })}
+                  className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[#284f3a]"
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeliveryReportModal({ ...deliveryReportModal, isOpen: false })}
+                  className="px-4 py-2 text-xs font-semibold rounded border border-[#cfd6c7] text-[#55664d] hover:bg-stone-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updateMetricsMutation.isPending}
+                  className="px-4 py-2 text-xs font-bold rounded bg-[#284f3a] text-white hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
+                >
+                  {updateMetricsMutation.isPending ? "Saving..." : "Save Delivery Report"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
