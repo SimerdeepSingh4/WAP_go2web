@@ -12,7 +12,6 @@ import {
   ChevronDown,
   MessageSquare,
   ArrowUpRight,
-  Radio,
   PlusCircle,
 } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -32,7 +31,6 @@ import {
   Sidebar,
   SidebarHeader,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupLabel,
   SidebarGroupContent,
@@ -46,7 +44,6 @@ import {
 import { toast } from "@/components/ui/toast";
 import { create } from "zustand";
 import { useAdminQuery } from "../hooks/useAdmin";
-import { useSocket } from "@/features/socket/socket.context";
 
 const useNavigation = create((set) => ({ open: true, setOpen: (open) => set({ open }) }));
 
@@ -69,7 +66,6 @@ function Navigation() {
   const { pathname } = useLocation();
   const { setOpenMobile } = useSidebar();
   const campaignsQuery = useAdminQuery("campaigns");
-  const { socket } = useSocket() || {};
 
   const campaigns = campaignsQuery.data?.data || [];
   const pendingCount = campaigns.filter((c) =>
@@ -151,19 +147,6 @@ function Navigation() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-
-      <SidebarFooter className="border-t p-3">
-        <div className="flex items-center justify-between rounded-md bg-muted/50 px-2.5 py-1.5 text-xs text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <span className="relative flex size-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
-            </span>
-            <span className="font-medium text-[11px]">Real-time Live</span>
-          </div>
-          <span className="text-[10px] font-mono text-muted-foreground/80">BullMQ + WS</span>
-        </div>
-      </SidebarFooter>
     </Sidebar>
   );
 }
