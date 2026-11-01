@@ -140,17 +140,17 @@ export default function Overview() {
         ))}
       </div>
 
-      {/* Campaign Activity Analytics Charts */}
-      <QueryState query={campaignsQuery}>
-        <CampaignCharts campaigns={campaigns} />
-      </QueryState>
-
       {/* Work Operations Panel (Queue + Users + Delivery + Wallet) */}
       <ResellerOverviewWorkPanel
         campaignsQuery={campaignsQuery}
         accountsQuery={accountsQuery}
         myBalanceQuery={myBalance}
       />
+
+      {/* Campaign Activity Analytics Charts */}
+      <QueryState query={campaignsQuery}>
+        <CampaignCharts campaigns={campaigns} />
+      </QueryState>
 
       {updated && (
         <p className="text-xs text-muted-foreground">Last refreshed {updated}</p>

@@ -27,8 +27,8 @@ export default function Overview() {
       ["User accounts", stats?.accounts?.totalUsers, "Managed through resellers", FileText],
       ["Credits in circulation", stats?.credits?.totalCreditsInCirculation, "Combined account balances", Wallet],
     ].map(([label, value, caption, Icon]) => <Card key={label} className="gap-3 rounded-lg shadow-none"><CardHeader className="flex flex-row items-center justify-between gap-2"><CardTitle className="text-xs font-medium text-muted-foreground sm:text-sm">{label}</CardTitle><Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /></CardHeader><CardContent><p className="break-words text-2xl font-semibold tabular-nums tracking-tight">{number(value)}</p><p className="mt-1 text-xs text-muted-foreground">{caption}</p></CardContent></Card>)}</div></QueryState>
-    <QueryState query={campaignsQuery}><CampaignCharts campaigns={campaigns} /></QueryState>
     <OverviewWorkPanel campaignsQuery={campaignsQuery} accountsQuery={accountsQuery} />
+    <QueryState query={campaignsQuery}><CampaignCharts campaigns={campaigns} /></QueryState>
     {updated && <p className="text-xs text-muted-foreground">Last refreshed {updated}</p>}
   </>;
 }
