@@ -195,7 +195,7 @@ export default function Campaigns({ reports = false }) {
         description={
           reports
             ? "Publish actual campaign results, deliver metrics, and review execution performance."
-            : "Monitor the BullMQ campaign dispatch queue, manage submissions, and update execution status."
+            : "Review queued campaigns and delivery progress, manage submissions, and update execution status."
         }
         action={
           <div className="flex items-center gap-2">
