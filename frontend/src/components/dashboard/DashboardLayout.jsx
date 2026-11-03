@@ -60,7 +60,7 @@ export default function DashboardLayout({ role }) {
       <SidebarInset className="portal-inset">
         <header className="portal-topbar">
           <div className="portal-breadcrumb"><SidebarTrigger aria-label="Toggle navigation" className="portal-sidebar-trigger" /><span className="portal-breadcrumb-divider" aria-hidden="true" /><span className="portal-breadcrumb-current">{page}</span></div>
-          <DropdownMenu><DropdownMenuTrigger render={<Button variant="ghost" className="portal-account" aria-label={`Account menu for ${username}`} />}>
+          <DropdownMenu><DropdownMenuTrigger render={<Button variant="ghost" className="portal-account h-auto py-1 px-2.5 rounded-lg" aria-label={`Account menu for ${username}`} />}>
             <Avatar className="portal-account-avatar"><AvatarFallback>{username.slice(0, 2).toUpperCase()}</AvatarFallback></Avatar>
             <span className="portal-account-copy"><strong>{username}</strong><span>{role === "Super Admin" ? "Super admin" : role}</span></span><ChevronDown aria-hidden="true" className="size-4" />
           </DropdownMenuTrigger><DropdownMenuContent align="end" className="portal-account-menu">

@@ -74,9 +74,13 @@
 .portal-breadcrumb-current { overflow: hidden; color: #0c1624; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .portal-topbar-actions { display: flex; flex-shrink: 0; align-items: center; gap: 18px; }
 .portal-header-credit { background: #fff; }
-.portal-account { min-width: 0; gap: 10px; padding: 4px 6px; }
-.portal-account-avatar { width: 34px; height: 34px; border: 1px solid #e5d8c8; border-radius: 10px; }
-.portal-account-avatar > * { border-radius: 9px; background: #e0eef7; color: #000080; font-size: 11px; font-weight: 700; }
+.portal-account { min-width: 0; height: auto !important; min-height: 42px; gap: 10px; padding: 4px 10px 4px 6px !important; border-radius: 10px; transition: background-color .15s ease; }
+.portal-account:hover, .portal-account[data-state="open"] { background: #eaf1f7 !important; color: #0c1624; }
+.portal-account svg { color: #6D8196; transition: color .15s ease; }
+.portal-account:hover svg, .portal-account[data-state="open"] svg { color: #000080; }
+.portal-account-avatar { width: 32px; height: 32px; border: 1px solid #c9d8e5 !important; border-radius: 50% !important; background: #e0eef7; flex-shrink: 0; overflow: hidden; }
+.portal-account-avatar::after { display: none !important; }
+.portal-account-avatar > * { border-radius: 50% !important; background: #e0eef7; color: #000080; font-size: 11px; font-weight: 700; }
 .portal-account-copy { display: grid; gap: 2px; min-width: 0; text-align: left; }
 .portal-account-copy strong { max-width: 128px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 600; }
 .portal-account-copy > span { color: #5a7185; font-size: 10px; }
