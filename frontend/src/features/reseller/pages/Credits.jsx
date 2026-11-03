@@ -1,5 +1,6 @@
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useSearchParams } from "react-router";
+import { useState } from "react";
 import {
   Plus,
   Wallet,
@@ -12,6 +13,7 @@ import {
   Users,
   CheckCircle2,
   RefreshCw,
+  MinusCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -97,6 +99,7 @@ export default function ResellerCredits({ activity = false }) {
   const type = params.get("type") || "all";
   const account = params.get("account") || "all";
   const allocation = params.get("allocate");
+  const [reclaimOpen, setReclaimOpen] = useState(false);
 
   const accountsQuery = useResellerQuery("accounts");
   const myBalance = useResellerQuery("myBalance", {}, !activity);
@@ -224,15 +227,26 @@ export default function ResellerCredits({ activity = false }) {
               Refresh
             </Button>
             {!activity && (
-              <Button
-                onClick={() => update("allocate", "new")}
-                disabled={signedInUser?.isPreview || !accounts.length || accountsQuery.isError || isWalletLocked}
-                title={isWalletLocked ? "Your credit balance is expired and locked." : undefined}
-                className="gap-1.5 font-semibold"
-              >
-                <Plus className="size-4" />
-                Allocate credits
-              </Button>
+              <>
+                <Button
+                  onClick={() => update("allocate", "new")}
+                  disabled={signedInUser?.isPreview || !accounts.length || accountsQuery.isError || isWalletLocked}
+                  title={isWalletLocked ? "Your credit balance is expired and locked." : undefined}
+                  className="gap-1.5 font-semibold"
+                >
+                  <Plus className="size-4" />
+                  Allocate credits
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setReclaimOpen(true)}
+                  disabled={signedInUser?.isPreview || !accounts.length || accountsQuery.isError}
+                  className="gap-1.5"
+                >
+                  <MinusCircle className="size-4" />
+                  Reclaim credits
+                </Button>
+              </>
             )}
           </div>
         }
@@ -477,6 +491,55 @@ export default function ResellerCredits({ activity = false }) {
             </>
           )}
           submitLabel="Allocate credits"
+        />
+      )}
+
+      {/* Reclaim credits Dialog */}
+      {reclaimOpen && accountsQuery.isSuccess && (
+        <ResellerActionForm
+          title="Reclaim credits"
+          description="Deduct unused credits from a client user and return them to your reseller wallet."
+          action="reclaim"
+          successMessage="Credits reclaimed successfully"
+          onClose={() => setReclaimOpen(false)}
+          initialValues={{ fromUserId: "", amount: "", notes: "" }}
+          fields={[
+            {
+              key: "fromUserId",
+              label: "Select Client User",
+              required: true,
+              options: [
+                { value: "", label: "Select client user" },
+                ...accounts.map((a) => ({ value: a._id, label: `${a.username} · ${a.email}` })),
+              ],
+            },
+            { key: "amount", label: "Credits to deduct", required: true, type: "number", min: 0.01, step: 0.01 },
+            {
+              key: "notes",
+              label: "Reason",
+              required: true,
+              type: "textarea",
+              maxLength: 500,
+              placeholder: "Enter mandatory reason for reclaiming credits",
+            },
+          ]}
+          payload={(v) => ({ fromUserId: v.fromUserId, amount: Number(v.amount), notes: v.notes.trim() })}
+          review={(v) => (
+            <>
+              <p className="font-semibold text-destructive">Reclaim credits</p>
+              <p className="text-xs mt-1">
+                Deducting{" "}
+                <strong className="text-destructive font-bold">
+                  {number(Number(v.amount))} credits
+                </strong>{" "}
+                from {accounts.find((a) => a._id === v.fromUserId)?.username}.
+              </p>
+              <p className="text-muted-foreground text-xs mt-1">
+                Reason: <strong>{v.notes}</strong>
+              </p>
+            </>
+          )}
+          submitLabel="Reclaim credits"
         />
       )}
     </>

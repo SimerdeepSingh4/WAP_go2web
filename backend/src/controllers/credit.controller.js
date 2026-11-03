@@ -446,22 +446,33 @@ export async function reclaimCredits(req, res) {
             });
         }
 
-        // Permission check: Strictly Super Admin only to prevent Reseller rug-pull fraud
-        if (req.user.role !== "Super Admin") {
+        // Permission check: Super Admin can reclaim from anyone; Reseller can only reclaim from their own Users
+        if (req.user.role !== "Super Admin" && req.user.role !== "Reseller") {
             await mongoSession.abortTransaction();
             mongoSession.endSession();
             return res.status(403).json({
-                message:
-                    "Forbidden: Credit reclaim is restricted to Super Admin only to prevent unauthorized balance reversals. Reseller allocations are final.",
+                message: "Forbidden: Only Super Admin or Reseller can reclaim credits.",
                 success: false,
             });
+        }
+
+        // Reseller can only reclaim from Users assigned to them
+        if (req.user.role === "Reseller") {
+            if (fromUser.role !== "User" || String(fromUser.resellerId) !== String(req.user._id)) {
+                await mongoSession.abortTransaction();
+                mongoSession.endSession();
+                return res.status(403).json({
+                    message: "Forbidden: You can only reclaim credits from your own client users.",
+                    success: false,
+                });
+            }
         }
 
         if (fromUser.role === "Super Admin") {
             await mongoSession.abortTransaction();
             mongoSession.endSession();
             return res.status(400).json({
-                message: "Cannot reclaim credits from another Super Admin.",
+                message: "Cannot reclaim credits from a Super Admin.",
                 success: false,
             });
         }

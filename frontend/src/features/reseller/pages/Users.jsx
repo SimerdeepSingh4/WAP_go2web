@@ -14,6 +14,7 @@ import {
   RefreshCw,
   Lock,
   ArrowRight,
+  MinusCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -222,6 +223,10 @@ export default function ResellerUsers() {
             <DropdownMenuItem disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "allocate", account: a })}>
               <Wallet className="size-4 mr-2" />
               Allocate credits
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "reclaim", account: a })}>
+              <MinusCircle className="size-4 mr-2" />
+              Reclaim credits
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -457,6 +462,56 @@ export default function ResellerUsers() {
             </>
           )}
           submitLabel="Allocate credits"
+        />
+      )}
+
+      {modal?.type === "reclaim" && (
+        <ResellerActionForm
+          title="Reclaim credits"
+          description="Deduct credits from this client user and return them to your wallet."
+          action="reclaim"
+          successMessage="Credits reclaimed successfully"
+          onClose={() => setModal(null)}
+          initialValues={{ fromUserId: modal.account._id, amount: "", notes: "" }}
+          fields={[
+            {
+              key: "amount",
+              label: "Credits to deduct",
+              required: true,
+              type: "number",
+              min: 0.01,
+              step: 0.01,
+            },
+            {
+              key: "notes",
+              label: "Reason",
+              required: true,
+              type: "textarea",
+              maxLength: 500,
+              placeholder: "Enter mandatory reason for reclaiming credits",
+            },
+          ]}
+          payload={(v) => ({
+            fromUserId: modal.account._id,
+            amount: Number(v.amount),
+            notes: v.notes.trim(),
+          })}
+          review={(v) => (
+            <>
+              <p className="font-semibold text-destructive">Reclaim credits</p>
+              <p className="text-xs mt-1">
+                Deducting{" "}
+                <strong className="text-destructive font-bold">
+                  {number(Number(v.amount))} credits
+                </strong>{" "}
+                from {modal.account.username}.
+              </p>
+              <p className="text-muted-foreground text-xs mt-1">
+                Reason: <strong>{v.notes}</strong>
+              </p>
+            </>
+          )}
+          submitLabel="Reclaim credits"
         />
       )}
     </>

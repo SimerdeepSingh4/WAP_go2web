@@ -394,7 +394,7 @@ export default function Credits({ activity = false }) {
               ],
             },
             { key: "amount", label: "Credits to deduct", required: true, type: "number", min: 0.01, step: 0.01 },
-            { key: "notes", label: "Reason", required: true, type: "textarea", maxLength: 500 },
+            { key: "notes", label: "Reason (optional)", type: "textarea", maxLength: 500, placeholder: "e.g. Account closure, overpayment reversal" },
           ]}
           payload={(v) => ({ fromUserId: v.fromUserId, amount: Number(v.amount), notes: v.notes.trim() })}
           review={(v) => (

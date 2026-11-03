@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, NavLink, Navigate, Outlet, useLocation } from "react-router";
-import { LayoutDashboard, Megaphone, Users, Contact, Building2, Wallet, ReceiptText, Settings, LogOut, ChevronDown, MessageSquare } from "lucide-react";
+import { LayoutDashboard, Megaphone, Users, Contact, Building2, Wallet, ReceiptText, Settings, LogOut, ChevronDown } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -23,7 +23,7 @@ function Navigation({ role, base, items }) {
   return <Sidebar collapsible="icon" className="portal-sidebar">
     <SidebarHeader className="portal-sidebar-header"><SidebarMenu><SidebarMenuItem>
       <SidebarMenuButton size="lg" render={<Link to={base} aria-label="Promotion home" />} onClick={() => setOpenMobile(false)} className="portal-brand">
-        <span className="portal-brand-mark"><MessageSquare aria-hidden="true" /></span>
+        <span className="portal-brand-mark"><img src="https://res.cloudinary.com/dyfjy8kmv/image/upload/v1793689940/Navy_Blue_Bird_Chat_Logo_n0udpf.webp" alt="Promotion" className="size-full object-contain" /></span>
         <span className="portal-brand-copy"><strong>Promotion<span>.</span></strong><span>{role === "Super Admin" ? "Super admin" : role}</span></span>
       </SidebarMenuButton>
     </SidebarMenuItem></SidebarMenu></SidebarHeader>
