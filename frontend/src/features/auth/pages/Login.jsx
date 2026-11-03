@@ -153,7 +153,7 @@ export default function LoginPage({ onLogin, panelName = "go2web" }) {
             Reliable delivery.
           </h1>
           <p className="max-w-[400px] text-sm leading-relaxed text-muted-foreground">
-            Launch targeted WhatsApp campaigns, manage customer directories, and track deliverability metrics with enterprise precision.
+            Launch targeted campaigns, manage customer directories, and track deliverability metrics with enterprise precision.
           </p>
           <CampaignWorkflowIllustration />
         </div>
