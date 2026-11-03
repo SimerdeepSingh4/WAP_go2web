@@ -14,7 +14,6 @@ export default function Overview() {
   const accounts = useResellerQuery("accounts");
   const balance = useResellerQuery("myBalance");
   const queries = [campaigns, accounts, balance];
-  const users = (accounts.data?.users || []).filter(a => a.role === "User");
   const wallet = balance.data?.wallet;
   async function refresh() {
     const results = await Promise.all(queries.map(q => q.refetch()));
@@ -24,6 +23,5 @@ export default function Overview() {
     <PageHeading title="Overview" description="Manage your users and their available credits." action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={refresh} disabled={queries.some(q => q.isFetching)}><RefreshCw />Refresh</Button><Button disabled={signedInUser?.isPreview} render={<Link to="/reseller/credits?allocate=new" />}><Plus />Allocate credits</Button></div>} />
     <QueryState query={balance}><Summary items={[{ label: "Available credits", value: number(wallet?.balance), hint: wallet?.isLocked ? "Locked - contact your administrator" : "Available for allocation", credit: true }, { label: "Your rate", value: number(wallet?.ratePerMsg), hint: "Credits per recipient" }]} /></QueryState>
     <div className="dashboard-two-column"><RecentCampaigns query={campaigns} base="/reseller" showOwner /><AccountList query={accounts} base="/reseller" role="User" /></div>
-    <QueryState query={accounts}><p className="text-sm text-muted-foreground">{number(users.filter(u => u.status === "active").length)} active users / {number(users.length)} assigned users</p></QueryState>
   </>;
 }
