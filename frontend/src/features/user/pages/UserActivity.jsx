@@ -1,0 +1,50 @@
+// src/features/user/pages/UserActivity.jsx
+import { useSearchParams } from "react-router";
+import { PageHeading, QueryState, DataTable, Pager } from "@/features/admin/components/shared";
+import { useUserQuery } from "../hooks/useUser";
+import { dateTime, number } from "@/features/admin/lib/format";
+
+/**
+ * User Activity page – displays recent activity logs for the user.
+ * Uses DataTable with pagination.
+ */
+export default function UserActivity() {
+  const [params, setParams] = useSearchParams();
+  const page = Math.max(1, Number(params.get("page")) || 1);
+  const activity = useUserQuery("activity", { page, limit: 10 });
+
+  const columns = [
+    { key: "date", label: "Date", render: (a) => <span className="text-xs">{dateTime(a.createdAt)}</span> },
+    { key: "action", label: "Action", render: (a) => a.type },
+    { key: "detail", label: "Detail", render: (a) => a.detail },
+  ];
+
+  function updatePage(p) {
+    setParams((old) => {
+      const next = new URLSearchParams(old);
+      next.set("page", String(p));
+      return next;
+    }, { replace: true });
+  }
+
+  return (
+    <>
+      <PageHeading title="Activity" description="Your recent actions and events." />
+      <QueryState query={activity}>
+        <DataTable
+          caption="Activity log"
+          rows={activity.data?.activities || []}
+          columns={columns}
+          emptyTitle="No activity found"
+        />
+        <Pager
+          page={page}
+          totalPages={activity.data?.pagination?.totalPages || 1}
+          total={activity.data?.pagination?.total || 0}
+          onChange={(p) => updatePage(p)}
+          disabled={activity.isFetching}
+        />
+      </QueryState>
+    </>
+  );
+}

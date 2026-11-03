@@ -2,13 +2,17 @@ import { createBrowserRouter, Navigate } from "react-router";
 import LoginPage from "./features/auth/pages/Login.jsx";
 import { useAuth } from "./features/auth/hooks/useAuth.js";
 import RoleRoute from "./components/RoleRoute.jsx";
-import UserDashboard from "./features/user/pages/UserDashboard.jsx";
 import ResellerOverview from "./features/reseller/pages/Overview.jsx";
 import ResellerLayout from "./features/reseller/components/ResellerLayout.jsx";
 import ResellerUsers from "./features/reseller/pages/Users.jsx";
 import ResellerCredits from "./features/reseller/pages/Credits.jsx";
 import ResellerCampaigns from "./features/reseller/pages/Campaigns.jsx";
 import ResellerSettings from "./features/reseller/pages/Settings.jsx";
+import UserLayout from "./features/user/components/UserLayout.jsx";
+import UserOverview from "./features/user/pages/UserOverview.jsx";
+import UserCredits from "./features/user/pages/Credits.jsx";
+import UserActivity from "./features/user/pages/UserActivity.jsx";
+import UserSettings from "./features/user/pages/Settings.jsx";
 import CreateCampaignPage from "./features/campaigns/pages/CreateCampaignPage.jsx";
 import PreviewBanner from "./components/PreviewBanner.jsx";
 
@@ -32,9 +36,11 @@ function Dashboard() {
   if (user?.role === "Reseller") {
     return <Navigate to="/reseller" replace />;
   }
+  if (user?.role === "User") {
+    return <Navigate to="/user" replace />;
+  }
 
-  // Regular User role → proper workspace
-  return <UserDashboard />;
+  return <Navigate to="/login" replace />;
 }
 
 function ProtectedRoute({ children }) {
@@ -112,24 +118,42 @@ export const router = createBrowserRouter([
       { path: "settings", element: <AdminOperatingRules /> },
     ],
   },
-  { path: "/reseller", element: (
-        <RoleRoute allowedRoles={["Super Admin", "Reseller"]}>
-          <ResellerLayout />
-        </RoleRoute>
-      ),
-      children: [
-        { index: true, element: <ResellerOverview /> },
-        { path: "campaigns", element: <ResellerCampaigns /> },
-        { path: "campaigns/create", element: <CreateCampaignPage /> },
-        { path: "campaigns/new", element: <CreateCampaignPage /> },
-        { path: "reports", element: <ResellerCampaigns reports /> },
-        { path: "users", element: <ResellerUsers /> },
-        { path: "credits", element: <ResellerCredits key="credits" /> },
-        { path: "activity", element: <ResellerCredits key="activity" activity /> },
-        { path: "settings", element: <ResellerSettings /> },
-      ],
-    },
-  // ── User-role campaign routes (standalone, no layout shell) ──
+  {
+    path: "/reseller",
+    element: (
+      <RoleRoute allowedRoles={["Super Admin", "Reseller"]}>
+        <ResellerLayout />
+      </RoleRoute>
+    ),
+    children: [
+      { index: true, element: <ResellerOverview /> },
+      { path: "campaigns", element: <ResellerCampaigns /> },
+      { path: "campaigns/create", element: <CreateCampaignPage /> },
+      { path: "campaigns/new", element: <CreateCampaignPage /> },
+      { path: "reports", element: <ResellerCampaigns reports /> },
+      { path: "users", element: <ResellerUsers /> },
+      { path: "credits", element: <ResellerCredits key="credits" /> },
+      { path: "activity", element: <ResellerCredits key="activity" activity /> },
+      { path: "settings", element: <ResellerSettings /> },
+    ],
+  },
+  {
+    path: "/user",
+    element: (
+      <RoleRoute allowedRoles={["Super Admin", "Reseller", "User"]}>
+        <UserLayout />
+      </RoleRoute>
+    ),
+    children: [
+      { index: true, element: <UserOverview /> },
+      { path: "campaigns/create", element: <CreateCampaignPage /> },
+      { path: "campaigns/new", element: <CreateCampaignPage /> },
+      { path: "credits", element: <UserCredits /> },
+      { path: "activity", element: <UserActivity /> },
+      { path: "settings", element: <UserSettings /> },
+    ],
+  },
+  // ── Standalone campaign creation routes for direct access ──
   {
     path: "/campaigns/create",
     element: (
