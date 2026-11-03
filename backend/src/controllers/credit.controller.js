@@ -60,6 +60,10 @@ export async function getBalance(req, res) {
             });
         }
 
+        // Determine expiry & locked state
+        const isExpired = Boolean(wallet.expiresAt && new Date(wallet.expiresAt) <= new Date());
+        const isLocked = Boolean(wallet.isLocked || isExpired);
+
         return res.status(200).json({
             success: true,
             wallet: {
@@ -67,10 +71,14 @@ export async function getBalance(req, res) {
                 balance: wallet.balance,
                 resellerId: wallet.resellerId,
                 ratePerMsg: targetUser.ratePerMsg,
-                messagesRemaining:
-                    targetUser.ratePerMsg > 0
+                expiresAt: wallet.expiresAt || null,
+                isExpired,
+                isLocked,
+                messagesRemaining: isLocked
+                    ? 0
+                    : (targetUser.ratePerMsg > 0
                         ? Math.floor(wallet.balance / targetUser.ratePerMsg)
-                        : 0,
+                        : 0),
             },
         });
     } catch (error) {
@@ -100,7 +108,7 @@ export async function allocateCredits(req, res) {
     mongoSession.startTransaction();
 
     try {
-        const { toUserId, amount, notes, password } = req.body;
+        const { toUserId, amount, notes, password, expiryYears, expiryMonths, expiresAt } = req.body;
 
         // ── Validation ──────────────────────────────────────────
         if (!toUserId || !amount) {
@@ -207,6 +215,16 @@ export async function allocateCredits(req, res) {
                 });
             }
 
+            if (fromWallet.expiresAt && new Date(fromWallet.expiresAt) <= new Date()) {
+                await mongoSession.abortTransaction();
+                mongoSession.endSession();
+                return res.status(403).json({
+                    message: "Your credit balance has expired and is locked. Cannot allocate credits.",
+                    success: false,
+                    isLocked: true,
+                });
+            }
+
             if (fromWallet.balance < creditAmount) {
                 await mongoSession.abortTransaction();
                 mongoSession.endSession();
@@ -244,13 +262,38 @@ export async function allocateCredits(req, res) {
             balanceAfterFrom = updatedFrom.balance;
         }
 
+        // ── Calculate Expiry Date for Target User ─────────────────
+        let targetExpiresAt = undefined;
+        if (expiresAt) {
+            targetExpiresAt = new Date(expiresAt);
+        } else if (expiryYears != null && Number(expiryYears) > 0) {
+            targetExpiresAt = new Date(Date.now() + Number(expiryYears) * 365.25 * 24 * 60 * 60 * 1000);
+        } else if (expiryMonths != null && Number(expiryMonths) > 0) {
+            targetExpiresAt = new Date(Date.now() + Number(expiryMonths) * 30 * 24 * 60 * 60 * 1000);
+        } else if (expiryYears === 0 || expiryYears === "0") {
+            targetExpiresAt = null; // explicit never expires
+        } else if (req.user.role === "Super Admin") {
+            // Default 2 years expiry when allocated by Super Admin
+            targetExpiresAt = new Date(Date.now() + 2 * 365.25 * 24 * 60 * 60 * 1000);
+        }
+
         // ── Add credits to target user's wallet (Atomic Upsert Increment) ─
+        const updateOps = {
+            $inc: { balance: creditAmount },
+            $setOnInsert: { resellerId: toUser.resellerId || null },
+        };
+        if (targetExpiresAt !== undefined) {
+            updateOps.$set = {
+                expiresAt: targetExpiresAt,
+                isLocked: false,
+            };
+        } else {
+            updateOps.$set = { isLocked: false };
+        }
+
         const updatedToWallet = await walletModel.findOneAndUpdate(
             { userId: toUserId },
-            {
-                $inc: { balance: creditAmount },
-                $setOnInsert: { resellerId: toUser.resellerId || null },
-            },
+            updateOps,
             {
                 new: true,
                 upsert: true,
@@ -921,7 +964,56 @@ export async function reconcileCreditBalance(req, res) {
         });
     }
 }
-
+
+/**
+ * POST /api/credits/update-expiry
+ * ------------------------------
+ * Super Admin can update the expiry date or lock status of any wallet.
+ * Body: { userId, expiresAt, expiryYears, isLocked }
+ */
+export async function updateCreditExpiry(req, res) {
+    try {
+        const { userId, expiresAt, expiryYears, isLocked } = req.body;
+        if (!userId) {
+            return res.status(400).json({ message: "userId is required", success: false });
+        }
+
+        let targetExpiresAt = undefined;
+        if (expiresAt !== undefined) {
+            targetExpiresAt = expiresAt ? new Date(expiresAt) : null;
+        } else if (expiryYears != null && Number(expiryYears) > 0) {
+            targetExpiresAt = new Date(Date.now() + Number(expiryYears) * 365.25 * 24 * 60 * 60 * 1000);
+        } else if (expiryYears === 0 || expiryYears === "0") {
+            targetExpiresAt = null;
+        }
+
+        const updateData = {};
+        if (targetExpiresAt !== undefined) updateData.expiresAt = targetExpiresAt;
+        if (isLocked !== undefined) updateData.isLocked = Boolean(isLocked);
+
+        const wallet = await walletModel.findOneAndUpdate(
+            { userId },
+            { $set: updateData },
+            { new: true, upsert: true }
+        );
+
+        notifyUser(userId.toString(), "WALLET_UPDATED", {
+            reason: "EXPIRY_UPDATED",
+            expiresAt: wallet.expiresAt,
+            isLocked: wallet.isLocked,
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Credit expiry updated successfully",
+            wallet,
+        });
+    } catch (err) {
+        console.error("Update credit expiry error:", err);
+        return res.status(500).json({ message: "Failed to update credit expiry", success: false });
+    }
+}
+
 export default {
     getBalance,
     allocateCredits,
@@ -929,4 +1021,5 @@ export default {
     getTransactions,
     updateRate,
     reconcileCreditBalance,
+    updateCreditExpiry,
 };

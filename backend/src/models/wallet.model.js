@@ -29,6 +29,15 @@ const walletSchema = new mongoose.Schema(
             ref: "User",
             default: null,
         },
+        expiresAt: {
+            type: Date,
+            default: null, // null means never expires
+            index: true,
+        },
+        isLocked: {
+            type: Boolean,
+            default: false,
+        },
     },
     {
         timestamps: true,

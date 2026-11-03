@@ -1,5 +1,5 @@
 import { useSearchParams } from "react-router";
-import { Plus, Wallet } from "lucide-react";
+import { Plus, Wallet, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useResellerQuery } from "../hooks/useReseller";
@@ -34,8 +34,81 @@ export default function ResellerCredits({ activity = false }) {
     { key: "actor", label: "Recorded by", render: (t) => ownerName(t.performedBy) },
     { key: "note", label: "Note", render: (t) => <span className="block max-w-60 whitespace-normal break-words text-xs text-muted-foreground">{t.notes || "—"}</span> },
   ];
-  return <><PageHeading title={activity ? "Activity" : "Credits"} description={activity ? "Trace credit movements across your user accounts." : "Manage your credit balance and allocate credits to your users."} action={!activity && <Button onClick={() => update("allocate", "new")} disabled={!accounts.length || accountsQuery.isError}><Plus />Allocate credits</Button>} />
-    {!activity && <QueryState query={myBalance}><div className="grid gap-3 sm:grid-cols-3">{[["Your wallet balance", number(myBalance.data?.wallet?.balance)], ["Total users", accounts.length], ["Active users", accounts.filter((a) => a.status === "active").length]].map(([label, value]) => <Card key={label} className="rounded-lg"><CardContent><p className="flex items-center justify-between text-xs text-muted-foreground">{label}<Wallet className="size-4" /></p><p className="mt-3 text-2xl font-semibold tabular-nums">{value}</p></CardContent></Card>)}</div></QueryState>}
+  const isWalletLocked = Boolean(myBalance.data?.wallet?.isLocked);
+
+  return (
+    <>
+      <PageHeading
+        title={activity ? "Activity" : "Credits"}
+        description={
+          activity
+            ? "Trace credit movements across your user accounts."
+            : "Manage your credit balance and allocate credits to your users."
+        }
+        action={
+          !activity && (
+            <Button
+              onClick={() => update("allocate", "new")}
+              disabled={!accounts.length || accountsQuery.isError || isWalletLocked}
+              title={isWalletLocked ? "Your credit balance is expired and locked." : undefined}
+            >
+              <Plus />
+              Allocate credits
+            </Button>
+          )
+        }
+      />
+      {!activity && (
+        <QueryState query={myBalance}>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Card className={`rounded-lg shadow-none ${isWalletLocked ? "border-red-300 bg-red-50/60" : ""}`}>
+              <CardContent className="p-4 sm:p-5">
+                <p className="flex items-center justify-between text-xs text-muted-foreground">
+                  Your wallet balance
+                  {isWalletLocked ? <Lock className="size-4 text-red-600" /> : <Wallet className="size-4" />}
+                </p>
+                <div className="mt-3 flex items-baseline gap-2">
+                  <p className={`text-2xl font-bold tabular-nums tracking-tight ${isWalletLocked ? "text-red-700" : "text-foreground"}`}>
+                    {number(myBalance.data?.wallet?.balance)}
+                  </p>
+                  {isWalletLocked && (
+                    <span className="inline-flex items-center gap-1 rounded bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-800">
+                      Expired & Locked
+                    </span>
+                  )}
+                </div>
+                {myBalance.data?.wallet?.expiresAt && (
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Expires: <strong>{dateTime(myBalance.data?.wallet?.expiresAt)}</strong>
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-lg shadow-none">
+              <CardContent className="p-4 sm:p-5">
+                <p className="flex items-center justify-between text-xs text-muted-foreground">
+                  Total users
+                  <Wallet className="size-4" />
+                </p>
+                <p className="mt-3 text-2xl font-semibold tabular-nums">{accounts.length}</p>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-lg shadow-none">
+              <CardContent className="p-4 sm:p-5">
+                <p className="flex items-center justify-between text-xs text-muted-foreground">
+                  Active users
+                  <Wallet className="size-4" />
+                </p>
+                <p className="mt-3 text-2xl font-semibold tabular-nums">
+                  {accounts.filter((a) => a.status === "active").length}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </QueryState>
+      )}
     <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-sm font-medium">Transaction history</h2><div className="flex flex-wrap gap-2"><FilterSelect label="Transaction type" value={type} onChange={(value) => update("type", value)} options={[{ value: "all", label: "All transactions" }, ...Object.entries(transactionLabels).map(([value, label]) => ({ value, label }))]} /><FilterSelect label="Filter by account" value={account} onChange={(value) => update("account", value)} disabled={!accountsQuery.isSuccess} options={[{ value: "all", label: "All accounts" }, ...accounts.map((a) => ({ value: a._id, label: `${a.username}` }))]} /></div></div>
     {accountsQuery.isError && <QueryState query={accountsQuery} />}
     <QueryState query={ledger}><div><DataTable caption="Credit transaction history" paginated={false} rows={ledger.data?.transactions || []} columns={columns} emptyTitle="No transactions found" /><Pager page={page} totalPages={ledger.data?.pagination?.totalPages || 1} total={ledger.data?.pagination?.total || 0} onChange={(value) => update("page", String(value))} disabled={ledger.isFetching} /></div></QueryState>
@@ -45,5 +118,6 @@ export default function ResellerCredits({ activity = false }) {
       { key: "amount", label: "Credits to allocate", required: true, type: "number", min: 0.01, step: 0.01 },
       { key: "notes", label: "Transaction note", type: "textarea", maxLength: 500 },
     ]} payload={(v) => ({ toUserId: v.toUserId, amount: Number(v.amount), notes: v.notes.trim() })} review={(v) => <><p className="font-medium">{accounts.find((a) => a._id === v.toUserId)?.username}</p><p>Add <strong>{number(Number(v.amount))} credits</strong> from your wallet.</p><p className="whitespace-pre-wrap break-words text-muted-foreground">{v.notes || "No transaction note."}</p></>} submitLabel="Allocate credits" />}
-  </>;
+  </>
+  );
 }

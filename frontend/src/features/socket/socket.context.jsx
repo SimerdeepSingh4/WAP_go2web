@@ -106,14 +106,28 @@ export const SocketProvider = ({ children }) => {
             });
         });
 
-        // ── Instant Device Eviction (3-Device Limit) ────────────
+        // ── Real-Time Active Sessions Updated ──────────────────
+        socket.on("SESSIONS_CHANGED", () => {
+            queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
+            queryClient.invalidateQueries({ queryKey: ["admin"] });
+        });
+
+        // ── Instant Device Eviction (Disconnected / Limit Exceeded) ─
         socket.on("SESSION_EXPIRED", (data) => {
             toast.add({
                 title: "Session Terminated",
-                description: data.reason || "Device limit of 3 exceeded by a new login.",
+                description: data?.reason || "This device session has been terminated.",
                 type: "error",
             });
+            localStorage.removeItem("token");
+            queryClient.setQueryData(["authUser"], null);
+            queryClient.removeQueries({ queryKey: ["activeSessions"] });
             window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+
+            // Immediately boot disconnected client out of protected pages
+            if (window.location.pathname !== "/login") {
+                window.location.replace("/login");
+            }
         });
 
         return () => {

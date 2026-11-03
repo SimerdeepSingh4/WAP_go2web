@@ -7,6 +7,7 @@ import {
     logoutSession,
     getMe,
     getActiveSessions,
+    changePassword,
 } from "../controllers/auth.controller.js";
 import { protect, authorizeRoles } from "../middlewares/auth.middleware.js";
 
@@ -22,6 +23,7 @@ authRouter.get("/me", protect, getMe);
 authRouter.get("/sessions", protect, getActiveSessions);
 authRouter.post("/logout-all", protect, logoutAll);
 authRouter.delete("/logout/:sessionId", protect, logoutSession);
+authRouter.post("/change-password", protect, changePassword);
 
 // RBAC Protected routes
 authRouter.get(

@@ -17,7 +17,7 @@ function CampaignQueue({ query }) {
     { label: "Reports to publish", count: campaigns.filter(needsReport).length, path: "/admin/reports?status=unreported", icon: FileText },
   ];
 
-  return <Card className="min-w-0 gap-0 rounded-lg py-0">
+  return <Card className="min-w-0 gap-0 rounded-lg py-0 shadow-none">
     <QueryState query={query}>
       <div className="grid grid-cols-3 divide-x border-b bg-muted/30">
         {shortcuts.map(({ label, count, path, icon: Icon }) => <Link key={path} to={path} className="group min-w-0 px-3 py-4 transition-colors hover:bg-muted/70 sm:px-5 sm:py-5">
@@ -57,7 +57,7 @@ function CampaignQueue({ query }) {
 
 function ResellerNetwork({ query }) {
   const resellers = (query.data?.users || []).filter((account) => account.role === "Reseller");
-  return <Card className="min-w-0 gap-0 rounded-lg py-0">
+  return <Card className="min-w-0 gap-0 rounded-lg py-0 shadow-none">
     <CardHeader className="flex flex-row items-center justify-between gap-3 px-4 py-4 sm:px-5">
       <CardTitle>Reseller network</CardTitle>
       <Button variant="ghost" size="sm" render={<Link to="/admin/resellers" />}>Manage<ArrowRight /></Button>
@@ -67,7 +67,7 @@ function ResellerNetwork({ query }) {
         <ul className="divide-y border-t">
           {resellers.slice(0, 4).map((reseller) => <li key={reseller._id}>
             <Link to={`/admin/resellers?search=${encodeURIComponent(reseller.email)}`} className="group flex min-w-0 items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/40 sm:px-5">
-              <Avatar aria-hidden="true"><AvatarFallback className="text-xs">{(reseller.username || reseller.email || "R").slice(0, 2).toUpperCase()}</AvatarFallback></Avatar>
+              <Avatar aria-hidden="true"><AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">{(reseller.username || reseller.email || "R").slice(0, 2).toUpperCase()}</AvatarFallback></Avatar>
               <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium group-hover:text-primary">{reseller.username}</p><p className="mt-0.5 truncate text-xs text-muted-foreground">{reseller.email}</p></div>
               <StatusBadge status={reseller.status} /><ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             </Link>
@@ -86,9 +86,9 @@ export default function OverviewWorkPanel({ campaignsQuery, accountsQuery }) {
     </div>
     <div className="min-w-0 space-y-5">
       <QueryState query={campaignsQuery}><DeliveryChart campaigns={campaignsQuery.data?.data || []} /></QueryState>
-      <Card className="gap-0 rounded-lg py-0">
+      <Card className="gap-0 rounded-lg py-0 shadow-none">
         <CardContent className="flex flex-wrap items-center justify-between gap-4 p-4 sm:p-5">
-          <div className="flex items-center gap-3"><Wallet className="size-5 text-muted-foreground" aria-hidden="true" /><div><p className="text-xs text-muted-foreground">Credit pool</p><p className="mt-1 text-base font-semibold">Unlimited</p></div></div>
+          <div className="flex items-center gap-3"><Wallet className="size-5 text-muted-foreground" aria-hidden="true" /><div><p className="text-xs text-muted-foreground">Admin Balance</p><p className="mt-1 text-base font-semibold">Unlimited</p></div></div>
           <Button variant="outline" size="sm" render={<Link to="/admin/credits" />}>Manage credits<ArrowRight /></Button>
         </CardContent>
       </Card>

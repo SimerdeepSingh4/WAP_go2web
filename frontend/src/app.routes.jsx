@@ -13,6 +13,7 @@ import UserSettings from "./features/user/pages/Settings.jsx";
 import ResellerUsers from "./features/reseller/pages/Users.jsx";
 import ResellerCredits from "./features/reseller/pages/Credits.jsx";
 import ResellerCampaigns from "./features/reseller/pages/Campaigns.jsx";
+import ResellerSettings from "./features/reseller/pages/Settings.jsx";
 import PreviewBanner from "./components/PreviewBanner.jsx";
 
 import { lazy, Suspense } from "react";
@@ -21,6 +22,7 @@ import AdminAccess from "./features/admin/components/AdminAccess.jsx";
 const AdminLayout = lazy(() => import("./features/admin/components/AdminLayout.jsx"));
 const AdminOverview = lazy(() => import("./features/admin/pages/Overview.jsx"));
 const AdminCampaigns = lazy(() => import("./features/admin/pages/Campaigns.jsx"));
+const AdminContacts = lazy(() => import("./features/admin/pages/Contacts.jsx"));
 const AdminAccounts = lazy(() => import("./features/admin/pages/Accounts.jsx"));
 const AdminCredits = lazy(() => import("./features/admin/pages/Credits.jsx"));
 const AdminOperatingRules = lazy(() => import("./features/admin/pages/OperatingRules.jsx"));
@@ -34,11 +36,11 @@ function Dashboard() {
     const getRoleBadgeColor = (role) => {
     switch (role) {
       case "Super Admin":
-        return "bg-purple-100 text-purple-700 border-purple-200";
+        return "bg-stone-100 text-stone-900 border-stone-300";
       case "Reseller":
-        return "bg-blue-100 text-blue-700 border-blue-200";
+        return "bg-orange-50 text-orange-800 border-orange-200";
       default:
-        return "bg-emerald-100 text-emerald-700 border-emerald-200";
+        return "bg-emerald-50 text-emerald-800 border-emerald-200";
     }
   };
 
@@ -56,11 +58,11 @@ function Dashboard() {
 
 
   return (
-    <div className="min-h-screen bg-[#fafbf8] p-8">
+    <div className="min-h-screen bg-[#faf8f5] p-8">
       <div className="max-w-5xl mx-auto space-y-6">
-        <div className="bg-white rounded-xl border border-[#dde3d5] p-6 shadow-sm">
+        <div className="bg-white rounded-xl border border-[#e7e4dc] p-6 shadow-xs">
           <div className="flex items-center justify-between mb-2">
-            <h1 className="text-2xl font-bold text-[#334331]">Welcome, {user?.username}!</h1>
+            <h1 className="text-2xl font-bold text-[#1c1917]">Welcome, {user?.username}!</h1>
             <span
               className={`px-3 py-0.5 text-xs font-semibold rounded-full border ${getRoleBadgeColor(
                 user?.role
@@ -69,23 +71,23 @@ function Dashboard() {
               Role: {user?.role}
             </span>
           </div>
-          <p className="text-sm text-[#68765a] mb-5">Email: {user?.email}</p>
+          <p className="text-sm text-[#78716c] mb-5">Email: {user?.email}</p>
 
           {/* Quick RBAC navigation test links */}
-          <div className="mb-6 p-4 rounded-lg bg-[#f6f8f2] border border-[#e1e7d8]">
-            <p className="text-xs font-semibold uppercase tracking-wider text-[#637259] mb-3">
+          <div className="mb-6 p-4 rounded-lg bg-[#f4f1ea] border border-[#e7e4dc]">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[#ea580c] mb-3">
               Test Role-Based Access Control (RBAC):
             </p>
             <div className="flex flex-wrap gap-2.5">
               <Link
                 to="/admin"
-                className="inline-flex items-center px-3 py-1.5 rounded-md bg-white border border-[#cfd8c7] text-xs font-medium text-[#2d3a2b] hover:border-[#315e48] transition-colors"
+                className="inline-flex items-center px-3 py-1.5 rounded-md bg-white border border-[#e7e4dc] text-xs font-medium text-[#1c1917] hover:border-[#ea580c] transition-colors"
               >
                 Go to /admin (Super Admin only)
               </Link>
               <Link
                 to="/reseller"
-                className="inline-flex items-center px-3 py-1.5 rounded-md bg-white border border-[#cfd8c7] text-xs font-medium text-[#2d3a2b] hover:border-[#315e48] transition-colors"
+                className="inline-flex items-center px-3 py-1.5 rounded-md bg-white border border-[#e7e4dc] text-xs font-medium text-[#1c1917] hover:border-[#ea580c] transition-colors"
               >
                 Go to /reseller (Reseller + Admin)
               </Link>
@@ -96,14 +98,14 @@ function Dashboard() {
             <button
               onClick={() => logout()}
               disabled={isLoggingOut || isLoggingOutAll}
-              className="px-4 py-2 bg-[#a13d35] text-white text-sm font-medium rounded-md hover:bg-[#852f28] cursor-pointer disabled:opacity-50 transition-colors"
+              className="px-4 py-2 bg-[#18181b] text-white text-sm font-medium rounded-md hover:bg-[#27272a] cursor-pointer disabled:opacity-50 transition-colors shadow-xs"
             >
               {isLoggingOut ? "Logging out..." : "Log out"}
             </button>
             <button
               onClick={() => logoutAll()}
               disabled={isLoggingOut || isLoggingOutAll}
-              className="px-4 py-2 border border-[#a13d35] text-[#a13d35] hover:bg-[#fcf0ed] text-sm font-medium rounded-md cursor-pointer disabled:opacity-50 transition-colors"
+              className="px-4 py-2 border border-[#e7e4dc] text-[#1c1917] hover:bg-[#f4f1ea] text-sm font-medium rounded-md cursor-pointer disabled:opacity-50 transition-colors"
             >
               {isLoggingOutAll ? "Logging out all..." : "Log out from all devices"}
             </button>
@@ -124,8 +126,8 @@ function ProtectedRoute({ children }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#fafbf8] text-[#315e48]">
-        <div className="animate-spin size-8 border-4 border-[#315e48] border-t-transparent rounded-full" />
+      <div className="min-h-screen flex items-center justify-center bg-[#faf8f5] text-[#18181b]">
+        <div className="animate-spin size-8 border-4 border-[#18181b] border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -147,8 +149,8 @@ function PublicRoute({ children }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#fafbf8] text-[#315e48]">
-        <div className="animate-spin size-8 border-4 border-[#315e48] border-t-transparent rounded-full" />
+      <div className="min-h-screen flex items-center justify-center bg-[#faf8f5] text-[#18181b]">
+        <div className="animate-spin size-8 border-4 border-[#18181b] border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -183,6 +185,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <AdminOverview /> },
       { path: "campaigns", element: <AdminCampaigns /> },
+      { path: "contacts", element: <AdminContacts /> },
       { path: "reports", element: <AdminCampaigns reports /> },
       { path: "resellers", element: <AdminAccounts key="resellers" role="Reseller" /> },
       { path: "users", element: <AdminAccounts key="users" role="User" /> },
@@ -203,7 +206,7 @@ export const router = createBrowserRouter([
         { path: "users", element: <ResellerUsers /> },
         { path: "credits", element: <ResellerCredits key="credits" /> },
         { path: "activity", element: <ResellerCredits key="activity" activity /> },
-        { path: "settings", element: <AdminOperatingRules /> },
+        { path: "settings", element: <ResellerSettings /> },
       ],
     },
     { path: "/user", element: (

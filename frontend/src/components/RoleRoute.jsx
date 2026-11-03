@@ -53,8 +53,8 @@ export default function RoleRoute({ allowedRoles = [], children }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#fafbf8] text-[#315e48]">
-        <div className="animate-spin size-8 border-4 border-[#315e48] border-t-transparent rounded-full" />
+      <div className="min-h-screen flex items-center justify-center bg-[#faf8f5] text-[#18181b]">
+        <div className="animate-spin size-8 border-4 border-[#18181b] border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -69,9 +69,9 @@ export default function RoleRoute({ allowedRoles = [], children }) {
   // Check role with hierarchy inheritance and preview check
   if (!hasRolePermission(user.role, allowedRoles, originalRole)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#fafbf8] px-6 py-12">
-        <div className="max-w-md w-full bg-white rounded-xl border border-[#eed5cf] p-8 text-center shadow-sm">
-          <div className="mx-auto size-12 grid place-items-center rounded-full bg-[#fcf0ed] text-[#a13d35] mb-4">
+      <div className="min-h-screen flex items-center justify-center bg-[#faf8f5] px-6 py-12">
+        <div className="max-w-md w-full bg-white rounded-xl border border-[#e7e4dc] p-8 text-center shadow-xs">
+          <div className="mx-auto size-12 grid place-items-center rounded-full bg-[#fef2f2] text-[#b91c1c] mb-4">
             <svg
               className="size-6"
               viewBox="0 0 24 24"
@@ -85,11 +85,11 @@ export default function RoleRoute({ allowedRoles = [], children }) {
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-[#2b3328] mb-2">Access Restricted</h2>
-          <p className="text-sm text-[#66725e] mb-4">
-            Your current account role is <span className="font-semibold text-[#a13d35]">{user.role}</span>.
+          <h2 className="text-xl font-bold text-[#1c1917] mb-2">Access Restricted</h2>
+          <p className="text-sm text-[#78716c] mb-4">
+            Your current account role is <span className="font-semibold text-[#b91c1c]">{user.role}</span>.
             This area requires:{" "}
-            <span className="font-semibold text-[#315e48]">{allowedRoles.join(" or ")}</span>.
+            <span className="font-semibold text-[#1c1917]">{allowedRoles.join(" or ")}</span>.
           </p>
 
           <div className="flex flex-col gap-2.5">
@@ -97,7 +97,7 @@ export default function RoleRoute({ allowedRoles = [], children }) {
               <button
                 onClick={() => exitMutation.mutate()}
                 disabled={exitMutation.isPending}
-                className="w-full inline-flex items-center justify-center px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-stone-950 text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                className="w-full inline-flex items-center justify-center px-4 py-2.5 bg-[#ea580c] hover:bg-[#c2410c] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
               >
                 {exitMutation.isPending ? "Restoring Account..." : "Exit Preview & Return to Admin Panel ✕"}
               </button>
@@ -105,7 +105,7 @@ export default function RoleRoute({ allowedRoles = [], children }) {
 
             <Link
               to="/"
-              className="inline-flex items-center justify-center px-4 py-2 bg-[#315e48] text-white text-xs font-semibold rounded-lg hover:bg-[#254b38] transition-colors"
+              className="inline-flex items-center justify-center px-4 py-2 bg-[#18181b] text-white text-xs font-semibold rounded-lg hover:bg-[#27272a] transition-colors"
             >
               ← Return to Dashboard
             </Link>

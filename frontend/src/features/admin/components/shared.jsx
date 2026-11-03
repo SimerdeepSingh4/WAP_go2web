@@ -15,10 +15,20 @@ export function PageHeading({ title, description, action }) {
 }
 
 export function StatusBadge({ status }) {
-  const tone = ["active", "completed", "sent"].includes(status) ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-    : ["pending", "scheduled", "paused"].includes(status) ? "border-amber-200 bg-amber-50 text-amber-800"
-      : ["failed", "blocked"].includes(status) ? "border-red-200 bg-red-50 text-red-800"
-        : status === "ongoing" ? "border-blue-200 bg-blue-50 text-blue-800" : "bg-muted text-muted-foreground";
+  const tone = ["active", "completed", "sent"].includes(status)
+    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+    : status === "pending"
+    ? "border-amber-200 bg-amber-50 text-amber-800"
+    : status === "scheduled"
+    ? "border-sky-200 bg-sky-50 text-sky-800"
+    : status === "ongoing"
+    ? "border-blue-200 bg-blue-50 text-blue-800 font-medium"
+    : status === "stopped"
+    ? "border-stone-300 bg-stone-100 text-stone-800"
+    : ["failed", "blocked"].includes(status)
+    ? "border-red-200 bg-red-50 text-red-800"
+    : "bg-muted text-muted-foreground";
+
   return <Badge variant="outline" className={`rounded-md font-normal ${tone}`}>{statusLabels[status] || status}</Badge>;
 }
 

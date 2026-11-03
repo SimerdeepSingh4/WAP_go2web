@@ -8,6 +8,7 @@ import {
     updateRate,
     requestCredits,
     reconcileCreditBalance,
+    updateCreditExpiry,
 } from "../controllers/credit.controller.js";
 import {
     protect,
@@ -75,6 +76,14 @@ creditRouter.patch(
     authorizeRoles("Super Admin", "Reseller"),
     blockInPreviewMode("Rate update"),
     updateRate
+);
+
+// POST /api/credits/update-expiry — Super Admin can update expiry or lock status of any wallet
+creditRouter.post(
+    "/update-expiry",
+    authorizeRoles("Super Admin"),
+    blockInPreviewMode("Update credit expiry"),
+    updateCreditExpiry
 );
 
 export default creditRouter;
