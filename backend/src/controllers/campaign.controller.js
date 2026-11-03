@@ -9,6 +9,233 @@ import path from "path";
 import cloudinary from "../config/cloudinary.config.js";
 import { notifyUser, notifyRole, notifyReseller } from "../services/socket.service.js";
 import { scheduleCampaignJob, cancelCampaignJob } from "../queues/campaign.queue.js";
+import xlsx from "xlsx";
+
+const REPORT_CATEGORIES = [
+    "whatsapp_successful",
+    "non_whatsapp_failed",
+    "spam",
+];
+
+const REPORT_CATEGORY_LABELS = {
+    whatsapp_successful: "WhatsApp Successful",
+    non_whatsapp_failed: "Non-WhatsApp Failed",
+    spam: "Spam",
+};
+
+function makeWorkbookBuffer(rows, sheetName) {
+    const workbook = xlsx.utils.book_new();
+    const worksheet = xlsx.utils.aoa_to_sheet(rows);
+    xlsx.utils.book_append_sheet(workbook, worksheet, sheetName);
+    return xlsx.write(workbook, { type: "buffer", bookType: "xlsx" });
+}
+
+async function findCampaignForReport(req, id) {
+    const campaign = await campaignModel.findById(id).populate("userId", "username email role resellerId");
+    if (!campaign) return { error: { status: 404, message: "Campaign not found." } };
+
+    const ownsCampaign = String(campaign.userId._id) === String(req.user._id);
+    const isSuperAdmin = req.user.role === "Super Admin";
+    const isAssignedReseller = req.user.role === "Reseller" &&
+        String(campaign.userId.resellerId || "") === String(req.user._id);
+
+    if (!ownsCampaign && !isSuperAdmin && !isAssignedReseller) {
+        return { error: { status: 403, message: "You cannot access this campaign report." } };
+    }
+    return { campaign };
+}
+
+export const downloadRecipientReportTemplate = async (req, res) => {
+    try {
+        const campaign = await campaignModel.findById(req.params.id).select("campaignTitle recipients");
+        if (!campaign) return res.status(404).json({ success: false, message: "Campaign not found." });
+
+        const rows = [
+            ["Phone Number", "Status"],
+            ...(campaign.recipients || []).map((recipient) => [recipient.phoneNumber || "", ""]),
+        ];
+        const buffer = makeWorkbookBuffer(rows, "Recipient Report");
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", `attachment; filename="${campaign._id}-recipient-report-template.xlsx"`);
+        return res.send(buffer);
+    } catch (error) {
+        console.error("Download recipient report template error:", error);
+        return res.status(500).json({ success: false, message: "Failed to create report template." });
+    }
+};
+
+export const uploadRecipientReport = async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ success: false, message: "Upload an .xlsx report file." });
+
+        const campaign = await campaignModel.findById(req.params.id).select("campaignTitle userId recipients recipientReport");
+        if (!campaign) return res.status(404).json({ success: false, message: "Campaign not found." });
+
+        const workbook = xlsx.read(req.file.buffer, { type: "buffer", cellDates: false });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        if (!firstSheet) return res.status(400).json({ success: false, message: "The workbook has no worksheet." });
+        const rows = xlsx.utils.sheet_to_json(firstSheet, { defval: "", raw: false });
+        if (!rows.length) return res.status(400).json({ success: false, message: "The report worksheet is empty." });
+
+        const header = (value) => String(value).trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+        const columns = Object.keys(rows[0]);
+        const phoneColumn = columns.find((column) => ["phonenumber", "phone", "number", "mobile"].includes(header(column)));
+        const statusColumn = columns.find((column) => ["status", "category", "result"].includes(header(column)));
+        const categoryByInput = new Map([
+            ["whatsappsuccessful", "whatsapp_successful"],
+            ["whatsappsuccessfully", "whatsapp_successful"],
+            ["nonwhatsappfailed", "non_whatsapp_failed"],
+            ["spam", "spam"],
+        ]);
+        const categoryColumns = new Map(
+            columns
+                .map((column) => [categoryByInput.get(header(column)), column])
+                .filter(([category]) => category)
+        );
+        const hasThreeCategoryColumns = REPORT_CATEGORIES.every((category) =>
+            [...categoryColumns.keys()].includes(category)
+        );
+        const hasNumberAndStatusColumns = Boolean(phoneColumn && statusColumn);
+        if (!hasThreeCategoryColumns && !hasNumberAndStatusColumns) {
+            return res.status(400).json({
+                success: false,
+                message: "Use columns WhatsApp Successful, Non-WhatsApp Failed, and Spam, or the Phone Number and Status template.",
+            });
+        }
+
+        const originalRecipients = (campaign.recipients || []).map((recipient) => ({
+            phoneNumber: String(recipient.phoneNumber || "").replace(/\D/g, ""),
+        }));
+        const originalNumbers = new Set(originalRecipients.map((recipient) => recipient.phoneNumber));
+        const uploadedByNumber = new Map();
+        const errors = [];
+
+        function addReportNumber(rawValue, category, rowIndex) {
+            const phoneNumber = String(rawValue || "").replace(/\D/g, "");
+            if (!phoneNumber) return;
+            if (!originalNumbers.has(phoneNumber)) {
+                errors.push(`Row ${rowIndex + 2}: ${phoneNumber} is not in this campaign.`);
+                return;
+            }
+            if (uploadedByNumber.has(phoneNumber)) {
+                errors.push(`Row ${rowIndex + 2}: ${phoneNumber} appears more than once.`);
+                return;
+            }
+            uploadedByNumber.set(phoneNumber, category);
+        }
+
+        rows.forEach((row, index) => {
+            if (hasThreeCategoryColumns) {
+                for (const [category, column] of categoryColumns) {
+                    addReportNumber(row[column], category, index);
+                }
+                return;
+            }
+
+            const rawStatus = header(row[statusColumn]);
+            const category = categoryByInput.get(rawStatus);
+            const rawPhone = row[phoneColumn];
+            if (!rawPhone && !rawStatus) return;
+            if (!rawPhone) {
+                errors.push(`Row ${index + 2}: phone number is missing.`);
+                return;
+            }
+            if (!category) {
+                errors.push(`Row ${index + 2}: choose WhatsApp Successful, Non-WhatsApp Failed, or Spam.`);
+                return;
+            }
+            addReportNumber(rawPhone, category, index);
+        });
+
+        for (const recipient of originalRecipients) {
+            if (!uploadedByNumber.has(recipient.phoneNumber)) {
+                errors.push(`Missing status for ${recipient.phoneNumber}.`);
+            }
+        }
+        if (errors.length) {
+            return res.status(400).json({ success: false, message: "Report was not uploaded. Fix the following rows and try again.", errors: errors.slice(0, 25) });
+        }
+
+        campaign.recipientReport = {
+            records: originalRecipients.map(({ phoneNumber }) => ({
+                phoneNumber,
+                category: uploadedByNumber.get(phoneNumber),
+            })),
+            uploadedAt: new Date(),
+            uploadedBy: req.user._id,
+        };
+        await campaign.save();
+
+        notifyUser(campaign.userId, "CAMPAIGN_UPDATED", {
+            campaignId: campaign._id,
+            campaignTitle: campaign.campaignTitle,
+            recipientReportUploaded: true,
+        });
+        return res.status(200).json({
+            success: true,
+            message: "Recipient report uploaded successfully.",
+            count: campaign.recipientReport.records.length,
+            uploadedAt: campaign.recipientReport.uploadedAt,
+        });
+    } catch (error) {
+        console.error("Upload recipient report error:", error);
+        return res.status(400).json({ success: false, message: error.message || "Could not read the Excel report." });
+    }
+};
+
+export const downloadRecipientReport = async (req, res) => {
+    try {
+        const result = await findCampaignForReport(req, req.params.id);
+        if (result.error) return res.status(result.error.status).json({ success: false, message: result.error.message });
+        const { campaign } = result;
+        const report = campaign.recipientReport;
+        if (!report?.uploadedAt || !report.records?.length) {
+            return res.status(404).json({ success: false, message: "No recipient report has been published for this campaign." });
+        }
+
+        const categoryByNumber = new Map(report.records.map((record) => [record.phoneNumber, record.category]));
+        const orderedRows = [["S.No", "Phone Number", "Status"]];
+        const categoryRows = [[
+            REPORT_CATEGORY_LABELS.whatsapp_successful,
+            REPORT_CATEGORY_LABELS.non_whatsapp_failed,
+            REPORT_CATEGORY_LABELS.spam,
+        ]];
+        for (const [index, recipient] of (campaign.recipients || []).entries()) {
+            const phoneNumber = String(recipient.phoneNumber || "");
+            const category = categoryByNumber.get(phoneNumber);
+            orderedRows.push([
+                index + 1,
+                phoneNumber,
+                REPORT_CATEGORY_LABELS[category] || "",
+            ]);
+            categoryRows.push(REPORT_CATEGORIES.map((item) => item === category ? phoneNumber : ""));
+        }
+
+        const workbook = xlsx.utils.book_new();
+        xlsx.utils.book_append_sheet(workbook, xlsx.utils.aoa_to_sheet(orderedRows), "Ordered Report");
+        xlsx.utils.book_append_sheet(workbook, xlsx.utils.aoa_to_sheet(categoryRows), "Status Columns");
+        const summary = campaign.campaignSummary || {};
+        const totalsRows = [
+            ["Delivery totals", "Count"],
+            ["Sent", Number(summary.sent) || 0],
+            ["Delivered", Number(summary.delivered) || 0],
+            ["Read", Number(summary.read) || 0],
+            ["Failed", Number(summary.failed) || 0],
+            [],
+            ["Report published", summary.reportedAt ? new Date(summary.reportedAt).toISOString() : "Not published"],
+            ["Admin note", summary.adminNotes || ""],
+        ];
+        xlsx.utils.book_append_sheet(workbook, xlsx.utils.aoa_to_sheet(totalsRows), "Delivery Totals");
+        const buffer = xlsx.write(workbook, { type: "buffer", bookType: "xlsx" });
+        const safeTitle = String(campaign.campaignTitle || "campaign-report").replace(/[^a-z0-9_-]+/gi, "-");
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", `attachment; filename="${safeTitle}-report.xlsx"`);
+        return res.send(buffer);
+    } catch (error) {
+        console.error("Download recipient report error:", error);
+        return res.status(500).json({ success: false, message: "Failed to download recipient report." });
+    }
+};
 
 export const createCampaign = async (req, res) => {
     const mongoSession = await mongoose.startSession();
@@ -498,7 +725,7 @@ export const getCampaigns = async (req, res) => {
 
         const campaigns = await campaignModel
             .find(filter)
-            .select("-recipients")
+            .select("-recipients -recipientReport.records")
             .populate("userId", "username email role")
             .sort({ createdAt: -1 });
 
