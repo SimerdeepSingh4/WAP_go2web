@@ -5,6 +5,7 @@ import {
     createUser,
     impersonateUser,
     exitPreviewMode,
+    getCurrentUser,
 } from "../controllers/user.controller.js";
 import { protect, authorizeRoles } from "../middlewares/auth.middleware.js";
 
@@ -12,6 +13,8 @@ const userRouter = Router();
 
 // All routes require authentication
 userRouter.use(protect);
+// Get current logged‑in user
+userRouter.get("/me", getCurrentUser);
 
 // Exit preview mode (any manager currently in preview mode)
 userRouter.post("/exit-preview", exitPreviewMode);

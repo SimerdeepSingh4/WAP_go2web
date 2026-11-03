@@ -118,7 +118,7 @@ export const deleteTemplate = async (req, res) => {
     }
 };
 
-export default {
+export default {  
     createTemplate,
     getTemplates,
     getTemplateById,

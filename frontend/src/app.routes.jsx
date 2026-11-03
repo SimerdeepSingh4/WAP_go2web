@@ -5,6 +5,11 @@ import ActiveDevices from "./features/auth/components/ActiveDevices.jsx";
 import RoleRoute from "./components/RoleRoute.jsx";
 import ResellerOverview from "./features/reseller/pages/Overview.jsx";
 import ResellerLayout from "./features/reseller/components/ResellerLayout.jsx";
+import UserLayout from "./features/user/components/UserLayout.jsx";
+import UserOverview from "./features/user/pages/UserOverview.jsx";
+import UserCredits from "./features/user/pages/Credits.jsx";
+import UserActivity from "./features/user/pages/UserActivity.jsx";
+import UserSettings from "./features/user/pages/Settings.jsx";
 import ResellerUsers from "./features/reseller/pages/Users.jsx";
 import ResellerCredits from "./features/reseller/pages/Credits.jsx";
 import ResellerCampaigns from "./features/reseller/pages/Campaigns.jsx";
@@ -26,11 +31,7 @@ function Dashboard() {
   if (user?.role === "Super Admin" && !user?.isPreview) {
   return <Navigate to="/admin" replace />;
 }
-if (user?.role === "Reseller") {
-  return <Navigate to="/reseller" replace />;
-}
-
-  const getRoleBadgeColor = (role) => {
+    const getRoleBadgeColor = (role) => {
     switch (role) {
       case "Super Admin":
         return "bg-purple-100 text-purple-700 border-purple-200";
@@ -40,6 +41,19 @@ if (user?.role === "Reseller") {
         return "bg-emerald-100 text-emerald-700 border-emerald-200";
     }
   };
+
+  if (user?.role === "Reseller") {
+    return <Navigate to="/reseller" replace />;
+  }
+  if (user?.role === "User") {
+    return <Navigate to="/user" replace />;
+  }
+  return <Navigate to="/" replace />;
+
+
+
+
+
 
   return (
     <div className="min-h-screen bg-[#fafbf8] p-8">
@@ -178,7 +192,7 @@ export const router = createBrowserRouter([
     ],
   },
   { path: "/reseller", element: (
-        <RoleRoute allowedRoles={["Super Admin", "Reseller"]}>
+                <RoleRoute allowedRoles={["Super Admin", "Reseller", "User"]}>
           <ResellerLayout />
         </RoleRoute>
       ),
@@ -191,6 +205,18 @@ export const router = createBrowserRouter([
         { path: "activity", element: <ResellerCredits key="activity" activity /> },
         { path: "settings", element: <AdminOperatingRules /> },
       ],
+    },
+    { path: "/user", element: (
+        <RoleRoute allowedRoles={["User"]}>
+          <UserLayout />
+        </RoleRoute>
+      ),
+      children: [
+        { index: true, element: <UserOverview /> },
+        { path: "credits", element: <UserCredits /> },
+        { path: "activity", element: <UserActivity /> },
+        { path: "settings", element: <UserSettings /> }
+      ]
     },
   {
     path: "/login",

@@ -92,6 +92,30 @@ export async function getUserById(req, res) {
     }
 }
 
+// New controller: Get current logged‑in user ("/api/users/me")
+export async function getCurrentUser(req, res) {
+    try {
+        // req.user is populated by the protect middleware
+        const user = await userModel.findById(req.user._id).select("-password");
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found",
+                success: false,
+            });
+        }
+        return res.status(200).json({
+            success: true,
+            user,
+        });
+    } catch (error) {
+        console.error("GetCurrentUser error:", error);
+        return res.status(500).json({
+            message: "Failed to fetch current user",
+            success: false,
+        });
+    }
+}
+
 /**
  * Create a new user under a Reseller.
  */

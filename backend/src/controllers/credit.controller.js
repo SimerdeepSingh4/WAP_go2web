@@ -325,6 +325,35 @@ export async function allocateCredits(req, res) {
         });
     }
 }
+// New: User requests credits (creates a pending transaction)
+export async function requestCredits(req, res) {
+  try {
+    const { amount, note } = req.body;
+    const creditAmount = Number(amount);
+    if (isNaN(creditAmount) || creditAmount <= 0) {
+      return res.status(400).json({ message: "Invalid credit amount.", success: false });
+    }
+    // Create a pending request transaction
+    const transaction = await transactionModel.create([
+      {
+        fromUser: null,
+        toUser: req.user._id,
+        amount: creditAmount,
+        type: "REQUEST",
+        notes: note || "",
+        performedBy: req.user._id,
+      },
+    ]);
+    return res.status(200).json({
+      success: true,
+      message: `Credit request of ${creditAmount} submitted.`,
+      transaction: transaction[0],
+    });
+  } catch (error) {
+    console.error("RequestCredits error:", error);
+    return res.status(500).json({ message: "Internal server error", success: false });
+  }
+}
 
 /**
  * POST /api/credits/reclaim
@@ -503,7 +532,15 @@ export async function deductCredits(req, res) {
     mongoSession.startTransaction();
 
     try {
-        const { userId, messageCount, amount, notes } = req.body;
+        const { userId: bodyUserId, messageCount, amount, notes } = req.body;
+        const userId = bodyUserId || req.user._id;
+
+        // Ensure at least one of amount or messageCount is supplied
+        if ((amount === undefined || amount === null || amount === "") && (messageCount === undefined || messageCount === null || messageCount === "")) {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
+            return res.status(400).json({ message: "Provide either 'amount' or 'messageCount'.", success: false });
+        }
 
         if (!userId) {
             await mongoSession.abortTransaction();

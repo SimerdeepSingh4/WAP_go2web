@@ -6,6 +6,7 @@ import {
     deductCredits,
     getTransactions,
     updateRate,
+    requestCredits,
     reconcileCreditBalance,
 } from "../controllers/credit.controller.js";
 import {
@@ -35,6 +36,13 @@ creditRouter.post(
     authorizeRoles("Super Admin", "Reseller"),
     blockInPreviewMode("Credit allocation"),
     allocateCredits
+);
+
+// POST /api/credits/request — User requests credits (creates a pending transaction)
+creditRouter.post(
+    "/request",
+    blockInPreviewMode("Credit request"),
+    requestCredits
 );
 
 // POST /api/credits/reclaim — Super Admin emergency administrative recall ONLY

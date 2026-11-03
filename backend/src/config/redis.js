@@ -14,7 +14,7 @@ export const redisClient = new Redis(redisConnection);
 redisClient.on("connect", () => {
     console.log("Redis client connected for BullMQ queue operations");
 });
-
+ 
 redisClient.on("error", (err) => {
     console.error("Redis client error:", err.message);
 });
