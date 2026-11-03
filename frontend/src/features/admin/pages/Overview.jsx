@@ -6,22 +6,26 @@ import { useAdminQuery } from "../hooks/useAdmin";
 import { QueryState } from "../components/shared";
 import { number } from "../lib/format";
 
-import { RecentCampaigns, AccountList } from "@/components/dashboard/OverviewPanels";
+import { RecentCampaigns, AccountList, RecentTransactions } from "@/components/dashboard/OverviewPanels";
 import { toast } from "@/components/ui/toast";
 
 export default function Overview() {
   const overview = useAdminQuery("overview");
   const campaignsQuery = useAdminQuery("campaigns");
   const accountsQuery = useAdminQuery("accounts");
+  const transactionsQuery = useAdminQuery("transactions", { limit: 5 });
+
   const stats = overview.data?.stats;
-  const refreshing = [overview, campaignsQuery, accountsQuery].some((query) => query.isFetching);
-  const updated = overview.dataUpdatedAt
-    ? new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" }).format(overview.dataUpdatedAt)
-    : null;
+  const refreshing = [overview, campaignsQuery, accountsQuery, transactionsQuery].some((query) => query.isFetching);
 
   async function refresh() {
     try {
-      const results = await Promise.all([overview.refetch(), campaignsQuery.refetch(), accountsQuery.refetch()]);
+      const results = await Promise.all([
+        overview.refetch(),
+        campaignsQuery.refetch(),
+        accountsQuery.refetch(),
+        transactionsQuery.refetch(),
+      ]);
       if (results.some((result) => result.isError)) throw new Error("Some dashboard data could not be refreshed.");
       toast.add({ title: "Overview refreshed", type: "success" });
     } catch (error) {
@@ -31,27 +35,32 @@ export default function Overview() {
 
   const metrics = [
     { label: "Total campaigns", value: stats?.campaigns?.totalCampaigns, caption: "Across all accounts", icon: Megaphone, path: "/admin/campaigns" },
-    { label: "Active resellers", value: stats?.accounts?.activeResellers, caption: `${number(stats?.accounts?.totalResellers)} resellers in your network`, icon: Building2, path: "/admin/resellers" },
+    { label: "Active resellers", value: stats?.accounts?.activeResellers, caption: `${number(stats?.accounts?.totalResellers)} resellers in network`, icon: Building2, path: "/admin/resellers" },
     { label: "User accounts", value: stats?.accounts?.totalUsers, caption: "Managed through resellers", icon: Users, path: "/admin/users" },
     { label: "Credits in circulation", value: stats?.credits?.totalCreditsInCirculation, caption: "Combined account balances", icon: Wallet, path: "/admin/credits", accent: true },
   ];
 
   return (
-    <div className="portal-overview">
+    <div className="portal-overview space-y-6">
+      {/* Page Heading & Actions */}
       <header className="portal-page-heading">
         <div className="portal-heading-copy">
           <h1>Overview</h1>
           <p>Review submissions and manage accounts.</p>
         </div>
-        <div className="portal-page-actions">
-          <Button variant="outline" onClick={refresh} disabled={refreshing} aria-busy={refreshing}>
-            <RefreshCw className={refreshing ? "animate-spin motion-reduce:animate-none" : ""} aria-hidden="true" />
+        <div className="portal-page-actions items-center gap-2.5">
+          <Button variant="outline" size="sm" onClick={refresh} disabled={refreshing} aria-busy={refreshing}>
+            <RefreshCw className={refreshing ? "animate-spin motion-reduce:animate-none size-3.5" : "size-3.5"} aria-hidden="true" />
             {refreshing ? "Refreshing…" : "Refresh"}
           </Button>
-          <Button render={<Link to="/admin/credits?allocate=new" />}>Allocate credits<ArrowUpRight aria-hidden="true" /></Button>
+          <Button size="sm" render={<Link to="/admin/credits?allocate=new" />}>
+            Allocate credits
+            <ArrowUpRight aria-hidden="true" className="size-3.5 ml-1" />
+          </Button>
         </div>
       </header>
 
+      {/* High-level Platform Totals */}
       <section aria-label="Workspace totals">
         <QueryState query={overview}>
           <div className="portal-metrics">
@@ -68,11 +77,14 @@ export default function Overview() {
         </QueryState>
       </section>
 
+      {/* Submissions & Accounts (2 Columns) */}
       <div className="dashboard-two-column">
         <RecentCampaigns query={campaignsQuery} base="/admin" pendingOnly showOwner />
         <AccountList query={accountsQuery} base="/admin" role="Reseller" />
       </div>
-      {updated && <p className="portal-updated">Last refreshed {updated} IST</p>}
+
+      {/* Recent Financial / Credit Movements Ledger */}
+      <RecentTransactions query={transactionsQuery} base="/admin" />
     </div>
   );
 }

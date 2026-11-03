@@ -34,3 +34,99 @@ export function AccountList({ query, base, role }) {
     </QueryState>
   </section>;
 }
+
+export function RecentTransactions({ query, base }) {
+  const transactions = query.data?.transactions || [];
+  const rows = transactions.slice(0, 5);
+  return (
+    <section className="dashboard-section">
+      <div className="dashboard-section-heading">
+        <div>
+          <h2>Recent credit movements</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Audited allocation and adjustment ledger</p>
+        </div>
+        <Button variant="outline" size="sm" render={<Link to={`${base}/activity`} />}>
+          View all activity
+        </Button>
+      </div>
+      <QueryState
+        query={query}
+        empty={!rows.length}
+        emptyTitle="No transactions recorded"
+        emptyDescription="Credit allocations and adjustments will appear here."
+      >
+        <DataTable
+          caption="Recent credit movements"
+          rows={rows}
+          paginated={false}
+          columns={[
+            {
+              key: "date",
+              label: "Date",
+              render: (t) => <span className="text-xs text-muted-foreground whitespace-nowrap">{dateTime(t.createdAt)}</span>,
+            },
+            {
+              key: "type",
+              label: "Type",
+              render: (t) => {
+                const isReclaim = t.type === "RECLAIM";
+                const isAllocate = t.type === "ALLOCATE";
+                return (
+                  <span
+                    className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium border ${
+                      isReclaim
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                        : isAllocate
+                        ? "border-blue-200 bg-blue-50 text-blue-800"
+                        : "border-border bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {isReclaim ? "Credit Deducted" : isAllocate ? "Credit Added" : t.type}
+                  </span>
+                );
+              },
+            },
+            {
+              key: "account",
+              label: "Account",
+              render: (t) => (
+                <div className="max-w-48 whitespace-normal break-words text-xs">
+                  <span className="font-medium text-foreground">{ownerName(t.toUser)}</span>
+                  {t.fromUser && (
+                    <span className="text-muted-foreground block text-[11px]">from {ownerName(t.fromUser)}</span>
+                  )}
+                </div>
+              ),
+            },
+            {
+              key: "amount",
+              label: "Credits",
+              className: "text-right",
+              render: (t) => {
+                const isReclaim = t.type === "RECLAIM";
+                return (
+                  <span
+                    className={`tabular-nums text-xs font-semibold ${
+                      isReclaim ? "text-emerald-700" : "text-blue-700"
+                    }`}
+                  >
+                    {isReclaim ? "+" : "-"}{number(t.amount)}
+                  </span>
+                );
+              },
+            },
+            {
+              key: "note",
+              label: "Notes",
+              render: (t) => (
+                <span className="text-xs text-muted-foreground line-clamp-1 max-w-xs">
+                  {t.notes || t.description || "—"}
+                </span>
+              ),
+            },
+          ]}
+        />
+      </QueryState>
+    </section>
+  );
+}

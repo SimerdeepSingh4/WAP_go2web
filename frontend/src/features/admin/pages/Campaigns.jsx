@@ -110,11 +110,11 @@ export default function Campaigns({ reports = false }) {
     },
     {
       key: "report",
-      label: reports ? "Last report" : "Report",
+      label: "Report",
       render: (c) =>
         published(c) ? (
           <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-            {reports ? dateTime(c.campaignSummary.reportedAt) : "Published"}
+            Published ({number(c.campaignSummary.delivered)})
           </span>
         ) : (
           <span className="text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded">
