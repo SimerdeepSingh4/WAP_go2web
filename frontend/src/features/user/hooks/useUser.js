@@ -39,7 +39,7 @@ export function useUserQuery(resource, params = {}, enabled = true) {
  */
 export function useUserMutation(action, successMessage, onSuccess) {
   const client = useQueryClient();
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: userActions[action],
     onSuccess: async (data) => {
       toast.add({ title: successMessage, type: "success" });
@@ -53,4 +53,9 @@ export function useUserMutation(action, successMessage, onSuccess) {
     onError: (error) =>
       toast.add({ title: "Changes were not saved", description: error.message, type: "error" }),
   });
+
+  return {
+    ...mutation,
+    isLoading: mutation.isPending,
+  };
 }
