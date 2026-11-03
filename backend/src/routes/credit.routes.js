@@ -46,11 +46,12 @@ creditRouter.post(
     requestCredits
 );
 
-// POST /api/credits/reclaim — Super Admin emergency administrative recall ONLY
-// Reseller transfers are final and irreversible (prevents reseller rug-pull fraud)
+// POST /api/credits/reclaim — Super Admin + Reseller
+// Super Admin: reclaim from any Reseller or User
+// Reseller: reclaim from their own Users only (credits return to reseller wallet)
 creditRouter.post(
     "/reclaim",
-    authorizeRoles("Super Admin"),
+    authorizeRoles("Super Admin", "Reseller"),
     blockInPreviewMode("Credit reclaim"),
     reclaimCredits
 );

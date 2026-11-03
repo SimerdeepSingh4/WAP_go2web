@@ -71,16 +71,16 @@ export default function CampaignDetail({ id, initialReport, initialStatus, onClo
                     <span className="text-xs text-muted-foreground">{ownerName(campaign.userId)}</span>
                   </div>
 
-                  <dl className="grid grid-cols-2 gap-4 text-sm">
+                  <dl className="text-sm divide-y">
                     {[
                       ["Recipients", number(campaign.totalRecipients)],
                       ["Submitted", dateTime(campaign.createdAt)],
-                      ["Requested schedule", campaign.schedule === "later" ? dateTime(campaign.scheduledTime) : "Immediate / As soon as available"],
-                      ["Content type", campaign.messageType || "Standard text"],
+                      ["Schedule", campaign.schedule === "later" ? dateTime(campaign.scheduledTime) : "Immediate"],
+                      ["Type", campaign.messageType || "text"],
                     ].map(([label, value]) => (
-                      <div key={label}>
-                        <dt className="text-xs text-muted-foreground">{label}</dt>
-                        <dd className="mt-1 break-words font-medium">{value}</dd>
+                      <div key={label} className="flex justify-between gap-4 py-2">
+                        <dt className="text-muted-foreground shrink-0">{label}</dt>
+                        <dd className="break-words font-medium text-right">{value}</dd>
                       </div>
                     ))}
                   </dl>
@@ -119,17 +119,12 @@ export default function CampaignDetail({ id, initialReport, initialStatus, onClo
                     )}
                   </section>
 
-                  <section className="space-y-3 border-t pt-5">
+                  <section className="space-y-2 border-t pt-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <h2 className="text-sm font-medium">Campaign Status</h2>
-                        <p className="text-xs text-muted-foreground">
-                          Current status: <strong className="text-foreground">{statusLabels[campaign.status] || campaign.status}</strong>. You can change status at any stage.
-                        </p>
-                      </div>
-                      <Button size="sm" variant="outline" onClick={handleStatusClick} className="gap-1.5">
-                        <Pencil className="size-3.5" />
-                        Change status
+                      <h2 className="text-sm font-medium">Campaign Status</h2>
+                      <Button size="sm" variant="outline" onClick={handleStatusClick} className="gap-1.5 h-7 text-xs">
+                        <Pencil className="size-3" />
+                        {statusLabels[campaign.status] || campaign.status}
                       </Button>
                     </div>
                   </section>
@@ -267,12 +262,8 @@ export default function CampaignDetail({ id, initialReport, initialStatus, onClo
 
       {campaign && action === "status" && (
         <ActionForm
-          title="Change Campaign Status"
-          description={
-            isFinalized
-              ? `Warning: This campaign was already marked as ${statusLabels[campaign.status] || campaign.status}.`
-              : "Choose the new status for this campaign."
-          }
+          title="Update Status"
+          description={`Campaign: ${campaign.campaignTitle}`}
           action="status"
           successMessage="Campaign status updated"
           onClose={() => setAction(null)}
@@ -297,16 +288,15 @@ export default function CampaignDetail({ id, initialReport, initialStatus, onClo
             <>
               <p className="font-medium">{campaign.campaignTitle}</p>
               <p className="text-sm">
-                Status will change from{" "}
-                <strong className="text-foreground">{statusLabels[campaign.status] || campaign.status}</strong>{" "}
-                → <strong className="text-primary">{statusLabels[values.status] || values.status}</strong>
+                <span className="text-muted-foreground">Status: </span>
+                <strong>{statusLabels[campaign.status] || campaign.status}</strong>
+                {" → "}
+                <strong className="text-primary">{statusLabels[values.status] || values.status}</strong>
               </p>
               {isFinalized && (
                 <div className="rounded-md border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-900 mt-2 flex items-start gap-2">
                   <AlertTriangle className="size-4 shrink-0 text-amber-600 mt-0.5" />
-                  <span>
-                    Warning: You are modifying a previously <strong>{statusLabels[campaign.status]}</strong> campaign.
-                  </span>
+                  <span>This campaign was already <strong>{statusLabels[campaign.status]}</strong>. Changing it will reopen it.</span>
                 </div>
               )}
             </>

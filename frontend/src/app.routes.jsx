@@ -114,8 +114,6 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <AdminOverview /> },
       { path: "campaigns", element: <AdminCampaigns /> },
-      { path: "campaigns/create", element: <CreateCampaignPage /> },
-      { path: "campaigns/new", element: <CreateCampaignPage /> },
       { path: "contacts", element: <AdminContacts /> },
       { path: "reports", element: <AdminCampaigns reports /> },
       { path: "administrators", element: <Administrators /> },
@@ -166,17 +164,17 @@ export const router = createBrowserRouter([
   {
     path: "/campaigns/create",
     element: (
-      <ProtectedRoute>
+      <RoleRoute allowedRoles={["Reseller", "User"]}>
         <CreateCampaignPage />
-      </ProtectedRoute>
+      </RoleRoute>
     ),
   },
   {
     path: "/campaigns/new",
     element: (
-      <ProtectedRoute>
+      <RoleRoute allowedRoles={["Reseller", "User"]}>
         <CreateCampaignPage />
-      </ProtectedRoute>
+      </RoleRoute>
     ),
   },
   {

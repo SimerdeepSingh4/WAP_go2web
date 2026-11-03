@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, NavLink, Navigate, Outlet, useLocation } from "react-router";
-import { LayoutDashboard, Megaphone, Users, Contact, Building2, Wallet, ReceiptText, Settings, LogOut, ChevronDown, MessageSquare } from "lucide-react";
+import { LayoutDashboard, Megaphone, Users, Contact, Building2, Wallet, ReceiptText, Settings, LogOut, ChevronDown } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -22,9 +22,9 @@ function Navigation({ role, base, items }) {
   const { setOpenMobile } = useSidebar();
   return <Sidebar collapsible="icon" className="portal-sidebar">
     <SidebarHeader className="portal-sidebar-header"><SidebarMenu><SidebarMenuItem>
-      <SidebarMenuButton size="lg" render={<Link to={base} aria-label="go2web home" />} onClick={() => setOpenMobile(false)} className="portal-brand">
-        <span className="portal-brand-mark"><MessageSquare aria-hidden="true" /></span>
-        <span className="portal-brand-copy"><strong>go2web<span>.</span></strong><span>{role === "Super Admin" ? "Super admin" : role}</span></span>
+      <SidebarMenuButton size="lg" render={<Link to={base} aria-label="Promotion home" />} onClick={() => setOpenMobile(false)} className="portal-brand">
+        <span className="portal-brand-mark"><img src="https://res.cloudinary.com/dyfjy8kmv/image/upload/v1793689940/Navy_Blue_Bird_Chat_Logo_n0udpf.webp" alt="Promotion" className="size-full object-contain" /></span>
+        <span className="portal-brand-copy"><strong>Promotion<span>.</span></strong><span>{role === "Super Admin" ? "Super admin" : role}</span></span>
       </SidebarMenuButton>
     </SidebarMenuItem></SidebarMenu></SidebarHeader>
     <SidebarContent className="portal-sidebar-content"><SidebarGroup className="portal-nav-group"><SidebarGroupContent><SidebarMenu className="gap-1">
@@ -34,7 +34,7 @@ function Navigation({ role, base, items }) {
         </SidebarMenuButton>
       </SidebarMenuItem>)}
     </SidebarMenu></SidebarGroupContent></SidebarGroup></SidebarContent>
-    <div className="portal-sidebar-footer"><p>go2web · {role === "Super Admin" ? "Super admin" : role}</p></div>
+    <div className="portal-sidebar-footer"><p>Promotion · {role === "Super Admin" ? "Super admin" : role}</p></div>
   </Sidebar>;
 }
 
@@ -60,7 +60,7 @@ export default function DashboardLayout({ role }) {
       <SidebarInset className="portal-inset">
         <header className="portal-topbar">
           <div className="portal-breadcrumb"><SidebarTrigger aria-label="Toggle navigation" className="portal-sidebar-trigger" /><span className="portal-breadcrumb-divider" aria-hidden="true" /><span className="portal-breadcrumb-current">{page}</span></div>
-          <DropdownMenu><DropdownMenuTrigger render={<Button variant="ghost" className="portal-account" aria-label={`Account menu for ${username}`} />}>
+          <DropdownMenu><DropdownMenuTrigger render={<Button variant="ghost" className="portal-account h-auto py-1 px-2.5 rounded-lg" aria-label={`Account menu for ${username}`} />}>
             <Avatar className="portal-account-avatar"><AvatarFallback>{username.slice(0, 2).toUpperCase()}</AvatarFallback></Avatar>
             <span className="portal-account-copy"><strong>{username}</strong><span>{role === "Super Admin" ? "Super admin" : role}</span></span><ChevronDown aria-hidden="true" className="size-4" />
           </DropdownMenuTrigger><DropdownMenuContent align="end" className="portal-account-menu">

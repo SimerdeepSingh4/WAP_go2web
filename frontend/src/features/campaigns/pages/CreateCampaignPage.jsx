@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { useNavigate, Link } from "react-router";
+import { useNavigate, Link, Navigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import ReactQuill from "react-quill-new";
 import "react-quill-new/dist/quill.snow.css";
@@ -23,7 +23,6 @@ import {
   Trash2,
   Plus,
   RefreshCw,
-  CheckCheck,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,6 +50,12 @@ function formatFileSize(bytes) {
 export default function CreateCampaignPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  // Super Admin is restricted from creating campaigns
+  if (user?.role === "Super Admin") {
+    return <Navigate to="/admin/campaigns" replace />;
+  }
+
   const [reviewPayload, setReviewPayload] = useState(null);
   const submitting = useRef(false);
   const queryClient = useQueryClient();
@@ -499,33 +504,35 @@ export default function CreateCampaignPage() {
                 Provide an internal name and description to track this broadcast.
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-5 space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="title" className="text-xs font-semibold">
-                  Campaign Title <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="title"
-                  placeholder="e.g. Diwali Fest Special Offer 2026"
-                  value={campaignTitle}
-                  onChange={(e) => setCampaignTitle(e.target.value)}
-                  className="text-sm"
-                  required
-                />
-              </div>
+            <CardContent className="pt-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="title" className="text-xs font-semibold">
+                    Campaign Title <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="title"
+                    placeholder="e.g. Diwali Fest Special Offer 2026"
+                    value={campaignTitle}
+                    onChange={(e) => setCampaignTitle(e.target.value)}
+                    className="text-sm"
+                    required
+                  />
+                </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="description" className="text-xs font-semibold">
-                  Description / Purpose <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="description"
-                  placeholder="e.g. 20% flat discount promotion blast to customer contacts"
-                  value={campaignDescription}
-                  onChange={(e) => setCampaignDescription(e.target.value)}
-                  className="text-sm"
-                  required
-                />
+                <div className="space-y-1.5">
+                  <Label htmlFor="description" className="text-xs font-semibold">
+                    Description / Purpose <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="description"
+                    placeholder="e.g. 20% flat discount promotion blast"
+                    value={campaignDescription}
+                    onChange={(e) => setCampaignDescription(e.target.value)}
+                    className="text-sm"
+                    required
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -606,7 +613,7 @@ export default function CreateCampaignPage() {
             </CardContent>
           </Card>
 
-          {/* Card 3: Attachments (1 Image, 1 Video, 1 PDF nothing else) */}
+          {/* Card 3: Attachments (1 Image, 1 Video, 1 PDF) */}
           <Card className="rounded-xl border shadow-xs">
             <CardHeader className="border-b pb-4">
               <div className="flex items-center justify-between flex-wrap gap-2">
@@ -616,7 +623,7 @@ export default function CreateCampaignPage() {
                     Campaign Attachments
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    Attach 1 Image, 1 Video, and 1 PDF document to your broadcast.
+                    Attach optional media to your broadcast (Max 1 of each type).
                   </CardDescription>
                 </div>
 
@@ -627,22 +634,20 @@ export default function CreateCampaignPage() {
                 )}
               </div>
             </CardHeader>
-            <CardContent className="pt-5 space-y-4">
-              {/* Field 1: Exactly 1 Image */}
-              <div className="rounded-xl border p-3.5 bg-card space-y-2.5">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className="grid size-8 place-items-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                      <ImageIcon className="size-4.5" />
+            <CardContent className="pt-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                {/* 1. Image */}
+                <div className="rounded-xl border p-3.5 bg-card flex flex-col justify-between gap-3">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="grid size-8 place-items-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                        <ImageIcon className="size-4.5" />
+                      </div>
+                      <span className="text-[10px] text-muted-foreground font-medium">Max 5 MB</span>
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                        Image
-                        <span className="text-[10px] text-muted-foreground font-normal">(1 file max)</span>
-                      </Label>
-                      <p className="text-[11px] text-muted-foreground">
-                        PNG, JPG, WebP &bull; Max 5 MB
-                      </p>
+                      <Label className="text-xs font-semibold text-foreground">Image</Label>
+                      <p className="text-[11px] text-muted-foreground">PNG, JPG, WebP</p>
                     </div>
                   </div>
 
@@ -654,65 +659,52 @@ export default function CreateCampaignPage() {
                     className="hidden"
                   />
 
-                  <Button
-                    type="button"
-                    variant={imageFile ? "outline" : "default"}
-                    size="sm"
-                    onClick={() => imageInputRef.current?.click()}
-                    className="h-8 text-xs gap-1.5"
-                  >
-                    {imageFile ? <RefreshCw className="size-3" /> : <Plus className="size-3" />}
-                    {imageFile ? "Change Image" : "Choose Image"}
-                  </Button>
+                  {imageFile ? (
+                    <div className="rounded-lg border bg-muted/30 p-2 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="size-8 rounded overflow-hidden bg-black/5 shrink-0 border">
+                          <img src={imageFile.preview} alt={imageFile.name} className="h-full w-full object-cover" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-foreground truncate max-w-[130px]" title={imageFile.name}>{imageFile.name}</p>
+                          <p className="text-[10px] text-muted-foreground">{formatFileSize(imageFile.size)}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={removeImage}
+                        className="text-destructive hover:bg-destructive/10 p-1 rounded transition-colors shrink-0 cursor-pointer"
+                        title="Remove image"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => imageInputRef.current?.click()}
+                      className="w-full h-8 text-xs gap-1.5"
+                    >
+                      <Plus className="size-3" />
+                      Choose Image
+                    </Button>
+                  )}
                 </div>
 
-                {imageFile && (
-                  <div className="rounded-lg border bg-muted/30 p-2 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="size-10 rounded-md overflow-hidden bg-black/5 shrink-0 border">
-                        <img
-                          src={imageFile.preview}
-                          alt={imageFile.name}
-                          className="h-full w-full object-cover"
-                        />
+                {/* 2. Video */}
+                <div className="rounded-xl border p-3.5 bg-card flex flex-col justify-between gap-3">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="grid size-8 place-items-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                        <VideoIcon className="size-4.5" />
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium text-foreground truncate max-w-[200px]" title={imageFile.name}>
-                          {imageFile.name}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground tabular-nums">
-                          {formatFileSize(imageFile.size)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={removeImage}
-                      className="grid size-7 place-items-center rounded-md text-destructive hover:bg-destructive/10 transition-colors shrink-0 cursor-pointer"
-                      title="Remove image"
-                    >
-                      <Trash2 className="size-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Field 2: Exactly 1 Video */}
-              <div className="rounded-xl border p-3.5 bg-card space-y-2.5">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className="grid size-8 place-items-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
-                      <VideoIcon className="size-4.5" />
+                      <span className="text-[10px] text-muted-foreground font-medium">Max 7 MB</span>
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                        Video
-                        <span className="text-[10px] text-muted-foreground font-normal">(1 file max)</span>
-                      </Label>
-                      <p className="text-[11px] text-muted-foreground">
-                        MP4, MOV, WebM &bull; Max 7 MB
-                      </p>
+                      <Label className="text-xs font-semibold text-foreground">Video</Label>
+                      <p className="text-[11px] text-muted-foreground">MP4, MOV, WebM</p>
                     </div>
                   </div>
 
@@ -724,61 +716,52 @@ export default function CreateCampaignPage() {
                     className="hidden"
                   />
 
-                  <Button
-                    type="button"
-                    variant={videoFile ? "outline" : "default"}
-                    size="sm"
-                    onClick={() => videoInputRef.current?.click()}
-                    className="h-8 text-xs gap-1.5"
-                  >
-                    {videoFile ? <RefreshCw className="size-3" /> : <Plus className="size-3" />}
-                    {videoFile ? "Change Video" : "Choose Video"}
-                  </Button>
+                  {videoFile ? (
+                    <div className="rounded-lg border bg-muted/30 p-2 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="grid size-8 shrink-0 place-items-center rounded bg-sky-500/10 text-sky-600 dark:text-sky-400">
+                          <VideoIcon className="size-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-foreground truncate max-w-[130px]" title={videoFile.name}>{videoFile.name}</p>
+                          <p className="text-[10px] text-muted-foreground">{formatFileSize(videoFile.size)}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={removeVideo}
+                        className="text-destructive hover:bg-destructive/10 p-1 rounded transition-colors shrink-0 cursor-pointer"
+                        title="Remove video"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => videoInputRef.current?.click()}
+                      className="w-full h-8 text-xs gap-1.5"
+                    >
+                      <Plus className="size-3" />
+                      Choose Video
+                    </Button>
+                  )}
                 </div>
 
-                {videoFile && (
-                  <div className="rounded-lg border bg-muted/30 p-2.5 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
-                        <VideoIcon className="size-4.5" />
+                {/* 3. PDF */}
+                <div className="rounded-xl border p-3.5 bg-card flex flex-col justify-between gap-3">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="grid size-8 place-items-center rounded-lg bg-red-500/10 text-red-600 dark:text-red-400">
+                        <FileText className="size-4.5" />
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium text-foreground truncate max-w-[200px]" title={videoFile.name}>
-                          {videoFile.name}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground tabular-nums">
-                          {formatFileSize(videoFile.size)} &bull; Video Clip
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={removeVideo}
-                      className="grid size-7 place-items-center rounded-md text-destructive hover:bg-destructive/10 transition-colors shrink-0 cursor-pointer"
-                      title="Remove video"
-                    >
-                      <Trash2 className="size-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Field 3: Exactly 1 PDF */}
-              <div className="rounded-xl border p-3.5 bg-card space-y-2.5">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className="grid size-8 place-items-center rounded-lg bg-red-500/10 text-red-600 dark:text-red-400">
-                      <FileText className="size-4.5" />
+                      <span className="text-[10px] text-muted-foreground font-medium">Max 5 MB</span>
                     </div>
                     <div>
-                      <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                        PDF Document
-                        <span className="text-[10px] text-muted-foreground font-normal">(1 file max)</span>
-                      </Label>
-                      <p className="text-[11px] text-muted-foreground">
-                        PDF only &bull; Max 5 MB
-                      </p>
+                      <Label className="text-xs font-semibold text-foreground">PDF Document</Label>
+                      <p className="text-[11px] text-muted-foreground">PDF only</p>
                     </div>
                   </div>
 
@@ -790,44 +773,39 @@ export default function CreateCampaignPage() {
                     className="hidden"
                   />
 
-                  <Button
-                    type="button"
-                    variant={pdfFile ? "outline" : "default"}
-                    size="sm"
-                    onClick={() => pdfInputRef.current?.click()}
-                    className="h-8 text-xs gap-1.5"
-                  >
-                    {pdfFile ? <RefreshCw className="size-3" /> : <Plus className="size-3" />}
-                    {pdfFile ? "Change PDF" : "Choose PDF"}
-                  </Button>
-                </div>
-
-                {pdfFile && (
-                  <div className="rounded-lg border bg-muted/30 p-2.5 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 font-bold text-xs">
-                        PDF
+                  {pdfFile ? (
+                    <div className="rounded-lg border bg-muted/30 p-2 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="grid size-8 shrink-0 place-items-center rounded bg-red-500/10 text-red-600 dark:text-red-400 font-bold text-[10px]">
+                          PDF
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-foreground truncate max-w-[130px]" title={pdfFile.name}>{pdfFile.name}</p>
+                          <p className="text-[10px] text-muted-foreground">{formatFileSize(pdfFile.size)}</p>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium text-foreground truncate max-w-[200px]" title={pdfFile.name}>
-                          {pdfFile.name}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground tabular-nums">
-                          {formatFileSize(pdfFile.size)} &bull; Document
-                        </p>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={removePdf}
+                        className="text-destructive hover:bg-destructive/10 p-1 rounded transition-colors shrink-0 cursor-pointer"
+                        title="Remove PDF"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
                     </div>
-
-                    <button
+                  ) : (
+                    <Button
                       type="button"
-                      onClick={removePdf}
-                      className="grid size-7 place-items-center rounded-md text-destructive hover:bg-destructive/10 transition-colors shrink-0 cursor-pointer"
-                      title="Remove PDF"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => pdfInputRef.current?.click()}
+                      className="w-full h-8 text-xs gap-1.5"
                     >
-                      <Trash2 className="size-4" />
-                    </button>
-                  </div>
-                )}
+                      <Plus className="size-3" />
+                      Choose PDF
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -894,15 +872,8 @@ export default function CreateCampaignPage() {
               <div className="flex items-center gap-2 flex-wrap pt-1">
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 text-xs font-medium border border-emerald-200 dark:border-emerald-800">
                   <CheckCircle2 className="size-3.5" />
-                  {totalRecipients} Valid Contacts
+                  {totalRecipients} Valid Numbers
                 </span>
-
-                {duplicatesCount > 0 && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 text-xs font-medium border border-amber-200 dark:border-amber-800">
-                    <AlertTriangle className="size-3.5" />
-                    {duplicatesCount} Duplicates Skipped
-                  </span>
-                )}
 
                 {invalidCount > 0 && (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 text-xs font-medium border border-red-200 dark:border-red-800">
@@ -913,40 +884,43 @@ export default function CreateCampaignPage() {
               </div>
             </CardContent>
           </Card>
+        </div>
 
-          {/* Card 5: Execution Timing */}
+        {/* Right Column: Execution & Summary Control Panel (4 cols) */}
+        <div className="lg:col-span-4 space-y-5 lg:sticky lg:top-4">
+          {/* Card: Execution Timing */}
           <Card className="rounded-xl border shadow-xs">
-            <CardHeader className="border-b pb-4">
+            <CardHeader className="border-b pb-3.5">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <Clock className="size-4.5 text-primary" />
                 Execution Timing
               </CardTitle>
               <CardDescription className="text-xs">
-                Choose when the message queue should begin delivery.
+                Choose when delivery should start.
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-5 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <CardContent className="pt-4 space-y-3">
+              <div className="grid grid-cols-2 gap-2.5">
                 <button
                   type="button"
                   onClick={() => setScheduleType("now")}
-                  className={`flex items-start gap-3 p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
+                  className={`flex flex-col items-start gap-2 p-3 rounded-lg border text-left cursor-pointer transition-all ${
                     scheduleType === "now"
                       ? "border-primary bg-primary/5 ring-1 ring-primary/20"
                       : "border-border bg-card hover:bg-muted/30"
                   }`}
                 >
                   <div
-                    className={`grid size-8 shrink-0 place-items-center rounded-lg ${
+                    className={`grid size-7 shrink-0 place-items-center rounded-md ${
                       scheduleType === "now" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                     }`}
                   >
-                    <Send className="size-4" />
+                    <Send className="size-3.5" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-foreground">Send Immediately</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Messages are queued and dispatched right away.
+                    <p className="text-xs font-semibold text-foreground">Send Now</p>
+                    <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                      Immediate queue
                     </p>
                   </div>
                 </button>
@@ -954,23 +928,23 @@ export default function CreateCampaignPage() {
                 <button
                   type="button"
                   onClick={() => setScheduleType("later")}
-                  className={`flex items-start gap-3 p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
+                  className={`flex flex-col items-start gap-2 p-3 rounded-lg border text-left cursor-pointer transition-all ${
                     scheduleType === "later"
                       ? "border-primary bg-primary/5 ring-1 ring-primary/20"
                       : "border-border bg-card hover:bg-muted/30"
                   }`}
                 >
                   <div
-                    className={`grid size-8 shrink-0 place-items-center rounded-lg ${
+                    className={`grid size-7 shrink-0 place-items-center rounded-md ${
                       scheduleType === "later" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                     }`}
                   >
-                    <Calendar className="size-4" />
+                    <Calendar className="size-3.5" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-foreground">Schedule for Later</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Set a future date and time to trigger dispatch.
+                    <p className="text-xs font-semibold text-foreground">Schedule</p>
+                    <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                      Set date & time
                     </p>
                   </div>
                 </button>
@@ -986,20 +960,17 @@ export default function CreateCampaignPage() {
                     type="datetime-local"
                     value={scheduledTime}
                     onChange={(e) => setScheduledTime(e.target.value)}
-                    className="text-sm max-w-sm"
+                    className="text-xs"
                     required
                   />
-                  <p className="text-[11px] text-muted-foreground">
-                    Operating window rules configured in settings will be respected during execution.
+                  <p className="text-[10px] text-muted-foreground">
+                    Operating window rules configured in settings apply.
                   </p>
                 </div>
               )}
             </CardContent>
           </Card>
-        </div>
 
-        {/* Right Column: Submission summary (4 cols) */}
-        <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-4">
           {/* Credits Summary Card */}
           <Card className="rounded-xl border shadow-xs">
             <CardHeader className="border-b pb-4">
@@ -1116,111 +1087,12 @@ export default function CreateCampaignPage() {
               </Button>
             </CardFooter>
           </Card>
-
-          {/* WhatsApp Live Broadcast Preview Card */}
-          <div className="rounded-2xl border overflow-hidden shadow-xs bg-card">
-            {/* WhatsApp Header Bar */}
-            <div className="bg-primary text-primary-foreground p-3.5 flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="grid size-9 place-items-center rounded-full bg-primary-foreground/20 text-primary-foreground font-bold text-xs uppercase">
-                  GW
-                </div>
-                <div>
-                  <p className="text-xs font-semibold leading-tight">go2web Broadcast</p>
-                  <p className="text-[10px] text-primary-foreground/80 leading-tight">online</p>
-                </div>
-              </div>
-              <span className="rounded-full bg-primary-foreground/20 px-2.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
-                Message preview
-              </span>
-            </div>
-
-            {/* Chat Area Background */}
-            <div className="bg-[#f0ebe3] dark:bg-muted/30 p-4 min-h-[180px] max-h-[380px] overflow-y-auto space-y-3 flex flex-col justify-between">
-              {/* Today Date Divider */}
-              <div className="flex justify-center">
-                <span className="bg-card/90 dark:bg-card px-2.5 py-0.5 rounded-full text-[10px] font-semibold text-muted-foreground shadow-2xs uppercase tracking-wider">
-                  Today
-                </span>
-              </div>
-
-              {/* WhatsApp Speech Bubble */}
-              <div className="self-end max-w-[92%] rounded-xl rounded-tr-xs bg-[#d9fdd3] dark:bg-primary/20 text-foreground p-3 shadow-2xs space-y-2 border border-emerald-200/50 dark:border-primary/30">
-                {/* 1 Image Preview */}
-                {imageFile?.preview && (
-                  <div className="rounded-lg overflow-hidden border border-black/5 bg-black/5">
-                    <img
-                      src={imageFile.preview}
-                      alt={imageFile.name}
-                      className="w-full max-h-40 object-cover"
-                    />
-                  </div>
-                )}
-
-                {/* 1 Video Preview */}
-                {videoFile?.preview && (
-                  <div className="rounded-lg overflow-hidden border border-black/5 bg-black/10 p-2 flex items-center gap-2">
-                    <div className="grid size-8 place-items-center rounded-md bg-primary text-primary-foreground shrink-0">
-                      <VideoIcon className="size-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium truncate text-foreground">{videoFile.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{formatFileSize(videoFile.size)}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* 1 PDF Preview */}
-                {pdfFile && (
-                  <div className="rounded-lg overflow-hidden border border-black/5 bg-card/80 p-2 flex items-center gap-2">
-                    <div className="grid size-8 place-items-center rounded-md bg-red-600 text-white shrink-0 font-bold text-[10px]">
-                      PDF
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium truncate text-foreground">{pdfFile.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{formatFileSize(pdfFile.size)}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Message Body Render */}
-                {charCount > 0 ? (
-                  <div
-                    className="prose prose-sm dark:prose-invert max-w-none text-xs leading-relaxed break-words"
-                    dangerouslySetInnerHTML={{ __html: messageBody }}
-                  />
-                ) : (
-                  <p className="text-xs text-muted-foreground/80 italic leading-relaxed">
-                    Your composed WhatsApp broadcast message will appear here in real-time…
-                  </p>
-                )}
-
-                {/* Timestamp & Double Checkmark */}
-                <div className="flex items-center justify-end gap-1 text-[10px] text-muted-foreground/90 pt-0.5">
-                  <span>
-                    {new Intl.DateTimeFormat("en-IN", {
-                      timeZone: "Asia/Kolkata",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: true,
-                    }).format(new Date())}
-                  </span>
-                  <CheckCheck className="size-3.5 text-sky-600 dark:text-sky-400" />
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom Guarantee Banner */}
-            <div className="bg-[#1c1917] text-[#a8a29e] text-center text-[11px] py-2 px-3">
-              Recipient will receive message formatted exactly as rendered above.
-            </div>
-          </div>
         </div>
       </form>
       {reviewPayload && <Dialog open onOpenChange={open => { if (!open && !createCampaignMutation.isPending) setReviewPayload(null); }}><DialogContent showCloseButton={!createCampaignMutation.isPending}>
         <DialogHeader><DialogTitle>Review campaign</DialogTitle><DialogDescription>Credits are charged when the server accepts your submission. The super admin manages approval and processing.</DialogDescription></DialogHeader>
         <dl className="dashboard-details">{[["Campaign", campaignTitle], ["Recipients", number(totalRecipients)], ["Rate per recipient", number(estimate.rate) + " credits"], ["Estimated charge", number(estimatedCost) + " credits"], ["Balance after submission", isAdmin ? "Unlimited" : number(remainingBalance)], ["Requested schedule", scheduleType === "later" ? dateTime(scheduledTime) : "As soon as approved"], ["Attachments", number(totalMediaCount)]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
-        <p className="text-sm text-muted-foreground">{number(duplicatesCount)} duplicate and {number(invalidCount)} invalid entries excluded. The server confirms the final charge.</p>
+        <p className="text-sm text-muted-foreground">{invalidCount > 0 ? `${number(invalidCount)} invalid entries excluded. ` : ""}The server confirms the final charge.</p>
         <FormError message={createCampaignMutation.error?.response?.data?.message || createCampaignMutation.error?.message} />
         <div className="flex justify-end gap-2"><Button variant="outline" disabled={createCampaignMutation.isPending} onClick={() => setReviewPayload(null)}>Back to edit</Button><Button disabled={createCampaignMutation.isPending} onClick={() => { if (submitting.current) return; submitting.current = true; createCampaignMutation.mutate(reviewPayload); }}>{createCampaignMutation.isPending ? "Submitting..." : "Submit campaign"}</Button></div>
       </DialogContent></Dialog>}

@@ -29,10 +29,12 @@ function PortalIcon({ type = "network", className = "size-5" }) {
 function PanelBrand({ name }) {
   return (
     <div className="inline-flex items-center gap-3 text-foreground">
-      <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-border bg-accent text-primary shadow-xs">
-        <PortalIcon type="network" className="size-5" />
-      </span>
-      <span className="text-[17px] font-semibold tracking-[-0.3px]">
+      <img
+        src="https://res.cloudinary.com/dyfjy8kmv/image/upload/v1793689940/Navy_Blue_Bird_Chat_Logo_n0udpf.webp"
+        alt="Promotion Logo"
+        className="size-12 sm:size-14 object-contain shrink-0"
+      />
+      <span className="text-2xl sm:text-[26px] font-bold tracking-tight text-foreground">
         {name}
       </span>
     </div>
@@ -96,7 +98,7 @@ function CampaignWorkflowIllustration() {
   );
 }
 
-export default function LoginPage({ onLogin, panelName = "go2web" }) {
+export default function LoginPage({ onLogin, panelName = "Promotion" }) {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);

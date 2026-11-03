@@ -21,6 +21,7 @@ export const resellerActions = {
   createAccount: async (body) => (await api.post("/users", body)).data,
   accountAccess: async ({ id, ...body }) => (await api.patch(`/users/${id}/access`, body)).data,
   allocate: async (body) => (await api.post("/credits/allocate", body)).data,
+  reclaim: async (body) => (await api.post("/credits/reclaim", body)).data,
   rate: async (body) => (await api.patch("/credits/rate", body)).data,
   status: async ({ id, status }) => (await api.patch(`/campaigns/${id}/status`, { status })).data,
 };
