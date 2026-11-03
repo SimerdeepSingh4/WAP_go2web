@@ -40,7 +40,7 @@ export default function UserOverview() {
     <>
       <PageHeading
         title="Overview"
-        description="Your users, campaigns, credits, and work that needs attention."
+        description="Your campaigns, available credits, and broadcast metrics."
         action={
           <Button
             variant="outline"
@@ -54,10 +54,10 @@ export default function UserOverview() {
       />
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {[
-          ["My wallet", number(myBalance.data?.wallet?.balance), "Your credit balance", Wallet],
-          ["My users", users.length, `${users.filter((u) => u.status === "active").length} active`, Users],
-          ["Total campaigns", campaigns.length, "From your users", Megaphone],
-          ["Credits allocated", number(stats?.credits?.totalAllocatedBySuperAdmin), "Received from admin", FileText],
+          ["My wallet", number(myBalance.data?.wallet?.balance ?? stats?.wallet?.myBalance), "Available sending credits", Wallet],
+          ["Messages Remaining", number(stats?.wallet?.messagesRemaining), `Rate: ${stats?.wallet?.ratePerMsg || 1}/msg`, FileText],
+          ["Total campaigns", stats?.campaigns?.totalCampaigns ?? campaigns.length, "All-time broadcasts", Megaphone],
+          ["Messages Sent", number(stats?.campaigns?.messagesSent), `${number(stats?.campaigns?.messagesDelivered)} delivered`, Users],
         ].map(([label, value, caption, Icon]) => (
           <Card key={label} className="gap-3 rounded-lg shadow-none">
             <CardHeader className="flex flex-row items-center justify-between gap-2">

@@ -15,8 +15,8 @@ export default function UserActivity() {
 
   const columns = [
     { key: "date", label: "Date", render: (a) => <span className="text-xs">{dateTime(a.createdAt)}</span> },
-    { key: "action", label: "Action", render: (a) => a.type },
-    { key: "detail", label: "Detail", render: (a) => a.detail },
+    { key: "action", label: "Action", render: (a) => a.type || a.action || "Activity" },
+    { key: "detail", label: "Detail", render: (a) => a.notes || a.detail || (a.amount ? `${number(a.amount)} credits` : "—") },
   ];
 
   function updatePage(p) {
@@ -27,20 +27,22 @@ export default function UserActivity() {
     }, { replace: true });
   }
 
+  const rows = activity.data?.transactions || activity.data?.activities || [];
+
   return (
     <>
       <PageHeading title="Activity" description="Your recent actions and events." />
       <QueryState query={activity}>
         <DataTable
           caption="Activity log"
-          rows={activity.data?.activities || []}
+          rows={rows}
           columns={columns}
           emptyTitle="No activity found"
         />
         <Pager
           page={page}
           totalPages={activity.data?.pagination?.totalPages || 1}
-          total={activity.data?.pagination?.total || 0}
+          total={activity.data?.pagination?.total || rows.length}
           onChange={(p) => updatePage(p)}
           disabled={activity.isFetching}
         />

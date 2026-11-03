@@ -14,7 +14,13 @@ export function useUserQuery(resource, params = {}, enabled = true) {
   const accountId = user?.id || user?._id;
   const query = useQuery({
     queryKey: ["user", accountId, resource, params],
-    queryFn: ({ signal }) => userQueries[resource](params, signal),
+    queryFn: ({ signal }) => {
+      const fn = userQueries[resource];
+      if (typeof fn !== "function") {
+        throw new Error(`User query handler for "${resource}" is not defined.`);
+      }
+      return fn(params, signal);
+    },
     // Only enable for logged‑in users with role "User"
     enabled: enabled && user?.role === "User" && !user?.isPreview,
     staleTime: 30_000,
