@@ -48,7 +48,7 @@ body { margin: 0; min-width: 320px; }
 .portal-eyebrow { text-transform: none; letter-spacing: 0; font-size: 13px; }
 .dashboard-portal [data-sidebar="sidebar"], [data-sidebar="sidebar"]:has(.portal-brand) { background: #f3f8fb; --sidebar-accent: #e0eef7; --sidebar-foreground: #0c1624; }
 .portal-nav-link[data-active="true"] { background: #e0eef7; color: #000080; box-shadow: none; }
-.portal-nav-link:hover { background: #e8efe5; color: #215137; }
+.portal-nav-link:hover { background: #eaf1f7; color: #000080; }
 .campaign-editor { container: campaign / inline-size; }
 .campaign-editor form > div, .campaign-editor [data-slot="card"], .campaign-editor [data-slot="card-content"] { min-width: 0; }
 .campaign-editor [data-slot="card-title"] { flex-wrap: wrap; }
