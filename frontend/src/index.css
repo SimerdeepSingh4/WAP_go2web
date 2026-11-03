@@ -8,17 +8,21 @@
 @theme inline {
   --font-sans: "Geist Variable", sans-serif;
 
-  /* Centralized Master Palette Tokens: Combination 58 (Gothic noir) */
-  --color-gothic-black: var(--palette-black);
-  --color-gothic-light-gray: var(--palette-light-gray);
-  --color-gothic-taupe: var(--palette-taupe);
-  --color-gothic-dark-taupe: var(--palette-dark-taupe);
+  /* Centralized Master Palette Tokens: Combination 85 (Frozen lake) */
+  --color-slate-gray: var(--palette-slate-gray);
+  --color-icy-blue: var(--palette-icy-blue);
+  --color-snow-white: var(--palette-snow-white);
+  --color-navy-blue: var(--palette-navy-blue);
 
   /* Legacy alias variables for backwards-compatibility */
-  --color-cool-gray: var(--palette-light-gray);
-  --color-off-white: var(--palette-light-gray);
-  --color-deep-green: var(--palette-black);
-  --color-rich-brown: var(--palette-dark-taupe);
+  --color-gothic-black: var(--palette-navy-blue);
+  --color-gothic-light-gray: var(--palette-icy-blue);
+  --color-gothic-taupe: var(--palette-slate-gray);
+  --color-gothic-dark-taupe: #354b60;
+  --color-cool-gray: var(--palette-slate-gray);
+  --color-off-white: var(--palette-snow-white);
+  --color-deep-green: var(--palette-navy-blue);
+  --color-rich-brown: var(--palette-slate-gray);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -104,76 +108,80 @@
 
 :root {
   /* ==========================================================================
-     Centralized Palette: Combination 58 (Gothic noir)
+     Centralized Palette: Combination 85 (Frozen lake)
      Edit these 4 core values to instantly update the entire website theme:
      ========================================================================== */
-  --palette-black: #000000;        /* Pitch black (brand, primary buttons, bold typography) */
-  --palette-light-gray: #D1D0D0;   /* Light gray (canvas background & borders) */
-  --palette-taupe: #988686;        /* Taupe (mid-tone accent, charts, badges) */
-  --palette-dark-taupe: #5C4E4E;   /* Dark taupe (contrast secondary, muted text, headers) */
+  --palette-slate-gray: #6D8196;   /* Slate gray: secondary accents, icons, muted data */
+  --palette-icy-blue: #ADD8E6;     /* Icy blue: subtle badges, active chips, light tints */
+  --palette-snow-white: #FFFAFA;   /* Snow white: primary surface background */
+  --palette-navy-blue: #000080;    /* Deep navy: brand actions, primary buttons, bold type */
 
   /* Backwards-compatibility aliases */
-  --palette-cool-gray: var(--palette-light-gray);
-  --palette-off-white: #f5f4f4;
-  --palette-deep-green: var(--palette-black);
-  --palette-rich-brown: var(--palette-dark-taupe);
+  --palette-black: var(--palette-navy-blue);
+  --palette-light-gray: #d4e0eb;
+  --palette-taupe: var(--palette-slate-gray);
+  --palette-dark-taupe: #2e4459;
+  --palette-cool-gray: var(--palette-slate-gray);
+  --palette-off-white: var(--palette-snow-white);
+  --palette-deep-green: var(--palette-navy-blue);
+  --palette-rich-brown: var(--palette-slate-gray);
 
-  /* Surface & Base Layout - using lightest shade for background */
-  --background: #f4f3f3;
-  --foreground: #111111;
+  /* Surface & Base Layout - using snow white for clean canvas */
+  --background: #FFFAFA;
+  --foreground: #0c1624;
   --card: #ffffff;
-  --card-foreground: #111111;
+  --card-foreground: #0c1624;
   --popover: #ffffff;
-  --popover-foreground: #111111;
+  --popover-foreground: #0c1624;
 
-  /* Primary Brand - Black */
-  --primary: var(--palette-black);
+  /* Primary Brand - Deep Navy (#000080) */
+  --primary: var(--palette-navy-blue);
   --primary-foreground: #ffffff;
 
-  /* Secondary & Accents - Taupe shades */
-  --secondary: #e8e5e5;
-  --secondary-foreground: var(--palette-dark-taupe);
-  --accent: #dfdbdb;
-  --accent-foreground: var(--palette-dark-taupe);
-  --accent-brown: var(--palette-dark-taupe);
+  /* Secondary & Accents - Slate Gray & Icy Blue */
+  --secondary: #edf4f8;
+  --secondary-foreground: var(--palette-navy-blue);
+  --accent: #e2eff6;
+  --accent-foreground: var(--palette-navy-blue);
+  --accent-brown: var(--palette-slate-gray);
   --accent-brown-foreground: #ffffff;
 
-  /* Neutrals, Muted & Borders - Light Gray (#D1D0D0) */
-  --muted: #e7e5e5;
-  --muted-foreground: var(--palette-dark-taupe);
-  --border: var(--palette-light-gray);
-  --input: var(--palette-light-gray);
-  --ring: var(--palette-black);
+  /* Neutrals, Muted & Borders */
+  --muted: #f0f6fa;
+  --muted-foreground: #5a7185;
+  --border: #d4e1eb;
+  --input: #cad9e6;
+  --ring: var(--palette-navy-blue);
   --radius: 0.5rem;
 
   /* Sidebar Design Tokens */
-  --sidebar: #eeecec;
-  --sidebar-foreground: #111111;
-  --sidebar-primary: var(--palette-black);
+  --sidebar: #f3f8fb;
+  --sidebar-foreground: #0c1624;
+  --sidebar-primary: var(--palette-navy-blue);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e0dede;
-  --sidebar-accent-foreground: var(--palette-black);
-  --sidebar-border: var(--palette-light-gray);
+  --sidebar-accent: #e0eef7;
+  --sidebar-accent-foreground: var(--palette-navy-blue);
+  --sidebar-border: #d4e1eb;
 
   /* Charts & Data Visualization */
-  --chart-1: var(--palette-black);
-  --chart-2: var(--palette-dark-taupe);
-  --chart-3: var(--palette-taupe);
-  --chart-4: #403636;
-  --chart-5: #756666;
+  --chart-1: var(--palette-navy-blue);
+  --chart-2: var(--palette-slate-gray);
+  --chart-3: var(--palette-icy-blue);
+  --chart-4: #2b455c;
+  --chart-5: #89a9c2;
   --chart-positive: #2e6930;
   --chart-negative: #b42318;
   --chart-background: #ffffff;
-  --chart-foreground: #111111;
-  --chart-foreground-muted: var(--palette-dark-taupe);
-  --chart-line-primary: var(--palette-black);
-  --chart-line-secondary: var(--palette-dark-taupe);
-  --chart-crosshair: var(--palette-taupe);
-  --chart-grid: var(--palette-light-gray);
-  --chart-brush-border: var(--palette-light-gray);
+  --chart-foreground: #0c1624;
+  --chart-foreground-muted: #5a7185;
+  --chart-line-primary: var(--palette-navy-blue);
+  --chart-line-secondary: var(--palette-slate-gray);
+  --chart-crosshair: var(--palette-slate-gray);
+  --chart-grid: #dce7f0;
+  --chart-brush-border: #cad9e6;
   --chart-tooltip-background: #ffffff;
-  --chart-tooltip-foreground: #111111;
-  --chart-tooltip-muted: var(--palette-dark-taupe);
+  --chart-tooltip-foreground: #0c1624;
+  --chart-tooltip-muted: #5a7185;
   --chart-marker-background: var(--palette-light-gray);
   --chart-marker-border: var(--palette-dark-taupe);
   --chart-marker-foreground: #111111;

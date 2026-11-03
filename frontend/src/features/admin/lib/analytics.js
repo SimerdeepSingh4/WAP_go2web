@@ -25,7 +25,7 @@ export function campaignTrend(campaigns, days = 14, now = new Date()) {
 }
 
 export function campaignDistribution(campaigns) {
-  const colors = { pending: "#bd9040", scheduled: "#9e864f", ongoing: "#557b9c", completed: "#35684e", paused: "#857493", stopped: "#7b807d", failed: "#b66358", draft: "#a8b2ab" };
+  const colors = { pending: "#c59239", scheduled: "#8a9fb4", ongoing: "#6D8196", completed: "#000080", paused: "#857493", stopped: "#5a6875", failed: "#b63832", draft: "#ADD8E6" };
   const counts = new Map(Object.keys(colors).map((status) => [status, 0]));
   campaigns.forEach(({ status }) => {
     const key = status === "sent" ? "completed" : status;
