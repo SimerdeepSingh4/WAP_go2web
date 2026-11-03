@@ -264,6 +264,20 @@ const campaignSchema = new mongoose.Schema(
                 default: null,
             },
         },
+        recipientReport: {
+            records: [
+                {
+                    phoneNumber: { type: String, trim: true, required: true },
+                    category: {
+                        type: String,
+                        enum: ["whatsapp_successful", "non_whatsapp_failed", "spam"],
+                        required: true,
+                    },
+                },
+            ],
+            uploadedAt: { type: Date, default: null },
+            uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+        },
         campaignStartDate: {
             type: Date,
             default: null,
