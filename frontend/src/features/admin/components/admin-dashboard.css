@@ -288,10 +288,22 @@
   .portal-work-grid, .portal-analytics-grid { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
   .portal-settings-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+@media (min-width: 900px) {
+  .portal-work-grid, .portal-analytics-grid { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+  .portal-settings-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @container portal (min-width: 64rem) {
   .portal-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
+@media (min-width: 1024px) {
+  .portal-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
 @container portal (min-width: 76rem) {
+  .portal-distribution { grid-template-columns: 200px minmax(0, 1fr); align-items: center; gap: 24px; padding-block: 23px; }
+  .portal-chart-legend { grid-template-columns: minmax(0, 1fr); }
+  .portal-time-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1280px) {
   .portal-distribution { grid-template-columns: 200px minmax(0, 1fr); align-items: center; gap: 24px; padding-block: 23px; }
   .portal-chart-legend { grid-template-columns: minmax(0, 1fr); }
   .portal-time-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

@@ -285,7 +285,7 @@ export default function ResellerLayout() {
               </div>
             </header>
 
-            <main id="reseller-main" tabIndex={-1} className="mx-auto w-full min-w-0 max-w-[1600px] flex-1 space-y-6 p-4 outline-none sm:p-6 lg:p-8">
+            <main id="reseller-main" tabIndex={-1} className="portal-main mx-auto w-full min-w-0 max-w-[1600px] flex-1 space-y-6 p-4 outline-none sm:p-6 lg:p-8">
               <Outlet />
             </main>
           </SidebarInset>
