@@ -205,7 +205,7 @@ export default function Credits({ activity = false }) {
                 className="gap-1.5 text-xs"
               >
                 <RotateCcw className="size-3.5 text-amber-600" />
-                Deduct Credits
+                Reclaim credits
               </Button>
               <Button
                 onClick={() => update("allocate", "new")}
@@ -374,10 +374,10 @@ export default function Credits({ activity = false }) {
         />
       )}
 
-      {/* Deduct Credits Dialog */}
+      {/* Reclaim credits Dialog */}
       {reclaimOpen && accountsQuery.isSuccess && (
         <ActionForm
-          title="Deduct Credits"
+          title="Reclaim credits"
           description="Take back unused credits from a reseller account."
           action="reclaim"
           successMessage="Credits deducted successfully"
@@ -399,7 +399,7 @@ export default function Credits({ activity = false }) {
           payload={(v) => ({ fromUserId: v.fromUserId, amount: Number(v.amount), notes: v.notes.trim() })}
           review={(v) => (
             <>
-              <p className="font-semibold text-destructive">Deduct Credits</p>
+              <p className="font-semibold text-destructive">Reclaim credits</p>
               <p>
                 Taking back <strong>{number(Number(v.amount))} credits</strong> from{" "}
                 {resellers.find((a) => a._id === v.fromUserId)?.username}.
@@ -407,7 +407,7 @@ export default function Credits({ activity = false }) {
               <p className="text-muted-foreground text-xs mt-1">Reason: {v.notes}</p>
             </>
           )}
-          submitLabel="Deduct Credits"
+          submitLabel="Reclaim credits"
         />
       )}
     </>

@@ -105,12 +105,6 @@ export default function Campaigns({ reports = false }) {
       render: (c) => (
         <div className="flex items-center gap-1.5">
           <StatusBadge status={c.status} />
-          {c.status === "ongoing" && (
-            <span className="relative flex size-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
-              <span className="relative inline-flex size-2 rounded-full bg-blue-500" />
-            </span>
-          )}
         </div>
       ),
     },
@@ -178,24 +172,24 @@ export default function Campaigns({ reports = false }) {
     ? [
         { label: "All reports", val: "all", count: totalCount },
         { label: "Needs report", val: "unreported", count: needsReportCount },
-        { label: "Published", val: "published", count: totalCount - needsReportCount },
+        { label: "Published", val: "published", count: all.filter(published).length },
       ]
     : [
         { label: "All", val: "all", count: totalCount },
-        { label: "Queued / Pending", val: "pending", count: pendingCount },
+        { label: "Awaiting review", val: "pending", count: pendingCount },
         { label: "Ongoing", val: "ongoing", count: ongoingCount },
         { label: "Completed", val: "completed", count: completedCount },
-        { label: "Needs Report", val: "unreported", count: needsReportCount },
+        { label: "Needs report", val: "unreported", count: needsReportCount },
       ];
 
   return (
     <>
       <PageHeading
-        title={reports ? "Campaign Reports" : "Campaign Operations"}
+        title={reports ? "Reports" : "Campaigns"}
         description={
           reports
-            ? "Publish actual campaign results, deliver metrics, and review execution performance."
-            : "Review queued campaigns and delivery progress, manage submissions, and update execution status."
+            ? "Review and publish recorded campaign results."
+            : "Review submissions and update campaign status."
         }
         action={
           <div className="flex items-center gap-2">
@@ -206,7 +200,7 @@ export default function Campaigns({ reports = false }) {
                 className="gap-1.5 font-semibold"
               >
                 <Plus className="size-4" />
-                Create Campaign
+                Create campaign
               </Button>
             )}
             <Button
@@ -228,7 +222,7 @@ export default function Campaigns({ reports = false }) {
         <Card className="rounded-lg shadow-none">
           <CardContent className="p-4 sm:p-5">
             <p className="flex items-center justify-between text-xs text-muted-foreground">
-              Total Campaigns
+              Total campaigns
               <Megaphone className="size-4" />
             </p>
             <p className="mt-2 text-2xl font-semibold tabular-nums">{number(totalCount)}</p>
@@ -237,7 +231,7 @@ export default function Campaigns({ reports = false }) {
         <Card className="rounded-lg shadow-none">
           <CardContent className="p-4 sm:p-5">
             <p className="flex items-center justify-between text-xs text-muted-foreground">
-              Queue & Pending
+              Awaiting review
               <Clock className="size-4 text-amber-500" />
             </p>
             <p className="mt-2 text-2xl font-semibold tabular-nums text-amber-600">{number(pendingCount)}</p>
@@ -255,7 +249,7 @@ export default function Campaigns({ reports = false }) {
         <Card className="rounded-lg shadow-none">
           <CardContent className="p-4 sm:p-5">
             <p className="flex items-center justify-between text-xs text-muted-foreground">
-              Awaiting Reports
+              Awaiting reports
               <AlertTriangle className="size-4 text-blue-500" />
             </p>
             <p className="mt-2 text-2xl font-semibold tabular-nums">{number(needsReportCount)}</p>

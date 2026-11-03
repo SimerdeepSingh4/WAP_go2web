@@ -22,7 +22,7 @@ export function useUserQuery(resource, params = {}, enabled = true) {
       return fn(params, signal);
     },
     // Only enable for logged‑in users with role "User"
-    enabled: enabled && user?.role === "User" && !user?.isPreview,
+    enabled: enabled && user?.role === "User",
     staleTime: 30_000,
   });
 

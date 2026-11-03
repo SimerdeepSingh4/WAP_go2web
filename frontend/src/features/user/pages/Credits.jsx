@@ -1,182 +1,47 @@
-// src/features/user/pages/Credits.jsx
 import { useSearchParams } from "react-router";
-import { useNavigate } from "react-router";
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Wallet } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useUserQuery, useUserMutation } from "../hooks/useUser";
-import { PageHeading, QueryState, FilterSelect, DataTable, Pager } from "@/features/admin/components/shared";
+import { PageHeading, QueryState, FilterSelect, DataTable, Pager, Field, FormError } from "@/features/admin/components/shared";
+import { Summary } from "@/components/dashboard/OverviewPanels";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { dateTime, number, ownerName } from "@/features/admin/lib/format";
 
-/**
- * User Credits page — shows the user's wallet balance and credit transaction history.
- * Users cannot allocate credits, only view their balance and transactions.
- */
+const labels = { ALLOCATE: "Allocation", DEDUCT: "Campaign charge", REFUND: "Refund", RECLAIM: "Reclaim", REQUEST: "Credit request" };
 export default function UserCredits({ activity = false }) {
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const [params, setParams] = useSearchParams();
-  const [openDeduct, setOpenDeduct] = useState(false);
-  const { mutate: deductCredits, isLoading: deducting } = useUserMutation("deductCredits", "Credits deducted", null);
-  const handleDeduct = (e) => {
-    e.preventDefault();
-    const form = e.target;
-    const amount = form.amount.value;
-    const note = form.note.value;
-    deductCredits({ amount, note });
-    setOpenDeduct(false);
-  };
-  const [open, setOpen] = useState(false);
-  const { mutate: addCredits, isLoading: adding } = useUserMutation("addCredits", "Credits added", null);
-  const handleAdd = (e) => {
-    e.preventDefault();
-    const form = e.target;
-    const amount = form.amount.value;
-    const note = form.note.value;
-    addCredits({ amount, note });
-    setOpen(false);
-  };
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [review, setReview] = useState(false);
   const page = Math.max(1, Number(params.get("page")) || 1);
   const type = params.get("type") || "all";
-
-  const myBalance = useUserQuery("myBalance");
-  const ledger = useUserQuery("transactions", { page, limit: 10, ...(type !== "all" ? { type } : {}) });
-
-  function update(key, value) {
-    setParams((old) => {
-      const next = new URLSearchParams(old);
-      value ? next.set(key, value) : next.delete(key);
-      if (key !== "page") next.delete("page");
-      return next;
-    }, { replace: true });
-  }
-
-  const transactionLabels = {
-    ALLOCATE: "Allocation",
-    DEDUCT: "Deduction",
-    REFUND: "Refund",
-    RECLAIM: "Reclaim",
-  };
-
+  const balance = useUserQuery("myBalance", {}, !activity);
+  const ledger = useUserQuery("transactions", { page, limit: 10, ...(type === "all" ? {} : { type }) });
+  function update(key, value) { setParams(old => { const next = new URLSearchParams(old); value ? next.set(key, value) : next.delete(key); if (key === "type") next.delete("page"); return next; }, { replace: true }); }
+  const request = useUserMutation("requestCredits", "Credit request submitted", () => { update("request", ""); setAmount(""); setNote(""); setReview(false); });
+  const accountId = user?.id || user?._id;
   const columns = [
-    { key: "date", label: "Date", render: (t) => <span className="text-xs">{dateTime(t.createdAt)}</span> },
-    { key: "type", label: "Type", render: (t) => transactionLabels[t.type] || t.type },
-    { key: "from", label: "From", render: (t) => t.fromUser ? ownerName(t.fromUser) : "—" },
-    { key: "to", label: "To", render: (t) => ownerName(t.toUser) },
-    { key: "amount", label: "Credits", className: "text-right", render: (t) => <span className="font-medium tabular-nums">{number(t.amount)}</span> },
-    { key: "balanceAfterFrom", label: "Bal From", className: "text-right", render: (t) => <span className="font-medium tabular-nums">{number(t.balanceAfterFrom)}</span> },
-    { key: "balanceAfterTo", label: "Bal To", className: "text-right", render: (t) => <span className="font-medium tabular-nums">{number(t.balanceAfterTo)}</span> },
-    { key: "note", label: "Note", render: (t) => <span className="block max-w-60 whitespace-normal break-words text-xs text-muted-foreground">{t.notes || "—"}</span> },
+    { key: "date", label: "Date", render: t => dateTime(t.createdAt) },
+    { key: "type", label: "Type", render: t => labels[t.type] || t.type },
+    { key: "account", label: "Account", render: t => ownerName(t.fromUser || t.toUser) },
+    { key: "amount", label: "Credits", className: "text-right", render: t => <span className="font-medium tabular-nums">{number(t.amount)}</span> },
+    { key: "balance", label: "Your balance after", className: "text-right", render: t => number(t.type === "REQUEST" ? null : String(t.fromUser?._id || t.fromUser) === String(accountId) ? t.balanceAfterFrom : t.balanceAfterTo) },
+    { key: "notes", label: "Notes", render: t => <span className="block max-w-72 whitespace-normal break-words">{t.notes || "?"}</span> },
   ];
-
-  return (
-    <>
-      <PageHeading
-        title={activity ? "Activity" : "Credits"}
-        description={activity ? "Trace your credit movements over time." : "View your credit balance and transaction history."}
-      />
-      {/* Credit button */}
-      <div className="flex justify-end mt-4 space-x-2">
-        <Button onClick={() => setOpen(true)}>Add Credits</Button>
-        <Button variant="destructive" onClick={() => setOpenDeduct(true)}>Deduct Credits</Button>
-      </div>
-      {/* Add Credits Dialog */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Add Credits</DialogTitle>
-            <DialogDescription>Enter the amount of credits to add to your wallet.</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleAdd} className="space-y-4 mt-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Amount</label>
-              <input name="amount" type="number" min="0" required className="w-full rounded-md border border-gray-300 p-2" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Note (optional)</label>
-              <textarea name="note" rows={3} className="w-full rounded-md border border-gray-300 p-2" />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={adding}>Cancel</Button>
-              <Button type="submit" disabled={adding}>
-                {adding ? "Adding…" : "Add Credits"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-      {/* Deduct Credits Dialog */}
-      <Dialog open={openDeduct} onOpenChange={setOpenDeduct}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Deduct Credits</DialogTitle>
-            <DialogDescription>Enter the amount of credits to deduct from your wallet.</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleDeduct} className="space-y-4 mt-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Amount</label>
-              <input name="amount" type="number" min="0" required className="w-full rounded-md border border-gray-300 p-2" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Note (optional)</label>
-              <textarea name="note" rows={3} className="w-full rounded-md border border-gray-300 p-2" />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpenDeduct(false)} disabled={deducting}>Cancel</Button>
-              <Button type="submit" disabled={deducting}>
-                {deducting ? "Deducting…" : "Deduct Credits"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-      {!activity && (
-        <QueryState query={myBalance}>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {["Your wallet balance"].map((label) => (
-              <Card key={label} className="rounded-lg">
-                <CardContent>
-                  <p className="flex items-center justify-between text-xs text-muted-foreground">
-                    {label}
-                    <Wallet className="size-4" />
-                  </p>
-                  <p className="mt-3 text-2xl font-semibold tabular-nums">
-                    {number(myBalance.data?.wallet?.balance)}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </QueryState>
-      )}
-      <div className="flex flex-wrap items-center justify-between gap-3 mt-6">
-        <h2 className="text-sm font-medium">Transaction history</h2>
-        <FilterSelect
-          label="Transaction type"
-          value={type}
-          onChange={(value) => update("type", value)}
-          options={[{ value: "all", label: "All transactions" }, ...Object.entries(transactionLabels).map(([value, label]) => ({ value, label }))]}
-        />
-      </div>
-      <QueryState query={ledger}>
-        <div>
-          <DataTable
-            caption="Credit transaction history"
-            paginated={false}
-            rows={ledger.data?.transactions || []}
-            columns={columns}
-            emptyTitle="No transactions found"
-          />
-          <Pager
-            page={page}
-            totalPages={ledger.data?.pagination?.totalPages || 1}
-            total={ledger.data?.pagination?.total || 0}
-            onChange={(value) => update("page", String(value))}
-            disabled={ledger.isFetching}
-          />
-        </div>
-      </QueryState>
-    </>
-  );
+  return <>
+    <PageHeading title={activity ? "Transactions" : "Credits"} description={activity ? "Your credit allocations, charges and requests." : "Your available balance and credit history."} action={!activity && <Button disabled={user?.isPreview} onClick={() => { request.reset(); setReview(false); update("request", "new"); }}>Request credits</Button>} />
+    {!activity && <QueryState query={balance}><Summary items={[{ label: "Available credits", value: number(balance.data?.wallet?.balance), credit: true, hint: balance.data?.wallet?.isLocked ? "Locked ? contact your reseller" : "Available for campaigns" }, { label: "Rate per recipient", value: number(balance.data?.wallet?.ratePerMsg), hint: "Credits per message" }]} /></QueryState>}
+    <div className="dashboard-section-heading"><h2>Transaction history</h2><FilterSelect label="Transaction type" value={type} onChange={v => update("type", v)} options={[{ value: "all", label: "All transactions" }, ...Object.entries(labels).map(([value, label]) => ({ value, label }))]} /></div>
+    <QueryState query={ledger}><div><DataTable caption="Credit transactions" rows={ledger.data?.transactions || []} columns={columns} paginated={false} emptyTitle="No transactions found" /><Pager page={page} totalPages={ledger.data?.pagination?.totalPages || 1} total={ledger.data?.pagination?.total || 0} onChange={p => update("page", String(p))} disabled={ledger.isFetching} /></div></QueryState>
+    {params.get("request") && !user?.isPreview && <Dialog open onOpenChange={open => { if (!open && !request.isPending) update("request", ""); }}><DialogContent showCloseButton={!request.isPending}><DialogHeader><DialogTitle>{review ? "Review credit request" : "Request credits"}</DialogTitle><DialogDescription>A request does not change your balance. Your account manager allocates credits separately.</DialogDescription></DialogHeader>
+      <form className="space-y-4" onSubmit={e => { e.preventDefault(); if (request.isPending) return; if (review) request.mutate({ amount: Number(amount), note: note.trim() }); else setReview(true); }}>
+        {review ? <div className="dashboard-note space-y-2"><p>Account: <strong>{user?.username}</strong></p><p>Requested credits: <strong>{number(Number(amount))}</strong></p>{note && <p className="whitespace-pre-wrap break-words">{note}</p>}</div> : <><Field id="request-amount" label="Credits requested"><Input id="request-amount" type="number" min="0.01" step="0.01" required value={amount} onChange={e => setAmount(e.target.value)} /></Field><Field id="request-note" label="Note (optional)"><Textarea id="request-note" rows={3} maxLength={500} value={note} onChange={e => setNote(e.target.value)} /></Field></>}
+        <FormError message={request.error?.message} /><div className="flex justify-end gap-2"><Button type="button" variant="outline" disabled={request.isPending} onClick={() => review ? setReview(false) : update("request", "")}>{review ? "Back" : "Cancel"}</Button><Button type="submit" disabled={request.isPending}>{request.isPending ? "Submitting?" : review ? "Submit request" : "Review request"}</Button></div>
+      </form>
+    </DialogContent></Dialog>}
+  </>;
 }

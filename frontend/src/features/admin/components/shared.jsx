@@ -11,7 +11,7 @@ import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/components/u
 import { statusLabels } from "../lib/format";
 
 export function PageHeading({ title, description, action }) {
-  return <div className="flex flex-wrap items-start justify-between gap-4"><div className="min-w-0"><h1 className="text-2xl font-semibold tracking-tight">{title}</h1><p className="mt-1 text-sm text-muted-foreground">{description}</p></div>{action}</div>;
+  return <div className="portal-page-heading"><div className="min-w-0"><h1 className="text-2xl font-semibold tracking-tight">{title}</h1>{description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}</div>{action}</div>;
 }
 
 export function StatusBadge({ status }) {
@@ -20,9 +20,9 @@ export function StatusBadge({ status }) {
     : status === "pending"
     ? "border-amber-200 bg-amber-50 text-amber-800"
     : status === "scheduled"
-    ? "border-sky-200 bg-sky-50 text-sky-800"
+    ? "border-stone-200 bg-stone-50 text-stone-700"
     : status === "ongoing"
-    ? "border-blue-200 bg-blue-50 text-blue-800 font-medium"
+    ? "border-stone-200 bg-stone-50 text-stone-700"
     : status === "stopped"
     ? "border-stone-300 bg-stone-100 text-stone-800"
     : ["failed", "blocked"].includes(status)
@@ -40,7 +40,7 @@ export function FilterSelect({ label, value, onChange, options, id, disabled = f
 }
 
 export function SearchBox({ value, onChange, label = "Search" }) {
-  return <div className="relative w-full sm:w-72"><Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-muted-foreground" aria-hidden="true" /><Input className="h-9 pl-9" aria-label={label} placeholder={label} value={value} onChange={(e) => onChange(e.target.value)} /></div>;
+  return <div className="relative w-full sm:w-72"><Search className="pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground" aria-hidden="true" /><Input className="h-9 pl-9" aria-label={label} placeholder={label} value={value} onChange={(e) => onChange(e.target.value)} /></div>;
 }
 
 export function QueryState({ query, children, empty = false, emptyTitle = "No records yet", emptyDescription = "Records will appear here when they are available." }) {

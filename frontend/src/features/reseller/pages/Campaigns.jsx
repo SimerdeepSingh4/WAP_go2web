@@ -35,7 +35,7 @@ import {
   published,
   waiting,
 } from "@/features/admin/lib/format";
-import CampaignDetail from "@/features/admin/components/CampaignDetail";
+import CampaignDetail from "@/components/dashboard/ReadOnlyCampaignDetail";
 
 export default function ResellerCampaigns({ reports = false }) {
   const query = useResellerQuery("campaigns");
@@ -209,7 +209,7 @@ export default function ResellerCampaigns({ reports = false }) {
                 className="gap-1.5 font-semibold shadow-xs"
               >
                 <Plus className="size-4" />
-                Create Campaign
+                Create campaign
               </Button>
             )}
             <Button
@@ -231,7 +231,7 @@ export default function ResellerCampaigns({ reports = false }) {
         <Card className="rounded-lg shadow-none">
           <CardContent className="p-4 sm:p-5">
             <p className="flex items-center justify-between text-xs text-muted-foreground font-medium">
-              Total Campaigns
+              Total campaigns
               <Megaphone className="size-4" />
             </p>
             <p className="mt-2 text-2xl font-semibold tabular-nums text-foreground">
@@ -243,7 +243,7 @@ export default function ResellerCampaigns({ reports = false }) {
         <Card className="rounded-lg shadow-none">
           <CardContent className="p-4 sm:p-5">
             <p className="flex items-center justify-between text-xs text-muted-foreground font-medium">
-              Queue & Pending
+              Awaiting review
               <Clock className="size-4 text-amber-500" />
             </p>
             <p className="mt-2 text-2xl font-semibold tabular-nums text-foreground">
@@ -333,7 +333,6 @@ export default function ResellerCampaigns({ reports = false }) {
         <CampaignDetail
           key={selected}
           id={selected}
-          initialReport={params.get("editReport") === "1"}
           onClose={() => {
             setParams((current) => {
               const next = new URLSearchParams(current);

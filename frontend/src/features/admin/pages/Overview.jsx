@@ -5,15 +5,14 @@ import { Card } from "@/components/ui/card";
 import { useAdminQuery } from "../hooks/useAdmin";
 import { QueryState } from "../components/shared";
 import { number } from "../lib/format";
-import { CampaignCharts } from "../components/OverviewCharts";
-import OverviewWorkPanel from "../components/OverviewWorkPanel";
+
+import { RecentCampaigns, AccountList } from "@/components/dashboard/OverviewPanels";
 import { toast } from "@/components/ui/toast";
 
 export default function Overview() {
   const overview = useAdminQuery("overview");
   const campaignsQuery = useAdminQuery("campaigns");
   const accountsQuery = useAdminQuery("accounts");
-  const campaigns = campaignsQuery.data?.data || [];
   const stats = overview.data?.stats;
   const refreshing = [overview, campaignsQuery, accountsQuery].some((query) => query.isFetching);
   const updated = overview.dataUpdatedAt
@@ -41,16 +40,15 @@ export default function Overview() {
     <div className="portal-overview">
       <header className="portal-page-heading">
         <div className="portal-heading-copy">
-          <p className="portal-eyebrow">Your workspace, at a glance</p>
           <h1>Overview</h1>
-          <p>Keep campaigns moving and your reseller network in view.</p>
+          <p>Review submissions and manage accounts.</p>
         </div>
         <div className="portal-page-actions">
           <Button variant="outline" onClick={refresh} disabled={refreshing} aria-busy={refreshing}>
             <RefreshCw className={refreshing ? "animate-spin motion-reduce:animate-none" : ""} aria-hidden="true" />
             {refreshing ? "Refreshing…" : "Refresh"}
           </Button>
-          <Button render={<Link to="/admin/campaigns" />}>View campaigns<ArrowUpRight aria-hidden="true" /></Button>
+          <Button render={<Link to="/admin/credits?allocate=new" />}>Allocate credits<ArrowUpRight aria-hidden="true" /></Button>
         </div>
       </header>
 
@@ -70,12 +68,10 @@ export default function Overview() {
         </QueryState>
       </section>
 
-      <OverviewWorkPanel campaignsQuery={campaignsQuery} accountsQuery={accountsQuery} />
-
-      <section aria-labelledby="analytics-heading" className="portal-section">
-        <div className="portal-section-heading"><div><p className="portal-eyebrow">Performance</p><h2 id="analytics-heading">Campaign insights</h2></div><span className="portal-section-caption">Activity & recorded results</span></div>
-        <QueryState query={campaignsQuery}><CampaignCharts campaigns={campaigns} /></QueryState>
-      </section>
+      <div className="dashboard-two-column">
+        <RecentCampaigns query={campaignsQuery} base="/admin" pendingOnly showOwner />
+        <AccountList query={accountsQuery} base="/admin" role="Reseller" />
+      </div>
       {updated && <p className="portal-updated">Last refreshed {updated} IST</p>}
     </div>
   );

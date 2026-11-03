@@ -41,7 +41,6 @@ function AccountDetail({ account, onClose }) {
         <div className="space-y-5 px-4">
           <div className="flex items-center justify-between">
             <StatusBadge status={account.status} />
-            <span className="text-xs text-muted-foreground font-mono">{account._id}</span>
           </div>
 
           <dl className="space-y-3.5 text-sm">
@@ -225,14 +224,14 @@ export default function Accounts({ role }) {
       : [
           {
             key: "users",
-            label: "Child Users",
+            label: "Assigned users",
             render: (a) =>
               number(accounts.filter((u) => u.role === "User" && (u.resellerId?._id || u.resellerId) === a._id).length),
           },
         ]),
     {
       key: "rate",
-      label: "Rate (Credits / Msg)",
+      label: "Credits per recipient",
       sort: (a) => a.ratePerMsg,
       render: (a) => <span className="tabular-nums font-semibold">{number(a.ratePerMsg)}</span>,
     },
@@ -312,7 +311,7 @@ export default function Accounts({ role }) {
         <Card className="rounded-lg shadow-none">
           <CardContent className="p-4 sm:p-5">
             <p className="flex items-center justify-between text-xs text-muted-foreground">
-              Active Accounts
+              Active accounts
               <CheckCircle2 className="size-4 text-emerald-500" />
             </p>
             <p className="mt-2 text-2xl font-semibold tabular-nums text-emerald-600">{number(activeCount)}</p>
@@ -321,7 +320,7 @@ export default function Accounts({ role }) {
         <Card className="rounded-lg shadow-none">
           <CardContent className="p-4 sm:p-5">
             <p className="flex items-center justify-between text-xs text-muted-foreground">
-              Blocked Accounts
+              Blocked accounts
               <Ban className="size-4 text-red-500" />
             </p>
             <p className="mt-2 text-2xl font-semibold tabular-nums text-red-600">{number(blockedCount)}</p>
@@ -330,7 +329,7 @@ export default function Accounts({ role }) {
         <Card className="rounded-lg shadow-none">
           <CardContent className="p-4 sm:p-5">
             <p className="flex items-center justify-between text-xs text-muted-foreground">
-              Average Rate
+              Average rate
               <Percent className="size-4 text-blue-500" />
             </p>
             <p className="mt-2 text-2xl font-semibold tabular-nums">{avgRate.toFixed(2)} cr</p>
@@ -451,7 +450,7 @@ export default function Accounts({ role }) {
 
       {modal?.type === "reclaim" && (
         <ActionForm
-          title="Deduct Credits"
+          title="Reclaim credits"
           description="Take back unused credits from this reseller."
           action="reclaim"
           successMessage="Credits deducted successfully"
@@ -464,14 +463,14 @@ export default function Accounts({ role }) {
           payload={(v) => ({ fromUserId: modal.account._id, amount: Number(v.amount), notes: v.notes.trim() })}
           review={(v) => (
             <>
-              <p className="font-medium text-destructive">Deduct Credits</p>
+              <p className="font-medium text-destructive">Reclaim credits</p>
               <p>
                 Deducting <strong>{number(Number(v.amount))} credits</strong> from {modal.account.username}.
               </p>
               <p className="text-muted-foreground text-xs mt-1">Reason: {v.notes}</p>
             </>
           )}
-          submitLabel="Deduct Credits"
+          submitLabel="Reclaim credits"
         />
       )}
     </>

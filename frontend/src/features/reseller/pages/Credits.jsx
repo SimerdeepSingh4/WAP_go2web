@@ -195,7 +195,7 @@ export default function ResellerCredits({ activity = false }) {
   return (
     <>
       <PageHeading
-        title={activity ? "Credit Activity" : "Credits"}
+        title={activity ? "Transactions" : "Credits"}
         description={
           activity
             ? "Audit trail of credit transfers, client allocations, and broadcast deductions."
@@ -317,7 +317,7 @@ export default function ResellerCredits({ activity = false }) {
             <Card className="rounded-lg shadow-none">
               <CardContent className="p-4 sm:p-5">
                 <div className="flex items-center justify-between text-muted-foreground">
-                  <span className="text-xs font-medium">Active Accounts</span>
+                  <span className="text-xs font-medium">Active accounts</span>
                   <CheckCircle2 className="size-4 text-emerald-600" />
                 </div>
                 <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight">

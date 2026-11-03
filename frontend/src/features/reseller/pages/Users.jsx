@@ -37,7 +37,6 @@ function UserDetail({ account, onClose, onAction }) {
         <div className="space-y-5 px-4">
           <div className="flex items-center justify-between">
             <StatusBadge status={account.status} />
-            <span className="text-xs text-muted-foreground font-mono">{account._id}</span>
           </div>
 
           <dl className="space-y-3.5 text-sm">
@@ -298,7 +297,7 @@ export default function ResellerUsers() {
         <Card className="rounded-lg shadow-none">
           <CardContent className="p-4">
             <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-medium">Average Rate</span>
+              <span className="text-xs font-medium">Average rate</span>
               <Percent className="size-4" />
             </div>
             <p className="mt-2 text-2xl font-bold tabular-nums">

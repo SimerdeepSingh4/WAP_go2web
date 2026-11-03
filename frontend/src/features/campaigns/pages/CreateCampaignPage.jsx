@@ -1,5 +1,5 @@
-import { useState, useMemo, useRef } from "react";
-import { useNavigate, useLocation, Link } from "react-router";
+import { useState, useMemo, useRef, useEffect } from "react";
+import { useNavigate, Link } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import ReactQuill from "react-quill-new";
 import "react-quill-new/dist/quill.snow.css";
@@ -16,7 +16,6 @@ import {
   Upload,
   FileText,
   Lock,
-  Sparkles,
   X,
   HelpCircle,
   Image as ImageIcon,
@@ -34,7 +33,11 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toast";
 import apiClient from "@/api/client";
-import { number } from "@/features/admin/lib/format";
+import { number, dateTime } from "@/features/admin/lib/format";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { FormError, QueryState } from "@/features/admin/components/shared";
+import { campaignEstimate, parseRecipients } from "../lib/submission";
 
 const WORD_LIMIT = 1024;
 
@@ -47,7 +50,9 @@ function formatFileSize(bytes) {
 
 export default function CreateCampaignPage() {
   const navigate = useNavigate();
-  const location = useLocation();
+  const { user } = useAuth();
+  const [reviewPayload, setReviewPayload] = useState(null);
+  const submitting = useRef(false);
   const queryClient = useQueryClient();
   const fileInputRef = useRef(null);
   const quillRef = useRef(null);
@@ -58,8 +63,9 @@ export default function CreateCampaignPage() {
   const pdfInputRef = useRef(null);
 
   // Determine base path (e.g. /reseller or /admin)
-  const isReseller = location.pathname.startsWith("/reseller");
-  const parentCampaignsPath = isReseller ? "/reseller/campaigns" : "/admin/campaigns";
+  const base = user?.role === "Super Admin" ? "/admin" : user?.role === "Reseller" ? "/reseller" : "/user";
+  const parentCampaignsPath = `${base}/campaigns`;
+  const isAdmin = user?.role === "Super Admin";
 
   // Form states
   const [campaignTitle, setCampaignTitle] = useState("");
@@ -75,9 +81,12 @@ export default function CreateCampaignPage() {
   const [videoFile, setVideoFile] = useState(null); // { file, preview, name, size }
   const [pdfFile, setPdfFile] = useState(null); // { file, name, size }
 
+  useEffect(() => () => { if (imageFile?.preview) URL.revokeObjectURL(imageFile.preview); }, [imageFile]);
+  useEffect(() => () => { if (videoFile?.preview) URL.revokeObjectURL(videoFile.preview); }, [videoFile]);
+
   // Fetch current user wallet balance
   const balanceQuery = useQuery({
-    queryKey: ["myWalletBalance"],
+    queryKey: ["myWalletBalance", user?.id || user?._id],
     queryFn: async () => {
       const res = await apiClient.get("/credits/balance");
       return res.data;
@@ -86,7 +95,7 @@ export default function CreateCampaignPage() {
 
   const wallet = balanceQuery.data?.wallet || {};
   const currentBalance = wallet.balance || 0;
-  const isLocked = wallet.isLocked || false;
+  const isLocked = !isAdmin && Boolean(wallet.isLocked);
 
   // Quill Editor Configuration
   const quillModules = useMemo(
@@ -244,40 +253,12 @@ export default function CreateCampaignPage() {
   };
 
   // Real-time phone numbers parsing and sanitization
-  const { validRecipients, duplicatesCount, invalidCount } = useMemo(() => {
-    if (!rawRecipients.trim()) {
-      return { validRecipients: [], duplicatesCount: 0, invalidCount: 0 };
-    }
-
-    const tokens = rawRecipients
-      .split(/[\n,;\t]+/)
-      .map((t) => t.trim())
-      .filter(Boolean);
-
-    const seen = new Set();
-    const valid = [];
-    let duplicates = 0;
-    let invalid = 0;
-
-    for (const token of tokens) {
-      const cleaned = token.replace(/\D/g, "");
-      if (cleaned.length < 8 || cleaned.length > 15) {
-        invalid++;
-      } else if (seen.has(cleaned)) {
-        duplicates++;
-      } else {
-        seen.add(cleaned);
-        valid.push(cleaned);
-      }
-    }
-
-    return { validRecipients: valid, duplicatesCount: duplicates, invalidCount: invalid };
-  }, [rawRecipients]);
-
+  const { validRecipients, duplicatesCount, invalidCount } = useMemo(() => parseRecipients(rawRecipients), [rawRecipients]);
   const totalRecipients = validRecipients.length;
-  const estimatedCost = totalRecipients; // 1 credit per contact
-  const remainingBalance = currentBalance - estimatedCost;
-  const hasInsufficientCredits = !isLocked && currentBalance < estimatedCost && totalRecipients > 0;
+  const estimate = campaignEstimate({ role: user?.role, ratePerMsg: wallet.ratePerMsg, balance: currentBalance, recipients: totalRecipients });
+  const estimatedCost = estimate.cost;
+  const remainingBalance = estimate.remaining;
+  const hasInsufficientCredits = estimate.insufficient;
   const totalMediaCount = (imageFile ? 1 : 0) + (videoFile ? 1 : 0) + (pdfFile ? 1 : 0);
 
   // Handle CSV/TXT recipient file upload
@@ -304,7 +285,7 @@ export default function CreateCampaignPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // Create Campaign Mutation
+  // Create campaign Mutation
   const createCampaignMutation = useMutation({
     mutationFn: async (payload) => {
       const res = await apiClient.post("/campaigns", payload, {
@@ -313,27 +294,25 @@ export default function CreateCampaignPage() {
       return res.data;
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries(["campaigns"]);
-      queryClient.invalidateQueries(["reseller"]);
-      queryClient.invalidateQueries(["admin"]);
-      queryClient.invalidateQueries(["myWalletBalance"]);
+      for (const key of ["campaigns", "reseller", "admin", "user", "myWalletBalance"]) queryClient.invalidateQueries({ queryKey: [key] });
 
       toast.add({
-        title: "Campaign Created Successfully!",
-        description: data.message || `Campaign '${campaignTitle}' has been queued for execution.`,
+        title: "Campaign submitted",
+        description: data.message || `Campaign '${campaignTitle}' has been submitted for review.`,
         type: "success",
       });
 
       navigate(parentCampaignsPath);
     },
+    onSettled: () => { submitting.current = false; },
     onError: (err) => {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        "Failed to launch campaign. Please verify your inputs.";
+        "Unable to submit campaign. Please verify your inputs.";
       setFormError(msg);
       toast.add({
-        title: "Campaign Submission Failed",
+        title: "Campaign submission failed",
         description: msg,
         type: "error",
       });
@@ -343,6 +322,10 @@ export default function CreateCampaignPage() {
   const handleSubmit = (e) => {
     e.preventDefault();
     setFormError("");
+    if (submitting.current || createCampaignMutation.isPending) return;
+    if (user?.isPreview) { setFormError("Exit account preview to submit a campaign."); return; }
+    if (!isAdmin && !balanceQuery.isSuccess) { setFormError("Load your credit balance before continuing."); return; }
+    if (scheduleType === "later" && (!scheduledTime || !Number.isFinite(new Date(scheduledTime).getTime()) || new Date(scheduledTime) <= new Date())) { setFormError("Choose a future date and time."); return; }
 
     if (isLocked) {
       setFormError("Your credit balance is expired and locked. Please contact your administrator.");
@@ -401,11 +384,11 @@ export default function CreateCampaignPage() {
       formData.append("documents", pdfFile.file);
     }
 
-    createCampaignMutation.mutate(formData);
+    setReviewPayload(formData);
   };
 
   return (
-    <div className="space-y-6 pb-12 max-w-7xl mx-auto">
+    <div className="campaign-editor w-full min-w-0 space-y-6 pb-8 max-w-7xl mx-auto">
       {/* Quill Custom Scoped Styling */}
       <style>{`
         .quill-editor-container .ql-toolbar.ql-snow {
@@ -445,6 +428,8 @@ export default function CreateCampaignPage() {
         }
       `}</style>
 
+      {!isAdmin && <QueryState query={balanceQuery}><span className="sr-only">Credit balance loaded</span></QueryState>}
+      {user?.isPreview && <p className="dashboard-note">Campaign submission is unavailable during account preview.</p>}
       {/* Top Header with Breadcrumbs and Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-4">
         <div className="space-y-1">
@@ -453,13 +438,13 @@ export default function CreateCampaignPage() {
               Campaigns
             </Link>
             <span>/</span>
-            <span className="text-foreground font-semibold">New Campaign</span>
+            <span className="text-foreground font-semibold">New campaign</span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
             Create Campaign
           </h1>
           <p className="text-sm text-muted-foreground">
-            Configure your message, attach media files, upload target audience, and dispatch your broadcast.
+            Add your message and recipients, then review the cost before submitting.
           </p>
         </div>
 
@@ -471,22 +456,9 @@ export default function CreateCampaignPage() {
             disabled={createCampaignMutation.isPending}
           >
             <ArrowLeft className="size-4 mr-1.5" />
-            Back to Campaigns
+            Back to campaigns
           </Button>
 
-          <Button
-            type="button"
-            onClick={handleSubmit}
-            disabled={createCampaignMutation.isPending || isLocked || hasInsufficientCredits || isOverWordLimit}
-            className="font-semibold shadow-xs"
-          >
-            {createCampaignMutation.isPending ? (
-              <Loader2 className="size-4 mr-2 animate-spin" />
-            ) : (
-              <Send className="size-4 mr-2" />
-            )}
-            {scheduleType === "later" ? "Schedule Campaign" : "Launch Campaign"}
-          </Button>
         </div>
       </div>
 
@@ -564,7 +536,7 @@ export default function CreateCampaignPage() {
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
                   <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <Sparkles className="size-4.5 text-primary" />
+                    <FileText className="size-4 text-primary" />
                     Message Composer
                   </CardTitle>
                   <CardDescription className="text-xs">
@@ -1026,7 +998,7 @@ export default function CreateCampaignPage() {
           </Card>
         </div>
 
-        {/* Right Column: Credits & Execution Summary (4 cols) */}
+        {/* Right Column: Submission summary (4 cols) */}
         <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-4">
           {/* Credits Summary Card */}
           <Card className="rounded-xl border shadow-xs">
@@ -1036,7 +1008,7 @@ export default function CreateCampaignPage() {
                 Credits & Execution Summary
               </CardTitle>
               <CardDescription className="text-xs">
-                Live cost calculation based on validated contacts.
+                Estimated charge for unique, valid recipients.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-5 space-y-3 text-sm">
@@ -1048,8 +1020,8 @@ export default function CreateCampaignPage() {
               </div>
 
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Rate per Message</span>
-                <span className="font-semibold tabular-nums text-foreground">1 Credit</span>
+                <span className="text-muted-foreground">Rate per recipient</span>
+                <span className="font-semibold tabular-nums text-foreground">{number(estimate.rate)} credits</span>
               </div>
 
               <div className="border-t pt-3 flex items-center justify-between">
@@ -1062,18 +1034,18 @@ export default function CreateCampaignPage() {
               <div className="flex items-center justify-between text-xs pt-1">
                 <span className="text-muted-foreground">Available Wallet Balance</span>
                 <span className="font-semibold tabular-nums text-foreground">
-                  {number(currentBalance)} Credits
+                  {isAdmin ? "Unlimited" : number(currentBalance)} Credits
                 </span>
               </div>
 
               <div className="flex items-center justify-between text-xs border-t pt-2">
-                <span className="text-muted-foreground">Balance After Launch</span>
+                <span className="text-muted-foreground">Balance after submission</span>
                 <span
                   className={`font-semibold tabular-nums ${
                     remainingBalance < 0 ? "text-destructive" : "text-emerald-600"
                   }`}
                 >
-                  {number(remainingBalance)} Credits
+                  {isAdmin ? "Unlimited" : number(remainingBalance)} Credits
                 </span>
               </div>
 
@@ -1109,13 +1081,13 @@ export default function CreateCampaignPage() {
 
               {hasInsufficientCredits && (
                 <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-xs font-semibold border border-destructive/20 mt-2">
-                  Insufficient balance! You need {number(estimatedCost - currentBalance)} more credits to dispatch this campaign.
+                  Insufficient balance! You need {number(estimatedCost - currentBalance)} more credits to submit this campaign.
                 </div>
               )}
 
               {isOverWordLimit && (
                 <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-xs font-semibold border border-destructive/20 mt-2">
-                  Cannot launch: Message exceeds the 1024 words limit ({number(wordCount)} words).
+                  Cannot submit: Message exceeds the 1024 words limit ({number(wordCount)} words).
                 </div>
               )}
             </CardContent>
@@ -1131,7 +1103,7 @@ export default function CreateCampaignPage() {
                 ) : (
                   <Send className="size-4 mr-2" />
                 )}
-                {scheduleType === "later" ? "Schedule Campaign" : "Launch Campaign"}
+                Review campaign
               </Button>
 
               <Button
@@ -1140,7 +1112,7 @@ export default function CreateCampaignPage() {
                 onClick={() => navigate(parentCampaignsPath)}
                 className="w-full text-xs text-muted-foreground"
               >
-                Cancel and Return
+                Cancel
               </Button>
             </CardFooter>
           </Card>
@@ -1159,7 +1131,7 @@ export default function CreateCampaignPage() {
                 </div>
               </div>
               <span className="rounded-full bg-primary-foreground/20 px-2.5 py-0.5 text-[10px] font-semibold text-primary-foreground">
-                Live Preview
+                Message preview
               </span>
             </div>
 
@@ -1245,6 +1217,13 @@ export default function CreateCampaignPage() {
           </div>
         </div>
       </form>
+      {reviewPayload && <Dialog open onOpenChange={open => { if (!open && !createCampaignMutation.isPending) setReviewPayload(null); }}><DialogContent showCloseButton={!createCampaignMutation.isPending}>
+        <DialogHeader><DialogTitle>Review campaign</DialogTitle><DialogDescription>Credits are charged when the server accepts your submission. The super admin manages approval and processing.</DialogDescription></DialogHeader>
+        <dl className="dashboard-details">{[["Campaign", campaignTitle], ["Recipients", number(totalRecipients)], ["Rate per recipient", number(estimate.rate) + " credits"], ["Estimated charge", number(estimatedCost) + " credits"], ["Balance after submission", isAdmin ? "Unlimited" : number(remainingBalance)], ["Requested schedule", scheduleType === "later" ? dateTime(scheduledTime) : "As soon as approved"], ["Attachments", number(totalMediaCount)]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+        <p className="text-sm text-muted-foreground">{number(duplicatesCount)} duplicate and {number(invalidCount)} invalid entries excluded. The server confirms the final charge.</p>
+        <FormError message={createCampaignMutation.error?.response?.data?.message || createCampaignMutation.error?.message} />
+        <div className="flex justify-end gap-2"><Button variant="outline" disabled={createCampaignMutation.isPending} onClick={() => setReviewPayload(null)}>Back to edit</Button><Button disabled={createCampaignMutation.isPending} onClick={() => { if (submitting.current) return; submitting.current = true; createCampaignMutation.mutate(reviewPayload); }}>{createCampaignMutation.isPending ? "Submitting?" : "Submit campaign"}</Button></div>
+      </DialogContent></Dialog>}
     </div>
   );
 }

@@ -10,7 +10,7 @@ export function useResellerQuery(resource, params = {}, enabled = true) {
   const query = useQuery({
     queryKey: ["reseller", accountId, resource, params],
     queryFn: ({ signal }) => resellerQueries[resource](params, signal),
-    enabled: enabled && user?.role === "Reseller" && !user?.isPreview,
+    enabled: enabled && user?.role === "Reseller",
     staleTime: 30_000,
   });
   useEffect(() => {

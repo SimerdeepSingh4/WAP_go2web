@@ -11,7 +11,7 @@ import ResellerSettings from "./features/reseller/pages/Settings.jsx";
 import UserLayout from "./features/user/components/UserLayout.jsx";
 import UserOverview from "./features/user/pages/UserOverview.jsx";
 import UserCredits from "./features/user/pages/Credits.jsx";
-import UserActivity from "./features/user/pages/UserActivity.jsx";
+import UserCampaigns from "./features/user/pages/Campaigns.jsx";
 import UserSettings from "./features/user/pages/Settings.jsx";
 import CreateCampaignPage from "./features/campaigns/pages/CreateCampaignPage.jsx";
 import PreviewBanner from "./components/PreviewBanner.jsx";
@@ -23,6 +23,7 @@ const AdminLayout = lazy(() => import("./features/admin/components/AdminLayout.j
 const AdminOverview = lazy(() => import("./features/admin/pages/Overview.jsx"));
 const AdminCampaigns = lazy(() => import("./features/admin/pages/Campaigns.jsx"));
 const AdminContacts = lazy(() => import("./features/admin/pages/Contacts.jsx"));
+const Administrators = lazy(() => import("./features/admin/pages/Administrators.jsx"));
 const AdminAccounts = lazy(() => import("./features/admin/pages/Accounts.jsx"));
 const AdminCredits = lazy(() => import("./features/admin/pages/Credits.jsx"));
 const AdminOperatingRules = lazy(() => import("./features/admin/pages/OperatingRules.jsx"));
@@ -111,6 +112,7 @@ export const router = createBrowserRouter([
       { path: "campaigns/new", element: <CreateCampaignPage /> },
       { path: "contacts", element: <AdminContacts /> },
       { path: "reports", element: <AdminCampaigns reports /> },
+      { path: "administrators", element: <Administrators /> },
       { path: "resellers", element: <AdminAccounts key="resellers" role="Reseller" /> },
       { path: "users", element: <AdminAccounts key="users" role="User" /> },
       { path: "credits", element: <AdminCredits key="credits" /> },
@@ -146,10 +148,11 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <UserOverview /> },
+      { path: "campaigns", element: <UserCampaigns /> },
       { path: "campaigns/create", element: <CreateCampaignPage /> },
       { path: "campaigns/new", element: <CreateCampaignPage /> },
-      { path: "credits", element: <UserCredits /> },
-      { path: "activity", element: <UserActivity /> },
+      { path: "credits", element: <UserCredits key="credits" /> },
+      { path: "activity", element: <UserCredits key="activity" activity /> },
       { path: "settings", element: <UserSettings /> },
     ],
   },

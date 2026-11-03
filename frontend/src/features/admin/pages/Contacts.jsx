@@ -12,6 +12,7 @@ import { number, dateTime } from "../lib/format";
 import api from "@/api/client";
 
 export default function Contacts() {
+  const [deleting, setDeleting] = useState(null);
   const [search, setSearch] = useState("");
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [file, setFile] = useState(null);
@@ -21,11 +22,11 @@ export default function Contacts() {
   const fileInputRef = useRef(null);
 
   const contactsQuery = useAdminQuery("contacts");
-  const deleteMutation = useAdminMutation("deleteContact", "Contact removed");
+  const deleteMutation = useAdminMutation("deleteContact", "Contact removed", () => setDeleting(null));
 
   const contacts = contactsQuery.data?.contacts || contactsQuery.data?.data || [];
   const rows = contacts.filter((c) => {
-    const text = `${c.name || ""} ${c.phoneNumber || ""} ${c.email || ""} ${c.company || ""} ${c.groupId || ""}`.toLowerCase();
+    const text = `${c.name || ""} ${c.phoneNumber || ""} ${c.email || ""} ${c.company || ""} ${c.groupId?.name || ""}`.toLowerCase();
     return text.includes(search.toLowerCase());
   });
 
@@ -50,6 +51,7 @@ export default function Contacts() {
       formData.append("groupName", groupName.trim());
     }
 
+    if (isImporting) return;
     setIsImporting(true);
     try {
       const response = await api.post("/contacts/import-file", formData, {
@@ -84,6 +86,7 @@ export default function Contacts() {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
       toast.add({ title: "Contacts exported to CSV", type: "success" });
     } catch (err) {
       toast.add({ title: "Export failed", description: err.message, type: "error" });
@@ -120,7 +123,7 @@ export default function Contacts() {
         <div className="flex flex-wrap gap-1">
           {c.groupId ? (
             <span className="inline-flex items-center rounded-md bg-secondary px-2 py-0.5 text-xs text-secondary-foreground font-medium">
-              {c.groupId}
+              {c.groupId?.name || "Group name unavailable"}
             </span>
           ) : (
             <span className="text-xs text-muted-foreground">—</span>
@@ -148,8 +151,8 @@ export default function Contacts() {
           variant="ghost"
           size="icon-sm"
           className="text-muted-foreground hover:text-destructive"
-          onClick={() => deleteMutation.mutate(c._id)}
-          title="Delete contact"
+          onClick={() => { deleteMutation.reset(); setDeleting(c); }}
+          aria-label={`Delete ${c.name || c.phoneNumber}`}
         >
           <Trash2 className="size-4" />
         </Button>
@@ -160,8 +163,8 @@ export default function Contacts() {
   return (
     <>
       <PageHeading
-        title="Audience & Contacts"
-        description="Manage recipient directories, bulk import via Excel/CSV with auto-column mapping, and export audience data."
+        title="Contacts"
+        description="Search contacts, import a recipient list or export your directory."
         action={
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" onClick={handleExportCSV} disabled={!contacts.length}>
@@ -170,7 +173,7 @@ export default function Contacts() {
             </Button>
             <Button onClick={() => setIsImportOpen(true)}>
               <UploadCloud className="size-4 mr-1" />
-              Import Contacts
+              Import contacts
             </Button>
           </div>
         }
@@ -309,7 +312,7 @@ export default function Contacts() {
                     Processing...
                   </>
                 ) : (
-                  "Start Import"
+                  "Import contacts"
                 )}
               </Button>
             </DialogFooter>
