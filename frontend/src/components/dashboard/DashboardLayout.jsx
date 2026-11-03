@@ -167,7 +167,7 @@ export default function DashboardLayout({ role }) {
             <header className="portal-topbar">
               <div className="portal-search-wrapper">
                 <div className="portal-search-bar">
-                  <Search className="size-4 text-slate-400 shrink-0" aria-hidden="true" />
+                  <Search className="size-4.5 text-slate-500 shrink-0" aria-hidden="true" />
                   <input
                     ref={searchInputRef}
                     type="text"
@@ -177,7 +177,7 @@ export default function DashboardLayout({ role }) {
                     onFocus={() => setIsSearchFocused(true)}
                     onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
                     aria-label="Find a control"
-                    className="portal-search-input"
+                    className="portal-search-input outline-none ring-0 border-0 shadow-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
                   />
                   {searchQuery ? (
                     <button
