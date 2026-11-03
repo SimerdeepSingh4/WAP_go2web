@@ -78,7 +78,8 @@ export default function UserDashboard() {
 
   const balance   = balanceData?.wallet?.balance   ?? balanceData?.balance   ?? 0;
   const isLocked  = balanceData?.wallet?.isLocked  ?? false;
-  const campaigns = campaignsData?.campaigns ?? campaignsData ?? [];
+  const rawList   = campaignsData?.data ?? campaignsData?.campaigns ?? campaignsData;
+  const campaigns = Array.isArray(rawList) ? rawList : [];
 
   // KPI aggregates
   const total     = campaigns.length;
@@ -209,9 +210,9 @@ export default function UserDashboard() {
               {recent.map((c) => (
                 <div key={c._id} className="flex items-center justify-between px-5 py-3.5 hover:bg-muted/40 transition-colors">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{c.name || c.title || "Untitled"}</p>
+                    <p className="text-sm font-medium text-foreground truncate">{c.campaignTitle || c.name || c.title || "Untitled"}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {c.recipients?.length ?? c.recipientCount ?? "—"} recipients
+                      {c.totalRecipients ?? c.recipientStats?.totalSubmitted ?? c.recipients?.length ?? c.recipientCount ?? "—"} recipients
                       {c.createdAt
                         ? ` · ${new Date(c.createdAt).toLocaleDateString("en-IN", {
                             day: "numeric", month: "short", year: "numeric",
