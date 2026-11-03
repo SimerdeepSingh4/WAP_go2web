@@ -537,10 +537,10 @@ export default function CreateCampaignPage() {
                 <div>
                   <CardTitle className="text-base font-semibold flex items-center gap-2">
                     <FileText className="size-4 text-primary" />
-                    Message Composer
+                    Message
                   </CardTitle>
                   <CardDescription className="text-xs">
-                    Draft your WhatsApp message text with formatting and personalization tags.
+                    Write the message your recipients will receive.
                   </CardDescription>
                 </div>
 
@@ -591,7 +591,7 @@ export default function CreateCampaignPage() {
                   onChange={setMessageBody}
                   modules={quillModules}
                   formats={quillFormats}
-                  placeholder="Hello {{name}}, we are thrilled to bring you our exclusive discounts! Type your message here..."
+                  placeholder="Type your message here..."
                 />
               </div>
 
@@ -606,7 +606,7 @@ export default function CreateCampaignPage() {
             </CardContent>
           </Card>
 
-          {/* Card 3: Campaign Attachments (1 Image, 1 Video, 1 PDF nothing else) */}
+          {/* Card 3: Attachments (1 Image, 1 Video, 1 PDF nothing else) */}
           <Card className="rounded-xl border shadow-xs">
             <CardHeader className="border-b pb-4">
               <div className="flex items-center justify-between flex-wrap gap-2">
@@ -1095,7 +1095,7 @@ export default function CreateCampaignPage() {
             <CardFooter className="border-t pt-4 flex flex-col gap-2">
               <Button
                 type="submit"
-                disabled={createCampaignMutation.isPending || isLocked || hasInsufficientCredits || isOverWordLimit}
+                disabled={createCampaignMutation.isPending || user?.isPreview || (!isAdmin && !balanceQuery.isSuccess) || isLocked || hasInsufficientCredits || isOverWordLimit}
                 className="w-full font-semibold h-10 shadow-xs"
               >
                 {createCampaignMutation.isPending ? (
@@ -1222,7 +1222,7 @@ export default function CreateCampaignPage() {
         <dl className="dashboard-details">{[["Campaign", campaignTitle], ["Recipients", number(totalRecipients)], ["Rate per recipient", number(estimate.rate) + " credits"], ["Estimated charge", number(estimatedCost) + " credits"], ["Balance after submission", isAdmin ? "Unlimited" : number(remainingBalance)], ["Requested schedule", scheduleType === "later" ? dateTime(scheduledTime) : "As soon as approved"], ["Attachments", number(totalMediaCount)]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
         <p className="text-sm text-muted-foreground">{number(duplicatesCount)} duplicate and {number(invalidCount)} invalid entries excluded. The server confirms the final charge.</p>
         <FormError message={createCampaignMutation.error?.response?.data?.message || createCampaignMutation.error?.message} />
-        <div className="flex justify-end gap-2"><Button variant="outline" disabled={createCampaignMutation.isPending} onClick={() => setReviewPayload(null)}>Back to edit</Button><Button disabled={createCampaignMutation.isPending} onClick={() => { if (submitting.current) return; submitting.current = true; createCampaignMutation.mutate(reviewPayload); }}>{createCampaignMutation.isPending ? "Submitting?" : "Submit campaign"}</Button></div>
+        <div className="flex justify-end gap-2"><Button variant="outline" disabled={createCampaignMutation.isPending} onClick={() => setReviewPayload(null)}>Back to edit</Button><Button disabled={createCampaignMutation.isPending} onClick={() => { if (submitting.current) return; submitting.current = true; createCampaignMutation.mutate(reviewPayload); }}>{createCampaignMutation.isPending ? "Submitting..." : "Submit campaign"}</Button></div>
       </DialogContent></Dialog>}
     </div>
   );

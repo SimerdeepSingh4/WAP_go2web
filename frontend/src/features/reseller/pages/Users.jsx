@@ -1,3 +1,4 @@
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import {
@@ -127,6 +128,7 @@ function UserDetail({ account, onClose, onAction }) {
  * Reseller Users page — exact UI/UX design matching Super Admin Accounts.jsx
  */
 export default function ResellerUsers() {
+  const { user: signedInUser } = useAuth();
   const query = useResellerQuery("accounts");
   const [params, setParams] = useSearchParams();
   const search = params.get("search") || "";
@@ -213,11 +215,11 @@ export default function ResellerUsers() {
               <Eye className="size-4 mr-2" />
               Account details
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setModal({ type: "rate", account: a })}>
+            <DropdownMenuItem disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "rate", account: a })}>
               <Pencil className="size-4 mr-2" />
               Change rate
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setModal({ type: "allocate", account: a })}>
+            <DropdownMenuItem disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "allocate", account: a })}>
               <Wallet className="size-4 mr-2" />
               Allocate credits
             </DropdownMenuItem>
@@ -245,7 +247,7 @@ export default function ResellerUsers() {
               Refresh
             </Button>
             <Button
-              disabled={query.isPending || query.isError}
+              disabled={signedInUser?.isPreview || query.isPending || query.isError}
               onClick={() => setModal({ type: "create" })}
               className="gap-1.5 font-semibold"
             >
@@ -256,59 +258,6 @@ export default function ResellerUsers() {
         }
       />
 
-      {/* Top 4 KPI Metrics Grid (identical to Super Admin Accounts) */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Card className="rounded-lg shadow-none">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-medium">Total Users</span>
-              <Users className="size-4" />
-            </div>
-            <p className="mt-2 text-2xl font-bold tabular-nums">
-              {number(accounts.length)}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-lg shadow-none">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between text-emerald-600">
-              <span className="text-xs font-medium text-muted-foreground">Active Users</span>
-              <CheckCircle2 className="size-4" />
-            </div>
-            <p className="mt-2 text-2xl font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
-              {number(activeCount)}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-lg shadow-none">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between text-destructive">
-              <span className="text-xs font-medium text-muted-foreground">Blocked Users</span>
-              <Ban className="size-4" />
-            </div>
-            <p className="mt-2 text-2xl font-bold tabular-nums text-destructive">
-              {number(blockedCount)}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-lg shadow-none">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between text-muted-foreground">
-              <span className="text-xs font-medium">Average rate</span>
-              <Percent className="size-4" />
-            </div>
-            <p className="mt-2 text-2xl font-bold tabular-nums">
-              {avgRate.toFixed(2)}{" "}
-              <span className="text-xs font-normal text-muted-foreground">credits</span>
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filter and Search Bar with Clear Filters */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <SearchBox

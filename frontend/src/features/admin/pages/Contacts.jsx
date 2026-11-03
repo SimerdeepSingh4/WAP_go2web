@@ -179,39 +179,6 @@ export default function Contacts() {
         }
       />
 
-      {/* Summary KPI Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Card className="rounded-lg shadow-none">
-          <CardContent className="p-4 sm:p-5">
-            <p className="flex items-center justify-between text-xs text-muted-foreground">
-              Total Contacts
-              <Users className="size-4" />
-            </p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums">{number(contacts.length)}</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-lg shadow-none">
-          <CardContent className="p-4 sm:p-5">
-            <p className="flex items-center justify-between text-xs text-muted-foreground">
-              Audience Groups
-              <FileSpreadsheet className="size-4" />
-            </p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums">
-              {number(new Set(contacts.map((c) => c.groupId).filter(Boolean)).size)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-lg shadow-none col-span-2 sm:col-span-1">
-          <CardContent className="p-4 sm:p-5">
-            <p className="flex items-center justify-between text-xs text-muted-foreground">
-              Database Sanitization
-              <CheckCircle2 className="size-4 text-emerald-600" />
-            </p>
-            <p className="mt-2 text-sm font-medium text-emerald-800">E.164 Validated</p>
-          </CardContent>
-        </Card>
-      </div>
-
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SearchBox value={search} onChange={setSearch} label="Search name, phone, email, group..." />
         {search && (

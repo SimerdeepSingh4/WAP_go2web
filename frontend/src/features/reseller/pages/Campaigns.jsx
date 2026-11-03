@@ -198,7 +198,7 @@ export default function ResellerCampaigns({ reports = false }) {
         description={
           reports
             ? "Review campaign performance reports from your users."
-            : "Review and manage campaign submissions and execution status."
+            : "View submissions and published results for your users."
         }
         action={
           <div className="flex items-center gap-2">
@@ -225,57 +225,6 @@ export default function ResellerCampaigns({ reports = false }) {
           </div>
         }
       />
-
-      {/* Top KPI Cards (matching Super Admin) */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Card className="rounded-lg shadow-none">
-          <CardContent className="p-4 sm:p-5">
-            <p className="flex items-center justify-between text-xs text-muted-foreground font-medium">
-              Total campaigns
-              <Megaphone className="size-4" />
-            </p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums text-foreground">
-              {number(totalCount)}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-lg shadow-none">
-          <CardContent className="p-4 sm:p-5">
-            <p className="flex items-center justify-between text-xs text-muted-foreground font-medium">
-              Awaiting review
-              <Clock className="size-4 text-amber-500" />
-            </p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums text-foreground">
-              {number(pendingCount)}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-lg shadow-none">
-          <CardContent className="p-4 sm:p-5">
-            <p className="flex items-center justify-between text-xs text-muted-foreground font-medium">
-              Ongoing Dispatches
-              <RefreshCw className="size-4 text-primary" />
-            </p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums text-foreground">
-              {number(ongoingCount)}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-lg shadow-none">
-          <CardContent className="p-4 sm:p-5">
-            <p className="flex items-center justify-between text-xs text-muted-foreground font-medium">
-              Completed & Published
-              <CheckCircle className="size-4 text-emerald-500" />
-            </p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums text-foreground">
-              {number(completedCount)}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Filter and Search Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3">

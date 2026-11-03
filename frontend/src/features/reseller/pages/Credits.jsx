@@ -1,3 +1,4 @@
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useSearchParams } from "react-router";
 import {
   Plus,
@@ -90,6 +91,7 @@ function getTransactionDisplay(t) {
 }
 
 export default function ResellerCredits({ activity = false }) {
+  const { user: signedInUser } = useAuth();
   const [params, setParams] = useSearchParams();
   const page = Math.max(1, Number(params.get("page")) || 1);
   const type = params.get("type") || "all";
@@ -224,7 +226,7 @@ export default function ResellerCredits({ activity = false }) {
             {!activity && (
               <Button
                 onClick={() => update("allocate", "new")}
-                disabled={!accounts.length || accountsQuery.isError || isWalletLocked}
+                disabled={signedInUser?.isPreview || !accounts.length || accountsQuery.isError || isWalletLocked}
                 title={isWalletLocked ? "Your credit balance is expired and locked." : undefined}
                 className="gap-1.5 font-semibold"
               >
@@ -247,7 +249,7 @@ export default function ResellerCredits({ activity = false }) {
             >
               <CardContent className="p-4 sm:p-5">
                 <div className="flex items-center justify-between text-muted-foreground">
-                  <span className="text-xs font-medium">Your Wallet Balance</span>
+                  <span className="text-xs font-medium">Available credits</span>
                   {isWalletLocked ? (
                     <Lock className="size-4 text-red-600" />
                   ) : (
@@ -274,7 +276,7 @@ export default function ResellerCredits({ activity = false }) {
                   </p>
                 ) : (
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    Available for broadcast & allocation
+                    Available for campaigns and allocation
                   </p>
                 )}
               </CardContent>
@@ -283,7 +285,7 @@ export default function ResellerCredits({ activity = false }) {
             <Card className="rounded-lg shadow-none">
               <CardContent className="p-4 sm:p-5">
                 <div className="flex items-center justify-between text-muted-foreground">
-                  <span className="text-xs font-medium">Purchased This Month</span>
+                  <span className="text-xs font-medium">Received this month</span>
                   <Coins className="size-4 text-emerald-600" />
                 </div>
                 <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-emerald-700 dark:text-emerald-400">
@@ -302,11 +304,11 @@ export default function ResellerCredits({ activity = false }) {
             <Card className="rounded-lg shadow-none">
               <CardContent className="p-4 sm:p-5">
                 <div className="flex items-center justify-between text-muted-foreground">
-                  <span className="text-xs font-medium">Total Client Accounts</span>
+                  <span className="text-xs font-medium">Assigned users</span>
                   <Users className="size-4 text-blue-600" />
                 </div>
                 <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight">
-                  {number(accounts.length)}
+                  {number(accountsQuery.isSuccess ? accounts.length : null)}
                 </p>
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   Registered under your agency
@@ -321,7 +323,7 @@ export default function ResellerCredits({ activity = false }) {
                   <CheckCircle2 className="size-4 text-emerald-600" />
                 </div>
                 <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight">
-                  {number(accounts.filter((a) => a.status === "active").length)}
+                  {number(accountsQuery.isSuccess ? accounts.filter((a) => a.status === "active").length : null)}
                 </p>
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   Eligible for campaigns
@@ -411,7 +413,7 @@ export default function ResellerCredits({ activity = false }) {
         </p>
       )}
 
-      {allocation && accountsQuery.isSuccess && accounts.length > 0 && (
+      {!signedInUser?.isPreview && allocation && accountsQuery.isSuccess && accounts.length > 0 && (
         <ResellerActionForm
           title="Allocate credits"
           description="Credits will be deducted from your reseller wallet and transferred to the selected client user."

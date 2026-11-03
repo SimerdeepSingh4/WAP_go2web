@@ -297,46 +297,6 @@ export default function Accounts({ role }) {
         }
       />
 
-      {/* Account KPI Header Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Card className="rounded-lg shadow-none">
-          <CardContent className="p-4 sm:p-5">
-            <p className="flex items-center justify-between text-xs text-muted-foreground">
-              Total {role}s
-              <Users className="size-4" />
-            </p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums">{number(roleAccounts.length)}</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-lg shadow-none">
-          <CardContent className="p-4 sm:p-5">
-            <p className="flex items-center justify-between text-xs text-muted-foreground">
-              Active accounts
-              <CheckCircle2 className="size-4 text-emerald-500" />
-            </p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums text-emerald-600">{number(activeCount)}</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-lg shadow-none">
-          <CardContent className="p-4 sm:p-5">
-            <p className="flex items-center justify-between text-xs text-muted-foreground">
-              Blocked accounts
-              <Ban className="size-4 text-red-500" />
-            </p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums text-red-600">{number(blockedCount)}</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-lg shadow-none">
-          <CardContent className="p-4 sm:p-5">
-            <p className="flex items-center justify-between text-xs text-muted-foreground">
-              Average rate
-              <Percent className="size-4 text-blue-500" />
-            </p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums">{avgRate.toFixed(2)} cr</p>
-          </CardContent>
-        </Card>
-      </div>
-
       {role === "User" && query.isSuccess && !resellers.length && (
         <p className="rounded-md border bg-muted/50 p-3 text-sm">
           Create an active reseller before adding a user.{" "}

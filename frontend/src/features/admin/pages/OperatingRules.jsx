@@ -157,7 +157,7 @@ export default function OperatingRules() {
   });
   const logoutAllMutation = useMutation({
     mutationFn: logoutAll,
-    onSuccess: () => { setConfirmLogout(false); sessionsQuery.refetch(); toast.add({ title: "Device sign-out completed", type: "success" }); },
+    onSuccess: () => { localStorage.removeItem("token"); window.dispatchEvent(new CustomEvent("auth:unauthorized")); },
     onError: (error) => toast.add({ title: "Could not sign out devices", description: error?.response?.data?.message || error?.message, type: "error" }),
   });
   const activeSessions = sessionsQuery.data?.sessions || [];
@@ -261,7 +261,7 @@ export default function OperatingRules() {
               { value: "block", label: "Block the new login", description: "Ask the user to sign out from an existing device first." },
             ]} />
             <div className="portal-danger-zone"><h4>Session sign-out</h4><p>Signing out devices ends their access. Affected devices will need to sign in again.</p>
-              {confirmLogout ? <div className="portal-confirm-action" role="alert"><p>Sign out all devices covered by your account? Your current session may also end.</p><div><Button type="button" variant="outline" onClick={() => setConfirmLogout(false)} disabled={logoutAllMutation.isPending}>Cancel</Button><Button type="button" variant="destructive" onClick={() => logoutAllMutation.mutate()} disabled={logoutAllMutation.isPending}><LogOut aria-hidden="true" />{logoutAllMutation.isPending ? "Signing out…" : "Confirm sign-out"}</Button></div></div>
+              {confirmLogout ? <div className="portal-confirm-action" role="alert"><p>Sign out all devices covered by your account? Your current session will also end.</p><div><Button type="button" variant="outline" onClick={() => setConfirmLogout(false)} disabled={logoutAllMutation.isPending}>Cancel</Button><Button type="button" variant="destructive" onClick={() => logoutAllMutation.mutate()} disabled={logoutAllMutation.isPending}><LogOut aria-hidden="true" />{logoutAllMutation.isPending ? "Signing out…" : "Confirm sign-out"}</Button></div></div>
                 : <Button type="button" variant="outline" className="portal-danger-button" onClick={() => setConfirmLogout(true)}><LogOut aria-hidden="true" />Sign out all devices</Button>}
             </div>
           </SettingsCard>

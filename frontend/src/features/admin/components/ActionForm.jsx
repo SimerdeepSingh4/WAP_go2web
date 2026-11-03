@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,6 +8,7 @@ import { useAdminMutation } from "../hooks/useAdmin";
 import { Field, FilterSelect, FormError } from "./shared";
 
 export default function ActionForm({ title, description, action, successMessage, fields, initialValues, validate, payload, review, onClose, submitLabel = "Confirm changes" }) {
+  const submitting = useRef(false);
   const [values, setValues] = useState(initialValues);
   const [reviewing, setReviewing] = useState(false);
   const [errors, setErrors] = useState({});
@@ -16,7 +17,8 @@ export default function ActionForm({ title, description, action, successMessage,
   function change(key, value) { setValues((old) => ({ ...old, [key]: value })); setErrors((old) => ({ ...old, [key]: undefined })); setError(""); mutation.reset(); }
   function submit(event) {
     event.preventDefault();
-    if (reviewing) { mutation.mutate(payload(values)); return; }
+    if (submitting.current) return;
+    if (reviewing) { submitting.current = true; mutation.mutate(payload(values), { onSettled: () => { submitting.current = false; } }); return; }
     const invalid = {};
     for (const field of fields) {
       const value = String(values[field.key] ?? "");

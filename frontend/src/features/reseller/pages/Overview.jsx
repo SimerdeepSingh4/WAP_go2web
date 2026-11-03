@@ -1,3 +1,4 @@
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { Link } from "react-router";
 import { RefreshCw, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { number } from "@/features/admin/lib/format";
 import { toast } from "@/components/ui/toast";
 
 export default function Overview() {
+  const { user: signedInUser } = useAuth();
   const campaigns = useResellerQuery("campaigns");
   const accounts = useResellerQuery("accounts");
   const balance = useResellerQuery("myBalance");
@@ -19,9 +21,9 @@ export default function Overview() {
     toast.add({ title: results.some(r => r.isError) ? "Some information could not be refreshed" : "Overview refreshed", type: results.some(r => r.isError) ? "error" : "success" });
   }
   return <>
-    <PageHeading title="Overview" description="Manage your users and their available credits." action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={refresh} disabled={queries.some(q => q.isFetching)}><RefreshCw />Refresh</Button><Button render={<Link to="/reseller/credits?allocate=new" />}><Plus />Allocate credits</Button></div>} />
-    <QueryState query={balance}><Summary items={[{ label: "Available credits", value: number(wallet?.balance), hint: wallet?.isLocked ? "Locked ? contact your administrator" : "Available for allocation", credit: true }, { label: "Your rate", value: number(wallet?.ratePerMsg), hint: "Credits per recipient" }]} /></QueryState>
+    <PageHeading title="Overview" description="Manage your users and their available credits." action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={refresh} disabled={queries.some(q => q.isFetching)}><RefreshCw />Refresh</Button><Button disabled={signedInUser?.isPreview} render={<Link to="/reseller/credits?allocate=new" />}><Plus />Allocate credits</Button></div>} />
+    <QueryState query={balance}><Summary items={[{ label: "Available credits", value: number(wallet?.balance), hint: wallet?.isLocked ? "Locked - contact your administrator" : "Available for allocation", credit: true }, { label: "Your rate", value: number(wallet?.ratePerMsg), hint: "Credits per recipient" }]} /></QueryState>
     <div className="dashboard-two-column"><RecentCampaigns query={campaigns} base="/reseller" showOwner /><AccountList query={accounts} base="/reseller" role="User" /></div>
-    <QueryState query={accounts}><p className="text-sm text-muted-foreground">{number(users.filter(u => u.status === "active").length)} active users ? {number(users.length)} assigned users</p></QueryState>
+    <QueryState query={accounts}><p className="text-sm text-muted-foreground">{number(users.filter(u => u.status === "active").length)} active users / {number(users.length)} assigned users</p></QueryState>
   </>;
 }

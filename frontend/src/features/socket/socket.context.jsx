@@ -45,7 +45,7 @@ export const SocketProvider = ({ children }) => {
             queryClient.invalidateQueries({ queryKey: ["creditTransactions"] });
             queryClient.invalidateQueries({ queryKey: ["managedUsers"] });
             queryClient.invalidateQueries({ queryKey: ["clientUsers"] });
-            queryClient.invalidateQueries({ queryKey: ["admin"] });
+            for (const key of ["admin", "reseller", "user", "myWalletBalance"]) queryClient.invalidateQueries({ queryKey: [key] });
 
             if (data.reason === "REFUND") {
                 toast.add({
@@ -71,12 +71,12 @@ export const SocketProvider = ({ children }) => {
         // ── Real-Time Campaign & Delivery Status ───────────────
         socket.on("CAMPAIGN_UPDATED", (data) => {
             queryClient.invalidateQueries({ queryKey: ["campaignsList"] });
-            queryClient.invalidateQueries({ queryKey: ["admin"] });
+            for (const key of ["admin", "reseller", "user", "myWalletBalance"]) queryClient.invalidateQueries({ queryKey: [key] });
             queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
 
             toast.add({
                 title: "Campaign Status Updated",
-                description: `"${data.campaignTitle || 'Campaign'}" status is now ${data.status.toUpperCase()}${data.creditsRefunded ? ` (${data.creditsRefunded} credits refunded)` : ''}.`,
+                description: `"${data.campaignTitle || 'Campaign'}" status is now ${(data.status || "updated")}${data.creditsRefunded ? ` (${data.creditsRefunded} credits refunded)` : ''}.`,
                 type: "info",
             });
         });
@@ -84,7 +84,7 @@ export const SocketProvider = ({ children }) => {
         // ── Super Admin Live Campaign Queue Dispatch ───────────
         socket.on("NEW_CAMPAIGN_SUBMITTED", (data) => {
             queryClient.invalidateQueries({ queryKey: ["campaignsList"] });
-            queryClient.invalidateQueries({ queryKey: ["admin"] });
+            for (const key of ["admin", "reseller", "user", "myWalletBalance"]) queryClient.invalidateQueries({ queryKey: [key] });
             queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
 
             toast.add({
@@ -96,20 +96,22 @@ export const SocketProvider = ({ children }) => {
 
         // ── Reseller Client Activity ───────────────────────────
         socket.on("CLIENT_CAMPAIGN_LAUNCHED", (data) => {
+            queryClient.invalidateQueries({ queryKey: ["reseller"] });
             queryClient.invalidateQueries({ queryKey: ["campaignsList"] });
             queryClient.invalidateQueries({ queryKey: ["clientUsers"] });
 
             toast.add({
-                title: "Client Launched Campaign",
-                description: `${data.clientName} launched "${data.campaignTitle}" (${data.totalRecipients} recipients).`,
+                title: "User submitted a campaign",
+                description: `${data.clientName} submitted "${data.campaignTitle}" (${data.totalRecipients} recipients).`,
                 type: "info",
             });
         });
 
         // ── Real-Time Active Sessions Updated ──────────────────
         socket.on("SESSIONS_CHANGED", () => {
+            queryClient.invalidateQueries({ queryKey: ["accountSessions"] });
             queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
-            queryClient.invalidateQueries({ queryKey: ["admin"] });
+            for (const key of ["admin", "reseller", "user", "myWalletBalance"]) queryClient.invalidateQueries({ queryKey: [key] });
         });
 
         // ── Instant Device Eviction (Disconnected / Limit Exceeded) ─

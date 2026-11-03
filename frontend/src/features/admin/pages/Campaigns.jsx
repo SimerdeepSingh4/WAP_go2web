@@ -217,46 +217,6 @@ export default function Campaigns({ reports = false }) {
         }
       />
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Card className="rounded-lg shadow-none">
-          <CardContent className="p-4 sm:p-5">
-            <p className="flex items-center justify-between text-xs text-muted-foreground">
-              Total campaigns
-              <Megaphone className="size-4" />
-            </p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums">{number(totalCount)}</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-lg shadow-none">
-          <CardContent className="p-4 sm:p-5">
-            <p className="flex items-center justify-between text-xs text-muted-foreground">
-              Awaiting review
-              <Clock className="size-4 text-amber-500" />
-            </p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums text-amber-600">{number(pendingCount)}</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-lg shadow-none">
-          <CardContent className="p-4 sm:p-5">
-            <p className="flex items-center justify-between text-xs text-muted-foreground">
-              Completed
-              <CheckCircle className="size-4 text-emerald-500" />
-            </p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums">{number(completedCount)}</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-lg shadow-none">
-          <CardContent className="p-4 sm:p-5">
-            <p className="flex items-center justify-between text-xs text-muted-foreground">
-              Awaiting reports
-              <AlertTriangle className="size-4 text-blue-500" />
-            </p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums">{number(needsReportCount)}</p>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Filter Tabs Bar */}
       <div className="flex flex-wrap items-center gap-1.5 border-b pb-3">
         {quickFilterTabs.map((tab) => {
@@ -277,7 +237,7 @@ export default function Campaigns({ reports = false }) {
                   isCurrent ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted-foreground/15 text-foreground"
                 }`}
               >
-                {tab.count}
+                {query.isSuccess ? tab.count : "-"}
               </span>
             </button>
           );

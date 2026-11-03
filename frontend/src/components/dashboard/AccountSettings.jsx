@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { getSessions, logoutSession, logoutAll, changePassword } from "@/features/auth/services/auth.api";
+import { getSessions, logoutSession, changePassword } from "@/features/auth/services/auth.api";
 import { PageHeading, QueryState, Field, FormError } from "@/features/admin/components/shared";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,16 @@ export default function AccountSettings() {
   const [disconnect, setDisconnect] = useState(null);
   const sessions = useQuery({ queryKey: ["accountSessions", user?.id || user?._id], queryFn: getSessions, enabled: !user?.isPreview });
   const password = useMutation({ mutationFn: changePassword, onSuccess: () => { setPasswords({ currentPassword: "", newPassword: "", confirmPassword: "" }); toast.add({ title: "Password changed", type: "success" }); } });
-  const revoke = useMutation({ mutationFn: target => target === "all" ? logoutAll() : logoutSession(target), onSuccess: () => { sessions.refetch(); setDisconnect(null); toast.add({ title: "Devices signed out", type: "success" }); } });
+  const revoke = useMutation({
+    mutationFn: async target => {
+      const targets = target === "all" ? (sessions.data?.sessions || []).filter(s => !(s.isCurrent || s.isCurrentDevice)).map(s => s.id || s._id) : [target];
+      const results = await Promise.allSettled(targets.map(logoutSession));
+      await sessions.refetch();
+      const failed = results.filter(r => r.status === "rejected").length;
+      if (failed) throw new Error(`${targets.length - failed} devices signed out; ${failed} could not be signed out. Retry the remaining devices.`);
+    },
+    onSuccess: () => { setDisconnect(null); toast.add({ title: "Devices signed out", type: "success" }); },
+  });
   function submit(event) {
     event.preventDefault();
     if (password.isPending || user?.isPreview) return;

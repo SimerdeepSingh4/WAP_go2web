@@ -16,6 +16,7 @@ import { useAdminQuery } from "../hooks/useAdmin";
 import { QueryState, StatusBadge } from "./shared";
 import { dateTime, number, ownerName, published, statusLabels, validateReport } from "../lib/format";
 import ActionForm from "./ActionForm";
+import { CampaignMessage, CampaignMedia } from "@/components/dashboard/CampaignContent";
 
 export default function CampaignDetail({ id, initialReport, initialStatus, onClose }) {
   const query = useAdminQuery("campaign", { id });
@@ -86,26 +87,8 @@ export default function CampaignDetail({ id, initialReport, initialStatus, onClo
 
                   <section className="space-y-2">
                     <h2 className="text-sm font-medium">Message content</h2>
-                    <div className="whitespace-pre-wrap break-words rounded-lg border bg-muted/40 p-4 text-sm leading-relaxed">
-                      {campaign.messageBody || campaign.templateId?.body || "No text content. Review the campaign media."}
-                    </div>
-                    {campaign.campaignDescription && (
-                      <p className="break-words text-xs text-muted-foreground">{campaign.campaignDescription}</p>
-                    )}
-                    {["images", "video", "audio"].map((type) =>
-                      campaign[type]?.length ? (
-                        <div key={type} className="space-y-1">
-                          <p className="text-xs font-medium capitalize">
-                            {type} ({campaign[type].length})
-                          </p>
-                          {campaign[type].map((media, index) => (
-                            <p key={index} className="break-all text-xs text-muted-foreground">
-                              {media.filename || media.url || "Attached media"}
-                            </p>
-                          ))}
-                        </div>
-                      ) : null
-                    )}
+                    <CampaignMessage content={campaign.messageBody || campaign.templateId?.body} />
+                    <CampaignMedia campaign={campaign} />
                   </section>
 
                   <section className="space-y-3 border-t pt-5">

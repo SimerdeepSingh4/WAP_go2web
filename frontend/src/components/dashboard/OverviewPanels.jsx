@@ -15,10 +15,8 @@ export function RecentCampaigns({ query, base, pendingOnly = false, showOwner = 
     <div className="dashboard-section-heading"><h2>{title}</h2><Button variant="outline" size="sm" render={<Link to={`${base}/campaigns${pendingOnly ? "?status=pending" : ""}`} />}>View all</Button></div>
     <QueryState query={query} empty={!rows.length} emptyTitle={pendingOnly ? "No campaigns awaiting review" : "No campaigns yet"} emptyDescription={pendingOnly ? "New submissions will appear here." : "Submitted campaigns will appear here."}>
       <DataTable caption={title} rows={rows} paginated={false} columns={[
-        { key: "name", label: "Campaign", render: c => <div className="min-w-40 max-w-72"><Link className="font-medium hover:underline whitespace-normal break-words" to={`${base}/campaigns?campaign=${encodeURIComponent(c._id)}`}>{c.campaignTitle}</Link>{showOwner && <p className="mt-1 text-xs text-muted-foreground">{ownerName(c.userId)}</p>}</div> },
-        { key: "recipients", label: "Recipients", className: "text-right", render: c => number(c.totalRecipients) },
-        { key: "status", label: "Status", render: c => <StatusBadge status={c.status} /> },
-        { key: "date", label: "Submitted", render: c => <span className="text-xs text-muted-foreground">{dateTime(c.createdAt)}</span> },
+        { key: "name", label: "Campaign", render: c => <div className="min-w-28 max-w-96 whitespace-normal break-words"><Link className="font-medium hover:underline" to={`${base}/campaigns?campaign=${encodeURIComponent(c._id)}`}>{c.campaignTitle}</Link>{showOwner && <p className="mt-1 text-xs text-muted-foreground">{ownerName(c.userId)}</p>}<p className="mt-1 text-xs text-muted-foreground">{dateTime(c.createdAt)} · {number(c.totalRecipients)} recipients</p></div> },
+        { key: "status", label: "Status", className: "text-right", render: c => <StatusBadge status={c.status} /> },
       ]} />
     </QueryState>
   </section>;
