@@ -1,4 +1,3 @@
-import React from "react";
 import { Navigate, Link, useNavigate } from "react-router";
 import { useAuth } from "../features/auth/hooks/useAuth.js";
 import { exitPreview } from "../features/dashboard/services/users.api.js";
@@ -62,6 +61,10 @@ export default function RoleRoute({ allowedRoles = [], children }) {
   // Not logged in -> redirect to login
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (!user.isPreview && user.isExpired) {
+    return <Navigate to="/account-expired" replace />;
   }
 
   const originalRole = user.isPreview ? user.originalAdmin?.role : null;

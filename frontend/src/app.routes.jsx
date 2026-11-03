@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from "react-router";
+import { createBrowserRouter, Navigate, useLocation } from "react-router";
 import LoginPage from "./features/auth/pages/Login.jsx";
 import { useAuth } from "./features/auth/hooks/useAuth.js";
 import RoleRoute from "./components/RoleRoute.jsx";
@@ -18,6 +18,7 @@ import PreviewBanner from "./components/PreviewBanner.jsx";
 
 import { lazy, Suspense } from "react";
 import AdminAccess from "./features/admin/components/AdminAccess.jsx";
+import ExpiredAccountPage from "./features/auth/pages/ExpiredAccountPage.jsx";
 
 const AdminLayout = lazy(() => import("./features/admin/components/AdminLayout.jsx"));
 const AdminOverview = lazy(() => import("./features/admin/pages/Overview.jsx"));
@@ -46,6 +47,7 @@ function Dashboard() {
 
 function ProtectedRoute({ children }) {
   const { user, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -57,6 +59,10 @@ function ProtectedRoute({ children }) {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (user.isExpired && location.pathname !== "/account-expired") {
+    return <Navigate to="/account-expired" replace />;
   }
 
   return (
@@ -179,6 +185,14 @@ export const router = createBrowserRouter([
       <PublicRoute>
         <LoginPage />
       </PublicRoute>
+    ),
+  },
+  {
+    path: "/account-expired",
+    element: (
+      <ProtectedRoute>
+        <ExpiredAccountPage />
+      </ProtectedRoute>
     ),
   },
   {

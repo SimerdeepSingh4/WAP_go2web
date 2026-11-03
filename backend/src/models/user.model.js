@@ -39,8 +39,12 @@ const userSchema = new mongoose.Schema(
         },
         status: {
             type: String,
-            enum: ["active", "blocked"],
+            enum: ["active", "blocked", "expired"],
             default: "active",
+        },
+        expiresAt: {
+            type: Date,
+            default: null,
         },
         ratePerMsg: {
             type: Number,

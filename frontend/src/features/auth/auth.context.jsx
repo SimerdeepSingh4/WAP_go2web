@@ -91,9 +91,39 @@ export const AuthProvider = ({ children }) => {
             queryClient.setQueryData(["authUser"], null);
         };
 
+        const handleAccountExpired = (event) => {
+            queryClient.setQueryData(["authUser"], (current) => current ? ({
+                ...current,
+                isExpired: true,
+                expiresAt: event.detail?.expiresAt || current.expiresAt,
+            }) : current);
+        };
+
         window.addEventListener("auth:unauthorized", handleUnauthorized);
-        return () => window.removeEventListener("auth:unauthorized", handleUnauthorized);
+        window.addEventListener("auth:expired", handleAccountExpired);
+        return () => {
+            window.removeEventListener("auth:unauthorized", handleUnauthorized);
+            window.removeEventListener("auth:expired", handleAccountExpired);
+        };
     }, [queryClient]);
+
+    useEffect(() => {
+        if (!user?.expiresAt || user.isExpired) return undefined;
+        const expiresAt = new Date(user.expiresAt).getTime();
+        if (!Number.isFinite(expiresAt)) return undefined;
+
+        let timer;
+        const checkExpiry = () => {
+            const remaining = expiresAt - Date.now();
+            if (remaining <= 0) {
+                queryClient.setQueryData(["authUser"], (current) => current ? ({ ...current, isExpired: true }) : current);
+                return;
+            }
+            timer = setTimeout(checkExpiry, Math.min(remaining, 2_147_000_000));
+        };
+        checkExpiry();
+        return () => clearTimeout(timer);
+    }, [user?.expiresAt, user?.isExpired, queryClient]);
 
     const value = {
         user,

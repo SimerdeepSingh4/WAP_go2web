@@ -86,12 +86,31 @@ export async function protect(req, res, next) {
             return res.status(403).json({
                 message: "User account is blocked.",
                 success: false,
+                isAccountBlocked: true,
+            });
+        }
+
+        const accountExpired = user.status === "expired" || Boolean(
+            user.expiresAt && new Date(user.expiresAt) <= new Date()
+        );
+        const isAuthRefresh = req.method === "GET" &&
+            req.baseUrl === "/api/auth" && req.path === "/me";
+        const isPreviewExit = req.method === "POST" && decoded.isPreview &&
+            req.baseUrl === "/api/users" && req.path === "/exit-preview";
+
+        if (accountExpired && !decoded.isPreview && !isAuthRefresh && !isPreviewExit) {
+            return res.status(403).json({
+                message: "Your account has expired. Contact your account manager.",
+                success: false,
+                isAccountExpired: true,
+                expiresAt: user.expiresAt,
             });
         }
 
         req.user = user;
         req.session = session;
         req.token = token;
+        req.accountExpired = accountExpired;
         req.isPreview = !!decoded.isPreview;
         req.originalAdmin = decoded.originalAdmin || null;
 

@@ -24,8 +24,14 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
     (response) => response,
     (error) => {
+        if (error.response?.data?.isAccountExpired) {
+            window.dispatchEvent(new CustomEvent("auth:expired", {
+                detail: error.response.data,
+            }));
+        }
+
         // Handle 401 Unauthorized (e.g. session evicted when 4th device logged in)
-        if (error.response?.status === 401) {
+        if (error.response?.status === 401 || error.response?.data?.isAccountBlocked) {
             // Optional: notify app or clear local auth state if needed
             window.dispatchEvent(new CustomEvent("auth:unauthorized", {
                 detail: error.response?.data || { message: "Session expired" }

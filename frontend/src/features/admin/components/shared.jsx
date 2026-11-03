@@ -25,7 +25,7 @@ export function StatusBadge({ status }) {
     ? "border-stone-200 bg-stone-50 text-stone-700"
     : status === "stopped"
     ? "border-stone-300 bg-stone-100 text-stone-800"
-    : ["failed", "blocked"].includes(status)
+    : ["failed", "blocked", "expired"].includes(status)
     ? "border-red-200 bg-red-50 text-red-800"
     : "bg-muted text-muted-foreground";
 

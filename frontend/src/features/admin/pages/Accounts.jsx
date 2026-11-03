@@ -8,7 +8,6 @@ import {
   Wallet,
   ShieldCheck,
   ShieldAlert,
-  Users,
   CheckCircle2,
   Ban,
   Percent,
@@ -47,6 +46,7 @@ function AccountDetail({ account, onClose }) {
             {[
               ["Email", account.email],
               ["Rate", `${number(account.ratePerMsg)} credits / recipient`],
+              ["Account expiry", account.expiresAt ? `${dateTime(account.expiresAt)}${account.isExpired ? " (Expired)" : ""}` : "No expiry"],
               ["Assigned reseller", account.resellerId?.username || "—"],
               ["Created", dateTime(account.createdAt)],
             ].map(([label, value]) => (
@@ -174,7 +174,7 @@ export default function Accounts({ role }) {
 
   const rows = roleAccounts.filter(
     (a) =>
-      (status === "all" || a.status === status) &&
+      (status === "all" || (status === "expired" ? a.isExpired : a.status === status)) &&
       `${a.username} ${a.email} ${a.resellerId?.username || ""}`.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -236,9 +236,19 @@ export default function Accounts({ role }) {
       render: (a) => <span className="tabular-nums font-semibold">{number(a.ratePerMsg)}</span>,
     },
     {
+      key: "accountExpiry",
+      label: "Account expiry",
+      render: (a) => (
+        <span className={a.isExpired ? "text-xs font-medium text-destructive" : "text-xs text-muted-foreground"}>
+          {a.expiresAt ? dateTime(a.expiresAt) : "No expiry"}
+          {a.isExpired ? " · Expired" : ""}
+        </span>
+      ),
+    },
+    {
       key: "status",
       label: "Status",
-      render: (a) => <StatusBadge status={a.status} />,
+      render: (a) => <StatusBadge status={a.isExpired ? "expired" : a.status} />,
     },
     {
       key: "actions",
@@ -254,6 +264,10 @@ export default function Accounts({ role }) {
             <DropdownMenuItem onClick={() => setDetail(a)}>
               <Eye className="size-4 mr-2" />
               Account details & audit
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={query.isPending} onClick={() => setModal({ type: "accountAccess", account: a })}>
+              <Lock className="size-4 mr-2" />
+              Manage access & expiry
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setModal({ type: "rate", account: a })}>
               <Pencil className="size-4 mr-2" />
@@ -316,6 +330,7 @@ export default function Accounts({ role }) {
             { value: "all", label: "All statuses" },
             { value: "active", label: "Active" },
             { value: "blocked", label: "Blocked" },
+            { value: "expired", label: "Expired" },
           ]}
         />
       </div>
@@ -405,6 +420,33 @@ export default function Accounts({ role }) {
             </>
           )}
           submitLabel="Update rate"
+        />
+      )}
+
+      {modal?.type === "accountAccess" && (
+        <ActionForm
+          title="Manage account access"
+          description={`Set ${modal.account.username}'s account status and optional expiry date. Expired users can sign in only to see the expiry notice.`}
+          action="accountAccess"
+          successMessage="Account access updated"
+          onClose={() => setModal(null)}
+          initialValues={{
+            status: modal.account.status === "expired" || (modal.account.isExpired && modal.account.status === "active") ? "expired" : modal.account.status || "active",
+            expiresAt: modal.account.expiresAt ? new Date(modal.account.expiresAt).toISOString().slice(0, 10) : "",
+          }}
+          fields={[
+            { key: "status", label: "Account status", options: [{ value: "active", label: "Active" }, { value: "blocked", label: "Blocked" }, { value: "expired", label: "Expired" }] },
+            { key: "expiresAt", label: "Account expiry date (optional)", type: "date", hint: "The account remains active through this date. Leave blank for no expiry." },
+          ]}
+          payload={(values) => ({ id: modal.account._id, status: values.status, expiresAt: values.expiresAt || null })}
+          review={(values) => (
+            <>
+              <p className="font-medium">{modal.account.username}</p>
+              <p>Status: <strong>{values.status}</strong></p>
+              <p>Expiry: <strong>{values.expiresAt || "No expiry"}</strong></p>
+            </>
+          )}
+          submitLabel="Save account access"
         />
       )}
 

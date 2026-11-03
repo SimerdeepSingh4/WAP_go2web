@@ -27,11 +27,16 @@ export async function getUsers(req, res) {
             .select("-password")
             .populate("resellerId", "username email")
             .sort({ createdAt: -1 });
+        const now = new Date();
+        const usersWithExpiry = users.map((user) => ({
+            ...user.toObject(),
+            isExpired: user.status === "expired" || Boolean(user.expiresAt && user.expiresAt <= now),
+        }));
 
         return res.status(200).json({
             success: true,
-            count: users.length,
-            users,
+            count: usersWithExpiry.length,
+            users: usersWithExpiry,
         });
     } catch (error) {
         console.error("GetUsers error:", error);
@@ -196,6 +201,95 @@ export async function createUser(req, res) {
             message: "Failed to create user account",
             success: false,
         });
+    }
+}
+
+export async function updateUserAccess(req, res) {
+    try {
+        const { id } = req.params;
+        const { status, expiresAt } = req.body;
+        const targetUser = await userModel.findById(id);
+
+        if (!targetUser) {
+            return res.status(404).json({ message: "User not found", success: false });
+        }
+
+        const isSuperAdmin = req.user.role === "Super Admin";
+        const ownsUser = req.user.role === "Reseller" &&
+            targetUser.role === "User" &&
+            String(targetUser.resellerId) === String(req.user._id);
+
+        if (!isSuperAdmin && !ownsUser) {
+            return res.status(403).json({
+                message: "You can only manage your own users.",
+                success: false,
+            });
+        }
+        if (targetUser.role === "Super Admin") {
+            return res.status(403).json({
+                message: "Super Admin accounts cannot be changed here.",
+                success: false,
+            });
+        }
+
+        const updates = {};
+        if (status !== undefined) {
+            if (!["active", "blocked", "expired"].includes(status)) {
+                return res.status(400).json({
+                    message: "Status must be active, blocked, or expired.",
+                    success: false,
+                });
+            }
+            updates.status = status;
+        }
+
+        if (Object.hasOwn(req.body, "expiresAt")) {
+            if (expiresAt === null || expiresAt === "") {
+                updates.expiresAt = null;
+            } else {
+                const parsedExpiry = new Date(expiresAt);
+                if (Number.isNaN(parsedExpiry.getTime())) {
+                    return res.status(400).json({
+                        message: "Enter a valid account expiry date.",
+                        success: false,
+                    });
+                }
+                if (/^\d{4}-\d{2}-\d{2}$/.test(expiresAt)) {
+                    parsedExpiry.setUTCHours(23, 59, 59, 999);
+                }
+                updates.expiresAt = parsedExpiry;
+            }
+        }
+
+        if (status === "expired") {
+            updates.expiresAt = new Date(Date.now() - 1000);
+        }
+
+        if (!Object.keys(updates).length) {
+            return res.status(400).json({
+                message: "Provide a status or expiry date to update.",
+                success: false,
+            });
+        }
+
+        Object.assign(targetUser, updates);
+        await targetUser.save();
+        if (updates.status === "blocked") {
+            await sessionModel.deleteMany({ userId: targetUser._id });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Account access updated successfully.",
+            user: {
+                id: targetUser._id,
+                status: targetUser.status,
+                expiresAt: targetUser.expiresAt,
+            },
+        });
+    } catch (error) {
+        console.error("UpdateUserAccess error:", error);
+        return res.status(500).json({ message: "Failed to update account access", success: false });
     }
 }
 

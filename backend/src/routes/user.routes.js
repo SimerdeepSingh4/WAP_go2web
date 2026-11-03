@@ -6,6 +6,7 @@ import {
     impersonateUser,
     exitPreviewMode,
     getCurrentUser,
+    updateUserAccess,
 } from "../controllers/user.controller.js";
 import { protect, authorizeRoles } from "../middlewares/auth.middleware.js";
 
@@ -24,6 +25,9 @@ userRouter.get("/", authorizeRoles("Reseller", "Super Admin"), getUsers);
 
 // Reseller & Super Admin can create user accounts
 userRouter.post("/", authorizeRoles("Reseller", "Super Admin"), createUser);
+
+// Only Super Admin or the owning Reseller can block/unblock or set expiry.
+userRouter.patch("/:id/access", authorizeRoles("Reseller", "Super Admin"), updateUserAccess);
 
 // Access a single user's details
 userRouter.get("/:id", getUserById);

@@ -9,6 +9,10 @@ import { notifySession, notifyUser, notifyRole } from "../services/socket.servic
 
 const MAX_CONCURRENT_DEVICES = 3;
 
+function isAccountExpired(user) {
+    return user.status === "expired" || Boolean(user.expiresAt && new Date(user.expiresAt) <= new Date());
+}
+
 /**
  * Creates a new session for a user and enforces the max concurrent device limit.
  * If 3 devices are already logged in, the oldest device session is removed (logged out).
@@ -250,6 +254,8 @@ export async function login(req, res) {
                 username: user.username,
                 email: user.email,
                 role: user.role,
+                expiresAt: user.expiresAt || null,
+                isExpired: isAccountExpired(user),
             },
         });
     } catch (error) {
@@ -393,6 +399,8 @@ export async function getMe(req, res) {
                 email: req.user.email,
                 role: req.user.role,
                 status: req.user.status,
+                expiresAt: req.user.expiresAt || null,
+                isExpired: req.accountExpired,
                 isPreview: req.isPreview || false,
                 originalAdmin: req.originalAdmin || null,
             },
