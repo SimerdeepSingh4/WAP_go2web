@@ -1,6 +1,6 @@
 // src/features/user/pages/Settings.jsx
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useUserQuery } from "../hooks/useUser";
+import { useUserQuery, useUserMutation } from "../hooks/useUser";
 import { PageHeading, QueryState } from "@/features/admin/components/shared";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { toast } from "@/components/ui/toast";
  */
 export default function UserSettings() {
   const { data, isLoading } = useUserQuery("accounts"); // fetch user profile (self)
-  const { mutate: updateProfile, isLoading: isUpdating } = useUserMutation("updateProfile", "Profile updated", null);
+  const { mutate: updateProfile, isPending: isUpdating } = useUserMutation("updateProfile", "Profile updated", null);
 
   const handleSubmit = (e) => {
     e.preventDefault();

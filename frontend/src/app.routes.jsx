@@ -1,19 +1,19 @@
-import { createBrowserRouter, Navigate, Link } from "react-router";
+import { createBrowserRouter, Navigate } from "react-router";
 import LoginPage from "./features/auth/pages/Login.jsx";
 import { useAuth } from "./features/auth/hooks/useAuth.js";
-import ActiveDevices from "./features/auth/components/ActiveDevices.jsx";
 import RoleRoute from "./components/RoleRoute.jsx";
 import ResellerOverview from "./features/reseller/pages/Overview.jsx";
 import ResellerLayout from "./features/reseller/components/ResellerLayout.jsx";
+import ResellerUsers from "./features/reseller/pages/Users.jsx";
+import ResellerCredits from "./features/reseller/pages/Credits.jsx";
+import ResellerCampaigns from "./features/reseller/pages/Campaigns.jsx";
+import ResellerSettings from "./features/reseller/pages/Settings.jsx";
 import UserLayout from "./features/user/components/UserLayout.jsx";
 import UserOverview from "./features/user/pages/UserOverview.jsx";
 import UserCredits from "./features/user/pages/Credits.jsx";
 import UserActivity from "./features/user/pages/UserActivity.jsx";
 import UserSettings from "./features/user/pages/Settings.jsx";
-import ResellerUsers from "./features/reseller/pages/Users.jsx";
-import ResellerCredits from "./features/reseller/pages/Credits.jsx";
-import ResellerCampaigns from "./features/reseller/pages/Campaigns.jsx";
-import ResellerSettings from "./features/reseller/pages/Settings.jsx";
+import CreateCampaignPage from "./features/campaigns/pages/CreateCampaignPage.jsx";
 import PreviewBanner from "./components/PreviewBanner.jsx";
 
 import { lazy, Suspense } from "react";
@@ -28,97 +28,19 @@ const AdminCredits = lazy(() => import("./features/admin/pages/Credits.jsx"));
 const AdminOperatingRules = lazy(() => import("./features/admin/pages/OperatingRules.jsx"));
 
 function Dashboard() {
-  const { user, logout, isLoggingOut, logoutAll, isLoggingOutAll } = useAuth();
+  const { user } = useAuth();
 
   if (user?.role === "Super Admin" && !user?.isPreview) {
-  return <Navigate to="/admin" replace />;
-}
-    const getRoleBadgeColor = (role) => {
-    switch (role) {
-      case "Super Admin":
-        return "bg-stone-100 text-stone-900 border-stone-300";
-      case "Reseller":
-        return "bg-orange-50 text-orange-800 border-orange-200";
-      default:
-        return "bg-emerald-50 text-emerald-800 border-emerald-200";
-    }
-  };
-
+    return <Navigate to="/admin" replace />;
+  }
   if (user?.role === "Reseller") {
     return <Navigate to="/reseller" replace />;
   }
   if (user?.role === "User") {
     return <Navigate to="/user" replace />;
   }
-  return <Navigate to="/" replace />;
 
-
-
-
-
-
-  return (
-    <div className="min-h-screen bg-[#faf8f5] p-8">
-      <div className="max-w-5xl mx-auto space-y-6">
-        <div className="bg-white rounded-xl border border-[#e7e4dc] p-6 shadow-xs">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-2xl font-bold text-[#1c1917]">Welcome, {user?.username}!</h1>
-            <span
-              className={`px-3 py-0.5 text-xs font-semibold rounded-full border ${getRoleBadgeColor(
-                user?.role
-              )}`}
-            >
-              Role: {user?.role}
-            </span>
-          </div>
-          <p className="text-sm text-[#78716c] mb-5">Email: {user?.email}</p>
-
-          {/* Quick RBAC navigation test links */}
-          <div className="mb-6 p-4 rounded-lg bg-[#f4f1ea] border border-[#e7e4dc]">
-            <p className="text-xs font-semibold uppercase tracking-wider text-[#ea580c] mb-3">
-              Test Role-Based Access Control (RBAC):
-            </p>
-            <div className="flex flex-wrap gap-2.5">
-              <Link
-                to="/admin"
-                className="inline-flex items-center px-3 py-1.5 rounded-md bg-white border border-[#e7e4dc] text-xs font-medium text-[#1c1917] hover:border-[#ea580c] transition-colors"
-              >
-                Go to /admin (Super Admin only)
-              </Link>
-              <Link
-                to="/reseller"
-                className="inline-flex items-center px-3 py-1.5 rounded-md bg-white border border-[#e7e4dc] text-xs font-medium text-[#1c1917] hover:border-[#ea580c] transition-colors"
-              >
-                Go to /reseller (Reseller + Admin)
-              </Link>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => logout()}
-              disabled={isLoggingOut || isLoggingOutAll}
-              className="px-4 py-2 bg-[#18181b] text-white text-sm font-medium rounded-md hover:bg-[#27272a] cursor-pointer disabled:opacity-50 transition-colors shadow-xs"
-            >
-              {isLoggingOut ? "Logging out..." : "Log out"}
-            </button>
-            <button
-              onClick={() => logoutAll()}
-              disabled={isLoggingOut || isLoggingOutAll}
-              className="px-4 py-2 border border-[#e7e4dc] text-[#1c1917] hover:bg-[#f4f1ea] text-sm font-medium rounded-md cursor-pointer disabled:opacity-50 transition-colors"
-            >
-              {isLoggingOutAll ? "Logging out all..." : "Log out from all devices"}
-            </button>
-          </div>
-        </div>
-
-        <ActiveDevices />
-
-        {/* Feature Test Lab Console */}
-
-      </div>
-    </div>
-  );
+  return <Navigate to="/login" replace />;
 }
 
 function ProtectedRoute({ children }) {
@@ -126,8 +48,8 @@ function ProtectedRoute({ children }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#faf8f5] text-[#18181b]">
-        <div className="animate-spin size-8 border-4 border-[#18181b] border-t-transparent rounded-full" />
+      <div className="min-h-screen flex items-center justify-center bg-background text-primary">
+        <div className="animate-spin size-8 border-4 border-primary border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -149,8 +71,8 @@ function PublicRoute({ children }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#faf8f5] text-[#18181b]">
-        <div className="animate-spin size-8 border-4 border-[#18181b] border-t-transparent rounded-full" />
+      <div className="min-h-screen flex items-center justify-center bg-background text-primary">
+        <div className="animate-spin size-8 border-4 border-primary border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -185,6 +107,8 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <AdminOverview /> },
       { path: "campaigns", element: <AdminCampaigns /> },
+      { path: "campaigns/create", element: <CreateCampaignPage /> },
+      { path: "campaigns/new", element: <CreateCampaignPage /> },
       { path: "contacts", element: <AdminContacts /> },
       { path: "reports", element: <AdminCampaigns reports /> },
       { path: "resellers", element: <AdminAccounts key="resellers" role="Reseller" /> },
@@ -194,33 +118,58 @@ export const router = createBrowserRouter([
       { path: "settings", element: <AdminOperatingRules /> },
     ],
   },
-  { path: "/reseller", element: (
-                <RoleRoute allowedRoles={["Super Admin", "Reseller", "User"]}>
-          <ResellerLayout />
-        </RoleRoute>
-      ),
-      children: [
-        { index: true, element: <ResellerOverview /> },
-        { path: "campaigns", element: <ResellerCampaigns /> },
-        { path: "reports", element: <ResellerCampaigns reports /> },
-        { path: "users", element: <ResellerUsers /> },
-        { path: "credits", element: <ResellerCredits key="credits" /> },
-        { path: "activity", element: <ResellerCredits key="activity" activity /> },
-        { path: "settings", element: <ResellerSettings /> },
-      ],
-    },
-    { path: "/user", element: (
-        <RoleRoute allowedRoles={["User"]}>
-          <UserLayout />
-        </RoleRoute>
-      ),
-      children: [
-        { index: true, element: <UserOverview /> },
-        { path: "credits", element: <UserCredits /> },
-        { path: "activity", element: <UserActivity /> },
-        { path: "settings", element: <UserSettings /> }
-      ]
-    },
+  {
+    path: "/reseller",
+    element: (
+      <RoleRoute allowedRoles={["Super Admin", "Reseller"]}>
+        <ResellerLayout />
+      </RoleRoute>
+    ),
+    children: [
+      { index: true, element: <ResellerOverview /> },
+      { path: "campaigns", element: <ResellerCampaigns /> },
+      { path: "campaigns/create", element: <CreateCampaignPage /> },
+      { path: "campaigns/new", element: <CreateCampaignPage /> },
+      { path: "reports", element: <ResellerCampaigns reports /> },
+      { path: "users", element: <ResellerUsers /> },
+      { path: "credits", element: <ResellerCredits key="credits" /> },
+      { path: "activity", element: <ResellerCredits key="activity" activity /> },
+      { path: "settings", element: <ResellerSettings /> },
+    ],
+  },
+  {
+    path: "/user",
+    element: (
+      <RoleRoute allowedRoles={["Super Admin", "Reseller", "User"]}>
+        <UserLayout />
+      </RoleRoute>
+    ),
+    children: [
+      { index: true, element: <UserOverview /> },
+      { path: "campaigns/create", element: <CreateCampaignPage /> },
+      { path: "campaigns/new", element: <CreateCampaignPage /> },
+      { path: "credits", element: <UserCredits /> },
+      { path: "activity", element: <UserActivity /> },
+      { path: "settings", element: <UserSettings /> },
+    ],
+  },
+  // ── Standalone campaign creation routes for direct access ──
+  {
+    path: "/campaigns/create",
+    element: (
+      <ProtectedRoute>
+        <CreateCampaignPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/campaigns/new",
+    element: (
+      <ProtectedRoute>
+        <CreateCampaignPage />
+      </ProtectedRoute>
+    ),
+  },
   {
     path: "/login",
     element: (

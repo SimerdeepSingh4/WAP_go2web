@@ -6,36 +6,54 @@
 
 @theme inline {
   --font-sans: "Geist Variable", sans-serif;
+
+  /* Centralized Master Palette Tokens: Combination 58 (Gothic noir) */
+  --color-gothic-black: var(--palette-black);
+  --color-gothic-light-gray: var(--palette-light-gray);
+  --color-gothic-taupe: var(--palette-taupe);
+  --color-gothic-dark-taupe: var(--palette-dark-taupe);
+
+  /* Legacy alias variables for backwards-compatibility */
+  --color-cool-gray: var(--palette-light-gray);
+  --color-off-white: var(--palette-light-gray);
+  --color-deep-green: var(--palette-black);
+  --color-rich-brown: var(--palette-dark-taupe);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
-  --color-card-foreground: var(--foreground);
+  --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
-  --color-popover-foreground: var(--foreground);
+  --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
-  --color-primary-foreground: #ffffff;
-  --color-secondary: var(--muted);
-  --color-secondary-foreground: var(--foreground);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
-  --color-accent-foreground: var(--foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-brown: var(--accent-brown);
+  --color-accent-brown-foreground: var(--accent-brown-foreground);
   --color-destructive: #b42318;
   --color-border: var(--border);
-  --color-input: var(--border);
+  --color-input: var(--input);
   --color-ring: var(--ring);
+
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: #ffffff;
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--ring);
+
   --radius-sm: 0.25rem;
   --radius-md: 0.375rem;
   --radius-lg: 0.5rem;
   --radius-xl: 0.625rem;
+
   --color-chart-line-primary: var(--chart-line-primary);
   --color-chart-line-secondary: var(--chart-line-secondary);
   --color-chart-brush-border: var(--chart-brush-border);
@@ -84,59 +102,98 @@
 }
 
 :root {
-  /* Warm Stone & Terracotta Theme */
-  --background: #faf8f5;
-  --foreground: #1c1917;
+  /* ==========================================================================
+     Centralized Palette: Combination 58 (Gothic noir)
+     Edit these 4 core values to instantly update the entire website theme:
+     ========================================================================== */
+  --palette-black: #000000;        /* Pitch black (brand, primary buttons, bold typography) */
+  --palette-light-gray: #D1D0D0;   /* Light gray (canvas background & borders) */
+  --palette-taupe: #988686;        /* Taupe (mid-tone accent, charts, badges) */
+  --palette-dark-taupe: #5C4E4E;   /* Dark taupe (contrast secondary, muted text, headers) */
+
+  /* Backwards-compatibility aliases */
+  --palette-cool-gray: var(--palette-light-gray);
+  --palette-off-white: #f5f4f4;
+  --palette-deep-green: var(--palette-black);
+  --palette-rich-brown: var(--palette-dark-taupe);
+
+  /* Surface & Base Layout - using lightest shade for background */
+  --background: #f4f3f3;
+  --foreground: #111111;
   --card: #ffffff;
+  --card-foreground: #111111;
   --popover: #ffffff;
-  --primary: #18181b;
-  --muted: #f4f1ea;
-  --muted-foreground: #78716c;
-  --accent: #e9e5db;
-  --border: #e7e4dc;
-  --ring: #ea580c;
+  --popover-foreground: #111111;
+
+  /* Primary Brand - Black */
+  --primary: var(--palette-black);
+  --primary-foreground: #ffffff;
+
+  /* Secondary & Accents - Taupe shades */
+  --secondary: #e8e5e5;
+  --secondary-foreground: var(--palette-dark-taupe);
+  --accent: #dfdbdb;
+  --accent-foreground: var(--palette-dark-taupe);
+  --accent-brown: var(--palette-dark-taupe);
+  --accent-brown-foreground: #ffffff;
+
+  /* Neutrals, Muted & Borders - Light Gray (#D1D0D0) */
+  --muted: #e7e5e5;
+  --muted-foreground: var(--palette-dark-taupe);
+  --border: var(--palette-light-gray);
+  --input: var(--palette-light-gray);
+  --ring: var(--palette-black);
   --radius: 0.5rem;
 
-  --sidebar: #f4f1ea;
-  --sidebar-foreground: #1c1917;
-  --sidebar-primary: #18181b;
-  --sidebar-accent: #e9e5db;
-  --sidebar-accent-foreground: #18181b;
-  --sidebar-border: #e7e4dc;
+  /* Sidebar Design Tokens */
+  --sidebar: #eeecec;
+  --sidebar-foreground: #111111;
+  --sidebar-primary: var(--palette-black);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e0dede;
+  --sidebar-accent-foreground: var(--palette-black);
+  --sidebar-border: var(--palette-light-gray);
 
-  --chart-1: #ea580c;
-  --chart-2: #d97706;
-  --chart-3: #292524;
-  --chart-4: #78716c;
-  --chart-5: #18181b;
-  --chart-positive: #16a34a;
-  --chart-negative: #dc2626;
+  /* Charts & Data Visualization */
+  --chart-1: var(--palette-black);
+  --chart-2: var(--palette-dark-taupe);
+  --chart-3: var(--palette-taupe);
+  --chart-4: #403636;
+  --chart-5: #756666;
+  --chart-positive: #2e6930;
+  --chart-negative: #b42318;
   --chart-background: #ffffff;
-  --chart-foreground: #1c1917;
-  --chart-foreground-muted: #78716c;
-  --chart-line-primary: #ea580c;
-  --chart-line-secondary: #d97706;
-  --chart-crosshair: #78716c;
-  --chart-grid: #e7e4dc;
-  --chart-brush-border: #e7e4dc;
+  --chart-foreground: #111111;
+  --chart-foreground-muted: var(--palette-dark-taupe);
+  --chart-line-primary: var(--palette-black);
+  --chart-line-secondary: var(--palette-dark-taupe);
+  --chart-crosshair: var(--palette-taupe);
+  --chart-grid: var(--palette-light-gray);
+  --chart-brush-border: var(--palette-light-gray);
   --chart-tooltip-background: #ffffff;
-  --chart-tooltip-foreground: #1c1917;
-  --chart-tooltip-muted: #78716c;
-  --chart-marker-background: #f4f1ea;
-  --chart-marker-border: #e7e4dc;
-  --chart-marker-foreground: #1c1917;
-  --chart-label: #78716c;
+  --chart-tooltip-foreground: #111111;
+  --chart-tooltip-muted: var(--palette-dark-taupe);
+  --chart-marker-background: var(--palette-light-gray);
+  --chart-marker-border: var(--palette-dark-taupe);
+  --chart-marker-foreground: #111111;
+  --chart-label: var(--palette-dark-taupe);
   --chart-scale-mix: #ffffff;
-  --chart-scale-01: #f4f1ea;
+  --chart-scale-01: #eeecec;
   --chart-scale-02: color-mix(in oklab, var(--chart-1) 35%, var(--chart-scale-mix));
   --chart-scale-03: color-mix(in oklab, var(--chart-1) 55%, var(--chart-scale-mix));
   --chart-scale-04: color-mix(in oklab, var(--chart-1) 78%, var(--chart-scale-mix));
   --chart-scale-05: var(--chart-1);
   --chart-scale-pattern-color: #ffffff;
-  --chart-indicator-color: #1c1917;
-  --chart-indicator-secondary-color: #e7e4dc;
-  --chart-marker-badge-background: #18181b;
-  --chart-marker-badge-foreground: #faf8f5;
+  --chart-indicator-color: var(--palette-black);
+  --chart-indicator-secondary-color: var(--palette-light-gray);
+  --chart-marker-badge-background: var(--palette-black);
+  --chart-marker-badge-foreground: #ffffff;
+  --chart-segment-background: oklch(0.756 0 0 / 0.06);
+  --chart-segment-line: oklch(0.5 0 0 / 0.25);
+  --chart-indicator-color: var(--palette-deep-green);
+  --chart-indicator-secondary-color: var(--palette-cool-gray);
+  --chart-marker-badge-background: var(--palette-deep-green);
+  --chart-marker-badge-foreground: #ffffff;
   --chart-segment-background: oklch(0.756 0 0 / 0.06);
   --chart-segment-line: oklch(0.5 0 0 / 0.25);
 }
@@ -151,12 +208,12 @@
   background: var(--background);
 }
 .admin-charts {
-  --chart-line-primary: #ea580c;
-  --chart-crosshair: #78716c;
+  --chart-line-primary: var(--primary);
+  --chart-crosshair: var(--muted-foreground);
   --chart-tooltip-foreground: var(--foreground);
 }
 .admin-portal :where(a, button, input, textarea):focus-visible {
-  outline: 2px solid #ea580c;
+  outline: 2px solid var(--ring);
   outline-offset: 3px;
 }
 @media (prefers-reduced-motion: reduce) {

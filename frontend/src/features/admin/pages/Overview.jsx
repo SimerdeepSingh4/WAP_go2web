@@ -1,8 +1,9 @@
-import { Building2, FileText, Megaphone, RefreshCw, Wallet } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Link } from "react-router";
+import { ArrowUpRight, Building2, Megaphone, RefreshCw, Users, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { useAdminQuery } from "../hooks/useAdmin";
-import { PageHeading, QueryState } from "../components/shared";
+import { QueryState } from "../components/shared";
 import { number } from "../lib/format";
 import { CampaignCharts } from "../components/OverviewCharts";
 import OverviewWorkPanel from "../components/OverviewWorkPanel";
@@ -14,21 +15,68 @@ export default function Overview() {
   const accountsQuery = useAdminQuery("accounts");
   const campaigns = campaignsQuery.data?.data || [];
   const stats = overview.data?.stats;
-  const updated = overview.dataUpdatedAt ? new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" }).format(overview.dataUpdatedAt) : null;
+  const refreshing = [overview, campaignsQuery, accountsQuery].some((query) => query.isFetching);
+  const updated = overview.dataUpdatedAt
+    ? new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" }).format(overview.dataUpdatedAt)
+    : null;
+
   async function refresh() {
-    const results = await Promise.all([overview.refetch(), campaignsQuery.refetch(), accountsQuery.refetch()]);
-    if (results.every((result) => !result.isError)) toast.add({ title: "Overview refreshed", type: "success" });
+    try {
+      const results = await Promise.all([overview.refetch(), campaignsQuery.refetch(), accountsQuery.refetch()]);
+      if (results.some((result) => result.isError)) throw new Error("Some dashboard data could not be refreshed.");
+      toast.add({ title: "Overview refreshed", type: "success" });
+    } catch (error) {
+      toast.add({ title: "Refresh incomplete", description: error?.message || "Please try again.", type: "error" });
+    }
   }
-  return <>
-    <PageHeading title="Overview" description="Your campaigns, accounts, and work that needs attention." action={<Button variant="outline" onClick={refresh} disabled={overview.isFetching || campaignsQuery.isFetching || accountsQuery.isFetching}><RefreshCw className={overview.isFetching ? "animate-spin" : ""} />Refresh</Button>} />
-    <QueryState query={overview}><div className="grid grid-cols-2 gap-3 xl:grid-cols-4">{[
-      ["Total campaigns", stats?.campaigns?.totalCampaigns, "Across all accounts", Megaphone],
-      ["Active resellers", stats?.accounts?.activeResellers, `${number(stats?.accounts?.totalResellers)} total resellers`, Building2],
-      ["User accounts", stats?.accounts?.totalUsers, "Managed through resellers", FileText],
-      ["Credits in circulation", stats?.credits?.totalCreditsInCirculation, "Combined account balances", Wallet],
-    ].map(([label, value, caption, Icon]) => <Card key={label} className="gap-3 rounded-lg shadow-none"><CardHeader className="flex flex-row items-center justify-between gap-2"><CardTitle className="text-xs font-medium text-muted-foreground sm:text-sm">{label}</CardTitle><Icon className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" /></CardHeader><CardContent><p className="break-words text-2xl font-semibold tabular-nums tracking-tight">{number(value)}</p><p className="mt-1 text-xs text-muted-foreground">{caption}</p></CardContent></Card>)}</div></QueryState>
-    <QueryState query={campaignsQuery}><CampaignCharts campaigns={campaigns} /></QueryState>
-    <OverviewWorkPanel campaignsQuery={campaignsQuery} accountsQuery={accountsQuery} />
-    {updated && <p className="text-xs text-muted-foreground">Last refreshed {updated}</p>}
-  </>;
+
+  const metrics = [
+    { label: "Total campaigns", value: stats?.campaigns?.totalCampaigns, caption: "Across all accounts", icon: Megaphone, path: "/admin/campaigns" },
+    { label: "Active resellers", value: stats?.accounts?.activeResellers, caption: `${number(stats?.accounts?.totalResellers)} resellers in your network`, icon: Building2, path: "/admin/resellers" },
+    { label: "User accounts", value: stats?.accounts?.totalUsers, caption: "Managed through resellers", icon: Users, path: "/admin/users" },
+    { label: "Credits in circulation", value: stats?.credits?.totalCreditsInCirculation, caption: "Combined account balances", icon: Wallet, path: "/admin/credits", accent: true },
+  ];
+
+  return (
+    <div className="portal-overview">
+      <header className="portal-page-heading">
+        <div className="portal-heading-copy">
+          <p className="portal-eyebrow">Your workspace, at a glance</p>
+          <h1>Overview</h1>
+          <p>Keep campaigns moving and your reseller network in view.</p>
+        </div>
+        <div className="portal-page-actions">
+          <Button variant="outline" onClick={refresh} disabled={refreshing} aria-busy={refreshing}>
+            <RefreshCw className={refreshing ? "animate-spin motion-reduce:animate-none" : ""} aria-hidden="true" />
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </Button>
+          <Button render={<Link to="/admin/campaigns" />}>View campaigns<ArrowUpRight aria-hidden="true" /></Button>
+        </div>
+      </header>
+
+      <section aria-label="Workspace totals">
+        <QueryState query={overview}>
+          <div className="portal-metrics">
+            {metrics.map(({ label, value, caption, icon: Icon, path, accent }) => (
+              <Card key={label} className={`portal-card portal-metric${accent ? " portal-metric-accent" : ""}`}>
+                <Link to={path} className="portal-metric-link">
+                  <div className="portal-metric-top"><span>{label}</span><span className="portal-metric-icon"><Icon aria-hidden="true" /></span></div>
+                  <p className="portal-metric-value">{value == null ? "—" : number(value)}</p>
+                  <div className="portal-metric-bottom"><span>{caption}</span><ArrowUpRight aria-hidden="true" /></div>
+                </Link>
+              </Card>
+            ))}
+          </div>
+        </QueryState>
+      </section>
+
+      <OverviewWorkPanel campaignsQuery={campaignsQuery} accountsQuery={accountsQuery} />
+
+      <section aria-labelledby="analytics-heading" className="portal-section">
+        <div className="portal-section-heading"><div><p className="portal-eyebrow">Performance</p><h2 id="analytics-heading">Campaign insights</h2></div><span className="portal-section-caption">Activity & recorded results</span></div>
+        <QueryState query={campaignsQuery}><CampaignCharts campaigns={campaigns} /></QueryState>
+      </section>
+      {updated && <p className="portal-updated">Last refreshed {updated} IST</p>}
+    </div>
+  );
 }

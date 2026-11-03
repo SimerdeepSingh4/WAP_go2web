@@ -7,12 +7,13 @@ const get = async (path, params, signal) => (await api.get(path, { params, signa
  * User‑facing API queries.
  */
 export const userQueries = {
-  overview: (_, signal) => get("/dashboard/user-stats", undefined, signal),
+  overview: (_, signal) => get("/dashboard/stats", undefined, signal),
   campaigns: (_, signal) => get("/campaigns", { ownedByUser: true }, signal),
   campaign: ({ id }, signal) => get(`/campaigns/${id}`, undefined, signal),
   accounts: (_, signal) => get("/users/me", undefined, signal),
   myBalance: (_, signal) => get("/credits/balance", undefined, signal),
   transactions: (params, signal) => get("/credits/transactions", params, signal),
+  activity: (params, signal) => get("/credits/transactions", params, signal),
 };
 
 /**

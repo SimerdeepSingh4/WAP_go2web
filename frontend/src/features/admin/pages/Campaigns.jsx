@@ -1,5 +1,5 @@
-import { useSearchParams } from "react-router";
-import { MoreHorizontal, Eye, FileText, Megaphone, Clock, CheckCircle, AlertTriangle, RefreshCw, Pencil } from "lucide-react";
+import { useSearchParams, Link } from "react-router";
+import { MoreHorizontal, Eye, FileText, Megaphone, Clock, CheckCircle, AlertTriangle, RefreshCw, Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
@@ -195,19 +195,31 @@ export default function Campaigns({ reports = false }) {
         description={
           reports
             ? "Publish actual campaign results, deliver metrics, and review execution performance."
-            : "Monitor the BullMQ campaign dispatch queue, manage submissions, and update execution status."
+            : "Review queued campaigns and delivery progress, manage submissions, and update execution status."
         }
         action={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => query.refetch()}
-            disabled={query.isFetching}
-            className="gap-1.5"
-          >
-            <RefreshCw className={`size-3.5 ${query.isFetching ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            {!reports && (
+              <Button
+                render={<Link to="/admin/campaigns/create" />}
+                size="sm"
+                className="gap-1.5 font-semibold"
+              >
+                <Plus className="size-4" />
+                Create Campaign
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => query.refetch()}
+              disabled={query.isFetching}
+              className="gap-1.5"
+            >
+              <RefreshCw className={`size-3.5 ${query.isFetching ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
         }
       />
 

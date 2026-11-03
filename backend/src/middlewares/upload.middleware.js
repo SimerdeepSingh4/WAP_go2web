@@ -9,9 +9,12 @@ const mediaUpload = multer({ storage });
 
 export const uploadFiles = mediaUpload.fields([
     { name: "images", maxCount: 10 },
-    { name: "audio", maxCount: 5 },
+    { name: "image", maxCount: 1 },
     { name: "video", maxCount: 5 },
+    { name: "audio", maxCount: 5 },
     { name: "documents", maxCount: 10 },
+    { name: "document", maxCount: 1 },
+    { name: "pdf", maxCount: 1 },
 ]);
 
 // 2. Contact Import Spreadsheet Upload (.csv, .xlsx, .xls)

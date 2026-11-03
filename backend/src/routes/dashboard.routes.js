@@ -6,6 +6,7 @@ const dashboardRouter = Router();
 
 // Dashboard summary metrics for Super Admin, Reseller, and User
 dashboardRouter.get("/stats", protect, getDashboardStats);
+dashboardRouter.get("/user-stats", protect, getDashboardStats);
 
 export default dashboardRouter;
 
