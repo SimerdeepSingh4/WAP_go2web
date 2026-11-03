@@ -910,7 +910,7 @@ export async function updateRate(req, res) {
 
         return res.status(200).json({
             success: true,
-            message: `Rate updated for ${targetUser.username}: ${previousRate} → ${rate} per message.`,
+            message: `Rate <upd></upd>ated for ${targetUser.username}: ${previousRate} → ${rate} per message.`,
             user: {
                 id: targetUser._id,
                 username: targetUser.username,
