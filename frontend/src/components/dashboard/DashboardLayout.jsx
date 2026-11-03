@@ -22,9 +22,9 @@ function Navigation({ role, base, items }) {
   const { setOpenMobile } = useSidebar();
   return <Sidebar collapsible="icon" className="portal-sidebar">
     <SidebarHeader className="portal-sidebar-header"><SidebarMenu><SidebarMenuItem>
-      <SidebarMenuButton size="lg" render={<Link to={base} aria-label="go2web home" />} onClick={() => setOpenMobile(false)} className="portal-brand">
+      <SidebarMenuButton size="lg" render={<Link to={base} aria-label="Promotion home" />} onClick={() => setOpenMobile(false)} className="portal-brand">
         <span className="portal-brand-mark"><MessageSquare aria-hidden="true" /></span>
-        <span className="portal-brand-copy"><strong>go2web<span>.</span></strong><span>{role === "Super Admin" ? "Super admin" : role}</span></span>
+        <span className="portal-brand-copy"><strong>Promotion<span>.</span></strong><span>{role === "Super Admin" ? "Super admin" : role}</span></span>
       </SidebarMenuButton>
     </SidebarMenuItem></SidebarMenu></SidebarHeader>
     <SidebarContent className="portal-sidebar-content"><SidebarGroup className="portal-nav-group"><SidebarGroupContent><SidebarMenu className="gap-1">
@@ -34,7 +34,7 @@ function Navigation({ role, base, items }) {
         </SidebarMenuButton>
       </SidebarMenuItem>)}
     </SidebarMenu></SidebarGroupContent></SidebarGroup></SidebarContent>
-    <div className="portal-sidebar-footer"><p>go2web · {role === "Super Admin" ? "Super admin" : role}</p></div>
+    <div className="portal-sidebar-footer"><p>Promotion · {role === "Super Admin" ? "Super admin" : role}</p></div>
   </Sidebar>;
 }
 

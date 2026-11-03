@@ -1123,10 +1123,10 @@ export default function CreateCampaignPage() {
             <div className="bg-primary text-primary-foreground p-3.5 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="grid size-9 place-items-center rounded-full bg-primary-foreground/20 text-primary-foreground font-bold text-xs uppercase">
-                  GW
+                  PR
                 </div>
                 <div>
-                  <p className="text-xs font-semibold leading-tight">go2web Broadcast</p>
+                  <p className="text-xs font-semibold leading-tight">Promotion Broadcast</p>
                   <p className="text-[10px] text-primary-foreground/80 leading-tight">online</p>
                 </div>
               </div>

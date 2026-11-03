@@ -96,7 +96,7 @@ function CampaignWorkflowIllustration() {
   );
 }
 
-export default function LoginPage({ onLogin, panelName = "go2web" }) {
+export default function LoginPage({ onLogin, panelName = "Promotion" }) {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
