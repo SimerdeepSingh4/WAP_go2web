@@ -420,14 +420,14 @@ export default function Accounts({ role }) {
             { key: "amount", label: "Credits to deduct", required: true, type: "number", min: 0.01, step: 0.01 },
             { key: "notes", label: "Reason (optional)", type: "textarea", maxLength: 500, placeholder: "e.g. Account closure, overpayment reversal" },
           ]}
-          payload={(v) => ({ fromUserId: modal.account._id, amount: Number(v.amount), notes: v.notes.trim() })}
+          payload={(v) => ({ fromUserId: modal.account._id, amount: Number(v.amount), notes: (v.notes || "").trim() })}
           review={(v) => (
             <>
               <p className="font-medium text-destructive">Reclaim credits</p>
               <p>
                 Deducting <strong>{number(Number(v.amount))} credits</strong> from {modal.account.username}.
               </p>
-              <p className="text-muted-foreground text-xs mt-1">Reason: {v.notes}</p>
+              <p className="text-muted-foreground text-xs mt-1">Reason: {v.notes ? v.notes.trim() : "None"}</p>
             </>
           )}
           submitLabel="Reclaim credits"

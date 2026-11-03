@@ -456,8 +456,16 @@ export async function reclaimCredits(req, res) {
             });
         }
 
-        // Reseller can only reclaim from Users assigned to them
+        // Reseller can only reclaim from Users assigned to them with a mandatory reason
         if (req.user.role === "Reseller") {
+            if (!notes || !notes.trim()) {
+                await mongoSession.abortTransaction();
+                mongoSession.endSession();
+                return res.status(400).json({
+                    message: "A reason is mandatory when reclaiming credits.",
+                    success: false,
+                });
+            }
             if (fromUser.role !== "User" || String(fromUser.resellerId) !== String(req.user._id)) {
                 await mongoSession.abortTransaction();
                 mongoSession.endSession();
