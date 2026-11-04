@@ -15,6 +15,7 @@ import {
   RotateCcw,
   Lock,
   Trash2,
+  UserCog,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -51,7 +52,24 @@ function AccountDetail({ account, onClose, onAction }) {
 
         <div className="space-y-5 px-4">
           <div className="flex items-center justify-between">
-            <StatusBadge status={account.status} />
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold border border-primary/20 bg-primary/10 text-primary">
+                {account.role}
+              </span>
+              <StatusBadge status={account.status} />
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs h-7 gap-1"
+              onClick={() => {
+                onClose();
+                onAction?.("role", account);
+              }}
+            >
+              <UserCog className="size-3.5" />
+              Change role
+            </Button>
           </div>
 
           <dl className="space-y-3.5 text-sm">
@@ -312,6 +330,10 @@ export default function Accounts({ role }) {
               <Pencil className="size-4 mr-2" />
               Change rate
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setModal({ type: "role", account: a })}>
+              <UserCog className="size-4 mr-2" />
+              Change role
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setModal({ type: "allocate", account: a })}>
               <Wallet className="size-4 mr-2" />
               Allocate credits
@@ -491,6 +513,53 @@ export default function Accounts({ role }) {
             </>
           )}
           submitLabel="Update rate"
+        />
+      )}
+
+      {modal?.type === "role" && (
+        <ActionForm
+          title="Change account role"
+          description={`Convert ${modal.account.username}'s account role. Role can only be changed between Reseller and User.`}
+          action="changeRole"
+          successMessage="Account role updated successfully"
+          onClose={() => setModal(null)}
+          initialValues={{
+            role: modal.account.role === "Reseller" ? "User" : "Reseller",
+          }}
+          fields={[
+            {
+              key: "role",
+              label: "New account role",
+              required: true,
+              options: [
+                { value: "Reseller", label: "Reseller (Can allocate credits & manage client users)" },
+                { value: "User", label: "User (Standard client account for sending campaigns)" },
+              ],
+            },
+          ]}
+          validate={(v) =>
+            v.role === modal.account.role
+              ? `Account is already a ${modal.account.role}. Please select a different role.`
+              : ""
+          }
+          payload={(v) => ({ id: modal.account._id, role: v.role })}
+          review={(v) => (
+            <>
+              <p className="font-medium text-foreground">{modal.account.username}</p>
+              <p className="text-xs text-muted-foreground">{modal.account.email}</p>
+              <div className="mt-2 text-sm flex items-center gap-2">
+                <span className="font-semibold">{modal.account.role}</span>
+                <span>→</span>
+                <span className="font-semibold text-primary">{v.role}</span>
+              </div>
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-2">
+                {modal.account.role === "Reseller" && v.role === "User"
+                  ? "Note: Any client users previously assigned to this reseller will be moved directly under Super Admin."
+                  : "Note: This account will become an independent Reseller and can manage client users."}
+              </p>
+            </>
+          )}
+          submitLabel="Change Role"
         />
       )}
 
