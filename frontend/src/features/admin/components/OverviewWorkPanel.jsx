@@ -30,7 +30,7 @@ function CampaignQueue({ query }) {
         </div>
         <div className="portal-card-heading">
           <div><h3>Campaign queue</h3><p>Oldest requests first · up to 5 shown</p></div>
-          <Button variant="ghost" size="sm" render={<Link to="/admin/campaigns?status=pending" />}>View all<ArrowRight aria-hidden="true" /></Button>
+          <Button variant="ghost" size="sm" nativeButton={false} render={<Link to="/admin/campaigns?status=pending" />}>View all<ArrowRight aria-hidden="true" /></Button>
         </div>
         <QueryState query={query} empty={!queue.length} emptyTitle="You're all caught up" emptyDescription="Campaigns awaiting execution will appear here.">
           <ul className="portal-campaign-list">
@@ -64,7 +64,7 @@ function ResellerNetwork({ query }) {
     <Card className="portal-card">
       <div className="portal-card-heading">
         <div><h3>Reseller network</h3><p>{query.data ? `${number(resellers.length)} resellers · up to 4 shown` : "Accounts connected to your workspace"}</p></div>
-        <Button variant="ghost" size="sm" render={<Link to="/admin/resellers" />}>Manage<ArrowUpRight aria-hidden="true" /></Button>
+        <Button variant="ghost" size="sm" nativeButton={false} render={<Link to="/admin/resellers" />}>Manage<ArrowUpRight aria-hidden="true" /></Button>
       </div>
       <QueryState query={query} empty={!resellers.length} emptyTitle="Build your network" emptyDescription="Add a reseller to start allocating credits.">
         <ul className="portal-reseller-list">
@@ -102,7 +102,7 @@ export default function OverviewWorkPanel({ campaignsQuery, accountsQuery }) {
             <div className="portal-credit-top"><span className="portal-credit-icon"><Wallet aria-hidden="true" /></span><span className="portal-credit-label">Admin balance</span></div>
             <p className="portal-credit-value">Unlimited<span>Super admin account</span></p>
             <p className="portal-credit-description">Allocate credits and manage balances across your network.</p>
-            <Button variant="outline" render={<Link to="/admin/credits" />} className="portal-credit-button">Manage credits<ArrowUpRight aria-hidden="true" /></Button>
+            <Button variant="outline" nativeButton={false} render={<Link to="/admin/credits" />} className="portal-credit-button">Manage credits<ArrowUpRight aria-hidden="true" /></Button>
           </Card>
         </div>
       </div>

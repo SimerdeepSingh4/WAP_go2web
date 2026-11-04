@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, useLocation } from "react-router";
+import { createBrowserRouter, Navigate, useLocation, useParams } from "react-router";
 import LoginPage from "./features/auth/pages/Login.jsx";
 import { useAuth } from "./features/auth/hooks/useAuth.js";
 import RoleRoute from "./components/RoleRoute.jsx";
@@ -14,6 +14,8 @@ import UserCredits from "./features/user/pages/Credits.jsx";
 import UserCampaigns from "./features/user/pages/Campaigns.jsx";
 import UserSettings from "./features/user/pages/Settings.jsx";
 import CreateCampaignPage from "./features/campaigns/pages/CreateCampaignPage.jsx";
+import CampaignDetailPage from "./features/campaigns/pages/CampaignDetailPage.jsx";
+import CampaignReportPage from "./features/campaigns/pages/CampaignReportPage.jsx";
 import PreviewBanner from "./components/PreviewBanner.jsx";
 
 import { lazy, Suspense } from "react";
@@ -28,6 +30,23 @@ const Administrators = lazy(() => import("./features/admin/pages/Administrators.
 const AdminAccounts = lazy(() => import("./features/admin/pages/Accounts.jsx"));
 const AdminCredits = lazy(() => import("./features/admin/pages/Credits.jsx"));
 const AdminOperatingRules = lazy(() => import("./features/admin/pages/OperatingRules.jsx"));
+
+function RoleCampaignDetailRedirect() {
+  const { user } = useAuth();
+  const { id } = useParams();
+  if (user?.role === "Super Admin") {
+    return <Navigate to={`/admin/campaigns/${id}`} replace />;
+  }
+  const base = user?.role === "Reseller" ? "/reseller" : "/user";
+  return <Navigate to={`${base}/campaigns/${id}/report`} replace />;
+}
+
+function RoleCampaignReportRedirect() {
+  const { user } = useAuth();
+  const { id } = useParams();
+  const base = user?.role === "Super Admin" ? "/admin" : user?.role === "Reseller" ? "/reseller" : "/user";
+  return <Navigate to={`${base}/campaigns/${id}/report`} replace />;
+}
 
 function Dashboard() {
   const { user } = useAuth();
@@ -114,6 +133,8 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <AdminOverview /> },
       { path: "campaigns", element: <AdminCampaigns /> },
+      { path: "campaigns/:id", element: <CampaignDetailPage /> },
+      { path: "campaigns/:id/report", element: <CampaignReportPage /> },
       { path: "contacts", element: <AdminContacts /> },
       { path: "reports", element: <Navigate to="/admin/campaigns?status=unreported" replace /> },
       { path: "administrators", element: <Administrators /> },
@@ -136,6 +157,8 @@ export const router = createBrowserRouter([
       { path: "campaigns", element: <ResellerCampaigns /> },
       { path: "campaigns/create", element: <CreateCampaignPage /> },
       { path: "campaigns/new", element: <CreateCampaignPage /> },
+      { path: "campaigns/:id", element: <CampaignDetailPage /> },
+      { path: "campaigns/:id/report", element: <CampaignReportPage /> },
       { path: "reports", element: <Navigate to="/reseller/campaigns?status=unreported" replace /> },
       { path: "users", element: <ResellerUsers /> },
       { path: "credits", element: <ResellerCredits key="credits" /> },
@@ -155,10 +178,29 @@ export const router = createBrowserRouter([
       { path: "campaigns", element: <UserCampaigns /> },
       { path: "campaigns/create", element: <CreateCampaignPage /> },
       { path: "campaigns/new", element: <CreateCampaignPage /> },
+      { path: "campaigns/:id", element: <CampaignDetailPage /> },
+      { path: "campaigns/:id/report", element: <CampaignReportPage /> },
       { path: "credits", element: <UserCredits key="credits" /> },
       { path: "activity", element: <UserCredits key="activity" activity /> },
       { path: "settings", element: <UserSettings /> },
     ],
+  },
+  // ── Standalone campaign routes for direct access ──
+  {
+    path: "/campaigns/:id",
+    element: (
+      <ProtectedRoute>
+        <RoleCampaignDetailRedirect />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/campaigns/:id/report",
+    element: (
+      <ProtectedRoute>
+        <RoleCampaignReportRedirect />
+      </ProtectedRoute>
+    ),
   },
   // ── Standalone campaign creation routes for direct access ──
   {

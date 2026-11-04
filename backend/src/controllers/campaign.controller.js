@@ -10,6 +10,8 @@ import cloudinary from "../config/cloudinary.config.js";
 import { notifyUser, notifyRole, notifyReseller } from "../services/socket.service.js";
 import { scheduleCampaignJob, cancelCampaignJob } from "../queues/campaign.queue.js";
 import xlsx from "xlsx";
+import { loadSpreadsheetRows, saveSpreadsheetRows } from "../helpers/spreadsheet-storage.js";
+import { normalizeColumns, buildPublishedSheet, normalizeDuplicateRows } from "../../../shared/campaignSpreadsheet.js";
 
 const REPORT_CATEGORIES = [
     "whatsapp_successful",
@@ -188,6 +190,15 @@ export const downloadRecipientReport = async (req, res) => {
         const result = await findCampaignForReport(req, req.params.id);
         if (result.error) return res.status(result.error.status).json({ success: false, message: result.error.message });
         const { campaign } = result;
+        if (campaign.publishedSpreadsheet?.publishedAt) {
+            const sheet = campaign.publishedSpreadsheet;
+            sheet.rows = await loadSpreadsheetRows(campaign._id, "published");
+            const rows = [["All index", ...sheet.columns.map((column) => column.label)], ...sheet.rows.map((row) => [row.rowNumber, ...sheet.columns.map((column) => row.values[column.id] ?? "")])];
+            const buffer = makeWorkbookBuffer(rows, "Campaign Report");
+            res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            res.setHeader("Content-Disposition", 'attachment; filename="campaign-report.xlsx"');
+            return res.send(buffer);
+        }
         const report = campaign.recipientReport;
         if (!report?.uploadedAt || !report.records?.length) {
             return res.status(404).json({ success: false, message: "No recipient report has been published for this campaign." });
@@ -447,8 +458,8 @@ export const createCampaign = async (req, res) => {
             });
         }
 
-        // Only bill and queue UNIQUE, VALID phone numbers!
-        const totalRecipients = sanitizedRecipients.length;
+        // Charge every submitted occurrence; dispatch only valid first occurrences.
+        const totalRecipients = recipients.length;
         const duplicateOccurrences = duplicatesList.length;
         const invalidCount = invalidList.length;
         let creditDeduction = null;
@@ -512,11 +523,11 @@ export const createCampaign = async (req, res) => {
                 await mongoSession.abortTransaction();
                 mongoSession.endSession();
                 return res.status(400).json({
-                    message: `Insufficient credits to launch campaign. Required: ${requiredCredits} credits (${totalRecipients} unique recipients × ${rate}/msg), Available: ${available} credits.`,
+                    message: `Insufficient credits to launch campaign. Required: ${requiredCredits} credits (${totalRecipients} numbers × ${rate}/msg), Available: ${available} credits.`,
                     success: false,
                     required: requiredCredits,
                     available,
-                    uniqueRecipients: totalRecipients,
+                    totalRecipients,
                     duplicatesFiltered: duplicateOccurrences,
                 });
             }
@@ -550,7 +561,7 @@ export const createCampaign = async (req, res) => {
         const resolvedStatus =
             req.user.role === "Super Admin" && status
                 ? status
-                : (schedule === "later" && scheduledTime && new Date(scheduledTime) > new Date() ? "scheduled" : "pending");
+                : "pending";
 
         const createdCampaigns = await campaignModel.create(
             [
@@ -563,9 +574,10 @@ export const createCampaign = async (req, res) => {
                     recipients: sanitizedRecipients,
                     recipientStats: {
                         totalSubmitted: recipients.length,
-                        uniqueCount: totalRecipients,
+                        uniqueCount: sanitizedRecipients.length,
                         duplicateCount: duplicateOccurrences,
                         invalidCount,
+                        invalidList,
                         duplicatesList, // Full preserved list of duplicate numbers
                     },
                     schedule: schedule || "now",
@@ -591,9 +603,7 @@ export const createCampaign = async (req, res) => {
 
         // Record transaction audit log linking campaignId
         if (creditDeduction && updatedWallet) {
-            const auditNotes = duplicateOccurrences > 0
-                ? `Campaign "${campaignTitle}": ${totalRecipients} unique recipient(s) (${duplicateOccurrences} duplicate(s) filtered out) at rate ${rate}/msg`
-                : `Campaign "${campaignTitle}": ${totalRecipients} recipient(s) at rate ${rate}/msg`;
+            const auditNotes = `Campaign "${campaignTitle}": ${totalRecipients} submitted number(s), including ${duplicateOccurrences} repeat occurrence(s), at rate ${rate}/msg`;
 
             await transactionModel.create(
                 [
@@ -650,10 +660,13 @@ export const createCampaign = async (req, res) => {
         }
 
         // ── BullMQ: Enqueue for Delayed Scheduling or Background Execution ──
-        try {
-            await scheduleCampaignJob(newCampaign);
-        } catch (queueErr) {
-            console.error("[BullMQ] Failed to enqueue campaign job:", queueErr.message);
+        // Submission alone never approves a campaign for dispatch.
+        if (newCampaign.status === "ongoing") {
+            try {
+                await scheduleCampaignJob(newCampaign);
+            } catch (queueErr) {
+                console.error("[BullMQ] Failed to enqueue campaign job:", queueErr.message);
+            }
         }
 
         let notice = "";
@@ -672,7 +685,7 @@ export const createCampaign = async (req, res) => {
             creditDeduction,
             duplicateStats: {
                 totalSubmitted: recipients.length,
-                uniqueRecipients: totalRecipients,
+                uniqueRecipients: sanitizedRecipients.length,
                 duplicatesFound: duplicateOccurrences,
                 duplicatesList,
                 invalidCount,
@@ -698,17 +711,6 @@ export const createCampaign = async (req, res) => {
  */
 export const getCampaigns = async (req, res) => {
     try {
-        // Auto-transition scheduled campaigns whose scheduled time has passed to pending
-        await campaignModel.updateMany(
-            {
-                status: "scheduled",
-                scheduledTime: { $lte: new Date() },
-            },
-            {
-                $set: { status: "pending" },
-            }
-        );
-
         let filter = {};
 
         if (req.user.role === "Super Admin") {
@@ -725,7 +727,7 @@ export const getCampaigns = async (req, res) => {
 
         const campaigns = await campaignModel
             .find(filter)
-            .select("-recipients -recipientReport.records")
+            .select("-recipients -recipientReport.records -recipientEntries -spreadsheetColumns -publishedSpreadsheet.rows -publishedSpreadsheet.columns -customRecipientTabs -deletedTabKeys -draftReportNotes -recipientCategoryLabels")
             .populate("userId", "username email role")
             .sort({ createdAt: -1 });
 
@@ -778,20 +780,101 @@ export const getCampaignById = async (req, res) => {
             });
         }
 
-        // Auto-transition scheduled campaign if scheduled time has passed and not started
-        if (
-            campaign.status === "scheduled" &&
-            campaign.scheduledTime &&
-            new Date(campaign.scheduledTime) <= new Date()
-        ) {
-            campaign.status = "pending";
-            await campaign.save();
+        if (isSuperAdmin) {
+            if (campaign.spreadsheetRevision > 0 || !campaign.recipientEntries || campaign.recipientEntries.length === 0) {
+                const storedDraft = await loadSpreadsheetRows(campaign._id, "draft");
+                if (storedDraft && storedDraft.length > 0) {
+                    campaign.recipientEntries = storedDraft;
+                }
+            }
+        }
+        // Initialize permanent row numbers for recipientEntries if not yet established
+        if (isSuperAdmin && (!campaign.recipientEntries || campaign.recipientEntries.length === 0)) {
+            const reportMap = new Map();
+            for (const rec of campaign.recipientReport?.records || []) {
+                if (rec.phoneNumber) {
+                    reportMap.set(String(rec.phoneNumber).replace(/\D/g, ""), {
+                        category: rec.category,
+                        billingAction: rec.billingAction,
+                    });
+                }
+            }
+
+            const initialEntries = [];
+            let rowCounter = 1;
+
+            // 1. Valid/queued recipients submitted
+            for (const r of campaign.recipients || []) {
+                const clean = String(r.phoneNumber || "").replace(/\D/g, "");
+                if (!clean) continue;
+                const info = reportMap.get(clean);
+                const isDelivered = r.status === "delivered";
+                const isFailed = r.status === "failed";
+                initialEntries.push({
+                    rowNumber: rowCounter++,
+                    phoneNumber: clean,
+                    status: r.status || "queued",
+                    classification: isDelivered ? "delivered" : isFailed ? "wrong" : "pending",
+                    category: info?.category || (isDelivered ? "Delivered" : isFailed ? "Wrong number" : "Queued"),
+                    tabKey: isDelivered ? "delivered" : isFailed ? "wrong" : "all",
+                    billingAction: info?.billingAction || (isFailed ? "refund" : "keep"),
+                    tags: isFailed ? ["Failed"] : [],
+                });
+            }
+
+            // 2. Duplicate numbers submitted
+            for (const dup of campaign.recipientStats?.duplicatesList || []) {
+                const clean = String(dup).replace(/\D/g, "");
+                if (!clean) continue;
+                const info = reportMap.get(clean);
+                initialEntries.push({
+                    rowNumber: rowCounter++,
+                    phoneNumber: clean,
+                    status: "failed",
+                    classification: "duplicate",
+                    category: info?.category || "Duplicate number",
+                    tabKey: "duplicate",
+                    billingAction: info?.billingAction || "refund",
+                    tags: ["Duplicate"],
+                });
+            }
+
+            // 3. Invalid format numbers submitted
+            for (const inv of campaign.recipientStats?.invalidList || []) {
+                const clean = String(inv).replace(/\D/g, "");
+                if (!clean) continue;
+                const info = reportMap.get(clean);
+                initialEntries.push({
+                    rowNumber: rowCounter++,
+                    phoneNumber: clean,
+                    status: "failed",
+                    classification: "wrong",
+                    category: info?.category || "Wrong number",
+                    tabKey: "wrong",
+                    billingAction: info?.billingAction || "refund",
+                    tags: ["Wrong Number"],
+                });
+            }
+
+            if (initialEntries.length > 0) {
+                campaign.recipientEntries = initialEntries;
+                // Initial indexes are deterministic; persist the first edit as a draft.
+            }
         }
 
-        return res.status(200).json({
-            success: true,
-            data: campaign,
-        });
+        if (campaign.publishedSpreadsheet?.publishedAt) {
+            campaign.publishedSpreadsheet.rows = await loadSpreadsheetRows(campaign._id, "published");
+        }
+        const view = campaign.toObject ? campaign.toObject() : { ...campaign };
+        if (!isSuperAdmin) {
+            delete view.recipientEntries;
+            delete view.spreadsheetColumns;
+            delete view.customRecipientTabs;
+            delete view.deletedTabKeys;
+            delete view.draftReportNotes;
+            delete view.recipientCategoryLabels;
+        }
+        return res.status(200).json({ success: true, data: view });
     } catch (error) {
         console.error("Get campaign by ID error:", error);
         return res.status(500).json({
@@ -807,15 +890,58 @@ export const getCampaignById = async (req, res) => {
  * Update status of any campaign.
  * STRICTLY RESTRICTED: Only Super Admin can change campaign status.
  */
+async function failCampaignAndRefund(id, adminId) {
+    const session = await mongoose.startSession();
+    let result;
+    try {
+        await session.withTransaction(async () => {
+            const campaign = await campaignModel.findById(id).session(session);
+            if (!campaign) { result = null; return; }
+            const previousStatus = campaign.status;
+            const charged = Math.max(0, Number(campaign.creditsDeducted) || 0);
+            const refunded = Math.max(0, Number(campaign.campaignSummary?.creditsRefunded) || 0);
+            const amount = Math.max(0, charged - refunded);
+            let refundInfo = null;
+            if (amount > 0) {
+                const owner = await userModel.findById(campaign.userId).session(session);
+                if (!owner) throw new Error("Campaign creator not found. No credits were changed.");
+                const wallet = await walletModel.findOneAndUpdate(
+                    { userId: campaign.userId },
+                    { $inc: { balance: amount }, $setOnInsert: { resellerId: owner.resellerId || null } },
+                    { new: true, upsert: true, session }
+                );
+                const [transaction] = await transactionModel.create([{
+                    type: "REFUND", campaignId: campaign._id, refundOperationId: new mongoose.Types.ObjectId(),
+                    fromUser: adminId, toUser: campaign.userId, performedBy: adminId,
+                    amount, balanceAfterTo: wallet.balance, rateSnapshot: campaign.rateSnapshot,
+                    notes: `Full credit refund: campaign "${campaign.campaignTitle}" marked failed by admin.`,
+                }], { session });
+                refundInfo = { amount, newBalance: wallet.balance, transactionId: transaction._id };
+            }
+            if (previousStatus !== "failed" || amount > 0) {
+                campaign.status = "failed";
+                campaign.campaignEndDate = new Date();
+                if (!campaign.campaignSummary) campaign.campaignSummary = {};
+                campaign.campaignSummary.creditsRefunded = refunded + amount;
+                if (campaign.publishedSpreadsheet?.summary) {
+                    campaign.publishedSpreadsheet.summary.creditsRefunded = refunded + amount;
+                    campaign.markModified("publishedSpreadsheet");
+                }
+                await campaign.save({ session });
+            }
+            result = { campaign, previousStatus, refundInfo };
+        });
+        return result;
+    } finally {
+        await session.endSession();
+    }
+}
+
 export const updateCampaignStatus = async (req, res) => {
     try {
         if (req.user.role !== "Super Admin") {
-            return res.status(403).json({
-                message: "Forbidden: Only Super Admin is authorized to change campaign status.",
-                success: false,
-            });
+            return res.status(403).json({ message: "Forbidden: Only Super Admin can change campaign status.", success: false });
         }
-
         const { id } = req.params;
         const { status } = req.body;
 
@@ -826,14 +952,28 @@ export const updateCampaignStatus = async (req, res) => {
             "failed",
             "pending",
             "paused",
+            "scheduled",
         ];
 
         if (!status || !allowedManualStatuses.includes(status)) {
             return res.status(400).json({
-                message: `Invalid status. Super Admin manual override is limited to: ${allowedManualStatuses.join(", ")}.`,
+                message: `Invalid status. Status update is limited to: ${allowedManualStatuses.join(", ")}.`,
                 success: false,
                 allowedManualStatuses,
             });
+        }
+
+        if (status === "failed") {
+            const result = await failCampaignAndRefund(id, req.user._id);
+            if (!result) return res.status(404).json({ success: false, message: "Campaign not found" });
+            const { campaign, previousStatus, refundInfo } = result;
+            try { await cancelCampaignJob(id); }
+            catch (error) { console.error("[BullMQ] Failed to cancel failed campaign job:", error.message); }
+            const update = { campaignId: campaign._id, campaignTitle: campaign.campaignTitle, previousStatus, status: "failed", updatedAt: campaign.updatedAt };
+            notifyUser(campaign.userId, "CAMPAIGN_UPDATED", update);
+            notifyRole("Super Admin", "CAMPAIGN_UPDATED", update);
+            if (refundInfo) notifyUser(campaign.userId, "WALLET_UPDATED", { campaignId: campaign._id, newBalance: refundInfo.newBalance, delta: refundInfo.amount, reason: "REFUND" });
+            return res.status(200).json({ success: true, message: "Campaign marked failed. All charged credits have been returned to its creator.", data: update, refundInfo });
         }
 
         const campaign = await campaignModel.findById(id);
@@ -872,13 +1012,7 @@ export const updateCampaignStatus = async (req, res) => {
             if (!campaign.campaignStartDate) {
                 campaign.campaignStartDate = new Date();
             }
-            // Super Admin kicked off campaign dispatch
-            try {
-                await scheduleCampaignJob(campaign);
-            } catch (queueErr) {
-                console.error("[BullMQ] Failed to enqueue on start:", queueErr.message);
-            }
-        } else if (status === "pending") {
+        } else if (status === "pending" || status === "scheduled" || status === "paused") {
             if (["completed", "stopped", "failed"].includes(previousStatus)) {
                 campaign.campaignEndDate = null;
             }
@@ -891,6 +1025,15 @@ export const updateCampaignStatus = async (req, res) => {
         }
 
         await campaign.save();
+
+        // Persist admin approval before a worker can pick up the job.
+        if (status === "ongoing") {
+            try {
+                await scheduleCampaignJob(campaign);
+            } catch (queueErr) {
+                console.error("[BullMQ] Failed to enqueue on start:", queueErr.message);
+            }
+        }
 
         // ── Real-Time WebSockets ──────────────────────────────────
         notifyUser(campaign.userId, "CAMPAIGN_UPDATED", {
@@ -1152,10 +1295,512 @@ export const updateCampaignMetrics = async (req, res) => {
     }
 };
 
+/**
+ * PUT /api/campaigns/:id/report
+ * -----------------------------
+ * Dynamic Campaign Report & Rule Engine for Super Admin.
+ * Categorizes numbers into distinct dynamic sections/buckets.
+ * Evaluates billing toggle per category (deduct vs refund).
+ * Automatically calculates and updates refunds with full ledger audit.
+ */
+export const saveCampaignReport = async (req, res) => {
+    const mongoSession = await mongoose.startSession();
+    mongoSession.startTransaction({
+        readConcern: { level: "snapshot" },
+        writeConcern: { w: "majority", j: true },
+    });
+
+    try {
+        if (req.user.role !== "Super Admin") {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
+            return res.status(403).json({
+                message: "Forbidden: Only Super Admin is authorized to configure and save campaign reports.",
+                success: false,
+            });
+        }
+
+        const { id } = req.params;
+        const { categories, adminNotes = "", status } = req.body;
+
+        if (!categories || !Array.isArray(categories)) {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
+            return res.status(400).json({
+                message: "Invalid categories: 'categories' must be an array of category sections.",
+                success: false,
+            });
+        }
+
+        const campaign = await campaignModel.findById(id).session(mongoSession);
+        if (!campaign) {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
+            return res.status(404).json({
+                message: "Campaign not found",
+                success: false,
+            });
+        }
+
+        const campaignOwner = await userModel.findById(campaign.userId).session(mongoSession);
+        const rate = campaign.rateSnapshot || (campaignOwner && campaignOwner.ratePerMsg > 0 ? campaignOwner.ratePerMsg : 12);
+
+        // Sanitize and process numbers per category
+        const seenInReport = new Set();
+        let totalRefundNumbersCount = 0;
+        let totalDeductNumbersCount = 0;
+        let deliveredCount = 0;
+        const categorySummaries = [];
+        const flatRecords = [];
+
+        for (const cat of categories) {
+            const catName = typeof cat.name === "string" ? cat.name.trim() : "Untitled Category";
+            const billingAction = cat.billingAction === "refund" ? "refund" : "deduct";
+            const rawNumbers = Array.isArray(cat.numbers) ? cat.numbers : [];
+
+            const sanitizedCategoryNumbers = [];
+            for (const num of rawNumbers) {
+                const clean = String(num).replace(/\D/g, "");
+                if (!clean) continue;
+                if (seenInReport.has(clean)) continue;
+                seenInReport.add(clean);
+                sanitizedCategoryNumbers.push(clean);
+                flatRecords.push({
+                    phoneNumber: clean,
+                    category: catName,
+                    billingAction,
+                });
+            }
+
+            const count = sanitizedCategoryNumbers.length;
+            if (billingAction === "refund") {
+                totalRefundNumbersCount += count;
+            } else {
+                totalDeductNumbersCount += count;
+                // Treat successful / delivered as delivered count
+                if (/success|deliver/i.test(catName) || cat.id === "successful") {
+                    deliveredCount += count;
+                }
+            }
+
+            categorySummaries.push({
+                id: cat.id || `cat_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                name: catName,
+                billingAction,
+                count,
+                creditsImpact: billingAction === "refund" ? count * rate : -(count * rate),
+            });
+        }
+
+        // Default delivered count if no category specifically called successful
+        if (deliveredCount === 0 && totalDeductNumbersCount > 0) {
+            deliveredCount = totalDeductNumbersCount;
+        }
+
+        // ── Credit & Refund Rule Engine Calculation ─────────────
+        const isEligibleForBilling = campaignOwner && campaignOwner.role !== "Super Admin";
+        let refundInfo = null;
+        let updatedUserWallet = null;
+
+        if (isEligibleForBilling) {
+            let targetRefundAmount = campaign.status === "failed" ? campaign.creditsDeducted || 0 : totalRefundNumbersCount * rate;
+            if (campaign.creditsDeducted > 0 && targetRefundAmount > campaign.creditsDeducted) {
+                targetRefundAmount = campaign.creditsDeducted;
+            }
+
+            const previousRefundAmount = campaign.campaignSummary?.creditsRefunded || 0;
+            const netRefundDelta = targetRefundAmount - previousRefundAmount;
+
+            if (netRefundDelta !== 0) {
+                updatedUserWallet = await walletModel.findOneAndUpdate(
+                    { userId: campaign.userId },
+                    {
+                        $inc: { balance: netRefundDelta },
+                        $setOnInsert: { resellerId: campaignOwner.resellerId || null },
+                    },
+                    {
+                        new: true,
+                        upsert: true,
+                        session: mongoSession,
+                    }
+                );
+
+                const txType = netRefundDelta > 0 ? "REFUND" : "DEDUCT";
+                const absAmount = Math.abs(netRefundDelta);
+                const txNotes = netRefundDelta > 0
+                    ? `Campaign report adjustment: Refund for ${totalRefundNumbersCount} number(s) on "${campaign.campaignTitle}" (${previousRefundAmount ? `incremental +${netRefundDelta}` : `${targetRefundAmount}`} credits)`
+                    : `Campaign report adjustment: Re-debit adjustment of ${absAmount} credits on "${campaign.campaignTitle}"`;
+
+                const [refundTx] = await transactionModel.create(
+                    [
+                        {
+                            fromUser: netRefundDelta > 0 ? req.user._id : campaign.userId,
+                            toUser: netRefundDelta > 0 ? campaign.userId : req.user._id,
+                            amount: absAmount,
+                            type: txType,
+                            campaignId: campaign._id,
+                            refundOperationId: new mongoose.Types.ObjectId(),
+                            notes: txNotes,
+                            rateSnapshot: rate,
+                            balanceAfterTo: updatedUserWallet.balance,
+                            performedBy: req.user._id,
+                        },
+                    ],
+                    { session: mongoSession }
+                );
+
+                refundInfo = {
+                    netRefundDelta,
+                    totalRefundAmount: targetRefundAmount,
+                    previousRefundAmount,
+                    rate,
+                    newBalance: updatedUserWallet.balance,
+                    transactionId: refundTx._id,
+                };
+            }
+
+            campaign.campaignSummary.creditsRefunded = targetRefundAmount;
+        }
+
+        // Update campaign summary metrics
+        campaign.campaignSummary.sent = campaign.totalRecipients || flatRecords.length;
+        campaign.campaignSummary.delivered = deliveredCount;
+        campaign.campaignSummary.failed = totalRefundNumbersCount;
+        campaign.campaignSummary.adminNotes = typeof adminNotes === "string" ? adminNotes.trim() : "";
+        campaign.campaignSummary.reportedAt = new Date();
+        campaign.campaignSummary.reportedBy = req.user._id;
+        campaign.campaignSummary.categories = categorySummaries;
+
+        // Update recipient report records
+        campaign.recipientReport = {
+            records: flatRecords,
+            uploadedAt: new Date(),
+            uploadedBy: req.user._id,
+        };
+
+        if (status) {
+            campaign.status = status;
+            if (status === "completed" || status === "sent") {
+                campaign.campaignEndDate = new Date();
+            }
+        } else if (campaign.status === "pending" || campaign.status === "ongoing") {
+            campaign.status = "completed";
+            campaign.campaignEndDate = new Date();
+        }
+
+        await campaign.save({ session: mongoSession });
+
+        await mongoSession.commitTransaction();
+        mongoSession.endSession();
+
+        // Real-time WebSockets notification
+        if (refundInfo && updatedUserWallet) {
+            notifyUser(campaign.userId, "WALLET_UPDATED", {
+                newBalance: updatedUserWallet.balance,
+                delta: refundInfo.netRefundDelta,
+                reason: refundInfo.netRefundDelta > 0 ? "REFUND" : "DEDUCT",
+                campaignTitle: campaign.campaignTitle,
+                campaignId: campaign._id,
+                refundAmount: refundInfo.totalRefundAmount,
+            });
+        }
+        notifyUser(campaign.userId, "CAMPAIGN_UPDATED", {
+            campaignId: campaign._id,
+            campaignTitle: campaign.campaignTitle,
+            reportUpdated: true,
+            status: campaign.status,
+            delivered: campaign.campaignSummary.delivered,
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: "Campaign report saved and credit adjustments applied successfully.",
+            data: campaign,
+            refundInfo,
+        });
+    } catch (error) {
+        await mongoSession.abortTransaction();
+        mongoSession.endSession();
+        console.error("Save campaign report error:", error);
+        return res.status(500).json({
+            message: error.message || "Failed to save campaign report",
+            success: false,
+        });
+    }
+};
+
+/**
+ * PUT /api/campaigns/:id/recipients-management
+ * -------------------------------------------
+ * Update campaign recipient entries, custom tabs, classifications, and credit adjustments.
+ * STRICTLY Super Admin ONLY.
+ */
+export const updateCampaignRecipientsManagement = async (req, res) => {
+    const mongoSession = await mongoose.startSession();
+    mongoSession.startTransaction({
+        readConcern: { level: "snapshot" },
+        writeConcern: { w: "majority", j: true },
+    });
+
+    try {
+        if (req.user.role !== "Super Admin") {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
+            return res.status(403).json({
+                message: "Forbidden: Only Super Admin can manage recipient numbers.",
+                success: false,
+            });
+        }
+
+        const { id } = req.params;
+        let { entries } = req.body;
+        const { customTabs, deletedTabKeys, saveMode, spreadsheetColumns, spreadsheetRevision, reportNotes, recipientCategoryLabels } = req.body;
+
+        if (!entries || !Array.isArray(entries)) {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
+            return res.status(400).json({
+                message: "Invalid payload: 'entries' must be an array of recipient entries.",
+                success: false,
+            });
+        }
+
+        const campaign = await campaignModel.findById(id).session(mongoSession);
+        if (!campaign) {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
+            return res.status(404).json({
+                message: "Campaign not found",
+                success: false,
+            });
+        }
+
+        entries = normalizeDuplicateRows(entries);
+        const spreadsheetSave = saveMode === "draft" || saveMode === "publish";
+        if (saveMode && !spreadsheetSave) throw new Error("Invalid spreadsheet save mode.");
+        if (spreadsheetSave && Number(spreadsheetRevision) !== (campaign.spreadsheetRevision || 0)) {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
+            return res.status(409).json({ success: false, message: "This spreadsheet changed in another session. Reload before saving." });
+        }
+        if (spreadsheetSave && campaign.spreadsheetRevision > 0) {
+            campaign.recipientEntries = await loadSpreadsheetRows(campaign._id, "draft", mongoSession);
+        }
+        let sheetColumns;
+        let publishedSheet;
+        if (spreadsheetSave) {
+          try {
+            sheetColumns = normalizeColumns(spreadsheetColumns);
+            const rowIds = new Set();
+            const knownIds = new Set((campaign.recipientEntries || []).map((row) => row.rowNumber));
+            const maxId = (campaign.recipientEntries || []).reduce((max, row) => Math.max(max, row.rowNumber), 0);
+            const customIds = new Set(sheetColumns.filter((column) => column.field === "custom").map((column) => column.id));
+            entries = entries.map((entry) => {
+                const rowNumber = Number(entry.rowNumber);
+                if (!Number.isSafeInteger(rowNumber) || rowNumber < 1 || rowIds.has(rowNumber) || (!knownIds.has(rowNumber) && rowNumber <= maxId)) throw new Error("Each recipient must retain its unique All index.");
+                rowIds.add(rowNumber);
+                const phoneNumber = String(entry.phoneNumber || "").replace(/\D/g, "");
+                if (!phoneNumber) throw new Error("Every row needs a phone number.");
+                const cells = Object.fromEntries(Object.entries(entry.cells || {}).filter(([id]) => customIds.has(id)).map(([id, value]) => [id, String(value ?? "").slice(0, 2000)]));
+                return { ...entry, rowNumber, phoneNumber, notes: String(entry.notes || "").slice(0, 2000), cells };
+            });
+            if ([...knownIds].some((rowNumber) => !rowIds.has(rowNumber))) throw new Error("Keep existing recipient rows and their All indexes. Move rows into a category instead of deleting them.");
+            if (saveMode === "publish") publishedSheet = buildPublishedSheet(entries, sheetColumns);
+          } catch (error) { error.statusCode = 400; throw error; }
+        }
+
+        const campaignOwner = await userModel.findById(campaign.userId).session(mongoSession);
+        const rate =
+            campaign.rateSnapshot ||
+            (campaignOwner && campaignOwner.ratePerMsg > 0 ? campaignOwner.ratePerMsg : 12);
+
+        let refundCount = 0;
+        let deductCount = 0;
+        let deliveredCount = 0;
+        const flatRecords = [];
+
+        for (const e of entries) {
+            const clean = String(e.phoneNumber || "").replace(/\D/g, "");
+            const billingAction = e.billingAction === "refund" ? "refund" : "deduct";
+            if (billingAction === "refund") {
+                refundCount++;
+            } else {
+                deductCount++;
+                if (e.status === "delivered" || /delivered|success/i.test(e.category || "")) {
+                    deliveredCount++;
+                }
+            }
+            flatRecords.push({
+                rowNumber: e.rowNumber,
+                phoneNumber: clean,
+                category: e.category || e.tabKey || "General",
+                billingAction,
+            });
+        }
+
+        if (!campaign.campaignSummary) {
+            campaign.campaignSummary = {
+                sent: 0,
+                delivered: 0,
+                read: 0,
+                failed: 0,
+                creditsRefunded: 0,
+                adminNotes: "",
+            };
+        }
+
+        const isEligibleForBilling = campaignOwner && campaignOwner.role !== "Super Admin";
+        let refundInfo = null;
+
+        if (isEligibleForBilling && saveMode !== "draft") {
+            let targetRefundAmount = campaign.status === "failed" ? campaign.creditsDeducted || 0 : refundCount * rate;
+            if (campaign.creditsDeducted > 0 && targetRefundAmount > campaign.creditsDeducted) {
+                targetRefundAmount = campaign.creditsDeducted;
+            }
+
+            const previousRefundAmount = campaign.campaignSummary?.creditsRefunded || 0;
+            const netRefundDelta = targetRefundAmount - previousRefundAmount;
+
+            if (netRefundDelta !== 0) {
+                const updatedUserWallet = await walletModel.findOneAndUpdate(
+                    { userId: campaign.userId },
+                    {
+                        $inc: { balance: netRefundDelta },
+                        $setOnInsert: { resellerId: campaignOwner.resellerId || null },
+                    },
+                    {
+                        new: true,
+                        upsert: true,
+                        session: mongoSession,
+                    }
+                );
+
+                const txType = netRefundDelta > 0 ? "REFUND" : "DEDUCT";
+                const absAmount = Math.abs(netRefundDelta);
+                const txNotes =
+                    netRefundDelta > 0
+                        ? `Recipient number management: Refund for ${refundCount} entry(s) on "${campaign.campaignTitle}" (+${netRefundDelta} credits)`
+                        : `Recipient number management: Debit adjustment of -${absAmount} credits on "${campaign.campaignTitle}"`;
+
+                const [refundTx] = await transactionModel.create(
+                    [
+                        {
+                            fromUser: netRefundDelta > 0 ? req.user._id : campaign.userId,
+                            toUser: netRefundDelta > 0 ? campaign.userId : req.user._id,
+                            amount: absAmount,
+                            type: txType,
+                            campaignId: campaign._id,
+                            refundOperationId: new mongoose.Types.ObjectId(),
+                            notes: txNotes,
+                            rateSnapshot: rate,
+                            balanceAfterTo: updatedUserWallet.balance,
+                            performedBy: req.user._id,
+                        },
+                    ],
+                    { session: mongoSession }
+                );
+
+                refundInfo = {
+                    netRefundDelta,
+                    targetRefundAmount,
+                    previousRefundAmount,
+                    newBalance: updatedUserWallet.balance,
+                    transactionId: refundTx._id,
+                };
+            }
+
+            campaign.campaignSummary.creditsRefunded = targetRefundAmount;
+        }
+
+        // Always store large recipient sets (>500 rows) in chunked spreadsheet storage
+        // to avoid MongoDB 16MB BSON document size overflow
+        const useChunkedStorage = spreadsheetSave || entries.length > 500;
+        if (useChunkedStorage) {
+            await saveSpreadsheetRows(campaign._id, "draft", entries, mongoSession);
+            campaign.recipientEntries = [];
+            campaign.spreadsheetRevision = (campaign.spreadsheetRevision || 0) + 1;
+        } else {
+            campaign.recipientEntries = entries;
+        }
+        if (recipientCategoryLabels !== undefined) {
+            if (!recipientCategoryLabels || typeof recipientCategoryLabels !== "object" || Array.isArray(recipientCategoryLabels) || Object.keys(recipientCategoryLabels).length > 40) throw new Error("Invalid category names.");
+            const labels = Object.entries(recipientCategoryLabels);
+            if (labels.some(([key, value]) => !/^[a-zA-Z][a-zA-Z0-9_]{0,80}$/.test(key) || typeof value !== "string" || !value.trim() || value.trim().length > 80)) throw new Error("Category names must contain 1 to 80 characters.");
+            campaign.recipientCategoryLabels = Object.fromEntries(labels.map(([key, value]) => [key, value.trim()]));
+        }
+        if (customTabs && Array.isArray(customTabs)) {
+            campaign.customRecipientTabs = customTabs;
+        }
+        if (deletedTabKeys && Array.isArray(deletedTabKeys)) {
+            campaign.deletedTabKeys = deletedTabKeys;
+        }
+        if (spreadsheetSave) {
+            campaign.draftReportNotes = String(reportNotes ?? campaign.draftReportNotes ?? campaign.campaignSummary?.adminNotes ?? "").slice(0, 4000);
+            campaign.spreadsheetColumns = sheetColumns;
+        }
+        if (saveMode !== "draft") {
+            campaign.recipientReport = {
+                records: useChunkedStorage ? [] : flatRecords,
+                uploadedAt: new Date(),
+                uploadedBy: req.user._id,
+            };
+            campaign.campaignSummary.delivered = deliveredCount;
+        }
+        if (saveMode === "publish") {
+            const publishedAt = new Date();
+            campaign.status = campaign.status === "failed" ? "failed" : req.body.status || "completed";
+            campaign.campaignSummary.reportedAt = publishedAt;
+            campaign.campaignSummary.reportedBy = req.user._id;
+            campaign.campaignSummary.adminNotes = campaign.draftReportNotes;
+            campaign.campaignSummary.failed = refundCount;
+            await saveSpreadsheetRows(campaign._id, "published", publishedSheet.rows, mongoSession);
+            campaign.publishedSpreadsheet = {
+                columns: publishedSheet.columns, notes: campaign.draftReportNotes, publishedAt, publishedBy: req.user._id,
+                summary: {
+                    total: entries.length, delivered: entries.filter((row) => ["delivered", "read"].includes(row.status)).length,
+                    refunded: refundCount, creditsRefunded: campaign.campaignSummary.creditsRefunded || 0,
+                    creditsCharged: campaign.creditsDeducted || 0,
+                },
+            };
+        }
+
+        await campaign.save({ session: mongoSession });
+
+        await mongoSession.commitTransaction();
+        mongoSession.endSession();
+
+        if (refundInfo) notifyUser(campaign.userId, "WALLET_UPDATED", {
+            campaignId: campaign._id, newBalance: refundInfo.newBalance, delta: refundInfo.netRefundDelta,
+            reason: refundInfo.netRefundDelta > 0 ? "REFUND" : "DEDUCT",
+        });
+        if (saveMode === "publish") notifyUser(campaign.userId, "CAMPAIGN_UPDATED", { campaignId: campaign._id, reportUpdated: true });
+
+        const viewData = campaign.toObject ? campaign.toObject() : { ...campaign };
+        viewData.recipientEntries = entries;
+
+        return res.status(200).json({
+            success: true,
+            message: saveMode === "draft" ? "Spreadsheet draft saved." : saveMode === "publish" ? "Campaign report published." : "Campaign recipient numbers and credit adjustments saved successfully.",
+            data: viewData,
+            refundInfo,
+        });
+    } catch (error) {
+        await mongoSession.abortTransaction();
+        mongoSession.endSession();
+        console.error("Update campaign recipients management error:", error);
+        return res.status(error.statusCode || 500).json({
+            message: error.message || "Failed to update campaign recipient numbers",
+            success: false,
+        });
+    }
+};
+
 export default {
     createCampaign,
     getCampaigns,
     getCampaignById,
     updateCampaignStatus,
     updateCampaignMetrics,
+    saveCampaignReport,
+    updateCampaignRecipientsManagement,
 };

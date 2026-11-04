@@ -33,14 +33,13 @@ export function initCampaignWorker() {
                 return { success: false, reason: "Campaign not found" };
             }
 
-            // If campaign was stopped, paused, or cancelled while waiting in queue, abort
-            if (["stopped", "failed", "completed"].includes(campaign.status)) {
+            // Even stale queued jobs must never bypass admin approval.
+            if (campaign.status !== "ongoing") {
                 console.log(`[Worker] Campaign ${campaignId} is in "${campaign.status}" state. Skipping dispatch.`);
                 return { success: true, status: campaign.status, skipped: true };
             }
 
-            // 2. Transition campaign to ONGOING
-            campaign.status = "ongoing";
+            // 2. Dispatch only after the admin has set the campaign to ongoing.
             if (!campaign.campaignStartDate) {
                 campaign.campaignStartDate = new Date();
             }
@@ -71,9 +70,9 @@ export function initCampaignWorker() {
             for (let i = 0; i < totalRecipients; i += BATCH_SIZE) {
                 // Check if campaign was paused or stopped mid-execution
                 const freshCheck = await campaignModel.findById(campaignId).select("status");
-                if (freshCheck?.status === "paused" || freshCheck?.status === "stopped") {
-                    console.log(`[Worker] Campaign ${campaignId} was ${freshCheck.status} mid-flight. Halting dispatch.`);
-                    return { success: true, status: freshCheck.status, haltedAt: i };
+                if (!freshCheck || freshCheck.status !== "ongoing") {
+                    console.log(`[Worker] Campaign ${campaignId} is no longer ongoing. Halting dispatch.`);
+                    return { success: true, status: freshCheck?.status, haltedAt: i };
                 }
 
                 const batch = recipients.slice(i, i + BATCH_SIZE);

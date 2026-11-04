@@ -5,6 +5,8 @@ import {
     getCampaignById,
     updateCampaignStatus,
     updateCampaignMetrics,
+    saveCampaignReport,
+    updateCampaignRecipientsManagement,
     downloadRecipientReportTemplate,
     uploadRecipientReport,
     downloadRecipientReport,
@@ -37,7 +39,23 @@ campaignRouter.post(
 );
 campaignRouter.get("/:id", getCampaignById);
 
-// STRICTLY Super Admin ONLY: Change status of any campaign
+// STRICTLY Super Admin ONLY: Recipient management, permanent row numbers, filter & custom tabs
+campaignRouter.put(
+    "/:id/recipients-management",
+    authorizeRoles("Super Admin"),
+    blockInPreviewMode("Campaign recipients management"),
+    updateCampaignRecipientsManagement
+);
+
+// STRICTLY Super Admin ONLY: Configure dynamic categories, billing rules and save report
+campaignRouter.put(
+    "/:id/report",
+    authorizeRoles("Super Admin"),
+    blockInPreviewMode("Campaign report update"),
+    saveCampaignReport
+);
+
+// Only Super Admin can approve or change campaign status.
 campaignRouter.patch(
     "/:id/status",
     authorizeRoles("Super Admin"),

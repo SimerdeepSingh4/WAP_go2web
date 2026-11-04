@@ -31,7 +31,15 @@ export const campaignQueue = new Queue("campaignQueue", {
  * @returns {Promise<import("bullmq").Job>}
  */
 export async function scheduleCampaignJob(campaign) {
+    if (campaign.status !== "ongoing") return null;
     const campaignId = campaign._id.toString();
+    const jobId = `campaign_${campaignId}`;
+    const previousJob = await campaignQueue.getJob(jobId);
+    if (previousJob && ["completed", "failed"].includes(await previousJob.getState())) {
+        // A stale unapproved job may have been skipped and retained by BullMQ.
+        // Release its ID so the admin's approval can enqueue a fresh dispatch.
+        await previousJob.remove();
+    }
 
     let delay = 0;
     if (campaign.schedule === "later" && campaign.scheduledTime) {
@@ -48,7 +56,7 @@ export async function scheduleCampaignJob(campaign) {
             totalRecipients: campaign.totalRecipients || campaign.recipients?.length || 0,
         },
         {
-            jobId: `campaign_${campaignId}`,
+            jobId,
             delay,
         }
     );

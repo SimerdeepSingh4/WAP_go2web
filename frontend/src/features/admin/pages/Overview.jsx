@@ -53,7 +53,7 @@ export default function Overview() {
             <RefreshCw className={refreshing ? "animate-spin motion-reduce:animate-none size-3.5" : "size-3.5"} aria-hidden="true" />
             {refreshing ? "Refreshing…" : "Refresh"}
           </Button>
-          <Button size="sm" render={<Link to="/admin/credits?allocate=new" />}>
+          <Button size="sm" nativeButton={false} render={<Link to="/admin/credits?allocate=new" />}>
             Allocate credits
             <ArrowUpRight aria-hidden="true" className="size-3.5 ml-1" />
           </Button>

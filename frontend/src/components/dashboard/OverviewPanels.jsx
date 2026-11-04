@@ -12,7 +12,7 @@ export function RecentCampaigns({ query, base, pendingOnly = false, showOwner = 
   const rows = [...all].filter(c => !pendingOnly || ["pending", "scheduled"].includes(c.status)).sort((a, b) => pendingOnly ? new Date(a.createdAt) - new Date(b.createdAt) : new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 6);
   const title = pendingOnly ? "Awaiting review" : "Recent campaigns";
   return <section className="dashboard-section">
-    <div className="dashboard-section-heading"><h2>{title}</h2><Button variant="outline" size="sm" render={<Link to={`${base}/campaigns${pendingOnly ? "?status=pending" : ""}`} />}>View all</Button></div>
+    <div className="dashboard-section-heading"><h2>{title}</h2><Button variant="outline" size="sm" nativeButton={false} render={<Link to={`${base}/campaigns${pendingOnly ? "?status=pending" : ""}`} />}>View all</Button></div>
     <QueryState query={query} empty={!rows.length} emptyTitle={pendingOnly ? "No campaigns awaiting review" : "No campaigns yet"} emptyDescription={pendingOnly ? "New submissions will appear here." : "Submitted campaigns will appear here."}>
       <DataTable caption={title} rows={rows} paginated={false} columns={[
         { key: "name", label: "Campaign", render: c => <div className="min-w-28 max-w-96 whitespace-normal break-words"><Link className="font-medium hover:underline" to={`${base}/campaigns?campaign=${encodeURIComponent(c._id)}`}>{c.campaignTitle}</Link>{showOwner && <p className="mt-1 text-xs text-muted-foreground">{ownerName(c.userId)}</p>}<p className="mt-1 text-xs text-muted-foreground">{dateTime(c.createdAt)} · {number(c.totalRecipients)} recipients</p></div> },
@@ -25,7 +25,7 @@ export function RecentCampaigns({ query, base, pendingOnly = false, showOwner = 
 export function AccountList({ query, base, role }) {
   const accounts = (query.data?.users || []).filter(a => a.role === role);
   return <section className="dashboard-section">
-    <div className="dashboard-section-heading"><h2>{role === "Reseller" ? "Resellers" : "Your users"}</h2><Button variant="outline" size="sm" render={<Link to={`${base}/${role === "Reseller" ? "resellers" : "users"}`} />}>Manage</Button></div>
+    <div className="dashboard-section-heading"><h2>{role === "Reseller" ? "Resellers" : "Your users"}</h2><Button variant="outline" size="sm" nativeButton={false} render={<Link to={`${base}/${role === "Reseller" ? "resellers" : "users"}`} />}>Manage</Button></div>
     <QueryState query={query} empty={!accounts.length} emptyTitle={`No ${role === "Reseller" ? "resellers" : "users"} yet`} emptyDescription={`Add a ${role.toLowerCase()} to allocate credits.`}>
       <DataTable caption={role === "Reseller" ? "Resellers" : "Assigned users"} rows={accounts.slice(0, 5)} paginated={false} columns={[
         { key: "account", label: "Account", render: a => <div className="max-w-60 whitespace-normal break-words"><Link className="font-medium hover:underline" to={`${base}/${role === "Reseller" ? "resellers" : "users"}?search=${encodeURIComponent(a.email || a.username)}`}>{a.username}</Link><p className="mt-1 text-xs text-muted-foreground">{a.email}</p></div> },
@@ -45,7 +45,7 @@ export function RecentTransactions({ query, base }) {
           <h2>Recent credit movements</h2>
           <p className="text-xs text-muted-foreground mt-0.5">Audited allocation and adjustment ledger</p>
         </div>
-        <Button variant="outline" size="sm" render={<Link to={`${base}/activity`} />}>
+        <Button variant="outline" size="sm" nativeButton={false} render={<Link to={`${base}/activity`} />}>
           View all activity
         </Button>
       </div>

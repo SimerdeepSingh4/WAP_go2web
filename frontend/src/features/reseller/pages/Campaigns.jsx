@@ -94,12 +94,12 @@ export default function ResellerCampaigns({ reports = false }) {
       label: "Campaign",
       sort: (c) => c.campaignTitle,
       render: (c) => (
-        <button
-          className="max-w-64 truncate text-left font-medium hover:underline text-foreground cursor-pointer"
-          onClick={() => open(c)}
+        <Link
+          to={`/reseller/campaigns/${c._id}`}
+          className="max-w-64 truncate text-left font-medium hover:underline text-foreground cursor-pointer block"
         >
           {c.campaignTitle}
-        </button>
+        </Link>
       ),
     },
     {
@@ -168,25 +168,15 @@ export default function ResellerCampaigns({ reports = false }) {
       key: "actions",
       label: <span className="sr-only">Actions</span>,
       render: (c) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={`Actions for ${c.campaignTitle}`}
-              />
-            }
-          >
-            <MoreHorizontal />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem onClick={() => open(c)}>
-              <Eye className="size-4 mr-2" />
-              View campaign
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Button
+          variant="outline"
+          size="sm"
+          nativeButton={false} render={<Link to={`/reseller/campaigns/${c._id}/report`} />}
+          className="h-8 gap-1.5 text-xs font-medium border-border hover:bg-muted"
+        >
+          <FileText className="size-3.5" />
+          View Report
+        </Button>
       ),
     },
   ];
@@ -204,7 +194,7 @@ export default function ResellerCampaigns({ reports = false }) {
           <div className="flex items-center gap-2">
             {!reports && (
               <Button
-                render={<Link to="/reseller/campaigns/create" />}
+                nativeButton={false} render={<Link to="/reseller/campaigns/create" />}
                 size="sm"
                 className="gap-1.5 font-semibold shadow-xs"
               >

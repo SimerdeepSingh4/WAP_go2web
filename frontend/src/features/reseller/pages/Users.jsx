@@ -116,7 +116,7 @@ function UserDetail({ account, onClose, onAction }) {
                 variant="ghost"
                 size="sm"
                 className="justify-start gap-2 text-muted-foreground"
-                render={<Link to={`/reseller/credits?account=${account._id}`} />}
+                nativeButton={false} render={<Link to={`/reseller/credits?account=${account._id}`} />}
               >
                 View Credit Ledger
                 <ArrowRight className="size-3.5 ml-auto" />

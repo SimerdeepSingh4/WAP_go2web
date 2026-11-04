@@ -17,9 +17,9 @@ export default function UserOverview() {
     toast.add({ title: failed ? "Some information could not be refreshed" : "Overview refreshed", type: failed ? "error" : "success" });
   }
   return <>
-    <PageHeading title="Overview" description="Your credits and recent campaigns." action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={refresh} disabled={campaigns.isFetching || balance.isFetching}><RefreshCw />Refresh</Button><Button render={<Link to="/user/campaigns/create" />}><Plus />Create campaign</Button></div>} />
+    <PageHeading title="Overview" description="Your credits and recent campaigns." action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={refresh} disabled={campaigns.isFetching || balance.isFetching}><RefreshCw />Refresh</Button><Button nativeButton={false} render={<Link to="/user/campaigns/create" />}><Plus />Create campaign</Button></div>} />
     <QueryState query={balance}><Summary items={[{ label: "Available credits", value: number(wallet?.balance), hint: wallet?.isLocked ? "Locked - contact your reseller" : "Available for new campaigns", credit: true }, { label: "Rate per recipient", value: number(wallet?.ratePerMsg), hint: "Credits per message" }, { label: "Credit expiry", value: wallet?.expiresAt ? dateTime(wallet.expiresAt) : "No expiry", hint: "Current account balance" }]} /></QueryState>
     <RecentCampaigns query={campaigns} base="/user" />
-    <div className="dashboard-note flex flex-wrap items-center justify-between gap-3"><span>Need more credits? Submit a request to your account manager.</span><Button variant="outline" render={<Link to="/user/credits?request=new" />}>Request credits</Button></div>
+    <div className="dashboard-note flex flex-wrap items-center justify-between gap-3"><span>Need more credits? Submit a request to your account manager.</span><Button variant="outline" nativeButton={false} render={<Link to="/user/credits?request=new" />}>Request credits</Button></div>
   </>;
 }

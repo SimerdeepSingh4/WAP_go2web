@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { messageTextFromHtml } from "../helpers/message.helper.js";
 
 const campaignSchema = new mongoose.Schema(
     {
@@ -26,7 +27,10 @@ const campaignSchema = new mongoose.Schema(
         messageBody: {
             type: String,
             trim: true,
-            maxLength: [1024, "Message body cannot be greater than 1024 characters"],
+            validate: {
+                validator: (value) => messageTextFromHtml(value).length <= 1024,
+                message: "Message body cannot be greater than 1024 characters",
+            },
             default: "",
         },
         recipients: [
@@ -254,6 +258,19 @@ const campaignSchema = new mongoose.Schema(
                 trim: true,
                 default: "",
             },
+            categories: [
+                {
+                    id: { type: String, trim: true },
+                    name: { type: String, trim: true },
+                    billingAction: {
+                        type: String,
+                        enum: ["deduct", "refund"],
+                        default: "deduct",
+                    },
+                    count: { type: Number, default: 0 },
+                    creditsImpact: { type: Number, default: 0 },
+                },
+            ],
             reportedAt: {
                 type: Date,
                 default: null,
@@ -267,17 +284,58 @@ const campaignSchema = new mongoose.Schema(
         recipientReport: {
             records: [
                 {
+                    rowNumber: { type: Number },
                     phoneNumber: { type: String, trim: true, required: true },
                     category: {
                         type: String,
-                        enum: ["whatsapp_successful", "non_whatsapp_failed", "spam"],
+                        trim: true,
                         required: true,
+                    },
+                    billingAction: {
+                        type: String,
+                        enum: ["deduct", "refund"],
+                        default: "deduct",
                     },
                 },
             ],
             uploadedAt: { type: Date, default: null },
             uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
         },
+        recipientEntries: [
+            {
+                rowNumber: { type: Number, required: true },
+                phoneNumber: { type: String, trim: true, required: true },
+                status: { type: String, default: "queued" },
+                classification: { type: String, default: "pending" },
+                category: { type: String, default: "All" },
+                tabKey: { type: String, default: "all" },
+                billingAction: {
+                    type: String,
+                    enum: ["deduct", "refund", "keep"],
+                    default: "keep",
+                },
+                tags: [{ type: String }],
+                notes: { type: String, default: "", maxlength: 2000 },
+                cells: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
+            },
+        ],
+        spreadsheetColumns: { type: [mongoose.Schema.Types.Mixed], default: [] },
+        spreadsheetRevision: { type: Number, default: 0 },
+        draftReportNotes: { type: String, default: "", maxlength: 4000 },
+        publishedSpreadsheet: { type: mongoose.Schema.Types.Mixed, default: null },
+        recipientCategoryLabels: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
+        customRecipientTabs: [
+            {
+                key: { type: String, required: true },
+                label: { type: String, required: true },
+                billingAction: {
+                    type: String,
+                    enum: ["refund", "keep", "deduct"],
+                    default: "keep",
+                },
+            },
+        ],
+        deletedTabKeys: [{ type: String }],
         campaignStartDate: {
             type: Date,
             default: null,
@@ -304,6 +362,7 @@ const campaignSchema = new mongoose.Schema(
                 type: Number,
                 default: 0,
             },
+            invalidList: [String],
             duplicatesList: [
                 {
                     type: String,

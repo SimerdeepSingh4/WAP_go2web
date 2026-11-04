@@ -113,6 +113,7 @@ export default function Credits({ activity = false }) {
   });
 
   const accounts = (accountsQuery.data?.users || []).filter((a) => a.role !== "Super Admin");
+  const activeAccounts = accounts.filter((a) => a.status === "active");
   const resellers = accounts.filter((a) => a.role === "Reseller" && a.status === "active");
 
   function update(key, value) {
@@ -193,7 +194,7 @@ export default function Credits({ activity = false }) {
         description={
           activity
             ? "View all credit transactions, campaign usage, and refunds."
-            : "Add or deduct credits for resellers, and view transaction history."
+            : "Add or deduct credits for resellers and users, and view transaction history."
         }
         action={
           !activity && (
@@ -201,7 +202,7 @@ export default function Credits({ activity = false }) {
               <Button
                 variant="outline"
                 onClick={() => setReclaimOpen(true)}
-                disabled={!resellers.length || accountsQuery.isError}
+                disabled={!activeAccounts.length || accountsQuery.isError}
                 className="gap-1.5 text-xs"
               >
                 <RotateCcw className="size-3.5 text-amber-600" />
@@ -209,7 +210,7 @@ export default function Credits({ activity = false }) {
               </Button>
               <Button
                 onClick={() => update("allocate", "new")}
-                disabled={!resellers.length || accountsQuery.isError}
+                disabled={!activeAccounts.length || accountsQuery.isError}
                 className="gap-1.5"
               >
                 <Plus className="size-4" />
@@ -243,20 +244,20 @@ export default function Credits({ activity = false }) {
                 <p className="mt-2 text-2xl font-bold tracking-tight tabular-nums">
                   {number(overview.data?.stats?.credits?.totalAllocatedBySuperAdmin)}
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">Total credits added to resellers</p>
+                <p className="mt-1 text-xs text-muted-foreground">Total credits added across accounts</p>
               </CardContent>
             </Card>
 
             <Card className="rounded-lg shadow-none">
               <CardContent className="p-4 sm:p-5">
                 <p className="flex items-center justify-between text-xs text-muted-foreground">
-                  Reseller Balances
+                  Circulating Balances
                   <TrendingUp className="size-4 text-blue-600" />
                 </p>
                 <p className="mt-2 text-2xl font-bold tracking-tight tabular-nums">
                   {number(overview.data?.stats?.credits?.totalCreditsInCirculation)}
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">Current credits held by resellers</p>
+                <p className="mt-1 text-xs text-muted-foreground">Current credits held across network</p>
               </CardContent>
             </Card>
           </div>
@@ -310,20 +311,20 @@ export default function Credits({ activity = false }) {
         </div>
       </QueryState>
 
-      {!activity && accountsQuery.isSuccess && !resellers.length && (
-        <p className="text-sm text-muted-foreground">Add an active reseller account before allocating credits.</p>
+      {!activity && accountsQuery.isSuccess && !activeAccounts.length && (
+        <p className="text-sm text-muted-foreground">Add an active user or reseller account before allocating credits.</p>
       )}
 
       {/* Credit Allocation Dialog */}
-      {allocation && accountsQuery.isSuccess && resellers.length > 0 && (
+      {allocation && accountsQuery.isSuccess && activeAccounts.length > 0 && (
         <ActionForm
           title="Add Credits"
-          description="Add credits to the selected reseller's wallet."
+          description="Add credits to the selected reseller or user wallet."
           action="allocate"
           successMessage="Credits added successfully"
           onClose={() => update("allocate", null)}
           initialValues={{
-            toUserId: resellers.some((a) => a._id === allocation) ? allocation : "",
+            toUserId: accounts.some((a) => a._id === allocation) ? allocation : "",
             amount: "",
             notes: "",
             expiryYears: "2",
@@ -331,11 +332,13 @@ export default function Credits({ activity = false }) {
           fields={[
             {
               key: "toUserId",
-              label: "Select Reseller",
+              label: "Select Account (User or Reseller)",
               required: true,
               options: [
-                { value: "", label: "Select reseller" },
-                ...resellers.map((a) => ({ value: a._id, label: `${a.username} · ${a.email}` })),
+                { value: "", label: "Select account" },
+                ...accounts
+                  .filter((a) => a.status === "active" || a._id === allocation)
+                  .map((a) => ({ value: a._id, label: `${a.username} (${a.role}) · ${a.email}` })),
               ],
             },
             { key: "amount", label: "Credits to add", required: true, type: "number", min: 0.01, step: 0.01 },
@@ -356,29 +359,32 @@ export default function Credits({ activity = false }) {
             expiryYears: Number(v.expiryYears),
             notes: v.notes.trim(),
           })}
-          review={(v) => (
-            <>
-              <p className="font-medium">{resellers.find((a) => a._id === v.toUserId)?.username}</p>
-              <p>
-                Add <strong>{number(Number(v.amount))} credits</strong> to this account.
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Validity: <strong>{v.expiryYears === "0" ? "Never expires" : `${v.expiryYears} Year(s)`}</strong> (credits will lock if expired)
-              </p>
-              <p className="whitespace-pre-wrap break-words text-muted-foreground text-xs mt-1">
-                {v.notes || "No note."}
-              </p>
-            </>
-          )}
+          review={(v) => {
+            const target = accounts.find((a) => a._id === v.toUserId);
+            return (
+              <>
+                <p className="font-medium text-foreground">{target?.username} <span className="text-xs text-muted-foreground font-normal">({target?.role})</span></p>
+                <p>
+                  Add <strong>{number(Number(v.amount))} credits</strong> to this account.
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Validity: <strong>{v.expiryYears === "0" ? "Never expires" : `${v.expiryYears} Year(s)`}</strong> (credits will lock if expired)
+                </p>
+                <p className="whitespace-pre-wrap break-words text-muted-foreground text-xs mt-1">
+                  {v.notes || "No note."}
+                </p>
+              </>
+            );
+          }}
           submitLabel="Add Credits"
         />
       )}
 
       {/* Reclaim credits Dialog */}
-      {reclaimOpen && accountsQuery.isSuccess && (
+      {reclaimOpen && accountsQuery.isSuccess && activeAccounts.length > 0 && (
         <ActionForm
           title="Reclaim credits"
-          description="Take back unused credits from a reseller account."
+          description="Take back unused credits from an account."
           action="reclaim"
           successMessage="Credits deducted successfully"
           onClose={() => setReclaimOpen(false)}
@@ -386,27 +392,32 @@ export default function Credits({ activity = false }) {
           fields={[
             {
               key: "fromUserId",
-              label: "Select Reseller",
+              label: "Select Account (User or Reseller)",
               required: true,
               options: [
-                { value: "", label: "Select reseller" },
-                ...resellers.map((a) => ({ value: a._id, label: `${a.username} · ${a.email}` })),
+                { value: "", label: "Select account" },
+                ...accounts
+                  .filter((a) => a.status === "active")
+                  .map((a) => ({ value: a._id, label: `${a.username} (${a.role}) · ${a.email}` })),
               ],
             },
             { key: "amount", label: "Credits to deduct", required: true, type: "number", min: 0.01, step: 0.01 },
             { key: "notes", label: "Reason (optional)", type: "textarea", maxLength: 500, placeholder: "e.g. Account closure, overpayment reversal" },
           ]}
           payload={(v) => ({ fromUserId: v.fromUserId, amount: Number(v.amount), notes: (v.notes || "").trim() })}
-          review={(v) => (
-            <>
-              <p className="font-semibold text-destructive">Reclaim credits</p>
-              <p>
-                Taking back <strong>{number(Number(v.amount))} credits</strong> from{" "}
-                {resellers.find((a) => a._id === v.fromUserId)?.username}.
-              </p>
-              <p className="text-muted-foreground text-xs mt-1">Reason: {v.notes ? v.notes.trim() : "None"}</p>
-            </>
-          )}
+          review={(v) => {
+            const target = accounts.find((a) => a._id === v.fromUserId);
+            return (
+              <>
+                <p className="font-semibold text-destructive">Reclaim credits</p>
+                <p>
+                  Taking back <strong>{number(Number(v.amount))} credits</strong> from{" "}
+                  {target?.username} ({target?.role}).
+                </p>
+                <p className="text-muted-foreground text-xs mt-1">Reason: {v.notes ? v.notes.trim() : "None"}</p>
+              </>
+            );
+          }}
           submitLabel="Reclaim credits"
         />
       )}

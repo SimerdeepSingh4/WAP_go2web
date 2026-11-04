@@ -1,15 +1,16 @@
 import { createElement } from "react";
 import { Download } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const allowedTags = new Set(["p", "br", "strong", "b", "em", "i", "u", "s", "ol", "ul", "li", "blockquote", "pre", "code"]);
 
 // Rebuild editor markup as React elements; never render arbitrary HTML or attributes.
-export function CampaignMessage({ content }) {
+export function CampaignMessage({ content, className }) {
   if (!content) return <p className="text-muted-foreground">No text message.</p>;
   const document = new DOMParser().parseFromString(content, "text/html");
   function render(node, key) {
-    if (node.nodeType === 3) return node.textContent;
+    if (node.nodeType === 3) return node.textContent.replace(/\u00a0/g, " ");
     const tag = node.nodeName.toLowerCase();
     if (["script", "style", "iframe", "object", "svg"].includes(tag)) return null;
     const children = [...node.childNodes].map((child, index) => render(child, `${key}-${index}`));
@@ -17,7 +18,7 @@ export function CampaignMessage({ content }) {
     if (tag === "br") return <br key={key} />;
     return createElement(tag, { key }, ...children);
   }
-  return <div className="campaign-message whitespace-pre-wrap break-words rounded-lg border bg-muted/40 p-4">{[...document.body.childNodes].map((node, index) => render(node, index))}</div>;
+  return <div className={cn("campaign-message whitespace-pre-wrap break-words rounded-lg border bg-muted/40 p-4", className)}>{[...document.body.childNodes].map((node, index) => render(node, index))}</div>;
 }
 
 export function CampaignMedia({ campaign }) {

@@ -177,6 +177,7 @@ export default function DashboardLayout({ role }) {
                     onFocus={() => setIsSearchFocused(true)}
                     onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
                     aria-label="Find a control"
+                    style={{ outline: "none", border: "none", boxShadow: "none" }}
                     className="portal-search-input outline-none ring-0 border-0 shadow-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
                   />
                   {searchQuery ? (

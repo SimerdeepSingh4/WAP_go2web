@@ -63,6 +63,11 @@ const transactionSchema = new mongoose.Schema(
             default: null,
             index: true,
         },
+        // Manual billing adjustments each have their own immutable ledger entry.
+        // Automated refunds omit this key, retaining one refund per campaign.
+        refundOperationId: {
+            type: mongoose.Schema.Types.ObjectId,
+        },
     },
     {
         timestamps: true,
@@ -75,10 +80,14 @@ transactionSchema.index({ toUser: 1, createdAt: -1 });
 transactionSchema.index({ performedBy: 1, createdAt: -1 });
 transactionSchema.index({ type: 1, createdAt: -1 });
 
-// Idempotency Index: Ensures a campaign cannot be refunded more than once
+// Keep automated refunds idempotent while allowing separate manual adjustments.
 transactionSchema.index(
-    { campaignId: 1, type: 1 },
-    { unique: true, partialFilterExpression: { type: "REFUND" } }
+    { campaignId: 1, type: 1, refundOperationId: 1 },
+    {
+        name: "campaign_refund_operation_unique",
+        unique: true,
+        partialFilterExpression: { type: "REFUND" },
+    }
 );
 
 const transactionModel =

@@ -1,4 +1,4 @@
-import { useSearchParams } from "react-router";
+import { useSearchParams, Link } from "react-router";
 import { MoreHorizontal, Eye, FileText, Megaphone, Clock, CheckCircle, AlertTriangle, RefreshCw, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -69,12 +69,12 @@ export default function Campaigns({ reports = false }) {
       sort: (c) => c.campaignTitle,
       render: (c) => (
         <div className="max-w-64">
-          <button
+          <Link
+            to={`/admin/campaigns/${c._id}`}
             className="truncate text-left font-medium hover:underline text-foreground block w-full"
-            onClick={() => open(c)}
           >
             {c.campaignTitle}
-          </button>
+          </Link>
           <span className="text-xs text-muted-foreground">
             {c.messageType ? `${c.messageType.toUpperCase()} Message` : "Standard"}
           </span>
@@ -150,17 +150,13 @@ export default function Campaigns({ reports = false }) {
             <MoreHorizontal />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem onClick={() => open(c)}>
+            <DropdownMenuItem render={<Link to={`/admin/campaigns/${c._id}`} />}>
               <Eye className="size-4 mr-2" />
-              View campaign
+              View Campaign
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => open(c, false, true)}>
-              <Pencil className="size-4 mr-2" />
-              Change status
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => open(c, true)}>
+            <DropdownMenuItem render={<Link to={`/admin/campaigns/${c._id}/report`} />}>
               <FileText className="size-4 mr-2" />
-              {published(c) ? "Update report" : "Publish report"}
+              View Report
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

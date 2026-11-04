@@ -24,7 +24,7 @@ import ActionForm from "../components/ActionForm";
 import { useAdminQuery } from "../hooks/useAdmin";
 import { number, dateTime } from "../lib/format";
 
-function AccountDetail({ account, onClose }) {
+function AccountDetail({ account, onClose, onAction }) {
   const [showAudit, setShowAudit] = useState(false);
   const balance = useAdminQuery("balance", { id: account._id });
   const reconcile = useAdminQuery("reconcile", { id: account._id }, showAudit);
@@ -80,6 +80,32 @@ function AccountDetail({ account, onClose }) {
                 </p>
               )}
             </QueryState>
+            <div className="pt-2 flex items-center gap-2 border-t border-muted/50 mt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  onClose();
+                  onAction?.("allocate", account);
+                }}
+                className="text-xs h-8 gap-1.5"
+              >
+                <Wallet className="size-3.5 text-primary" />
+                Allocate credits
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  onClose();
+                  onAction?.("reclaim", account);
+                }}
+                className="text-xs h-8 gap-1.5 text-amber-700 hover:text-amber-800"
+              >
+                <RotateCcw className="size-3.5" />
+                Reclaim
+              </Button>
+            </div>
           </div>
 
           {/* Balance Check Section */}
@@ -273,18 +299,14 @@ export default function Accounts({ role }) {
               <Pencil className="size-4 mr-2" />
               Change rate
             </DropdownMenuItem>
-            {role === "Reseller" && (
-              <>
-                <DropdownMenuItem render={<Link to={`/admin/credits?allocate=${a._id}`} />}>
-                  <Wallet className="size-4 mr-2" />
-                  Allocate credits
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setModal({ type: "reclaim", account: a })}>
-                  <RotateCcw className="size-4 mr-2 text-amber-600" />
-                  Reclaim credits
-                </DropdownMenuItem>
-              </>
-            )}
+            <DropdownMenuItem onClick={() => setModal({ type: "allocate", account: a })}>
+              <Wallet className="size-4 mr-2" />
+              Allocate credits
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setModal({ type: "reclaim", account: a })}>
+              <RotateCcw className="size-4 mr-2 text-amber-600" />
+              Reclaim credits
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       ),
@@ -298,11 +320,11 @@ export default function Accounts({ role }) {
         description={
           role === "Reseller"
             ? "Manage reseller accounts, add credits, set message rates, and check balances."
-            : "Review sub-accounts managed under resellers and check credit usage."
+            : "Manage user accounts, allocate credits directly, configure message rates, and audit usage."
         }
         action={
           <Button
-            disabled={query.isPending || query.isError || (role === "User" && !resellers.length)}
+            disabled={query.isPending || query.isError}
             onClick={() => setModal({ type: "create" })}
           >
             <Plus className="size-4 mr-1" />
@@ -312,11 +334,12 @@ export default function Accounts({ role }) {
       />
 
       {role === "User" && query.isSuccess && !resellers.length && (
-        <p className="rounded-md border bg-muted/50 p-3 text-sm">
-          Create an active reseller before adding a user.{" "}
-          <Link className="font-medium underline" to="/admin/resellers">
-            Manage resellers
-          </Link>
+        <p className="rounded-md border bg-muted/50 p-3 text-sm text-muted-foreground">
+          No resellers exist yet. You can create direct user accounts or{" "}
+          <Link className="font-medium underline text-foreground" to="/admin/resellers">
+            add a reseller
+          </Link>{" "}
+          first.
         </p>
       )}
 
@@ -349,14 +372,14 @@ export default function Accounts({ role }) {
         />
       </QueryState>
 
-      {detail && <AccountDetail account={detail} onClose={() => setDetail(null)} />}
+      {detail && <AccountDetail account={detail} onClose={() => setDetail(null)} onAction={(type, account) => setModal({ type, account })} />}
 
       {modal?.type === "create" && (
         <ActionForm
           title={`Add ${role.toLowerCase()}`}
           description={
             role === "User"
-              ? "Create a user under their account provider."
+              ? "Create a user account. You can allocate credits directly to this user after creation."
               : "Create a reseller account. Credits can be allocated after creation."
           }
           action="createAccount"
@@ -372,9 +395,8 @@ export default function Accounts({ role }) {
               ? [
                   {
                     key: "resellerId",
-                    label: "Assigned reseller",
-                    required: true,
-                    options: [{ value: "", label: "Select reseller" }, ...resellers.map((a) => ({ value: a._id, label: a.username }))],
+                    label: "Assigned reseller (optional)",
+                    options: [{ value: "", label: "Direct (Managed by Admin)" }, ...resellers.map((a) => ({ value: a._id, label: a.username }))],
                   },
                 ]
               : []),
@@ -386,7 +408,7 @@ export default function Accounts({ role }) {
             password: v.password,
             role,
             ratePerMsg: Number(v.ratePerMsg),
-            ...(role === "User" ? { resellerId: v.resellerId } : {}),
+            ...(role === "User" && v.resellerId ? { resellerId: v.resellerId } : {}),
           })}
           review={(v) => (
             <>
@@ -394,7 +416,7 @@ export default function Accounts({ role }) {
               <p>{v.email}</p>
               <p>Role: {role}</p>
               <p>Rate: {number(Number(v.ratePerMsg))} credits / recipient</p>
-              {role === "User" && <p>Reseller: {resellers.find((a) => a._id === v.resellerId)?.username}</p>}
+              {role === "User" && <p>Reseller: {resellers.find((a) => a._id === v.resellerId)?.username || "Direct (None)"}</p>}
             </>
           )}
           submitLabel="Create account"
@@ -450,10 +472,59 @@ export default function Accounts({ role }) {
         />
       )}
 
+      {modal?.type === "allocate" && (
+        <ActionForm
+          title="Add Credits"
+          description={`Add credits directly to ${modal.account.username}'s wallet.`}
+          action="allocate"
+          successMessage="Credits added successfully"
+          onClose={() => setModal(null)}
+          initialValues={{
+            amount: "",
+            notes: "",
+            expiryYears: "2",
+          }}
+          fields={[
+            { key: "amount", label: "Credits to add", required: true, type: "number", min: 0.01, step: 0.01 },
+            {
+              key: "expiryYears",
+              label: "Credit Validity in Years (Type e.g. 2, or 0 for Never)",
+              required: true,
+              type: "number",
+              min: 0,
+              step: "any",
+              hint: "Type validity in years (e.g. 2 for 2 years, 0.5 for 6 months, 0 for never expires).",
+            },
+            { key: "notes", label: "Note (Optional)", type: "textarea", maxLength: 500 },
+          ]}
+          payload={(v) => ({
+            toUserId: modal.account._id,
+            amount: Number(v.amount),
+            expiryYears: Number(v.expiryYears),
+            notes: v.notes.trim(),
+          })}
+          review={(v) => (
+            <>
+              <p className="font-medium text-foreground">{modal.account.username} ({modal.account.role})</p>
+              <p className="text-xs mt-1">
+                Add <strong>{number(Number(v.amount))} credits</strong> to this account.
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Validity: <strong>{v.expiryYears === "0" ? "Never expires" : `${v.expiryYears} Year(s)`}</strong>
+              </p>
+              <p className="whitespace-pre-wrap break-words text-muted-foreground text-xs mt-1">
+                {v.notes || "No note."}
+              </p>
+            </>
+          )}
+          submitLabel="Add Credits"
+        />
+      )}
+
       {modal?.type === "reclaim" && (
         <ActionForm
           title="Reclaim credits"
-          description="Take back unused credits from this reseller."
+          description={`Take back unused credits from ${modal.account.username}.`}
           action="reclaim"
           successMessage="Credits deducted successfully"
           onClose={() => setModal(null)}
@@ -467,7 +538,7 @@ export default function Accounts({ role }) {
             <>
               <p className="font-medium text-destructive">Reclaim credits</p>
               <p>
-                Deducting <strong>{number(Number(v.amount))} credits</strong> from {modal.account.username}.
+                Deducting <strong>{number(Number(v.amount))} credits</strong> from {modal.account.username} ({modal.account.role}).
               </p>
               <p className="text-muted-foreground text-xs mt-1">Reason: {v.notes ? v.notes.trim() : "None"}</p>
             </>

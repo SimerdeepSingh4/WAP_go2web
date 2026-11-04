@@ -105,7 +105,7 @@ export function DeliveryChart({ campaigns = [] }) {
       <Card className="admin-charts portal-card portal-chart-card">
         <div className="portal-card-heading">
           <div><h3>Published results</h3><p>{number(reportCount)} of {number(campaigns.length)} campaigns reported</p></div>
-          <Button variant="ghost" size="sm" render={<Link to="/admin/reports?status=published" />}>Reports<ArrowUpRight aria-hidden="true" /></Button>
+          <Button variant="ghost" size="sm" nativeButton={false} render={<Link to="/admin/reports?status=published" />}>Reports<ArrowUpRight aria-hidden="true" /></Button>
         </div>
         <div className="portal-chart-content">
           {reportCount > 0 ? (

@@ -1,78 +1,53 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { useNavigate, Link, Navigate } from "react-router";
+import { useNavigate, Navigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import ReactQuill from "react-quill-new";
-import "react-quill-new/dist/quill.snow.css";
-import {
-  ArrowLeft,
-  Send,
-  Calendar,
-  Clock,
-  Users,
-  Coins,
-  AlertTriangle,
-  Loader2,
-  CheckCircle2,
-  Upload,
-  FileText,
-  Lock,
-  X,
-  HelpCircle,
-  Image as ImageIcon,
-  Video as VideoIcon,
-  Trash2,
-  Plus,
-  RefreshCw,
-} from "lucide-react";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { AlertTriangle, Lock, X } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import apiClient from "@/api/client";
-import { number, dateTime } from "@/features/admin/lib/format";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { FormError, QueryState } from "@/features/admin/components/shared";
-import { campaignEstimate, parseRecipients } from "../lib/submission";
+import { QueryState } from "@/features/admin/components/shared";
+import { campaignEstimate, parseRecipients, splitRecipientInput } from "../lib/submission";
 
-const WORD_LIMIT = 1024;
+import CreateCampaignHeader from "../components/create/CreateCampaignHeader";
+import CampaignDetailsSection from "../components/create/CampaignDetailsSection";
+import CampaignMessageEditor, { CHARACTER_LIMIT } from "../components/create/CampaignMessageEditor";
+import CampaignMediaUploader, { MEDIA_KINDS, MB, formatFileSize } from "../components/create/CampaignMediaUploader";
+import CampaignRecipientsInput from "../components/create/CampaignRecipientsInput";
+import CampaignDeliverySettings from "../components/create/CampaignDeliverySettings";
+import CampaignCostSummary from "../components/create/CampaignCostSummary";
+import CampaignReviewDialog from "../components/create/CampaignReviewDialog";
 
-function formatFileSize(bytes) {
-  if (!bytes) return "0 B";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+function htmlToText(html) {
+  return String(html || "")
+    .replace(/<\/(p|div|li|h\d|blockquote)>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 export default function CreateCampaignPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-
-  // Super Admin is restricted from creating campaigns
-  if (user?.role === "Super Admin") {
-    return <Navigate to="/admin/campaigns" replace />;
-  }
+  const queryClient = useQueryClient();
 
   const [reviewPayload, setReviewPayload] = useState(null);
   const submitting = useRef(false);
-  const queryClient = useQueryClient();
-  const fileInputRef = useRef(null);
+  const finished = useRef(false);
   const quillRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const errorRef = useRef(null);
 
-  // Dedicated media input refs: 1 Image, 1 Video, 1 PDF
-  const imageInputRef = useRef(null);
-  const videoInputRef = useRef(null);
-  const pdfInputRef = useRef(null);
-
-  // Determine base path (e.g. /reseller or /admin)
   const base = user?.role === "Super Admin" ? "/admin" : user?.role === "Reseller" ? "/reseller" : "/user";
   const parentCampaignsPath = `${base}/campaigns`;
   const isAdmin = user?.role === "Super Admin";
 
-  // Form states
   const [campaignTitle, setCampaignTitle] = useState("");
   const [campaignDescription, setCampaignDescription] = useState("");
   const [messageBody, setMessageBody] = useState("");
@@ -80,29 +55,24 @@ export default function CreateCampaignPage() {
   const [scheduleType, setScheduleType] = useState("now"); // "now" | "later"
   const [scheduledTime, setScheduledTime] = useState("");
   const [formError, setFormError] = useState("");
+  const [dropActive, setDropActive] = useState(false);
 
-  // Media files states: Exactly 1 Image, 1 Video, 1 PDF (nothing else)
-  const [imageFile, setImageFile] = useState(null); // { file, preview, name, size }
-  const [videoFile, setVideoFile] = useState(null); // { file, preview, name, size }
-  const [pdfFile, setPdfFile] = useState(null); // { file, name, size }
+  // Exactly one image, one video, one PDF
+  const [media, setMedia] = useState({ image: null, video: null, pdf: null });
 
-  useEffect(() => () => { if (imageFile?.preview) URL.revokeObjectURL(imageFile.preview); }, [imageFile]);
-  useEffect(() => () => { if (videoFile?.preview) URL.revokeObjectURL(videoFile.preview); }, [videoFile]);
+  // Revoke object URLs when replaced or on unmount
+  useEffect(() => () => { if (media.image?.preview) URL.revokeObjectURL(media.image.preview); }, [media.image]);
+  useEffect(() => () => { if (media.video?.preview) URL.revokeObjectURL(media.video.preview); }, [media.video]);
 
-  // Fetch current user wallet balance
   const balanceQuery = useQuery({
     queryKey: ["myWalletBalance", user?.id || user?._id],
-    queryFn: async () => {
-      const res = await apiClient.get("/credits/balance");
-      return res.data;
-    },
+    queryFn: async () => (await apiClient.get("/credits/balance")).data,
   });
 
   const wallet = balanceQuery.data?.wallet || {};
   const currentBalance = wallet.balance || 0;
   const isLocked = !isAdmin && Boolean(wallet.isLocked);
 
-  // Quill Editor Configuration
   const quillModules = useMemo(
     () => ({
       toolbar: [
@@ -114,39 +84,51 @@ export default function CreateCampaignPage() {
     }),
     []
   );
+  const quillFormats = ["bold", "italic", "underline", "strike", "list", "bullet", "blockquote", "code-block"];
 
-  const quillFormats = [
-    "bold",
-    "italic",
-    "underline",
-    "strike",
-    "list",
-    "bullet",
-    "blockquote",
-    "code-block",
+  const messageText = useMemo(() => htmlToText(messageBody), [messageBody]);
+  const charCount = messageText.length;
+  const isOverCharacterLimit = charCount > CHARACTER_LIMIT;
+
+  const { validRecipients, duplicatesCount, invalidCount, enteredCount } = useMemo(() => parseRecipients(rawRecipients), [rawRecipients]);
+  const totalRecipients = enteredCount;
+  const estimate = campaignEstimate({ role: user?.role, ratePerMsg: wallet.ratePerMsg, balance: currentBalance, recipients: totalRecipients });
+  const estimatedCost = estimate.cost;
+  const remainingBalance = estimate.remaining;
+  const hasInsufficientCredits = estimate.insufficient;
+  const totalMediaCount = Object.values(media).filter(Boolean).length;
+
+  const scheduleValid =
+    scheduleType === "now" ||
+    (scheduledTime && Number.isFinite(new Date(scheduledTime).getTime()) && new Date(scheduledTime) > new Date());
+
+  // What's still missing before "Review campaign" works
+  const checks = [
+    { ok: Boolean(campaignTitle.trim() && campaignDescription.trim()), label: "Title and description" },
+    { ok: (Boolean(messageText) || totalMediaCount > 0) && !isOverCharacterLimit, label: "Message or attachment" },
+    { ok: validRecipients.length > 0, label: isAdmin ? "At least one valid recipient" : "Recipient numbers added" },
+    { ok: Boolean(scheduleValid), label: scheduleType === "later" ? "Future schedule time" : "Delivery timing" },
+    { ok: !hasInsufficientCredits && !isLocked, label: "Enough credits" },
   ];
 
-  // Calculate live word count & character count
-  const wordCount = useMemo(() => {
-    if (!messageBody) return 0;
-    const text = messageBody
-      .replace(/<[^>]*>/g, " ")
-      .replace(/&nbsp;/g, " ")
-      .replace(/&#39;/g, "'")
-      .replace(/&quot;/g, '"')
-      .trim();
-    if (!text) return 0;
-    return text.split(/\s+/).filter(Boolean).length;
-  }, [messageBody]);
+  const isDirty = Boolean(campaignTitle || campaignDescription || messageText || rawRecipients.trim() || totalMediaCount);
 
-  const charCount = useMemo(() => {
-    if (!messageBody) return 0;
-    return messageBody.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim().length;
-  }, [messageBody]);
+  // Warn before leaving with unsent work
+  useEffect(() => {
+    if (!isDirty) return;
+    const onBeforeUnload = (e) => {
+      if (finished.current) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [isDirty]);
 
-  const isOverWordLimit = wordCount > WORD_LIMIT;
+  useEffect(() => {
+    if (formError) errorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [formError]);
 
-  // Insert tag into Quill editor at cursor position
   const insertVariable = (tag) => {
     const editor = quillRef.current?.getEditor();
     if (editor) {
@@ -159,138 +141,53 @@ export default function CreateCampaignPage() {
     }
   };
 
-  // --- 1 Image Handler ---
-  const handleImageSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const MAX_IMG_SIZE = 5 * 1024 * 1024; // 5 MB
-    if (file.size > MAX_IMG_SIZE) {
-      toast.add({
-        title: "Image Exceeds 5 MB",
-        description: `"${file.name}" is larger than 5 MB limit.`,
-        type: "error",
-      });
-      if (imageInputRef.current) imageInputRef.current.value = "";
+  /* ---- Media ---- */
+  const selectMedia = (kind, file) => {
+    const cfg = MEDIA_KINDS[kind];
+    if (!cfg.types.includes(file.type) && !(kind === "pdf" && /\.pdf$/i.test(file.name))) {
+      toast.add({ title: `Unsupported ${cfg.label.toLowerCase()} type`, description: `Allowed: ${cfg.hint}.`, type: "error" });
       return;
     }
-
-    if (imageFile?.preview) URL.revokeObjectURL(imageFile.preview);
-
-    setImageFile({
-      file,
-      preview: URL.createObjectURL(file),
-      name: file.name,
-      size: file.size,
-    });
-
-    if (imageInputRef.current) imageInputRef.current.value = "";
-  };
-
-  const removeImage = () => {
-    if (imageFile?.preview) URL.revokeObjectURL(imageFile.preview);
-    setImageFile(null);
-    if (imageInputRef.current) imageInputRef.current.value = "";
-  };
-
-  // --- 1 Video Handler ---
-  const handleVideoSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const MAX_VID_SIZE = 7 * 1024 * 1024; // 7 MB
-    if (file.size > MAX_VID_SIZE) {
+    if (file.size > cfg.max) {
       toast.add({
-        title: "Video Exceeds 7 MB",
-        description: `"${file.name}" is larger than 7 MB limit.`,
+        title: `${cfg.label} exceeds ${cfg.max / MB} MB`,
+        description: `"${file.name}" is ${formatFileSize(file.size)}.`,
         type: "error",
       });
-      if (videoInputRef.current) videoInputRef.current.value = "";
       return;
     }
-
-    if (videoFile?.preview) URL.revokeObjectURL(videoFile.preview);
-
-    setVideoFile({
-      file,
-      preview: URL.createObjectURL(file),
-      name: file.name,
-      size: file.size,
-    });
-
-    if (videoInputRef.current) videoInputRef.current.value = "";
+    setMedia((m) => ({
+      ...m,
+      [kind]: {
+        file,
+        name: file.name,
+        size: file.size,
+        preview: kind === "pdf" ? null : URL.createObjectURL(file),
+      },
+    }));
   };
+  const removeMedia = (kind) => setMedia((m) => ({ ...m, [kind]: null }));
 
-  const removeVideo = () => {
-    if (videoFile?.preview) URL.revokeObjectURL(videoFile.preview);
-    setVideoFile(null);
-    if (videoInputRef.current) videoInputRef.current.value = "";
-  };
-
-  // --- 1 PDF Handler ---
-  const handlePdfSelect = (e) => {
-    const file = e.target.files?.[0];
+  /* ---- Recipients file ---- */
+  const readRecipientsFile = (file) => {
     if (!file) return;
-
-    const MAX_PDF_SIZE = 5 * 1024 * 1024; // 5 MB
-    if (file.size > MAX_PDF_SIZE) {
-      toast.add({
-        title: "PDF Exceeds 5 MB",
-        description: `"${file.name}" is larger than 5 MB limit.`,
-        type: "error",
-      });
-      if (pdfInputRef.current) pdfInputRef.current.value = "";
+    if (!/\.(csv|txt)$/i.test(file.name)) {
+      toast.add({ title: "Use a .csv or .txt file", type: "error" });
       return;
     }
-
-    setPdfFile({
-      file,
-      name: file.name,
-      size: file.size,
-    });
-
-    if (pdfInputRef.current) pdfInputRef.current.value = "";
-  };
-
-  const removePdf = () => {
-    setPdfFile(null);
-    if (pdfInputRef.current) pdfInputRef.current.value = "";
-  };
-
-  // Real-time phone numbers parsing and sanitization
-  const { validRecipients, duplicatesCount, invalidCount } = useMemo(() => parseRecipients(rawRecipients), [rawRecipients]);
-  const totalRecipients = validRecipients.length;
-  const estimate = campaignEstimate({ role: user?.role, ratePerMsg: wallet.ratePerMsg, balance: currentBalance, recipients: totalRecipients });
-  const estimatedCost = estimate.cost;
-  const remainingBalance = estimate.remaining;
-  const hasInsufficientCredits = estimate.insufficient;
-  const totalMediaCount = (imageFile ? 1 : 0) + (videoFile ? 1 : 0) + (pdfFile ? 1 : 0);
-
-  // Handle CSV/TXT recipient file upload
-  const handleFileUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result;
       if (typeof content === "string") {
-        setRawRecipients((prev) => {
-          const combined = prev ? `${prev}\n${content}` : content;
-          return combined;
-        });
-        toast.add({
-          title: "Numbers Imported",
-          description: `Imported file: ${file.name}`,
-          type: "success",
-        });
+        setRawRecipients((prev) => (prev ? `${prev}\n${content}` : content));
+        toast.add({ title: "Numbers imported", description: file.name, type: "success" });
       }
     };
+    reader.onerror = () => toast.add({ title: "Couldn't read that file", type: "error" });
     reader.readAsText(file);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // Create campaign Mutation
   const createCampaignMutation = useMutation({
     mutationFn: async (payload) => {
       const res = await apiClient.post("/campaigns", payload, {
@@ -299,28 +196,23 @@ export default function CreateCampaignPage() {
       return res.data;
     },
     onSuccess: (data) => {
+      finished.current = true;
       for (const key of ["campaigns", "reseller", "admin", "user", "myWalletBalance"]) queryClient.invalidateQueries({ queryKey: [key] });
-
       toast.add({
         title: "Campaign submitted",
         description: data.message || `Campaign '${campaignTitle}' has been submitted for review.`,
         type: "success",
       });
-
       navigate(parentCampaignsPath);
     },
-    onSettled: () => { submitting.current = false; },
+    onSettled: () => {
+      submitting.current = false;
+    },
     onError: (err) => {
-      const msg =
-        err?.response?.data?.message ||
-        err?.message ||
-        "Unable to submit campaign. Please verify your inputs.";
+      const msg = err?.response?.data?.message || err?.message || "Unable to submit campaign. Please verify your inputs.";
       setFormError(msg);
-      toast.add({
-        title: "Campaign submission failed",
-        description: msg,
-        type: "error",
-      });
+      setReviewPayload(null);
+      toast.add({ title: "Campaign submission failed", description: msg, type: "error" });
     },
   });
 
@@ -328,774 +220,206 @@ export default function CreateCampaignPage() {
     e.preventDefault();
     setFormError("");
     if (submitting.current || createCampaignMutation.isPending) return;
-    if (user?.isPreview) { setFormError("Exit account preview to submit a campaign."); return; }
-    if (!isAdmin && !balanceQuery.isSuccess) { setFormError("Load your credit balance before continuing."); return; }
-    if (scheduleType === "later" && (!scheduledTime || !Number.isFinite(new Date(scheduledTime).getTime()) || new Date(scheduledTime) <= new Date())) { setFormError("Choose a future date and time."); return; }
+    if (user?.isPreview) return setFormError("Exit account preview to submit a campaign.");
+    if (!isAdmin && !balanceQuery.isSuccess) return setFormError("Load your credit balance before continuing.");
+    if (scheduleType === "later" && !scheduleValid) return setFormError("Choose a future date and time.");
+    if (isLocked) return setFormError("Your credit balance is expired and locked. Please contact your administrator.");
+    if (!campaignTitle.trim()) return setFormError("Please provide a campaign title.");
+    if (!campaignDescription.trim()) return setFormError("Please provide a brief campaign description.");
+    if (!messageText && totalMediaCount === 0) return setFormError("Please provide message content or attach media (image, video, or PDF).");
+    if (isOverCharacterLimit) return setFormError(`Message exceeds the maximum limit of ${CHARACTER_LIMIT} characters (currently ${charCount}). Please shorten it.`);
+    if (validRecipients.length === 0) return setFormError("Please provide at least one valid recipient phone number.");
+    if (hasInsufficientCredits) return setFormError(`Insufficient credits. You need ${estimatedCost} credits but currently hold ${currentBalance}.`);
 
-    if (isLocked) {
-      setFormError("Your credit balance is expired and locked. Please contact your administrator.");
-      return;
-    }
-    if (!campaignTitle.trim()) {
-      setFormError("Please provide a campaign title.");
-      return;
-    }
-    if (!campaignDescription.trim()) {
-      setFormError("Please provide a brief campaign description.");
-      return;
-    }
-
-    const plainText = messageBody.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
-    if (!plainText && totalMediaCount === 0) {
-      setFormError("Please provide message content or attach media (image, video, or PDF).");
-      return;
-    }
-    if (isOverWordLimit) {
-      setFormError(`Message exceeds the maximum limit of ${WORD_LIMIT} words (currently ${wordCount} words). Please shorten your message.`);
-      return;
-    }
-    if (totalRecipients === 0) {
-      setFormError("Please provide at least one valid recipient phone number.");
-      return;
-    }
-    if (hasInsufficientCredits) {
-      setFormError(`Insufficient credits. You need ${estimatedCost} credits but currently hold ${currentBalance}.`);
-      return;
-    }
-    if (scheduleType === "later" && !scheduledTime) {
-      setFormError("Please select a valid scheduled date and time.");
-      return;
-    }
-
-    // Always use FormData to support media uploads seamlessly
     const formData = new FormData();
     formData.append("campaignTitle", campaignTitle.trim());
     formData.append("campaignDescription", campaignDescription.trim());
     formData.append("messageBody", messageBody.trim());
-    formData.append("recipients", JSON.stringify(validRecipients));
+    formData.append("recipients", JSON.stringify(splitRecipientInput(rawRecipients)));
     formData.append("schedule", scheduleType);
-    if (scheduleType === "later" && scheduledTime) {
-      formData.append("scheduledTime", new Date(scheduledTime).toISOString());
-    }
-
-    // Append 1 Image, 1 Video, 1 PDF (nothing else)
-    if (imageFile) {
-      formData.append("images", imageFile.file);
-    }
-    if (videoFile) {
-      formData.append("video", videoFile.file);
-    }
-    if (pdfFile) {
-      formData.append("documents", pdfFile.file);
-    }
+    if (scheduleType === "later" && scheduledTime) formData.append("scheduledTime", new Date(scheduledTime).toISOString());
+    if (media.image) formData.append("images", media.image.file);
+    if (media.video) formData.append("video", media.video.file);
+    if (media.pdf) formData.append("documents", media.pdf.file);
 
     setReviewPayload(formData);
   };
 
+  // Redirect only after all hooks have run
+  if (isAdmin) return <Navigate to="/admin/campaigns" replace />;
+
+  const sampleName = "Aarav";
+  const samplePhone = validRecipients[0] ? `+${String(validRecipients[0]).replace(/^\+/, "")}` : "+919876543210";
+  const previewText = messageText.replace(/\{\{\s*name\s*\}\}/gi, sampleName).replace(/\{\{\s*phone\s*\}\}/gi, samplePhone);
+  const submitDisabled =
+    createCampaignMutation.isPending ||
+    user?.isPreview ||
+    (!isAdmin && !balanceQuery.isSuccess) ||
+    isLocked ||
+    hasInsufficientCredits ||
+    isOverCharacterLimit;
+
   return (
-    <div className="campaign-editor w-full min-w-0 space-y-6 pb-8 max-w-7xl mx-auto">
-      {/* Quill Custom Scoped Styling */}
+    <div className="campaign-editor mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-5 pb-8">
       <style>{`
-        .quill-editor-container .ql-toolbar.ql-snow {
-          border-top-left-radius: 0.75rem;
-          border-top-right-radius: 0.75rem;
-          border-color: var(--border);
-          background-color: var(--muted);
-          padding: 0.5rem 0.75rem;
-        }
-        .quill-editor-container .ql-container.ql-snow {
-          border-bottom-left-radius: 0.75rem;
-          border-bottom-right-radius: 0.75rem;
-          border-color: var(--border);
-          background-color: var(--card);
-          font-family: inherit;
-          font-size: 0.875rem;
-          min-height: 180px;
-        }
-        .quill-editor-container .ql-editor {
-          min-height: 160px;
-          font-size: 0.875rem;
-          line-height: 1.6;
-          color: var(--foreground);
-        }
-        .quill-editor-container .ql-editor.ql-blank::before {
-          color: var(--muted-foreground);
-          font-style: normal;
-        }
-        .dark .quill-editor-container .ql-snow .ql-stroke {
-          stroke: var(--foreground);
-        }
-        .dark .quill-editor-container .ql-snow .ql-fill {
-          fill: var(--foreground);
-        }
-        .dark .quill-editor-container .ql-snow .ql-picker {
-          color: var(--foreground);
-        }
+        .quill-editor-container .ql-toolbar.ql-snow { border-top-left-radius:.75rem; border-top-right-radius:.75rem; border-color:var(--border); background-color:var(--muted); padding:.5rem .75rem; }
+        .quill-editor-container .ql-container.ql-snow { border-bottom-left-radius:.75rem; border-bottom-right-radius:.75rem; border-color:var(--border); background-color:var(--card); font-family:inherit; font-size:.875rem; min-height:180px; }
+        .quill-editor-container .ql-editor { min-height:160px; font-size:.875rem; line-height:1.6; color:var(--foreground); }
+        .quill-editor-container .ql-editor.ql-blank::before { color:var(--muted-foreground); font-style:normal; }
+        .quill-editor-container:focus-within .ql-container.ql-snow, .quill-editor-container:focus-within .ql-toolbar.ql-snow { border-color:var(--ring); }
+        .dark .quill-editor-container .ql-snow .ql-stroke { stroke:var(--foreground); }
+        .dark .quill-editor-container .ql-snow .ql-fill { fill:var(--foreground); }
+        .dark .quill-editor-container .ql-snow .ql-picker { color:var(--foreground); }
       `}</style>
 
-      {!isAdmin && <QueryState query={balanceQuery}><span className="sr-only">Credit balance loaded</span></QueryState>}
+      {!isAdmin && (balanceQuery.isLoading || balanceQuery.isError) && (
+        <QueryState query={balanceQuery}>
+          <span className="sr-only">Credit balance loaded</span>
+        </QueryState>
+      )}
       {user?.isPreview && <p className="dashboard-note">Campaign submission is unavailable during account preview.</p>}
-      {/* Top Header with Breadcrumbs and Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
-            <Link to={parentCampaignsPath} className="hover:text-foreground transition-colors">
-              Campaigns
-            </Link>
-            <span>/</span>
-            <span className="text-foreground font-semibold">New campaign</span>
+
+      {/* Header */}
+      <CreateCampaignHeader
+        onNavigateBack={() => navigate(parentCampaignsPath)}
+        isPending={createCampaignMutation.isPending}
+      />
+
+      <div ref={errorRef} className={formError || isLocked ? "space-y-3" : "hidden"}>
+        {formError && (
+          <div role="alert" className="flex items-start gap-3 p-4 rounded-xl bg-destructive/10 text-destructive border border-destructive/20">
+            <AlertTriangle className="size-5 shrink-0 mt-0.5" />
+            <div className="flex-1 space-y-0.5">
+              <p className="text-sm font-semibold">Can’t continue yet</p>
+              <p className="text-xs">{formError}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFormError("")}
+              className="p-1 rounded hover:bg-destructive/10 cursor-pointer"
+              aria-label="Dismiss"
+            >
+              <X className="size-4" />
+            </button>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            Create Campaign
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Add your message and recipients, then review the cost before submitting.
-          </p>
-        </div>
+        )}
 
-        <div className="flex items-center gap-2.5">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => navigate(parentCampaignsPath)}
-            disabled={createCampaignMutation.isPending}
-          >
-            <ArrowLeft className="size-4 mr-1.5" />
-            Back to campaigns
-          </Button>
-
-        </div>
+        {isLocked && (
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-red-100 dark:bg-red-950/40 text-red-900 dark:text-red-200 border border-red-300 dark:border-red-900">
+            <Lock className="size-5 shrink-0 text-red-600" />
+            <div>
+              <p className="text-sm font-semibold">Credit wallet locked</p>
+              <p className="text-xs text-red-700 dark:text-red-300">
+                Your credit allocation has expired. Campaigns are disabled until the Super Admin renews it.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
-      {formError && (
-        <div className="flex items-start gap-3 p-4 rounded-xl bg-destructive/10 text-destructive text-sm font-medium border border-destructive/20">
-          <AlertTriangle className="size-5 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <p className="font-semibold">Unable to submit campaign</p>
-            <p className="text-xs">{formError}</p>
-          </div>
-        </div>
-      )}
+      <form onSubmit={handleSubmit} className="flex min-w-0 flex-col gap-4 [&>div]:w-full">
+        {/* Campaign fields */}
+        <div className="min-w-0 space-y-4">
+          <CampaignDetailsSection
+            campaignTitle={campaignTitle}
+            onCampaignTitleChange={setCampaignTitle}
+            campaignDescription={campaignDescription}
+            onCampaignDescriptionChange={setCampaignDescription}
+          />
 
-      {isLocked && (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-red-100 dark:bg-red-950/40 text-red-900 dark:text-red-200 text-sm font-medium border border-red-300 dark:border-red-900">
-          <Lock className="size-5 shrink-0 text-red-600" />
-          <div>
-            <p className="font-semibold">Credit Wallet Locked & Expired</p>
-            <p className="text-xs text-red-700 dark:text-red-300">
-              Your credit allocation has expired. Creating campaigns is disabled until renewed by Super Admin.
-            </p>
-          </div>
-        </div>
-      )}
+          <CampaignMessageEditor
+            quillRef={quillRef}
+            messageBody={messageBody}
+            onMessageBodyChange={setMessageBody}
 
-      {/* Main 2-Column Responsive Workspace */}
-      <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Form Fields (8 cols) */}
-        <div className="lg:col-span-8 space-y-6">
-          {/* Card 1: Campaign Details */}
-          <Card className="rounded-xl border shadow-xs">
-            <CardHeader className="border-b pb-4">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <FileText className="size-4.5 text-primary" />
-                Campaign Details
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Provide an internal name and description to track this broadcast.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="title" className="text-xs font-semibold">
-                    Campaign Title <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="title"
-                    placeholder="e.g. Diwali Fest Special Offer 2026"
-                    value={campaignTitle}
-                    onChange={(e) => setCampaignTitle(e.target.value)}
-                    className="text-sm"
-                    required
-                  />
-                </div>
+            charCount={charCount}
+            isOverCharacterLimit={isOverCharacterLimit}
+            onInsertVariable={insertVariable}
+            quillModules={quillModules}
+            quillFormats={quillFormats}
+          />
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="description" className="text-xs font-semibold">
-                    Description / Purpose <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="description"
-                    placeholder="e.g. 20% flat discount promotion blast"
-                    value={campaignDescription}
-                    onChange={(e) => setCampaignDescription(e.target.value)}
-                    className="text-sm"
-                    required
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <CampaignMediaUploader
+            media={media}
+            onSelectMedia={selectMedia}
+            onRemoveMedia={removeMedia}
+          />
 
-          {/* Card 2: Message Content (Quill with 1024 Words Limit) */}
-          <Card className="rounded-xl border shadow-xs">
-            <CardHeader className="border-b pb-4">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div>
-                  <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <FileText className="size-4 text-primary" />
-                    Message
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Write the message your recipients will receive.
-                  </CardDescription>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Badge
-                    variant="outline"
-                    className={`text-xs tabular-nums font-semibold transition-colors ${
-                      isOverWordLimit
-                        ? "border-destructive bg-destructive/10 text-destructive font-bold"
-                        : wordCount > 900
-                        ? "border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                        : "border-border text-foreground"
-                    }`}
-                  >
-                    {number(wordCount)} / {number(WORD_LIMIT)} words
-                  </Badge>
-                  <span className="text-xs text-muted-foreground tabular-nums">
-                    ({number(charCount)} chars)
-                  </span>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-5 space-y-3">
-              <div className="flex items-center gap-2 flex-wrap pb-1">
-                <span className="text-xs font-medium text-muted-foreground mr-1">Insert Tags:</span>
-                <button
-                  type="button"
-                  onClick={() => insertVariable("name")}
-                  className="px-2.5 py-1 text-xs rounded-md bg-muted hover:bg-muted/80 text-foreground font-mono transition-colors border border-border/60 hover:border-primary/40 cursor-pointer"
-                >
-                  &#123;&#123;name&#125;&#125;
-                </button>
-                <button
-                  type="button"
-                  onClick={() => insertVariable("phone")}
-                  className="px-2.5 py-1 text-xs rounded-md bg-muted hover:bg-muted/80 text-foreground font-mono transition-colors border border-border/60 hover:border-primary/40 cursor-pointer"
-                >
-                  &#123;&#123;phone&#125;&#125;
-                </button>
-              </div>
-
-              {/* React Quill Editor Container */}
-              <div className="quill-editor-container">
-                <ReactQuill
-                  ref={quillRef}
-                  theme="snow"
-                  value={messageBody}
-                  onChange={setMessageBody}
-                  modules={quillModules}
-                  formats={quillFormats}
-                  placeholder="Type your message here..."
-                />
-              </div>
-
-              {isOverWordLimit && (
-                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-destructive/10 text-destructive text-xs font-semibold border border-destructive/20 animate-shake">
-                  <AlertTriangle className="size-4 shrink-0" />
-                  <span>
-                    Word limit exceeded! Your message has {number(wordCount)} words (maximum allowed is {number(WORD_LIMIT)} words). Please reduce text by {number(wordCount - WORD_LIMIT)} words.
-                  </span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Card 3: Attachments (1 Image, 1 Video, 1 PDF) */}
-          <Card className="rounded-xl border shadow-xs">
-            <CardHeader className="border-b pb-4">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div>
-                  <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <Upload className="size-4.5 text-primary" />
-                    Campaign Attachments
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Attach optional media to your broadcast (Max 1 of each type).
-                  </CardDescription>
-                </div>
-
-                {totalMediaCount > 0 && (
-                  <Badge variant="outline" className="text-xs bg-primary/5 text-primary border-primary/20">
-                    {totalMediaCount} / 3 attached
-                  </Badge>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="pt-5">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-                {/* 1. Image */}
-                <div className="rounded-xl border p-3.5 bg-card flex flex-col justify-between gap-3">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="grid size-8 place-items-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                        <ImageIcon className="size-4.5" />
-                      </div>
-                      <span className="text-[10px] text-muted-foreground font-medium">Max 5 MB</span>
-                    </div>
-                    <div>
-                      <Label className="text-xs font-semibold text-foreground">Image</Label>
-                      <p className="text-[11px] text-muted-foreground">PNG, JPG, WebP</p>
-                    </div>
-                  </div>
-
-                  <input
-                    ref={imageInputRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    onChange={handleImageSelect}
-                    className="hidden"
-                  />
-
-                  {imageFile ? (
-                    <div className="rounded-lg border bg-muted/30 p-2 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="size-8 rounded overflow-hidden bg-black/5 shrink-0 border">
-                          <img src={imageFile.preview} alt={imageFile.name} className="h-full w-full object-cover" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-foreground truncate max-w-[130px]" title={imageFile.name}>{imageFile.name}</p>
-                          <p className="text-[10px] text-muted-foreground">{formatFileSize(imageFile.size)}</p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={removeImage}
-                        className="text-destructive hover:bg-destructive/10 p-1 rounded transition-colors shrink-0 cursor-pointer"
-                        title="Remove image"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => imageInputRef.current?.click()}
-                      className="w-full h-8 text-xs gap-1.5"
-                    >
-                      <Plus className="size-3" />
-                      Choose Image
-                    </Button>
-                  )}
-                </div>
-
-                {/* 2. Video */}
-                <div className="rounded-xl border p-3.5 bg-card flex flex-col justify-between gap-3">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="grid size-8 place-items-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
-                        <VideoIcon className="size-4.5" />
-                      </div>
-                      <span className="text-[10px] text-muted-foreground font-medium">Max 7 MB</span>
-                    </div>
-                    <div>
-                      <Label className="text-xs font-semibold text-foreground">Video</Label>
-                      <p className="text-[11px] text-muted-foreground">MP4, MOV, WebM</p>
-                    </div>
-                  </div>
-
-                  <input
-                    ref={videoInputRef}
-                    type="file"
-                    accept="video/mp4,video/quicktime,video/webm"
-                    onChange={handleVideoSelect}
-                    className="hidden"
-                  />
-
-                  {videoFile ? (
-                    <div className="rounded-lg border bg-muted/30 p-2 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="grid size-8 shrink-0 place-items-center rounded bg-sky-500/10 text-sky-600 dark:text-sky-400">
-                          <VideoIcon className="size-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-foreground truncate max-w-[130px]" title={videoFile.name}>{videoFile.name}</p>
-                          <p className="text-[10px] text-muted-foreground">{formatFileSize(videoFile.size)}</p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={removeVideo}
-                        className="text-destructive hover:bg-destructive/10 p-1 rounded transition-colors shrink-0 cursor-pointer"
-                        title="Remove video"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => videoInputRef.current?.click()}
-                      className="w-full h-8 text-xs gap-1.5"
-                    >
-                      <Plus className="size-3" />
-                      Choose Video
-                    </Button>
-                  )}
-                </div>
-
-                {/* 3. PDF */}
-                <div className="rounded-xl border p-3.5 bg-card flex flex-col justify-between gap-3">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="grid size-8 place-items-center rounded-lg bg-red-500/10 text-red-600 dark:text-red-400">
-                        <FileText className="size-4.5" />
-                      </div>
-                      <span className="text-[10px] text-muted-foreground font-medium">Max 5 MB</span>
-                    </div>
-                    <div>
-                      <Label className="text-xs font-semibold text-foreground">PDF Document</Label>
-                      <p className="text-[11px] text-muted-foreground">PDF only</p>
-                    </div>
-                  </div>
-
-                  <input
-                    ref={pdfInputRef}
-                    type="file"
-                    accept="application/pdf,.pdf"
-                    onChange={handlePdfSelect}
-                    className="hidden"
-                  />
-
-                  {pdfFile ? (
-                    <div className="rounded-lg border bg-muted/30 p-2 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="grid size-8 shrink-0 place-items-center rounded bg-red-500/10 text-red-600 dark:text-red-400 font-bold text-[10px]">
-                          PDF
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-foreground truncate max-w-[130px]" title={pdfFile.name}>{pdfFile.name}</p>
-                          <p className="text-[10px] text-muted-foreground">{formatFileSize(pdfFile.size)}</p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={removePdf}
-                        className="text-destructive hover:bg-destructive/10 p-1 rounded transition-colors shrink-0 cursor-pointer"
-                        title="Remove PDF"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => pdfInputRef.current?.click()}
-                      className="w-full h-8 text-xs gap-1.5"
-                    >
-                      <Plus className="size-3" />
-                      Choose PDF
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Card 4: Audience & Recipients */}
-          <Card className="rounded-xl border shadow-xs">
-            <CardHeader className="border-b pb-4">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div>
-                  <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <Users className="size-4.5 text-primary" />
-                    Target Audience
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Paste recipient numbers or upload a contact file.
-                  </CardDescription>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".csv,.txt"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                    id="file-upload"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="h-8 text-xs gap-1.5"
-                  >
-                    <Upload className="size-3.5" />
-                    Upload CSV / TXT
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-5 space-y-3">
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="recipients" className="text-xs font-semibold">
-                    Phone Numbers <span className="text-destructive">*</span>
-                  </Label>
-                  <span className="text-xs text-muted-foreground">
-                    Separated by newline, comma, or space
-                  </span>
-                </div>
-
-                <Textarea
-                  id="recipients"
-                  rows={5}
-                  value={rawRecipients}
-                  onChange={(e) => setRawRecipients(e.target.value)}
-                  placeholder="Paste numbers with country code:&#10;919876543210&#10;919876543211&#10;919876543212"
-                  className="text-xs font-mono resize-y"
-                  required
-                />
-              </div>
-
-              {/* Recipient breakdown chips */}
-              <div className="flex items-center gap-2 flex-wrap pt-1">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 text-xs font-medium border border-emerald-200 dark:border-emerald-800">
-                  <CheckCircle2 className="size-3.5" />
-                  {totalRecipients} Valid Numbers
-                </span>
-
-                {invalidCount > 0 && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300 text-xs font-medium border border-red-200 dark:border-red-800">
-                    <X className="size-3.5" />
-                    {invalidCount} Invalid Skipped
-                  </span>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <CampaignRecipientsInput
+            fileInputRef={fileInputRef}
+            rawRecipients={rawRecipients}
+            onRawRecipientsChange={setRawRecipients}
+            dropActive={dropActive}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDropActive(true);
+            }}
+            onDragLeave={() => setDropActive(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDropActive(false);
+              readRecipientsFile(e.dataTransfer.files?.[0]);
+            }}
+            onReadFile={readRecipientsFile}
+            totalRecipients={totalRecipients}
+            duplicatesCount={duplicatesCount}
+            invalidCount={invalidCount}
+            showValidation={isAdmin}
+          />
+          <CampaignDeliverySettings
+            scheduleType={scheduleType}
+            onScheduleTypeChange={setScheduleType}
+            scheduledTime={scheduledTime}
+            onScheduledTimeChange={setScheduledTime}
+            scheduleValid={scheduleValid}
+          />
         </div>
 
-        {/* Right Column: Execution & Summary Control Panel (4 cols) */}
-        <div className="lg:col-span-4 space-y-5 lg:sticky lg:top-4">
-          {/* Card: Execution Timing */}
-          <Card className="rounded-xl border shadow-xs">
-            <CardHeader className="border-b pb-3.5">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Clock className="size-4.5 text-primary" />
-                Execution Timing
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Choose when delivery should start.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-4 space-y-3">
-              <div className="grid grid-cols-2 gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => setScheduleType("now")}
-                  className={`flex flex-col items-start gap-2 p-3 rounded-lg border text-left cursor-pointer transition-all ${
-                    scheduleType === "now"
-                      ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-                      : "border-border bg-card hover:bg-muted/30"
-                  }`}
-                >
-                  <div
-                    className={`grid size-7 shrink-0 place-items-center rounded-md ${
-                      scheduleType === "now" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    <Send className="size-3.5" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-foreground">Send Now</p>
-                    <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                      Immediate queue
-                    </p>
-                  </div>
-                </button>
+        {/* Final summary and submission */}
+        <div className="min-w-0">
 
-                <button
-                  type="button"
-                  onClick={() => setScheduleType("later")}
-                  className={`flex flex-col items-start gap-2 p-3 rounded-lg border text-left cursor-pointer transition-all ${
-                    scheduleType === "later"
-                      ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-                      : "border-border bg-card hover:bg-muted/30"
-                  }`}
-                >
-                  <div
-                    className={`grid size-7 shrink-0 place-items-center rounded-md ${
-                      scheduleType === "later" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    <Calendar className="size-3.5" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-foreground">Schedule</p>
-                    <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
-                      Set date & time
-                    </p>
-                  </div>
-                </button>
-              </div>
 
-              {scheduleType === "later" && (
-                <div className="space-y-1.5 pt-2 border-t">
-                  <Label htmlFor="scheduledTime" className="text-xs font-semibold">
-                    Scheduled Date & Time <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="scheduledTime"
-                    type="datetime-local"
-                    value={scheduledTime}
-                    onChange={(e) => setScheduledTime(e.target.value)}
-                    className="text-xs"
-                    required
-                  />
-                  <p className="text-[10px] text-muted-foreground">
-                    Operating window rules configured in settings apply.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Credits Summary Card */}
-          <Card className="rounded-xl border shadow-xs">
-            <CardHeader className="border-b pb-4">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Coins className="size-4.5 text-primary" />
-                Credits & Execution Summary
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Estimated charge for unique, valid recipients.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="pt-5 space-y-3 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Target Recipients</span>
-                <span className="font-semibold tabular-nums text-foreground">
-                  {number(totalRecipients)}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Rate per recipient</span>
-                <span className="font-semibold tabular-nums text-foreground">{number(estimate.rate)} credits</span>
-              </div>
-
-              <div className="border-t pt-3 flex items-center justify-between">
-                <span className="font-semibold text-foreground">Total Required Credits</span>
-                <span className={`font-bold tabular-nums text-base ${hasInsufficientCredits ? "text-destructive" : "text-primary"}`}>
-                  {number(estimatedCost)} Credits
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between text-xs pt-1">
-                <span className="text-muted-foreground">Available Wallet Balance</span>
-                <span className="font-semibold tabular-nums text-foreground">
-                  {isAdmin ? "Unlimited" : number(currentBalance)} Credits
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between text-xs border-t pt-2">
-                <span className="text-muted-foreground">Balance after submission</span>
-                <span
-                  className={`font-semibold tabular-nums ${
-                    remainingBalance < 0 ? "text-destructive" : "text-emerald-600"
-                  }`}
-                >
-                  {isAdmin ? "Unlimited" : number(remainingBalance)} Credits
-                </span>
-              </div>
-
-              {/* Media Attachments Summary */}
-              {totalMediaCount > 0 && (
-                <div className="rounded-lg bg-muted/40 p-2.5 text-xs border border-border/60 space-y-1 mt-2">
-                  <p className="font-semibold text-foreground flex items-center justify-between">
-                    <span>Attached Media</span>
-                    <span className="tabular-nums text-primary">{totalMediaCount} / 3</span>
-                  </p>
-                  <div className="text-[11px] text-muted-foreground space-y-0.5">
-                    {imageFile && (
-                      <p className="flex items-center justify-between">
-                        <span>Image:</span>
-                        <span className="font-medium text-foreground truncate max-w-[140px]">{imageFile.name}</span>
-                      </p>
-                    )}
-                    {videoFile && (
-                      <p className="flex items-center justify-between">
-                        <span>Video:</span>
-                        <span className="font-medium text-foreground truncate max-w-[140px]">{videoFile.name}</span>
-                      </p>
-                    )}
-                    {pdfFile && (
-                      <p className="flex items-center justify-between">
-                        <span>PDF:</span>
-                        <span className="font-medium text-foreground truncate max-w-[140px]">{pdfFile.name}</span>
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {hasInsufficientCredits && (
-                <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-xs font-semibold border border-destructive/20 mt-2">
-                  Insufficient balance! You need {number(estimatedCost - currentBalance)} more credits to submit this campaign.
-                </div>
-              )}
-
-              {isOverWordLimit && (
-                <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-xs font-semibold border border-destructive/20 mt-2">
-                  Cannot submit: Message exceeds the 1024 words limit ({number(wordCount)} words).
-                </div>
-              )}
-            </CardContent>
-
-            <CardFooter className="border-t pt-4 flex flex-col gap-2">
-              <Button
-                type="submit"
-                disabled={createCampaignMutation.isPending || user?.isPreview || (!isAdmin && !balanceQuery.isSuccess) || isLocked || hasInsufficientCredits || isOverWordLimit}
-                className="w-full font-semibold h-10 shadow-xs"
-              >
-                {createCampaignMutation.isPending ? (
-                  <Loader2 className="size-4 mr-2 animate-spin" />
-                ) : (
-                  <Send className="size-4 mr-2" />
-                )}
-                Review campaign
-              </Button>
-
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => navigate(parentCampaignsPath)}
-                className="w-full text-xs text-muted-foreground"
-              >
-                Cancel
-              </Button>
-            </CardFooter>
-          </Card>
+          <CampaignCostSummary
+            enteredCount={enteredCount}
+            totalRecipients={totalRecipients}
+            estimate={estimate}
+            estimatedCost={estimatedCost}
+            hasInsufficientCredits={hasInsufficientCredits}
+            isAdmin={isAdmin}
+            currentBalance={currentBalance}
+            remainingBalance={remainingBalance}
+            checks={checks}
+            submitDisabled={submitDisabled}
+            isPending={createCampaignMutation.isPending}
+            onCancel={() => navigate(parentCampaignsPath)}
+          />
         </div>
       </form>
-      {reviewPayload && <Dialog open onOpenChange={open => { if (!open && !createCampaignMutation.isPending) setReviewPayload(null); }}><DialogContent showCloseButton={!createCampaignMutation.isPending}>
-        <DialogHeader><DialogTitle>Review campaign</DialogTitle><DialogDescription>Credits are charged when the server accepts your submission. The super admin manages approval and processing.</DialogDescription></DialogHeader>
-        <dl className="dashboard-details">{[["Campaign", campaignTitle], ["Recipients", number(totalRecipients)], ["Rate per recipient", number(estimate.rate) + " credits"], ["Estimated charge", number(estimatedCost) + " credits"], ["Balance after submission", isAdmin ? "Unlimited" : number(remainingBalance)], ["Requested schedule", scheduleType === "later" ? dateTime(scheduledTime) : "As soon as approved"], ["Attachments", number(totalMediaCount)]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
-        <p className="text-sm text-muted-foreground">{invalidCount > 0 ? `${number(invalidCount)} invalid entries excluded. ` : ""}The server confirms the final charge.</p>
-        <FormError message={createCampaignMutation.error?.response?.data?.message || createCampaignMutation.error?.message} />
-        <div className="flex justify-end gap-2"><Button variant="outline" disabled={createCampaignMutation.isPending} onClick={() => setReviewPayload(null)}>Back to edit</Button><Button disabled={createCampaignMutation.isPending} onClick={() => { if (submitting.current) return; submitting.current = true; createCampaignMutation.mutate(reviewPayload); }}>{createCampaignMutation.isPending ? "Submitting..." : "Submit campaign"}</Button></div>
-      </DialogContent></Dialog>}
+
+      <CampaignReviewDialog
+        isOpen={Boolean(reviewPayload)}
+        onClose={() => {
+          if (!createCampaignMutation.isPending) setReviewPayload(null);
+        }}
+        isPending={createCampaignMutation.isPending}
+        campaignTitle={campaignTitle}
+        totalRecipients={totalRecipients}
+        estimate={estimate}
+        estimatedCost={estimatedCost}
+        isAdmin={isAdmin}
+        remainingBalance={remainingBalance}
+        scheduleType={scheduleType}
+        scheduledTime={scheduledTime}
+        totalMediaCount={totalMediaCount}
+        previewText={previewText}
+        invalidCount={invalidCount}
+        error={createCampaignMutation.error}
+        onSubmit={() => {
+          if (submitting.current) return;
+          submitting.current = true;
+          createCampaignMutation.mutate(reviewPayload);
+        }}
+      />
     </div>
   );
 }
