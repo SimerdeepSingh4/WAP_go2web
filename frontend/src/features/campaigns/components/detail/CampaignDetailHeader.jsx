@@ -166,13 +166,13 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
         </DropdownMenu>
 
         <Button
-          type="submit"
-          form="campaign-recipient-report"
+          nativeButton={false}
+          render={<Link to={`${base}/campaigns/${id}/report/create`} />}
           size="sm"
           className="h-8 gap-1.5 text-xs"
         >
           <FileText className="size-3.5" />
-          Review report
+          Create report
         </Button>
       </div>
       </div>
@@ -182,7 +182,14 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
             <DialogTitle>Mark campaign as failed?</DialogTitle>
             <DialogDescription className="text-xs leading-5">This stops the campaign and returns all charged credits to its creator. Credits already refunded will not be refunded again.</DialogDescription>
           </DialogHeader>
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100"><p className="font-medium">{number(remainingRefund)} credits will be returned</p><p className="mt-1 leading-5">Confirm only if the entire campaign has failed.</p></div>
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
+            <dl className="space-y-2 tabular-nums">
+              <div className="flex justify-between gap-3"><dt>Original charge</dt><dd>{number(campaign.creditsDeducted || 0)} credits</dd></div>
+              <div className="flex justify-between gap-3"><dt>Already refunded</dt><dd>{number(campaign.campaignSummary?.creditsRefunded || 0)} credits</dd></div>
+              <div className="flex justify-between gap-3"><dt>Refund on confirmation</dt><dd className="font-semibold">{number(remainingRefund)} credits</dd></div>
+              <div className="flex justify-between gap-3 border-t border-amber-200 pt-2 font-semibold dark:border-amber-800"><dt>Total refunded afterward</dt><dd>{number(Math.max(campaign.creditsDeducted || 0, campaign.campaignSummary?.creditsRefunded || 0))} credits</dd></div>
+            </dl>
+          </div>
           <DialogFooter className="m-0 flex-row justify-end rounded-none border-0 bg-transparent p-0">
             <Button type="button" variant="ghost" size="sm" disabled={isUpdating} onClick={() => setConfirmFailure(false)}>Cancel</Button>
             <Button type="button" variant="destructive" size="sm" disabled={isUpdating} onClick={() => updateStatusMutation.mutate("failed")}>{isUpdating && <Loader2 className="size-3.5 animate-spin" />}Mark failed &amp; refund</Button>

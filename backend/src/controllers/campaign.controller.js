@@ -185,6 +185,50 @@ export const uploadRecipientReport = async (req, res) => {
     }
 };
 
+export const exportRecipientDraft = async (req, res) => {
+    try {
+        if (req.user.role !== "Super Admin") return res.status(403).json({ success: false, message: "Only Super Admin can export draft recipients." });
+        const campaign = await campaignModel.findById(req.params.id);
+        if (!campaign) return res.status(404).json({ success: false, message: "Campaign not found." });
+        const { entries, spreadsheetColumns, cards = [], originalEntries = [] } = req.body;
+        if (!Array.isArray(entries) || !entries.length) return res.status(400).json({ success: false, message: "Add recipient numbers before downloading." });
+        if (!Array.isArray(cards) || cards.length > 40 || cards.some((card) => !card || typeof card.key !== "string" || typeof card.label !== "string")) return res.status(400).json({ success: false, message: "Invalid recipient cards." });
+        if (!Array.isArray(originalEntries)) return res.status(400).json({ success: false, message: "Invalid original recipient list." });
+        const sheet = buildPublishedSheet(normalizeDuplicateRows(entries), spreadsheetColumns);
+        const workbook = xlsx.utils.book_new();
+        const names = new Set();
+        const append = (label, rows) => {
+            const base = String(label).replace(/[:\\/?*\[\]]/g, " ").replace(/^'+|'+$/g, "").trim().slice(0, 31) || "Category";
+            let name = base;
+            for (let suffix = 2; names.has(name.toLowerCase()); suffix++) {
+                const tail = ` (${suffix})`;
+                name = base.slice(0, 31 - tail.length) + tail;
+            }
+            names.add(name.toLowerCase());
+            const worksheet = xlsx.utils.aoa_to_sheet(rows);
+            worksheet["!cols"] = rows[0].map((_, index) => ({ wch: index === 0 ? 10 : 24 }));
+            xlsx.utils.book_append_sheet(workbook, worksheet, name);
+        };
+        const header = ["Row", ...sheet.columns.map((column) => column.label)];
+        const values = (row) => [row.rowNumber, ...sheet.columns.map((column) => row.values[column.id] ?? "")];
+        append("All recipients", [header, ...sheet.rows.map(values)]);
+        append("Original upload", [["Row", "Phone number"], ...originalEntries.map((row) => [row.rowNumber, String(row.phoneNumber || "")])]);
+        const byCard = new Map();
+        for (const row of sheet.rows) {
+            if (!byCard.has(row.tabKey)) byCard.set(row.tabKey, []);
+            byCard.get(row.tabKey).push(row);
+        }
+        append("Categories", [["Category", "Numbers", "Credit treatment"], ...cards.map((card) => [card.label, byCard.get(card.key)?.length || 0, card.billingAction === "refund" ? "Refunded" : "Charged"])]);
+        for (const card of cards) append(card.label, [header, ...(byCard.get(card.key) || []).map(values)]);
+        const buffer = xlsx.write(workbook, { type: "buffer", bookType: "xlsx" });
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", 'attachment; filename="campaign-recipients.xlsx"');
+        return res.send(buffer);
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message || "Could not export the recipients." });
+    }
+};
+
 export const downloadRecipientReport = async (req, res) => {
     try {
         const result = await findCampaignForReport(req, req.params.id);
@@ -1140,18 +1184,20 @@ export const updateCampaignMetrics = async (req, res) => {
         const campaignOwner = await userModel.findById(campaign.userId).session(mongoSession);
         const isEligibleForRefund = campaignOwner && campaignOwner.role !== "Super Admin";
 
-        if (isEligibleForRefund && numFailed > 0) {
+        const wholeCampaignFailed = status === "failed" || campaign.status === "failed";
+        if (isEligibleForRefund && (numFailed > 0 || wholeCampaignFailed)) {
             const alreadyRefunded = campaign.campaignSummary?.creditsRefunded || 0;
 
-            if (alreadyRefunded > 0) {
+            if (alreadyRefunded > 0 && !wholeCampaignFailed) {
                 console.log(`Campaign ${campaign._id} was already refunded ${alreadyRefunded} credits. Skipping duplicate refund.`);
             } else {
                 const rate = campaign.rateSnapshot || campaignOwner.ratePerMsg || 12;
-                let refundAmount = numFailed * rate;
+                let refundAmount = wholeCampaignFailed ? campaign.creditsDeducted || 0 : numFailed * rate;
 
                 if (campaign.creditsDeducted > 0 && refundAmount > campaign.creditsDeducted) {
                     refundAmount = campaign.creditsDeducted;
                 }
+                if (wholeCampaignFailed) refundAmount = Math.max(0, refundAmount - alreadyRefunded);
 
                 if (refundAmount > 0) {
                     updatedUserWallet = await walletModel.findOneAndUpdate(
@@ -1174,8 +1220,9 @@ export const updateCampaignMetrics = async (req, res) => {
                                 toUser: campaign.userId,
                                 amount: refundAmount,
                                 type: "REFUND",
+                                ...(wholeCampaignFailed ? { refundOperationId: new mongoose.Types.ObjectId() } : {}),
                                 campaignId: campaign._id,
-                                notes: `Automated refund for ${numFailed} failed/wrong number(s) on campaign "${campaign.campaignTitle}" at rate ${rate}/msg`,
+                                notes: wholeCampaignFailed ? `Remaining credit refund: campaign "${campaign.campaignTitle}" marked failed.` : `Automated refund for ${numFailed} failed/wrong number(s) on campaign "${campaign.campaignTitle}" at rate ${rate}/msg`,
                                 rateSnapshot: rate,
                                 balanceAfterTo: updatedUserWallet.balance,
                                 performedBy: req.user._id,
@@ -1184,7 +1231,7 @@ export const updateCampaignMetrics = async (req, res) => {
                         { session: mongoSession }
                     );
 
-                    campaign.campaignSummary.creditsRefunded = refundAmount;
+                    campaign.campaignSummary.creditsRefunded = alreadyRefunded + refundAmount;
                     refundInfo = {
                         amount: refundAmount,
                         failedCount: numFailed,
@@ -1403,7 +1450,7 @@ export const saveCampaignReport = async (req, res) => {
         let updatedUserWallet = null;
 
         if (isEligibleForBilling) {
-            let targetRefundAmount = campaign.status === "failed" ? campaign.creditsDeducted || 0 : totalRefundNumbersCount * rate;
+            let targetRefundAmount = campaign.status === "failed" || status === "failed" ? campaign.creditsDeducted || 0 : totalRefundNumbersCount * rate;
             if (campaign.creditsDeducted > 0 && targetRefundAmount > campaign.creditsDeducted) {
                 targetRefundAmount = campaign.creditsDeducted;
             }
@@ -1653,7 +1700,7 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
         let refundInfo = null;
 
         if (isEligibleForBilling && saveMode !== "draft") {
-            let targetRefundAmount = campaign.status === "failed" ? campaign.creditsDeducted || 0 : refundCount * rate;
+            let targetRefundAmount = campaign.status === "failed" || req.body.status === "failed" ? campaign.creditsDeducted || 0 : refundCount * rate;
             if (campaign.creditsDeducted > 0 && targetRefundAmount > campaign.creditsDeducted) {
                 targetRefundAmount = campaign.creditsDeducted;
             }

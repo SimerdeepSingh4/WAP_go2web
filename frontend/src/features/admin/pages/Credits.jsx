@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import {
   Plus,
   Wallet,
@@ -10,11 +10,21 @@ import {
   ArrowRight,
   Coins,
   TrendingUp,
+  ReceiptText,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAdminQuery } from "../hooks/useAdmin";
-import { PageHeading, QueryState, FilterSelect, DataTable, Pager } from "../components/shared";
+import {
+  PageHeading,
+  QueryState,
+  FilterSelect,
+  SearchBox,
+  StatusBadge,
+  DataTable,
+  Pager,
+} from "../components/shared";
 import ActionForm from "../components/ActionForm";
 import { dateTime, number, ownerName } from "../lib/format";
 
@@ -28,7 +38,7 @@ const transactionLabels = {
 /**
  * Super Admin Transaction Display:
  * - RECLAIM: Credits deducted/returned from reseller -> Inflow (+, Green, ↙)
- * - ALLOCATE (from Super Admin): Credits given to Reseller -> Outflow (-, Blue, ↗)
+ * - ALLOCATE (from Super Admin): Credits given to Reseller/User -> Outflow (-, Blue, ↗)
  * - ALLOCATE (Reseller to User): Client transfer -> Transfer (neutral, Stone, →)
  * - DEDUCT: Message delivery usage -> Deduction (-, Red, ↘)
  * - REFUND: Delivery failure refund -> Refund (+, Cyan, ↙)
@@ -101,20 +111,31 @@ export default function Credits({ activity = false }) {
   const type = params.get("type") || "all";
   const account = params.get("account") || "all";
   const allocation = params.get("allocate");
+
   const [reclaimOpen, setReclaimOpen] = useState(false);
+  const [reclaimAccount, setReclaimAccount] = useState(null);
+  const [walletSearch, setWalletSearch] = useState("");
+  const [walletRole, setWalletRole] = useState("all");
 
   const accountsQuery = useAdminQuery("accounts");
   const overview = useAdminQuery("overview", {}, !activity);
   const ledger = useAdminQuery("transactions", {
-    page,
-    limit: 10,
-    ...(type !== "all" ? { type } : {}),
-    ...(account !== "all" ? { userId: account } : {}),
+    page: activity ? page : 1,
+    limit: activity ? 10 : 5,
+    ...(type !== "all" && activity ? { type } : {}),
+    ...(account !== "all" && activity ? { userId: account } : {}),
   });
 
   const accounts = (accountsQuery.data?.users || []).filter((a) => a.role !== "Super Admin");
   const activeAccounts = accounts.filter((a) => a.status === "active");
-  const resellers = accounts.filter((a) => a.role === "Reseller" && a.status === "active");
+
+  const filteredAccounts = accounts.filter((a) => {
+    const matchesSearch = `${a.username} ${a.email} ${a.resellerId?.username || ""}`
+      .toLowerCase()
+      .includes(walletSearch.toLowerCase());
+    const matchesRole = walletRole === "all" || a.role === walletRole;
+    return matchesSearch && matchesRole;
+  });
 
   function update(key, value) {
     setParams(
@@ -128,7 +149,8 @@ export default function Credits({ activity = false }) {
     );
   }
 
-  const columns = [
+  // Columns for the Transaction History Table
+  const transactionColumns = [
     {
       key: "date",
       label: "Date",
@@ -187,134 +209,130 @@ export default function Credits({ activity = false }) {
     },
   ];
 
-  return (
-    <>
-      <PageHeading
-        title={activity ? "Credit History" : "Credits"}
-        description={
-          activity
-            ? "View all credit transactions, campaign usage, and refunds."
-            : "Add or deduct credits for resellers and users, and view transaction history."
-        }
-        action={
-          !activity && (
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setReclaimOpen(true)}
-                disabled={!activeAccounts.length || accountsQuery.isError}
-                className="gap-1.5 text-xs"
-              >
-                <RotateCcw className="size-3.5 text-amber-600" />
-                Reclaim credits
-              </Button>
-              <Button
-                onClick={() => update("allocate", "new")}
-                disabled={!activeAccounts.length || accountsQuery.isError}
-                className="gap-1.5"
-              >
-                <Plus className="size-4" />
-                Add Credits
-              </Button>
-            </div>
-          )
-        }
-      />
-
-      {!activity && (
-        <QueryState query={overview}>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Card className="rounded-lg shadow-none">
-              <CardContent className="p-4 sm:p-5">
-                <p className="flex items-center justify-between text-xs text-muted-foreground">
-                  Super Admin Balance
-                  <Wallet className="size-4 text-muted-foreground" />
-                </p>
-                <p className="mt-2 text-2xl font-bold tracking-tight text-primary">Unlimited</p>
-                <p className="mt-1 text-xs text-muted-foreground">Unlimited sending credits</p>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-lg shadow-none">
-              <CardContent className="p-4 sm:p-5">
-                <p className="flex items-center justify-between text-xs text-muted-foreground">
-                  Total Credits Given
-                  <Coins className="size-4 text-emerald-600" />
-                </p>
-                <p className="mt-2 text-2xl font-bold tracking-tight tabular-nums">
-                  {number(overview.data?.stats?.credits?.totalAllocatedBySuperAdmin)}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">Total credits added across accounts</p>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-lg shadow-none">
-              <CardContent className="p-4 sm:p-5">
-                <p className="flex items-center justify-between text-xs text-muted-foreground">
-                  Circulating Balances
-                  <TrendingUp className="size-4 text-blue-600" />
-                </p>
-                <p className="mt-2 text-2xl font-bold tracking-tight tabular-nums">
-                  {number(overview.data?.stats?.credits?.totalCreditsInCirculation)}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">Current credits held across network</p>
-              </CardContent>
-            </Card>
+  // Columns for the Account Wallets & Balances Table (Credits view)
+  const walletColumns = [
+    {
+      key: "account",
+      label: "Account",
+      sort: (a) => a.username,
+      render: (a) => (
+        <div className="max-w-44 truncate">
+          <p className="font-medium text-foreground truncate">{a.username}</p>
+          <p className="text-xs text-muted-foreground truncate">{a.email}</p>
+        </div>
+      ),
+    },
+    {
+      key: "role",
+      label: "Role",
+      sort: (a) => a.role,
+      render: (a) => (
+        <span
+          className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium border ${
+            a.role === "Reseller"
+              ? "border-blue-200 bg-blue-50 text-blue-800"
+              : "border-stone-200 bg-stone-50 text-stone-700"
+          }`}
+        >
+          {a.role}
+        </span>
+      ),
+    },
+    {
+      key: "reseller",
+      label: "Assigned reseller",
+      render: (a) =>
+        a.role === "User" ? (
+          <span className="text-xs text-muted-foreground">{a.resellerId?.username || "Direct (Admin)"}</span>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        ),
+    },
+    {
+      key: "balance",
+      label: "Wallet balance",
+      sort: (a) => a.wallet?.balance ?? 0,
+      render: (a) => {
+        const isLocked = a.wallet?.isLocked || a.wallet?.isExpired;
+        return (
+          <div className="flex items-center gap-1.5">
+            <span className={`tabular-nums font-semibold text-sm ${isLocked ? "text-red-700" : "text-foreground"}`}>
+              {number(a.wallet?.balance ?? 0)}
+            </span>
+            <span className="text-[11px] text-muted-foreground">credits</span>
+            {isLocked && <Lock className="size-3 text-red-600" title="Locked or Expired" />}
           </div>
-        </QueryState>
-      )}
-
-      {/* Transaction Filter Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-        <h2 className="text-sm font-semibold">Transactions</h2>
-        <div className="flex flex-wrap gap-2">
-          <FilterSelect
-            label="Transaction type"
-            value={type}
-            onChange={(value) => update("type", value)}
-            options={[
-              { value: "all", label: "All types" },
-              ...Object.entries(transactionLabels).map(([value, label]) => ({ value, label })),
-            ]}
-          />
-          <FilterSelect
-            label="Filter by account"
-            value={account}
-            onChange={(value) => update("account", value)}
-            disabled={!accountsQuery.isSuccess}
-            options={[
-              { value: "all", label: "All accounts" },
-              ...accounts.map((a) => ({ value: a._id, label: `${a.username} (${a.role})` })),
-            ]}
-          />
+        );
+      },
+    },
+    {
+      key: "rate",
+      label: "Rate / recipient",
+      sort: (a) => a.ratePerMsg,
+      render: (a) => <span className="tabular-nums text-xs">{number(a.ratePerMsg)}</span>,
+    },
+    {
+      key: "expiry",
+      label: "Credit validity",
+      render: (a) => {
+        if (!a.wallet?.expiresAt) return <span className="text-xs text-muted-foreground">No expiry</span>;
+        return (
+          <span className={`text-xs ${a.wallet?.isExpired ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+            {dateTime(a.wallet.expiresAt)}
+            {a.wallet.isExpired && " (Expired)"}
+          </span>
+        );
+      },
+    },
+    {
+      key: "status",
+      label: "Status",
+      render: (a) => <StatusBadge status={a.isExpired ? "expired" : a.status} />,
+    },
+    {
+      key: "actions",
+      label: <span className="sr-only">Actions</span>,
+      className: "text-right",
+      render: (a) => (
+        <div className="flex items-center justify-end gap-1.5">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs gap-1 px-2.5"
+            onClick={() => update("allocate", a._id)}
+          >
+            <Plus className="size-3" />
+            Add credits
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs gap-1 px-2 text-amber-700 hover:text-amber-800"
+            onClick={() => {
+              setReclaimAccount(a);
+              setReclaimOpen(true);
+            }}
+          >
+            <RotateCcw className="size-3" />
+            Reclaim
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs px-2 text-muted-foreground hover:text-foreground"
+            render={<Link to={`/admin/activity?account=${a._id}`} />}
+            title="View transactions for this account"
+          >
+            <ReceiptText className="size-3.5" />
+          </Button>
         </div>
-      </div>
+      ),
+    },
+  ];
 
-      {accountsQuery.isError && <QueryState query={accountsQuery} />}
-
-      <QueryState query={ledger}>
-        <div>
-          <DataTable
-            caption="Credit transaction history"
-            paginated={false}
-            rows={ledger.data?.transactions || []}
-            columns={columns}
-            emptyTitle="No transactions found"
-          />
-          <Pager
-            page={page}
-            totalPages={ledger.data?.pagination?.totalPages || 1}
-            total={ledger.data?.pagination?.total || 0}
-            onChange={(value) => update("page", String(value))}
-            disabled={ledger.isFetching}
-          />
-        </div>
-      </QueryState>
-
-      {!activity && accountsQuery.isSuccess && !activeAccounts.length && (
-        <p className="text-sm text-muted-foreground">Add an active user or reseller account before allocating credits.</p>
-      )}
-
+  // Modals for Allocation & Reclaim
+  const modals = (
+    <>
       {/* Credit Allocation Dialog */}
       {allocation && accountsQuery.isSuccess && activeAccounts.length > 0 && (
         <ActionForm
@@ -387,8 +405,15 @@ export default function Credits({ activity = false }) {
           description="Take back unused credits from an account."
           action="reclaim"
           successMessage="Credits deducted successfully"
-          onClose={() => setReclaimOpen(false)}
-          initialValues={{ fromUserId: "", amount: "", notes: "" }}
+          onClose={() => {
+            setReclaimOpen(false);
+            setReclaimAccount(null);
+          }}
+          initialValues={{
+            fromUserId: reclaimAccount ? reclaimAccount._id : "",
+            amount: "",
+            notes: "",
+          }}
           fields={[
             {
               key: "fromUserId",
@@ -421,6 +446,233 @@ export default function Credits({ activity = false }) {
           submitLabel="Reclaim credits"
         />
       )}
+    </>
+  );
+
+  // ─────────────────────────────────────────────────────────────
+  // VIEW 1: CREDITS & WALLETS (Activity = false)
+  // ─────────────────────────────────────────────────────────────
+  if (!activity) {
+    return (
+      <>
+        <PageHeading
+          title="Credits & Wallets"
+          description="Manage wallet balances, allocate credits to users and resellers, and track network balances."
+          action={
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setReclaimAccount(null);
+                  setReclaimOpen(true);
+                }}
+                disabled={!activeAccounts.length || accountsQuery.isError}
+                className="gap-1.5 text-xs"
+              >
+                <RotateCcw className="size-3.5 text-amber-600" />
+                Reclaim credits
+              </Button>
+              <Button
+                onClick={() => update("allocate", "new")}
+                disabled={!activeAccounts.length || accountsQuery.isError}
+                className="gap-1.5"
+              >
+                <Plus className="size-4" />
+                Add Credits
+              </Button>
+            </div>
+          }
+        />
+
+        {/* Overview Stats Cards */}
+        <QueryState query={overview}>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Card className="rounded-lg shadow-none">
+              <CardContent className="p-4 sm:p-5">
+                <p className="flex items-center justify-between text-xs text-muted-foreground">
+                  Super Admin Balance
+                  <Wallet className="size-4 text-muted-foreground" />
+                </p>
+                <p className="mt-2 text-2xl font-bold tracking-tight text-primary">Unlimited</p>
+                <p className="mt-1 text-xs text-muted-foreground">Unlimited sending pool</p>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-lg shadow-none">
+              <CardContent className="p-4 sm:p-5">
+                <p className="flex items-center justify-between text-xs text-muted-foreground">
+                  Total Credits Given
+                  <Coins className="size-4 text-emerald-600" />
+                </p>
+                <p className="mt-2 text-2xl font-bold tracking-tight tabular-nums">
+                  {number(overview.data?.stats?.credits?.totalAllocatedBySuperAdmin)}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">Total credits added across network</p>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-lg shadow-none">
+              <CardContent className="p-4 sm:p-5">
+                <p className="flex items-center justify-between text-xs text-muted-foreground">
+                  Circulating Balances
+                  <TrendingUp className="size-4 text-blue-600" />
+                </p>
+                <p className="mt-2 text-2xl font-bold tracking-tight tabular-nums">
+                  {number(overview.data?.stats?.credits?.totalCreditsInCirculation)}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">Current credits held in user/reseller wallets</p>
+              </CardContent>
+            </Card>
+          </div>
+        </QueryState>
+
+        {/* Account Wallets & Balances Section */}
+        <div className="space-y-3 pt-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold">Account Wallet Balances</h2>
+              <p className="text-xs text-muted-foreground">Live wallet balances across all resellers and client users</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <SearchBox
+                label="Search account..."
+                value={walletSearch}
+                onChange={setWalletSearch}
+              />
+              <FilterSelect
+                label="Filter by role"
+                value={walletRole}
+                onChange={setWalletRole}
+                options={[
+                  { value: "all", label: "All accounts" },
+                  { value: "Reseller", label: "Resellers" },
+                  { value: "User", label: "Users" },
+                ]}
+              />
+            </div>
+          </div>
+
+          <QueryState query={accountsQuery} empty={!filteredAccounts.length} emptyTitle="No accounts found">
+            <DataTable
+              caption="Account wallets and balances"
+              rows={filteredAccounts}
+              columns={walletColumns}
+              pageSize={10}
+            />
+          </QueryState>
+        </div>
+
+        {/* Recent Credit Activity Preview Section */}
+        <div className="space-y-3 pt-4 border-t">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold">Recent Credit Activity</h2>
+              <p className="text-xs text-muted-foreground">Latest transactions across the platform</p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              render={<Link to="/admin/activity" />}
+              className="gap-1.5 text-xs"
+            >
+              <ReceiptText className="size-3.5" />
+              View all transactions
+              <ArrowUpRight className="size-3.5 ml-0.5" />
+            </Button>
+          </div>
+
+          <QueryState query={ledger}>
+            <DataTable
+              caption="Recent credit activity"
+              rows={ledger.data?.transactions || []}
+              columns={transactionColumns}
+              paginated={false}
+              emptyTitle="No recent transactions"
+            />
+          </QueryState>
+        </div>
+
+        {modals}
+      </>
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // VIEW 2: TRANSACTIONS AUDIT LEDGER (Activity = true)
+  // ─────────────────────────────────────────────────────────────
+  return (
+    <>
+      <PageHeading
+        title="Transactions"
+        description="Complete audit log of all credit allocations, campaign charges, refunds, and deductions."
+        action={
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              render={<Link to="/admin/credits" />}
+              className="gap-1.5 text-xs"
+            >
+              <Wallet className="size-3.5 text-primary" />
+              Manage Wallets
+            </Button>
+            <Button
+              onClick={() => update("allocate", "new")}
+              disabled={!activeAccounts.length || accountsQuery.isError}
+              className="gap-1.5"
+            >
+              <Plus className="size-4" />
+              Add Credits
+            </Button>
+          </div>
+        }
+      />
+
+      {/* Transaction Filter Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+        <h2 className="text-sm font-semibold">Transaction Audit Ledger</h2>
+        <div className="flex flex-wrap gap-2">
+          <FilterSelect
+            label="Transaction type"
+            value={type}
+            onChange={(value) => update("type", value)}
+            options={[
+              { value: "all", label: "All types" },
+              ...Object.entries(transactionLabels).map(([value, label]) => ({ value, label })),
+            ]}
+          />
+          <FilterSelect
+            label="Filter by account"
+            value={account}
+            onChange={(value) => update("account", value)}
+            disabled={!accountsQuery.isSuccess}
+            options={[
+              { value: "all", label: "All accounts" },
+              ...accounts.map((a) => ({ value: a._id, label: `${a.username} (${a.role})` })),
+            ]}
+          />
+        </div>
+      </div>
+
+      <QueryState query={ledger}>
+        <div>
+          <DataTable
+            caption="Credit transaction history"
+            paginated={false}
+            rows={ledger.data?.transactions || []}
+            columns={transactionColumns}
+            emptyTitle="No transactions found"
+          />
+          <Pager
+            page={page}
+            totalPages={ledger.data?.pagination?.totalPages || 1}
+            total={ledger.data?.pagination?.total || 0}
+            onChange={(value) => update("page", String(value))}
+            disabled={ledger.isFetching}
+          />
+        </div>
+      </QueryState>
+
+      {modals}
     </>
   );
 }

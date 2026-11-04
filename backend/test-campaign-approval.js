@@ -108,6 +108,18 @@ test("failure status and wallet refund roll back together when saving fails", as
     assert.ok(!f.calls.includes("cancel"));
 });
 
+test("status failure tops up 48 refunded credits to the full 80-credit charge", async () => {
+    const f = await fixture();
+    f.campaign.creditsDeducted = 80;
+    f.campaign.campaignSummary.creditsRefunded = 48;
+    const response = await f.invoke("updateCampaignStatus", "Super Admin", { status: "failed" });
+    assert.equal(response.code, 200, response.body.message);
+    assert.equal(f.campaign.status, "failed");
+    assert.equal(f.campaign.campaignSummary.creditsRefunded, 80);
+    assert.equal(f.getBalance(), 132);
+    assert.equal(f.ledger[0].amount, 32);
+});
+
 test("a campaign without a credit charge can fail without creating a refund", async () => {
     const f = await fixture();
     const response = await f.invoke("updateCampaignStatus", "Super Admin", { status: "failed" });

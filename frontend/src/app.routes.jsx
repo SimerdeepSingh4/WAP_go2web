@@ -16,6 +16,7 @@ import UserSettings from "./features/user/pages/Settings.jsx";
 import CreateCampaignPage from "./features/campaigns/pages/CreateCampaignPage.jsx";
 import CampaignDetailPage from "./features/campaigns/pages/CampaignDetailPage.jsx";
 import CampaignReportPage from "./features/campaigns/pages/CampaignReportPage.jsx";
+import CreateCampaignReportPage from "./features/campaigns/pages/CreateCampaignReportPage.jsx";
 import PreviewBanner from "./components/PreviewBanner.jsx";
 
 import { lazy, Suspense } from "react";
@@ -134,6 +135,7 @@ export const router = createBrowserRouter([
       { index: true, element: <AdminOverview /> },
       { path: "campaigns", element: <AdminCampaigns /> },
       { path: "campaigns/:id", element: <CampaignDetailPage /> },
+      { path: "campaigns/:id/report/create", element: <CreateCampaignReportPage /> },
       { path: "campaigns/:id/report", element: <CampaignReportPage /> },
       { path: "contacts", element: <AdminContacts /> },
       { path: "reports", element: <Navigate to="/admin/campaigns?status=unreported" replace /> },

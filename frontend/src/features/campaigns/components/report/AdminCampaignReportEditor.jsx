@@ -64,7 +64,7 @@ export default function AdminCampaignReportEditor({ campaign, base, onRefresh, i
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="ghost" size="sm" onClick={onRefresh} disabled={isRefreshing || publish.isPending}><RefreshCw className={"size-3.5 " + (isRefreshing ? "animate-spin" : "")} /> Refresh</Button>
-          <Button variant="outline" size="sm" nativeButton={false} render={<Link to={`${base}/campaigns/${campaign._id}`} />}><Pencil className="size-3.5" /> Edit campaign</Button>
+          <Button variant="outline" size="sm" nativeButton={false} render={<Link to={`${base}/campaigns/${campaign._id}/report/create`} />}><Pencil className="size-3.5" /> Edit report</Button>
           <Button type="button" size="sm" onClick={() => setConfirmOpen(true)} disabled={publish.isPending || isRefreshing || !sheet?.rows.length || justPublished}>{publish.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}{justPublished ? "Published" : publishedAt ? "Publish updates" : "Publish report"}</Button>
         </div>
       </header>
@@ -72,7 +72,7 @@ export default function AdminCampaignReportEditor({ campaign, base, onRefresh, i
         <div className="space-y-1"><p className="font-medium">Campaign owner preview</p><p className="text-[11px] text-muted-foreground">Saved campaign changes appear below. The owner sees this report as a read-only table after publication.</p></div>
         <span className="text-[11px] text-muted-foreground">{creditDelta > 0 ? `${number(creditDelta)} credits to refund` : creditDelta < 0 ? `${number(Math.abs(creditDelta))} credits to deduct` : "No credit adjustment"}</span>
       </div>
-      {preview.error ? <div role="alert" className="rounded-lg border border-destructive/30 p-4 text-sm text-destructive">{preview.error} Return to the campaign to correct the report.</div> : <PublishedSpreadsheetReport campaign={preview.campaign} base={base} embedded />}
+      {preview.error ? <div role="alert" className="rounded-lg border border-destructive/30 p-4 text-sm text-destructive">{preview.error} Use Edit report to correct the data.</div> : <PublishedSpreadsheetReport campaign={preview.campaign} base={base} embedded />}
       <Dialog open={confirmOpen} onOpenChange={(open) => !publish.isPending && setConfirmOpen(open)}>
         <DialogContent className="gap-5 rounded-2xl p-5 sm:max-w-sm">
           <DialogHeader className="gap-1.5 pr-6"><DialogTitle>Publish this report?</DialogTitle><DialogDescription className="text-xs leading-5">{campaign.status === "failed" ? "This report will be visible to its owner. The campaign will stay failed with a full credit refund." : "The campaign will be completed and this report will be visible to its owner."}</DialogDescription></DialogHeader>

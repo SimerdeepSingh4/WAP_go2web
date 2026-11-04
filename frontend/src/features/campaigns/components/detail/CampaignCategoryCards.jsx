@@ -7,6 +7,7 @@ import {
   Plus,
   Trash2,
   FileSpreadsheet,
+  Download,
   Play,
   Loader2,
   ChevronDown,
@@ -226,8 +227,9 @@ export default function CampaignCategoryCards({ campaign }) {
     }
 
     const totalAudience = originalUploadedNumbers.length;
-    const refundAmount = refundCount * rate;
-    const chargedAmount = keepChargedCount * rate;
+    const isFailedCampaign = campaign.status === "failed";
+    const refundAmount = isFailedCampaign ? campaign.creditsDeducted || 0 : refundCount * rate;
+    const chargedAmount = isFailedCampaign ? 0 : keepChargedCount * rate;
 
     return {
       totalAudience,
@@ -236,7 +238,7 @@ export default function CampaignCategoryCards({ campaign }) {
       refundAmount,
       chargedAmount,
     };
-  }, [cardStats, originalUploadedNumbers, rate]);
+  }, [cardStats, originalUploadedNumbers, rate, campaign.status, campaign.creditsDeducted]);
 
   /* ---------------- 7. Auto-Sync Textarea Handler ---------------- */
   // When admin pastes/types into cardKey:
@@ -381,10 +383,8 @@ export default function CampaignCategoryCards({ campaign }) {
 
   /* ---------------- 14. Save Draft or Publish Report ---------------- */
   // CRITICAL: Builds entries in the EXACT original sequence uploaded by the user!
-  const handleSave = async (saveMode = "draft", reviewAfterSave = false) => {
-    try {
-      setIsSaving(true);
-
+  const [isDownloading, setIsDownloading] = useState(false);
+  const buildCurrentEntries = () => {
       // Build a reverse map from phoneNumber -> { cardKey, cardLabel, billingAction }
       const phoneToCardMap = new Map();
       for (const card of allCards) {
@@ -449,8 +449,43 @@ export default function CampaignCategoryCards({ campaign }) {
         }
       }
 
+
+    return normalizeDuplicateRows(finalEntries);
+  };
+
+  const handleDownloadExcel = async () => {
+    setIsDownloading(true);
+    try {
+      const response = await api.post(`/campaigns/${campaign._id}/recipient-report/export`, {
+        entries: buildCurrentEntries(), spreadsheetColumns: campaign.spreadsheetColumns,
+        originalEntries: originalUploadedNumbers.map(({ rowNumber, phoneNumber }) => ({ rowNumber, phoneNumber })),
+        cards: allCards.map((card) => ({ key: card.key, label: cardLabels[card.key] || card.label, billingAction: cardBillings[card.key] || card.defaultBilling || "keep" })),
+      }, { responseType: "blob" });
+      const url = URL.createObjectURL(response.data);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "campaign-recipients.xlsx";
+      anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      let message = "Could not download Excel. Please try again.";
+      try {
+        const data = error.response?.data;
+        const payload = typeof data?.text === "function" ? JSON.parse(await data.text()) : data;
+        message = payload?.message || message;
+      } catch { /* Use the default message if the response is not JSON. */ }
+      toast.add({ title: message, type: "error" });
+    } finally { setIsDownloading(false); }
+  };
+
+  const handleSave = async (saveMode = "draft", reviewAfterSave = false) => {
+    try {
+      setIsSaving(true);
+
+      const finalEntries = buildCurrentEntries();
+
       const response = await api.put(`/campaigns/${campaign._id}/recipients-management`, {
-        entries: normalizeDuplicateRows(finalEntries),
+        entries: finalEntries,
         customTabs: customCards,
         recipientCategoryLabels: cardLabels,
         saveMode,
@@ -502,6 +537,7 @@ export default function CampaignCategoryCards({ campaign }) {
             <p className="text-[11px] text-muted-foreground">Paste numbers into a category to move them.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={handleDownloadExcel} disabled={isDownloading || isSaving || isStarting || originalUploadedNumbers.length === 0}>{isDownloading ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />} Download Excel</Button>
             <Button type="button" variant="outline" size="sm" onClick={() => setCreateCategoryModalOpen(true)} disabled={isSaving}><Plus className="size-3.5" /> Add category</Button>
             {campaign.status === "pending" && <Button type="button" variant="outline" size="sm" onClick={handleStartCampaign} disabled={isStarting || isSaving}>{isStarting ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />} Start campaign</Button>}
             <Button type="button" variant="outline" size="sm" onClick={() => handleSave("draft")} disabled={isSaving || isStarting}>{isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <FileSpreadsheet className="size-3.5" />} Save draft</Button>

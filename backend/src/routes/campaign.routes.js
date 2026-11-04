@@ -10,6 +10,7 @@ import {
     downloadRecipientReportTemplate,
     uploadRecipientReport,
     downloadRecipientReport,
+    exportRecipientDraft,
 } from "../controllers/campaign.controller.js";
 import {
     protect,
@@ -24,6 +25,7 @@ campaignRouter.use(protect);
 campaignRouter.post("/", uploadFiles, blockInPreviewMode("Campaign creation"), createCampaign);
 campaignRouter.get("/", getCampaigns);
 campaignRouter.get("/:id/recipient-report", downloadRecipientReport);
+campaignRouter.post("/:id/recipient-report/export", authorizeRoles("Super Admin"), exportRecipientDraft);
 campaignRouter.get(
     "/:id/recipient-report/template",
     authorizeRoles("Super Admin"),

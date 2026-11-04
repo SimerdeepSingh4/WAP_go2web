@@ -28,10 +28,31 @@ export async function getUsers(req, res) {
             .populate("resellerId", "username email")
             .sort({ createdAt: -1 });
         const now = new Date();
-        const usersWithExpiry = users.map((user) => ({
-            ...user.toObject(),
-            isExpired: user.status === "expired" || Boolean(user.expiresAt && user.expiresAt <= now),
-        }));
+        const userIds = users.map((u) => u._id);
+        const wallets = await walletModel.find({ userId: { $in: userIds } });
+        const walletMap = new Map(wallets.map((w) => [String(w.userId), w]));
+
+        const usersWithExpiry = users.map((user) => {
+            const w = walletMap.get(String(user._id));
+            const isWalletExpired = Boolean(w?.expiresAt && new Date(w.expiresAt) <= now);
+            return {
+                ...user.toObject(),
+                wallet: w
+                    ? {
+                          balance: w.balance ?? 0,
+                          expiresAt: w.expiresAt || null,
+                          isLocked: Boolean(w.isLocked || isWalletExpired),
+                          isExpired: isWalletExpired,
+                      }
+                    : {
+                          balance: 0,
+                          expiresAt: null,
+                          isLocked: false,
+                          isExpired: false,
+                      },
+                isExpired: user.status === "expired" || Boolean(user.expiresAt && user.expiresAt <= now),
+            };
+        });
 
         return res.status(200).json({
             success: true,

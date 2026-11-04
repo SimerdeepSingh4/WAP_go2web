@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import vm from "node:vm";
 import mongoose from "mongoose";
+import xlsx from "xlsx";
 import transactionModel from "./src/models/transaction.model.js";
 import { ensureTransactionRefundIndex } from "./src/config/transaction-indexes.js";
 import { assignNumbersToCategory, normalizeSavedRecipientEntry } from "../frontend/src/features/campaigns/lib/recipientEntries.js";
@@ -89,6 +90,7 @@ async function controllerFixture() {
     };
     campaign.save = async () => { if (failSave) throw new Error("save failed"); };
     const dependencies = {
+        xlsx: { default: xlsx },
         "../helpers/spreadsheet-storage.js": {
             loadSpreadsheetRows: async (_, kind) => storedRows[kind],
             saveSpreadsheetRows: async (_, kind, rows) => { storedRows[kind] = rows; },
@@ -156,8 +158,10 @@ async function controllerFixture() {
                     })) },
             };
             if (body) req.body = body;
-            const response = { status(code) { this.code = code; return this; },
-                json(body) { this.body = body; return this; } };
+            const response = { headers: {}, status(code) { this.code = code; return this; },
+                json(body) { this.body = body; return this; },
+                setHeader(name, value) { this.headers[name] = value; },
+                send(body) { this.code ??= 200; this.body = body; return this; } };
             await module.namespace[handler](req, response);
             return response;
         },
@@ -195,6 +199,74 @@ test("frontend supplies defaults only for missing recipient assignment fields", 
     assert.equal(entry.phoneNumber, "919876543210");
     assert.equal(entry.rowNumber, 1);
 });
+
+test("admin can export current recipient rows and calculated columns without saving or charging", async () => {
+    const fixture = await controllerFixture();
+    const response = await fixture.invoke("exportRecipientDraft", 0, {
+        entries: [6, 12].map((rowNumber) => ({ rowNumber, phoneNumber: "919876543210", status: "delivered", tabKey: "delivered", category: "Custom valid", billingAction: "keep" })),
+        spreadsheetColumns: [...spreadsheet.BASE_COLUMNS, { id: "length", label: "Digits", letter: "F", formula: "=LEN(A{row})" }],
+        originalEntries: [{ rowNumber: 6, phoneNumber: "919876543210" }, { rowNumber: 12, phoneNumber: "919876543210" }],
+        cards: [
+            { key: "delivered", label: "Delivered / valid", billingAction: "keep" },
+            { key: "duplicate", label: "Duplicates", billingAction: "refund" },
+            { key: "wrong", label: "Wrong numbers", billingAction: "refund" },
+            { key: "custom_test", label: "Delivered : valid", billingAction: "keep" },
+        ],
+    });
+    assert.equal(response.code, 200);
+    assert.match(response.headers["Content-Type"], /spreadsheetml/);
+    const workbook = xlsx.read(response.body, { type: "buffer" });
+    const rows = xlsx.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
+    assert.equal(workbook.SheetNames.length, 7);
+    assert.ok(workbook.Sheets["Original upload"]);
+    assert.ok(workbook.Sheets["Categories"]);
+    const duplicateRows = xlsx.utils.sheet_to_json(workbook.Sheets.Duplicates, { header: 1 });
+    assert.equal(duplicateRows.length, 2);
+    assert.equal(duplicateRows[1][0], 12);
+    assert.equal(xlsx.utils.sheet_to_json(workbook.Sheets["Wrong numbers"], { header: 1 }).length, 1);
+    assert.equal(new Set(workbook.SheetNames).size, 7);
+    assert.equal(rows[0][0], "Row");
+    assert.equal(rows[1][0], 6);
+    assert.equal(rows[1][1], "919876543210");
+    assert.equal(rows[1][3], "Custom valid");
+    assert.equal(rows[2][0], 12);
+    assert.equal(rows[2][5], "Already listed in row 6.");
+    assert.equal(rows[1][6], 12);
+    assert.equal(fixture.getBalance(), 100);
+    assert.equal(fixture.ledger.length, 1);
+    assert.equal(fixture.storedRows.draft.length, 0);
+    assert.ok(!fixture.campaign.publishedSpreadsheet);
+});
+
+test("draft Excel export is restricted to admin and requires recipient rows", async () => {
+    const fixture = await controllerFixture();
+    const forbidden = await fixture.invoke("exportRecipientDraft", 0, { entries: [] }, "User");
+    assert.equal(forbidden.code, 403);
+    const empty = await fixture.invoke("exportRecipientDraft", 0, { entries: [] });
+    assert.equal(empty.code, 400);
+});
+
+for (const handler of ["updateCampaignMetrics", "saveCampaignReport", "updateCampaignRecipientsManagement"]) {
+    test(`${handler}: failing an 80-credit campaign with 48 refunded returns the remaining 32`, async () => {
+        const fixture = await controllerFixture();
+        fixture.campaign.creditsDeducted = 80;
+        fixture.campaign.campaignSummary.creditsRefunded = 48;
+        const body = handler === "updateCampaignMetrics"
+            ? { sent: 2, delivered: 2, failed: 0, status: "failed" }
+            : handler === "saveCampaignReport"
+                ? { categories: [{ name: "Delivered", billingAction: "deduct", numbers: ["919876543210"] }], status: "failed" }
+                : { entries: [{ rowNumber: 1, phoneNumber: "919876543210", tabKey: "delivered", category: "Delivered", status: "delivered", billingAction: "keep" }], saveMode: "publish", spreadsheetRevision: 0, spreadsheetColumns: spreadsheet.BASE_COLUMNS, status: "failed" };
+        const response = await fixture.invoke(handler, 0, body);
+        assert.equal(response.code, 200, response.body.message);
+        assert.equal(fixture.campaign.status, "failed");
+        assert.equal(fixture.campaign.campaignSummary.creditsRefunded, 80);
+        assert.equal(fixture.getBalance(), 132);
+        assert.equal(fixture.ledger.at(-1).amount, 32);
+        const retry = await fixture.invoke(handler, 0, { ...body, ...(body.saveMode ? { spreadsheetRevision: 1 } : {}) });
+        assert.equal(retry.code, 200, retry.body.message);
+        assert.equal(fixture.getBalance(), 132);
+    });
+}
 
 test("spreadsheet drafts stay private, publish evaluates columns, and republishing is financially idempotent", async () => {
     const fixture = await controllerFixture();

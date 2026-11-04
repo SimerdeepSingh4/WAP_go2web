@@ -11,7 +11,6 @@ import CampaignDetailHeader from "../components/detail/CampaignDetailHeader";
 import CampaignDetailMetrics from "../components/detail/CampaignDetailMetrics";
 import CampaignMessagePreview from "../components/detail/CampaignMessagePreview";
 import CampaignAttachmentsView from "../components/detail/CampaignAttachmentsView";
-import CampaignCategoryCards from "../components/detail/CampaignCategoryCards";
 import ImageLightbox from "../components/detail/ImageLightbox";
 import { messageTextFromHtml } from "../lib/messageText";
 
@@ -138,8 +137,6 @@ export default function CampaignDetailPage() {
           />
         </div>
 
-        {/* Row 2: Vertical Scrolling Category Cards with Excel Copy/Paste & Admin Confirmation */}
-        <CampaignCategoryCards campaign={campaign} />
       </div>
 
       {/* Lightbox */}
