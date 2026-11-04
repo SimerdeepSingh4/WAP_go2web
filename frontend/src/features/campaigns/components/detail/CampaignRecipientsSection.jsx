@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
   Check,
   Search,
@@ -33,6 +33,8 @@ import { buildPublishedSheet, normalizeColumns } from "@campaign-sheet";
 import CampaignSpreadsheet from "./CampaignSpreadsheet";
 import FilterRecipientsDialog from "./FilterRecipientsDialog";
 import { filterCampaignRecipients, isExcludedRecipient } from "../../lib/filterRecipients";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { readCampaignDraft, removeCampaignDraft, writeCampaignDraft } from "../../lib/draftStorage";
 
 export const PAGE_SIZE = 100;
 
@@ -53,6 +55,11 @@ export default function CampaignRecipientsSection({
   reviewMode = false,
 }) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const adminId = user?.id || user?._id;
+  const draftKey = `admin-recipient-report:${adminId}:${campaign._id}`;
+  const [draftReady, setDraftReady] = useState(false);
+  const draftSaveTimer = useRef(null);
 
   const rate =
     campaign.rateSnapshot ||
@@ -241,6 +248,43 @@ export default function CampaignRecipientsSection({
     }
     return false;
   }, [entries, initialEntries, columns, campaign.spreadsheetColumns, customTabs, campaign.customRecipientTabs, deletedTabKeys, campaign.deletedTabKeys, reportNotes, initialNotes]);
+
+  const editorSnapshot = () => JSON.stringify({ entries, columns, customTabs, deletedTabKeys, reportNotes, categoryDrafts });
+  const [savedSnapshot, setSavedSnapshot] = useState(() => editorSnapshot());
+  const currentSnapshot = editorSnapshot();
+
+  useEffect(() => {
+    let active = true;
+    readCampaignDraft(draftKey).then((draft) => {
+      if (!active) return;
+      if (draft) {
+        setEntries(draft.entries || initialEntries);
+        setColumns(draft.columns || normalizeColumns(campaign.spreadsheetColumns || []));
+        setCustomTabs(draft.customTabs || campaign.customRecipientTabs || []);
+        setDeletedTabKeys(draft.deletedTabKeys || campaign.deletedTabKeys || []);
+        setReportNotes(draft.reportNotes ?? initialNotes);
+        setCategoryDrafts(draft.categoryDrafts || {});
+        toast.add({ title: "Unfinished report edits restored", description: "Your recipient sheet changes are ready to continue.", type: "info" });
+      }
+      setDraftReady(true);
+    }).catch(() => {
+      if (active) setDraftReady(true);
+    });
+    return () => { active = false; };
+  }, [draftKey, campaign.spreadsheetRevision, campaign.customRecipientTabs, campaign.deletedTabKeys, campaign.spreadsheetColumns, initialEntries, initialNotes]);
+
+  useEffect(() => {
+    if (!draftReady) return undefined;
+    window.clearTimeout(draftSaveTimer.current);
+    if (currentSnapshot === savedSnapshot) {
+      removeCampaignDraft(draftKey).catch(() => {});
+      return undefined;
+    }
+    draftSaveTimer.current = window.setTimeout(() => {
+      writeCampaignDraft(draftKey, { entries, columns, customTabs, deletedTabKeys, reportNotes, categoryDrafts }).catch(() => {});
+    }, 250);
+    return () => window.clearTimeout(draftSaveTimer.current);
+  }, [draftReady, draftKey, currentSnapshot, savedSnapshot, entries, columns, customTabs, deletedTabKeys, reportNotes, categoryDrafts]);
 
   useEffect(() => {
     if (!hasUnsavedChanges) return;
@@ -468,6 +512,9 @@ export default function CampaignRecipientsSection({
       queryClient.invalidateQueries({ queryKey: ["admin-campaigns"] });
 
       const refundInfo = res.data?.refundInfo;
+      setSavedSnapshot(editorSnapshot());
+      window.clearTimeout(draftSaveTimer.current);
+      removeCampaignDraft(draftKey).catch(() => {});
       queryClient.invalidateQueries({ queryKey: ["campaign-report", campaign._id] });
       let msg = saveMode === "draft" ? "Draft saved. Published report and wallet unchanged." : "Report published to the campaign owner.";
       if (refundInfo && refundInfo.netRefundDelta > 0) {

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -6,14 +6,47 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { toast } from "@/components/ui/toast";
 import { useAdminMutation } from "../hooks/useAdmin";
 import { Field, FilterSelect, FormError } from "./shared";
+import { readCampaignDraft, removeCampaignDraft, writeCampaignDraft } from "@/features/campaigns/lib/draftStorage";
 
-export default function ActionForm({ title, description, action, successMessage, fields, initialValues, validate, payload, review, onClose, submitLabel = "Confirm changes" }) {
+export default function ActionForm({ title, description, action, successMessage, fields, initialValues, validate, payload, review, onClose, submitLabel = "Confirm changes", draftKey }) {
   const submitting = useRef(false);
+  const draftSaveTimer = useRef(null);
   const [values, setValues] = useState(initialValues);
+  const [draftReady, setDraftReady] = useState(!draftKey);
   const [reviewing, setReviewing] = useState(false);
   const [errors, setErrors] = useState({});
   const [error, setError] = useState("");
-  const mutation = useAdminMutation(action, successMessage, onClose);
+  const mutation = useAdminMutation(action, successMessage, async (data) => {
+    if (draftKey) await removeCampaignDraft(draftKey).catch(() => {});
+    onClose?.(data);
+  });
+  useEffect(() => {
+    if (!draftKey) return undefined;
+    let active = true;
+    readCampaignDraft(draftKey).then((draft) => {
+      if (!active) return;
+      if (draft?.values) {
+        setValues(draft.values);
+        toast.add({ title: "Unfinished report edits restored", type: "info" });
+      }
+      setDraftReady(true);
+    }).catch(() => {
+      if (active) setDraftReady(true);
+    });
+    return () => { active = false; };
+  }, [draftKey]);
+  useEffect(() => {
+    if (!draftKey || !draftReady) return undefined;
+    window.clearTimeout(draftSaveTimer.current);
+    if (JSON.stringify(values) === JSON.stringify(initialValues)) {
+      removeCampaignDraft(draftKey).catch(() => {});
+      return undefined;
+    }
+    draftSaveTimer.current = window.setTimeout(() => {
+      writeCampaignDraft(draftKey, { values }).catch(() => {});
+    }, 250);
+    return () => window.clearTimeout(draftSaveTimer.current);
+  }, [draftKey, draftReady, values, initialValues]);
   function change(key, value) { setValues((old) => ({ ...old, [key]: value })); setErrors((old) => ({ ...old, [key]: undefined })); setError(""); mutation.reset(); }
   function submit(event) {
     event.preventDefault();

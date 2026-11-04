@@ -16,6 +16,7 @@ import CampaignRecipientsInput from "../components/create/CampaignRecipientsInpu
 import CampaignDeliverySettings from "../components/create/CampaignDeliverySettings";
 import CampaignCostSummary from "../components/create/CampaignCostSummary";
 import CampaignReviewDialog from "../components/create/CampaignReviewDialog";
+import { readCampaignDraft, removeCampaignDraft, writeCampaignDraft } from "../lib/draftStorage";
 
 function htmlToText(html) {
   return String(html || "")
@@ -56,9 +57,51 @@ export default function CreateCampaignPage() {
   const [scheduledTime, setScheduledTime] = useState("");
   const [formError, setFormError] = useState("");
   const [dropActive, setDropActive] = useState(false);
+  const [draftReady, setDraftReady] = useState(() => !draftKey);
+  const draftSaveTimer = useRef(null);
+  const accountId = user?.id || user?._id;
+  const draftKey = accountId ? `campaign-create:${user.role}:${accountId}` : null;
 
   // Exactly one image, one video, one PDF
   const [media, setMedia] = useState({ image: null, video: null, pdf: null });
+
+  useEffect(() => {
+    let active = true;
+    if (!draftKey) {
+      return () => { active = false; };
+    }
+
+    readCampaignDraft(draftKey).then((draft) => {
+      if (!active) return;
+      if (draft) {
+        setCampaignTitle(draft.campaignTitle || "");
+        setCampaignDescription(draft.campaignDescription || "");
+        setMessageBody(draft.messageBody || "");
+        setRawRecipients(draft.rawRecipients || "");
+        setScheduleType(draft.scheduleType || "now");
+        setScheduledTime(draft.scheduledTime || "");
+        const restoredMedia = { image: null, video: null, pdf: null };
+        for (const kind of Object.keys(restoredMedia)) {
+          const file = draft.media?.[kind];
+          if (file) {
+            restoredMedia[kind] = {
+              file,
+              name: file.name,
+              size: file.size,
+              preview: kind === "pdf" ? null : URL.createObjectURL(file),
+            };
+          }
+        }
+        setMedia(restoredMedia);
+        toast.add({ title: "Unfinished campaign restored", description: "Your saved form is ready to continue.", type: "info" });
+      }
+      setDraftReady(true);
+    }).catch(() => {
+      if (active) setDraftReady(true);
+    });
+
+    return () => { active = false; };
+  }, [draftKey]);
 
   // Revoke object URLs when replaced or on unmount
   useEffect(() => () => { if (media.image?.preview) URL.revokeObjectURL(media.image.preview); }, [media.image]);
@@ -111,7 +154,32 @@ export default function CreateCampaignPage() {
     { ok: !hasInsufficientCredits && !isLocked, label: "Enough credits" },
   ];
 
-  const isDirty = Boolean(campaignTitle || campaignDescription || messageText || rawRecipients.trim() || totalMediaCount);
+  const isDirty = Boolean(campaignTitle || campaignDescription || messageText || rawRecipients.trim() || totalMediaCount || scheduleType !== "now" || scheduledTime);
+
+  useEffect(() => {
+    if (!draftReady || !draftKey) return undefined;
+    window.clearTimeout(draftSaveTimer.current);
+    draftSaveTimer.current = window.setTimeout(() => {
+      if (!isDirty) {
+        removeCampaignDraft(draftKey).catch(() => {});
+        return;
+      }
+      writeCampaignDraft(draftKey, {
+        campaignTitle,
+        campaignDescription,
+        messageBody,
+        rawRecipients,
+        scheduleType,
+        scheduledTime,
+        media: {
+          image: media.image?.file || null,
+          video: media.video?.file || null,
+          pdf: media.pdf?.file || null,
+        },
+      }).catch(() => {});
+    }, 300);
+    return () => window.clearTimeout(draftSaveTimer.current);
+  }, [draftReady, draftKey, isDirty, campaignTitle, campaignDescription, messageBody, rawRecipients, scheduleType, scheduledTime, media]);
 
   // Warn before leaving with unsent work
   useEffect(() => {
@@ -197,6 +265,8 @@ export default function CreateCampaignPage() {
     },
     onSuccess: (data) => {
       finished.current = true;
+      window.clearTimeout(draftSaveTimer.current);
+      if (draftKey) removeCampaignDraft(draftKey).catch(() => {});
       for (const key of ["campaigns", "reseller", "admin", "user", "myWalletBalance"]) queryClient.invalidateQueries({ queryKey: [key] });
       toast.add({
         title: "Campaign submitted",

@@ -228,18 +228,19 @@ export async function login(req, res) {
             });
         }
 
-        if (user.status === "blocked") {
-            return res.status(403).json({
-                message: "Account is blocked",
-                success: false,
-            });
-        }
-
         const isPasswordValid = await user.comparePassword(password);
         if (!isPasswordValid) {
             return res.status(400).json({
                 message: "Invalid credentials",
                 success: false,
+            });
+        }
+
+        if (user.status === "blocked") {
+            return res.status(403).json({
+                message: "Your account is blocked. Contact your account administrator.",
+                success: false,
+                isAccountBlocked: true,
             });
         }
 

@@ -359,6 +359,7 @@ export default function CampaignDetail({ id, initialReport, initialStatus, onClo
         <ActionForm
           title={reported ? "Update report" : "Publish report"}
           description="Enter campaign results to publish the report."
+          draftKey={`admin-campaign-metrics:${id}`}
           action="report"
           successMessage="Campaign report published"
           onClose={() => setAction(null)}

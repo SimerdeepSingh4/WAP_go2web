@@ -85,7 +85,6 @@ export async function getUserById(req, res) {
                 success: false,
             });
         }
-
         const isSuperAdmin = req.user.role === "Super Admin";
         const isOwner = req.user._id.toString() === targetUser._id.toString();
         const isAssignedReseller =
@@ -234,7 +233,6 @@ export async function updateUserAccess(req, res) {
         if (!targetUser) {
             return res.status(404).json({ message: "User not found", success: false });
         }
-
         const isSuperAdmin = req.user.role === "Super Admin";
         const ownsUser = req.user.role === "Reseller" &&
             targetUser.role === "User" &&
@@ -314,6 +312,53 @@ export async function updateUserAccess(req, res) {
     }
 }
 
+export async function deleteUser(req, res) {
+    try {
+        const { id } = req.params;
+        const targetUser = await userModel.findById(id);
+
+        if (!targetUser) {
+            return res.status(404).json({ message: "Account not found", success: false });
+        }
+        const isSuperAdmin = req.user.role === "Super Admin";
+        const ownsUser = req.user.role === "Reseller" &&
+            targetUser.role === "User" &&
+            String(targetUser.resellerId) === String(req.user._id);
+        if (!isSuperAdmin && !ownsUser) {
+            return res.status(403).json({
+                message: "You can only remove user accounts assigned to your reseller account.",
+                success: false,
+            });
+        }
+        if (targetUser.role === "Super Admin") {
+            return res.status(403).json({ message: "Super Admin accounts cannot be deleted.", success: false });
+        }
+
+        if (targetUser.role === "Reseller") {
+            await userModel.updateMany(
+                { resellerId: targetUser._id },
+                { $set: { resellerId: null } }
+            );
+            await walletModel.updateMany(
+                { resellerId: targetUser._id },
+                { $set: { resellerId: null } }
+            );
+        }
+
+        await sessionModel.deleteMany({ userId: targetUser._id });
+        await walletModel.deleteOne({ userId: targetUser._id });
+        await targetUser.deleteOne();
+
+        return res.status(200).json({
+            success: true,
+            message: `${targetUser.role} account was permanently deleted. Campaign and credit history was retained.`,
+        });
+    } catch (error) {
+        console.error("DeleteUser error:", error);
+        return res.status(500).json({ message: "Failed to remove account", success: false });
+    }
+}
+
 /**
  * Access user account in PREVIEW MODE:
  * Allows a Super Admin or the assigned Reseller to view the user's account safely
@@ -330,7 +375,6 @@ export async function impersonateUser(req, res) {
                 success: false,
             });
         }
-
         const isSuperAdmin = req.user.role === "Super Admin";
         const isAssignedReseller =
             req.user.role === "Reseller" &&
