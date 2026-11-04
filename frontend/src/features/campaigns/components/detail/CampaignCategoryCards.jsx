@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
   Users,
   CheckCircle2,
@@ -29,6 +29,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { normalizeDuplicateRows } from "@campaign-sheet";
 import { number } from "@/features/admin/lib/format";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { readCampaignDraft, removeCampaignDraft, writeCampaignDraft } from "../../lib/draftStorage";
 
 const digits = (v) => String(v ?? "").replace(/\D/g, "");
 
@@ -62,6 +64,11 @@ const DEFAULT_CARDS = [
 export default function CampaignCategoryCards({ campaign }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const adminId = user?.id || user?._id;
+  const draftKey = `admin-report-cards:${adminId}:${campaign._id}`;
+  const [draftReady, setDraftReady] = useState(false);
+  const draftSaveTimer = useRef(null);
 
   const rate =
     campaign.rateSnapshot ||
@@ -190,6 +197,42 @@ export default function CampaignCategoryCards({ campaign }) {
     }
     return texts;
   });
+
+  const editorSnapshot = () => JSON.stringify({ customCards, cardLabels, cardBillings, cardTexts });
+  const [serverSnapshot, setServerSnapshot] = useState(() => editorSnapshot());
+  const currentSnapshot = editorSnapshot();
+  const hasLocalEdits = currentSnapshot !== serverSnapshot;
+
+  useEffect(() => {
+    let active = true;
+    readCampaignDraft(draftKey).then((draft) => {
+      if (!active) return;
+      if (draft) {
+        setCustomCards(draft.customCards || campaign.customRecipientTabs || []);
+        setCardLabels(draft.cardLabels || campaign.recipientCategoryLabels || {});
+        setCardBillings(draft.cardBillings || {});
+        setCardTexts(draft.cardTexts || {});
+        toast.add({ title: "Unfinished report edits restored", description: "Your category changes are ready to continue.", type: "info" });
+      }
+      setDraftReady(true);
+    }).catch(() => {
+      if (active) setDraftReady(true);
+    });
+    return () => { active = false; };
+  }, [draftKey, campaign.customRecipientTabs, campaign.recipientCategoryLabels]);
+
+  useEffect(() => {
+    if (!draftReady) return undefined;
+    window.clearTimeout(draftSaveTimer.current);
+    if (!hasLocalEdits) {
+      removeCampaignDraft(draftKey).catch(() => {});
+      return undefined;
+    }
+    draftSaveTimer.current = window.setTimeout(() => {
+      writeCampaignDraft(draftKey, { customCards, cardLabels, cardBillings, cardTexts }).catch(() => {});
+    }, 250);
+    return () => window.clearTimeout(draftSaveTimer.current);
+  }, [draftReady, draftKey, hasLocalEdits, customCards, cardLabels, cardBillings, cardTexts]);
 
   // Read-only all contacts text
   const allContactsText = useMemo(() => {
@@ -494,6 +537,9 @@ export default function CampaignCategoryCards({ campaign }) {
         status: saveMode === "publish" ? "completed" : undefined,
       });
       setSavedRevision(response.data.data.spreadsheetRevision);
+      setServerSnapshot(editorSnapshot());
+      window.clearTimeout(draftSaveTimer.current);
+      removeCampaignDraft(draftKey).catch(() => {});
 
       if (saveMode === "publish") {
         toast.add({

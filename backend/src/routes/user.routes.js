@@ -7,6 +7,7 @@ import {
     exitPreviewMode,
     getCurrentUser,
     updateUserAccess,
+    deleteUser,
 } from "../controllers/user.controller.js";
 import { protect, authorizeRoles } from "../middlewares/auth.middleware.js";
 
@@ -28,6 +29,7 @@ userRouter.post("/", authorizeRoles("Reseller", "Super Admin"), createUser);
 
 // Only Super Admin or the owning Reseller can block/unblock or set expiry.
 userRouter.patch("/:id/access", authorizeRoles("Reseller", "Super Admin"), updateUserAccess);
+userRouter.delete("/:id", authorizeRoles("Reseller", "Super Admin"), deleteUser);
 
 // Access a single user's details
 userRouter.get("/:id", getUserById);

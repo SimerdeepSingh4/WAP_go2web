@@ -15,6 +15,7 @@ import {
   Lock,
   ArrowRight,
   MinusCircle,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,6 +25,17 @@ import { PageHeading, QueryState, SearchBox, FilterSelect, StatusBadge, DataTabl
 import ResellerActionForm from "../components/ResellerActionForm";
 import { useResellerQuery } from "../hooks/useReseller";
 import { number, dateTime } from "@/features/admin/lib/format";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useResellerMutation } from "../hooks/useReseller";
 
 function UserDetail({ account, onClose, onAction }) {
   const balance = useResellerQuery("balance", { id: account._id });
@@ -140,6 +152,7 @@ export default function ResellerUsers() {
   const status = params.get("status") || "all";
   const [modal, setModal] = useState(null);
   const [detail, setDetail] = useState(null);
+  const removeAccount = useResellerMutation("deleteAccount", "User account removed", () => setModal(null));
 
   const rawAccounts = query.data?.users || [];
   // Reseller only manages User role accounts
@@ -246,6 +259,14 @@ export default function ResellerUsers() {
               <MinusCircle className="size-4 mr-2" />
               Reclaim credits
             </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={signedInUser?.isPreview}
+              className="text-destructive focus:text-destructive"
+              onClick={() => setModal({ type: "deleteAccount", account: a })}
+            >
+              <Trash2 className="size-4 mr-2" />
+              Delete user
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       ),
@@ -343,6 +364,33 @@ export default function ResellerUsers() {
           onClose={() => setDetail(null)}
           onAction={(type, acc) => setModal({ type, account: acc })}
         />
+      )}
+
+      {modal?.type === "deleteAccount" && (
+        <AlertDialog open onOpenChange={(open) => { if (!open && !removeAccount.isPending) setModal(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete {modal.account.username}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This user account and its wallet will be permanently deleted. Campaign and credit history will be retained for audit.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {removeAccount.error && <p className="text-sm text-destructive">{removeAccount.error.message}</p>}
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={removeAccount.isPending}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={removeAccount.isPending || signedInUser?.isPreview}
+                className="border border-destructive bg-white text-destructive hover:bg-red-50"
+                onClick={(event) => {
+                  event.preventDefault();
+                  removeAccount.mutate(modal.account._id);
+                }}
+              >
+                {removeAccount.isPending ? "Deleting…" : "Delete user"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
 
       {modal?.type === "create" && (

@@ -44,7 +44,9 @@ apiClient.interceptors.response.use(
             error.message ||
             "Something went wrong. Please try again.";
 
-        return Promise.reject(new Error(message));
+        const normalizedError = new Error(message);
+        normalizedError.isAccountBlocked = Boolean(error.response?.data?.isAccountBlocked);
+        return Promise.reject(normalizedError);
     }
 );
 

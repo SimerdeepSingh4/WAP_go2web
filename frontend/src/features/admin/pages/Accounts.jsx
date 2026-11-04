@@ -14,6 +14,7 @@ import {
   RefreshCw,
   RotateCcw,
   Lock,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,6 +24,17 @@ import { PageHeading, QueryState, SearchBox, FilterSelect, StatusBadge, DataTabl
 import ActionForm from "../components/ActionForm";
 import { useAdminQuery } from "../hooks/useAdmin";
 import { number, dateTime } from "../lib/format";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useAdminMutation } from "../hooks/useAdmin";
 
 function AccountDetail({ account, onClose, onAction }) {
   const [showAudit, setShowAudit] = useState(false);
@@ -187,6 +199,7 @@ export default function Accounts({ role }) {
   const status = params.get("status") || "all";
   const [modal, setModal] = useState(null);
   const [detail, setDetail] = useState(null);
+  const removeAccount = useAdminMutation("deleteAccount", "Account removed", () => setModal(null));
 
   const accounts = query.data?.users || [];
   const resellers = accounts.filter((a) => a.role === "Reseller" && a.status === "active");
@@ -307,6 +320,13 @@ export default function Accounts({ role }) {
               <RotateCcw className="size-4 mr-2 text-amber-600" />
               Reclaim credits
             </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={() => setModal({ type: "deleteAccount", account: a })}
+            >
+              <Trash2 className="size-4 mr-2" />
+              Delete account
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       ),
@@ -373,6 +393,35 @@ export default function Accounts({ role }) {
       </QueryState>
 
       {detail && <AccountDetail account={detail} onClose={() => setDetail(null)} onAction={(type, account) => setModal({ type, account })} />}
+
+      {modal?.type === "deleteAccount" && (
+        <AlertDialog open onOpenChange={(open) => { if (!open && !removeAccount.isPending) setModal(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete {modal.account.role.toLowerCase()} account?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {modal.account.role === "Reseller"
+                  ? "This account and its wallet will be permanently deleted. Its client users will remain active as direct admin-managed users."
+                  : "This account and its wallet will be permanently deleted."} Campaign and credit history will be retained for audit.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            {removeAccount.error && <p className="text-sm text-destructive">{removeAccount.error.message}</p>}
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={removeAccount.isPending}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={removeAccount.isPending}
+                className="border border-destructive bg-white text-destructive hover:bg-red-50"
+                onClick={(event) => {
+                  event.preventDefault();
+                  removeAccount.mutate(modal.account._id);
+                }}
+              >
+                {removeAccount.isPending ? "Deleting…" : "Delete account"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
 
       {modal?.type === "create" && (
         <ActionForm

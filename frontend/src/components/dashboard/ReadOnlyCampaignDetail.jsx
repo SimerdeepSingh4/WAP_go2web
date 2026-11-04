@@ -15,7 +15,7 @@ export default function ReadOnlyCampaignDetail({ id, onClose }) {
   const campaign = query.data?.data;
   async function downloadReport() {
     try {
-      const response = await api.get(`/campaigns/${id}/recipient-report`, { responseType: "blob" });
+      const response = await api.get(`/campaixgns/${id}/recipient-report`, { responseType: "blob" });
       const url = URL.createObjectURL(response.data);
       const anchor = document.createElement("a");
       anchor.href = url;
