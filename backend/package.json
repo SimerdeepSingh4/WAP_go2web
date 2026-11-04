@@ -16,6 +16,7 @@
     "multer": "^2.5.0",
     "sharp": "^0.35.5",
     "socket.io": "^4.8.4",
+    "web-push": "^3.6.7",
     "xlsx": "^0.18.5"
   },
   "name": "backend",
@@ -24,7 +25,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "npx nodemon server.js"
+    "dev": "npx nodemon server.js",
+    "notifications:setup": "node scripts/setup-notifications.js"
   },
   "keywords": [],
   "author": "",

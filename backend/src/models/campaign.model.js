@@ -1,3 +1,4 @@
+import { notificationHooks } from "../helpers/notification-hooks.js";
 import mongoose from "mongoose";
 import { messageTextFromHtml } from "../helpers/message.helper.js";
 
@@ -377,6 +378,8 @@ const campaignSchema = new mongoose.Schema(
 );
 
 campaignSchema.index({ userId: 1, createdAt: -1 });
+
+notificationHooks(campaignSchema, "campaign");
 
 const campaignModel = mongoose.model("Campaign", campaignSchema);
 

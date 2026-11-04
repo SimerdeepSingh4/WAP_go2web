@@ -112,6 +112,8 @@ export default function ResellerCredits({ activity = false }) {
   });
 
   const accounts = (accountsQuery.data?.users || []).filter((a) => a.role === "User");
+  const ownId = signedInUser?.id || signedInUser?._id;
+  const transactionAccounts = accounts.filter((account) => String(account.createdBy?._id || account.createdBy) === String(ownId));
   const isWalletLocked = Boolean(myBalance.data?.wallet?.isLocked);
   const stats = overviewQuery.data?.stats;
 
@@ -370,8 +372,9 @@ export default function ResellerCredits({ activity = false }) {
             onChange={(value) => update("account", value)}
             disabled={!accountsQuery.isSuccess}
             options={[
-              { value: "all", label: "All accounts" },
-              ...accounts.map((a) => ({ value: a._id, label: a.username })),
+              { value: "all", label: "My account and users I created" },
+              ...(ownId ? [{ value: ownId, label: "My transactions" }] : []),
+              ...transactionAccounts.map((a) => ({ value: a._id, label: a.username })),
             ]}
           />
 

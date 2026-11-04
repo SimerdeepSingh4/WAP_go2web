@@ -1,3 +1,4 @@
+import { notificationHooks } from "../helpers/notification-hooks.js";
 import mongoose from "mongoose";
 
 /**
@@ -89,6 +90,8 @@ transactionSchema.index(
         partialFilterExpression: { type: "REFUND" },
     }
 );
+
+notificationHooks(transactionSchema, "transaction");
 
 const transactionModel =
     mongoose.models.Transaction ||

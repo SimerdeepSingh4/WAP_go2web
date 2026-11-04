@@ -556,7 +556,7 @@ export const createCampaign = async (req, res) => {
                     $inc: { balance: -requiredCredits },
                 },
                 {
-                    new: true,
+                    returnDocument: 'after',
                     session: mongoSession,
                 }
             );
@@ -910,6 +910,7 @@ export const getCampaignById = async (req, res) => {
             campaign.publishedSpreadsheet.rows = await loadSpreadsheetRows(campaign._id, "published");
         }
         const view = campaign.toObject ? campaign.toObject() : { ...campaign };
+        if (isSuperAdmin) view.refundAccounting = await getCampaignRefundAccounting(campaign);
         if (!isSuperAdmin) {
             delete view.recipientEntries;
             delete view.spreadsheetColumns;
@@ -934,6 +935,25 @@ export const getCampaignById = async (req, res) => {
  * Update status of any campaign.
  * STRICTLY RESTRICTED: Only Super Admin can change campaign status.
  */
+async function getCampaignRefundAccounting(campaign, session) {
+    // A report/category amount can be a plan. Only posted wallet transactions
+    // count as money returned; debit adjustments reverse earlier refunds.
+    let query = transactionModel.aggregate([
+        { $match: { campaignId: campaign._id, $or: [
+            { type: "REFUND" },
+            { type: "DEDUCT", refundOperationId: { $exists: true } },
+        ] } },
+        { $group: { _id: null, total: { $sum: { $cond: [
+            { $eq: ["$type", "REFUND"] }, "$amount", { $multiply: ["$amount", -1] },
+        ] } } } },
+    ]);
+    if (session) query = query.session(session);
+    const [record] = await query;
+    const charged = Math.max(0, Number(campaign.creditsDeducted) || 0);
+    const settled = Math.max(0, Number(record?.total) || 0);
+    return { charged, settled, remaining: Math.max(0, charged - settled) };
+}
+
 async function failCampaignAndRefund(id, adminId) {
     const session = await mongoose.startSession();
     let result;
@@ -942,9 +962,9 @@ async function failCampaignAndRefund(id, adminId) {
             const campaign = await campaignModel.findById(id).session(session);
             if (!campaign) { result = null; return; }
             const previousStatus = campaign.status;
-            const charged = Math.max(0, Number(campaign.creditsDeducted) || 0);
-            const refunded = Math.max(0, Number(campaign.campaignSummary?.creditsRefunded) || 0);
-            const amount = Math.max(0, charged - refunded);
+            const accounting = await getCampaignRefundAccounting(campaign, session);
+            const refunded = accounting.settled;
+            const amount = accounting.remaining;
             let refundInfo = null;
             if (amount > 0) {
                 const owner = await userModel.findById(campaign.userId).session(session);
@@ -952,7 +972,7 @@ async function failCampaignAndRefund(id, adminId) {
                 const wallet = await walletModel.findOneAndUpdate(
                     { userId: campaign.userId },
                     { $inc: { balance: amount }, $setOnInsert: { resellerId: owner.resellerId || null } },
-                    { new: true, upsert: true, session }
+                    { returnDocument: 'after', upsert: true, session }
                 );
                 const [transaction] = await transactionModel.create([{
                     type: "REFUND", campaignId: campaign._id, refundOperationId: new mongoose.Types.ObjectId(),
@@ -962,7 +982,7 @@ async function failCampaignAndRefund(id, adminId) {
                 }], { session });
                 refundInfo = { amount, newBalance: wallet.balance, transactionId: transaction._id };
             }
-            if (previousStatus !== "failed" || amount > 0) {
+            if (previousStatus !== "failed" || amount > 0 || campaign.campaignSummary?.creditsRefunded !== refunded) {
                 campaign.status = "failed";
                 campaign.campaignEndDate = new Date();
                 if (!campaign.campaignSummary) campaign.campaignSummary = {};
@@ -1186,7 +1206,7 @@ export const updateCampaignMetrics = async (req, res) => {
 
         const wholeCampaignFailed = status === "failed" || campaign.status === "failed";
         if (isEligibleForRefund && (numFailed > 0 || wholeCampaignFailed)) {
-            const alreadyRefunded = campaign.campaignSummary?.creditsRefunded || 0;
+            const alreadyRefunded = wholeCampaignFailed ? (await getCampaignRefundAccounting(campaign, mongoSession)).settled : campaign.campaignSummary?.creditsRefunded || 0;
 
             if (alreadyRefunded > 0 && !wholeCampaignFailed) {
                 console.log(`Campaign ${campaign._id} was already refunded ${alreadyRefunded} credits. Skipping duplicate refund.`);
@@ -1207,7 +1227,7 @@ export const updateCampaignMetrics = async (req, res) => {
                             $setOnInsert: { resellerId: campaignOwner.resellerId || null },
                         },
                         {
-                            new: true,
+                            returnDocument: 'after',
                             upsert: true,
                             session: mongoSession,
                         }
@@ -1455,7 +1475,7 @@ export const saveCampaignReport = async (req, res) => {
                 targetRefundAmount = campaign.creditsDeducted;
             }
 
-            const previousRefundAmount = campaign.campaignSummary?.creditsRefunded || 0;
+            const previousRefundAmount = campaign.status === "failed" || status === "failed" ? (await getCampaignRefundAccounting(campaign, mongoSession)).settled : campaign.campaignSummary?.creditsRefunded || 0;
             const netRefundDelta = targetRefundAmount - previousRefundAmount;
 
             if (netRefundDelta !== 0) {
@@ -1466,7 +1486,7 @@ export const saveCampaignReport = async (req, res) => {
                         $setOnInsert: { resellerId: campaignOwner.resellerId || null },
                     },
                     {
-                        new: true,
+                        returnDocument: 'after',
                         upsert: true,
                         session: mongoSession,
                     }
@@ -1705,7 +1725,7 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
                 targetRefundAmount = campaign.creditsDeducted;
             }
 
-            const previousRefundAmount = campaign.campaignSummary?.creditsRefunded || 0;
+            const previousRefundAmount = campaign.status === "failed" || req.body.status === "failed" ? (await getCampaignRefundAccounting(campaign, mongoSession)).settled : campaign.campaignSummary?.creditsRefunded || 0;
             const netRefundDelta = targetRefundAmount - previousRefundAmount;
 
             if (netRefundDelta !== 0) {
@@ -1716,7 +1736,7 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
                         $setOnInsert: { resellerId: campaignOwner.resellerId || null },
                     },
                     {
-                        new: true,
+                        returnDocument: 'after',
                         upsert: true,
                         session: mongoSession,
                     }

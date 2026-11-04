@@ -1,3 +1,4 @@
+import { notificationHooks } from "../helpers/notification-hooks.js";
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 
@@ -67,6 +68,8 @@ userSchema.pre("save", async function () {
 userSchema.methods.comparePassword = async function (candidatePassword) {
     return bcrypt.compare(candidatePassword, this.password);
 };
+
+notificationHooks(userSchema, "user");
 
 const userModel = mongoose.models.User || mongoose.model("User", userSchema);
 

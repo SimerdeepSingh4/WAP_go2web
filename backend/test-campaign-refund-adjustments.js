@@ -117,6 +117,10 @@ async function controllerFixture() {
             },
         } },
         "../models/transaction.model.js": { default: {
+            aggregate: () => {
+                const result = () => [{ total: ledger.reduce((sum, row) => sum + (row.type === "REFUND" ? row.amount : row.type === "DEDUCT" && row.refundOperationId ? -row.amount : 0), 0) }];
+                return { session: async () => result(), then: (resolve) => Promise.resolve(result()).then(resolve) };
+            },
             create: async ([record], options) => {
                 assert.equal(options.session, session);
                 if (record.type === "REFUND" && ledger.some((entry) =>
@@ -251,6 +255,7 @@ for (const handler of ["updateCampaignMetrics", "saveCampaignReport", "updateCam
         const fixture = await controllerFixture();
         fixture.campaign.creditsDeducted = 80;
         fixture.campaign.campaignSummary.creditsRefunded = 48;
+        fixture.ledger[0].amount = 48;
         const body = handler === "updateCampaignMetrics"
             ? { sent: 2, delivered: 2, failed: 0, status: "failed" }
             : handler === "saveCampaignReport"
@@ -342,6 +347,7 @@ test("publishing a failed campaign preserves its full refund and failed status",
     const fixture = await controllerFixture();
     fixture.campaign.status = "failed";
     fixture.campaign.campaignSummary.creditsRefunded = 120;
+    fixture.ledger[0].amount = 120;
     const result = await fixture.invoke("updateCampaignRecipientsManagement", 0, {
         entries: [{ rowNumber: 1, phoneNumber: "919876543210", category: "Delivered", status: "delivered", billingAction: "keep" }],
         saveMode: "publish", status: "completed", spreadsheetRevision: 0, spreadsheetColumns: spreadsheet.BASE_COLUMNS,

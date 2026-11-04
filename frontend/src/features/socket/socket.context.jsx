@@ -1,152 +1,75 @@
-import React, { createContext, useContext, useEffect, useRef } from "react";
+import { createContext, useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthContext } from "@/features/auth/auth.context";
 import { toast } from "@/components/ui/toast";
+import { syncPushAccount, clearPushOwner } from "@/features/notifications/push";
 
 const SocketContext = createContext(null);
 
 export const SocketProvider = ({ children }) => {
     const { user } = useAuthContext();
+    const accountId = user?.id || user?._id;
+    const preview = Boolean(user?.isPreview);
     const queryClient = useQueryClient();
-    const socketRef = useRef(null);
+    const [connectedSocket, setConnectedSocket] = useState(null);
 
     useEffect(() => {
-        if (!user) {
-            if (socketRef.current) {
-                socketRef.current.disconnect();
-                socketRef.current = null;
-            }
-            return;
-        }
-
-        const token = localStorage.getItem("token");
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:3000";
-
-        // Initialize connection with JWT auth token and credentials
-        const socket = io(backendUrl, {
-            auth: { token },
-            withCredentials: true,
-            transports: ["websocket", "polling"],
-            reconnectionAttempts: 5,
-            reconnectionDelay: 1000,
+        if (!accountId) { void clearPushOwner().catch(() => {}); return; }
+        if (!preview) void syncPushAccount(accountId).catch(() => {});
+        const socket = io(import.meta.env.VITE_BACKEND_URL || "http://localhost:3000", {
+            auth: { token: localStorage.getItem("token") }, withCredentials: true,
+            transports: ["websocket", "polling"], reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000, reconnectionDelayMax: 15000,
         });
-
-        socketRef.current = socket;
-
-        socket.on("connect", () => {
-            console.log("Connected to real-time notification socket:", socket.id);
+        const refreshNotifications = () => queryClient.invalidateQueries({ queryKey: ["notifications", accountId] });
+        const refreshAccounts = () => {
+            for (const key of ["admin", "reseller", "user", "myWalletBalance", "myBalance", "creditTransactions", "managedUsers", "clientUsers", "dashboardStats"]) queryClient.invalidateQueries({ queryKey: [key] });
+        };
+        const visibility = () => socket.emit("NOTIFICATION_VISIBILITY", { visible: document.visibilityState === "visible" });
+        const seen = new Set();
+        socket.on("connect", () => { setConnectedSocket(socket); refreshNotifications(); refreshAccounts(); visibility(); });
+        socket.on("disconnect", () => setConnectedSocket(null));
+        socket.on("NOTIFICATIONS_CHANGED", refreshNotifications);
+        socket.on("NOTIFICATION_CREATED", (data) => {
+            refreshNotifications();
+            if (seen.has(data.id)) return;
+            seen.add(data.id);
+            if (seen.size > 500) seen.delete(seen.values().next().value);
+            if (document.visibilityState === "visible") toast.add({ id: `notification-${data.id}`, title: data.title, type: "info" });
         });
-
-        // ── Real-Time Wallet Balance & Auto-Refund ─────────────
-        socket.on("WALLET_UPDATED", (data) => {
-            // Invalidate credit and user queries across all portals
-            queryClient.invalidateQueries({ queryKey: ["myBalance"] });
-            queryClient.invalidateQueries({ queryKey: ["creditTransactions"] });
-            queryClient.invalidateQueries({ queryKey: ["managedUsers"] });
-            queryClient.invalidateQueries({ queryKey: ["clientUsers"] });
-            for (const key of ["admin", "reseller", "user", "myWalletBalance"]) queryClient.invalidateQueries({ queryKey: [key] });
-
-            if (data.reason === "REFUND") {
-                toast.add({
-                    title: `+${data.delta} Credits Refunded`,
-                    description: `Automatic refund for failed/wrong numbers on "${data.campaignTitle || 'Campaign'}". New balance: ${data.newBalance}`,
-                    type: "success",
-                });
-            } else if (data.delta > 0) {
-                toast.add({
-                    title: `+${data.delta} Credits Received`,
-                    description: `Your wallet was topped up. New balance: ${data.newBalance}`,
-                    type: "success",
-                });
-            } else if (data.delta < 0 && data.reason !== "DEDUCT") {
-                toast.add({
-                    title: `Credits Reclaimed`,
-                    description: `Deducted ${Math.abs(data.delta)} credits. New balance: ${data.newBalance}`,
-                    type: "info",
-                });
-            }
-        });
-
-        // ── Real-Time Campaign & Delivery Status ───────────────
-        socket.on("CAMPAIGN_UPDATED", (data) => {
-            queryClient.invalidateQueries({ queryKey: ["campaignsList"] });
-            for (const key of ["admin", "reseller", "user", "myWalletBalance"]) queryClient.invalidateQueries({ queryKey: [key] });
-            queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
-
-            toast.add({
-                title: "Campaign Status Updated",
-                description: `"${data.campaignTitle || 'Campaign'}" status is now ${(data.status || "updated")}${data.creditsRefunded ? ` (${data.creditsRefunded} credits refunded)` : ''}.`,
-                type: "info",
-            });
-        });
-
-        // ── Super Admin Live Campaign Queue Dispatch ───────────
-        socket.on("NEW_CAMPAIGN_SUBMITTED", (data) => {
-            queryClient.invalidateQueries({ queryKey: ["campaignsList"] });
-            for (const key of ["admin", "reseller", "user", "myWalletBalance"]) queryClient.invalidateQueries({ queryKey: [key] });
-            queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
-
-            toast.add({
-                title: "New Campaign Submitted",
-                description: `"${data.campaignTitle}" (${data.totalRecipients} recipients) submitted by ${data.submittedBy}.`,
-                type: "info",
-            });
-        });
-
-        // ── Reseller Client Activity ───────────────────────────
-        socket.on("CLIENT_CAMPAIGN_LAUNCHED", (data) => {
-            queryClient.invalidateQueries({ queryKey: ["reseller"] });
-            queryClient.invalidateQueries({ queryKey: ["campaignsList"] });
-            queryClient.invalidateQueries({ queryKey: ["clientUsers"] });
-
-            toast.add({
-                title: "User submitted a campaign",
-                description: `${data.clientName} submitted "${data.campaignTitle}" (${data.totalRecipients} recipients).`,
-                type: "info",
-            });
-        });
-
-        // ── Real-Time Active Sessions Updated ──────────────────
+        // Existing socket events keep business screens current. Persistent
+        // notifications own the toast so the same event is not shown twice.
+        socket.on("WALLET_UPDATED", refreshAccounts);
+        const refreshCampaigns = () => {
+            refreshAccounts();
+            for (const key of ["campaignsList", "campaign-detail", "campaign-report"]) queryClient.invalidateQueries({ queryKey: [key] });
+        };
+        for (const event of ["CAMPAIGN_UPDATED", "NEW_CAMPAIGN_SUBMITTED", "CLIENT_CAMPAIGN_LAUNCHED"]) socket.on(event, refreshCampaigns);
         socket.on("SESSIONS_CHANGED", () => {
             queryClient.invalidateQueries({ queryKey: ["accountSessions"] });
             queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
-            for (const key of ["admin", "reseller", "user", "myWalletBalance"]) queryClient.invalidateQueries({ queryKey: [key] });
         });
-
-        // ── Instant Device Eviction (Disconnected / Limit Exceeded) ─
         socket.on("SESSION_EXPIRED", (data) => {
-            toast.add({
-                title: "Session Terminated",
-                description: data?.reason || "This device session has been terminated.",
-                type: "error",
-            });
+            void clearPushOwner().catch(() => {});
+            toast.add({ title: "Session ended", description: data?.reason || "Please sign in again.", type: "error" });
             localStorage.removeItem("token");
             queryClient.setQueryData(["authUser"], null);
-            queryClient.removeQueries({ queryKey: ["activeSessions"] });
+            queryClient.removeQueries({ queryKey: ["notifications"] });
             window.dispatchEvent(new CustomEvent("auth:unauthorized"));
-
-            // Immediately boot disconnected client out of protected pages
-            if (window.location.pathname !== "/login") {
-                window.location.replace("/login");
-            }
         });
-
+        const storage = (event) => { if (event.key === "notification-sync") refreshNotifications(); };
+        const pushed = (event) => { if (event.data?.type === "NOTIFICATIONS_CHANGED") refreshNotifications(); };
+        document.addEventListener("visibilitychange", visibility);
+        window.addEventListener("storage", storage);
+        navigator.serviceWorker?.addEventListener("message", pushed);
         return () => {
             socket.disconnect();
-            socketRef.current = null;
+            document.removeEventListener("visibilitychange", visibility);
+            window.removeEventListener("storage", storage);
+            navigator.serviceWorker?.removeEventListener("message", pushed);
         };
-    }, [user, queryClient]);
+    }, [accountId, preview, queryClient]);
 
-    return (
-        <SocketContext.Provider value={{ socket: socketRef.current }}>
-            {children}
-        </SocketContext.Provider>
-    );
+    return <SocketContext.Provider value={{ socket: connectedSocket }}>{children}</SocketContext.Provider>;
 };
-
-export const useSocket = () => {
-    return useContext(SocketContext);
-};
-
-export default SocketContext;

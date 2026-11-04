@@ -245,7 +245,7 @@ export async function allocateCredits(req, res) {
                     $inc: { balance: -creditAmount },
                 },
                 {
-                    new: true,
+                    returnDocument: 'after',
                     session: mongoSession,
                 }
             );
@@ -295,7 +295,7 @@ export async function allocateCredits(req, res) {
             { userId: toUserId },
             updateOps,
             {
-                new: true,
+                returnDocument: 'after',
                 upsert: true,
                 session: mongoSession,
             }
@@ -695,7 +695,7 @@ export async function deductCredits(req, res) {
                 $inc: { balance: -deductionAmount },
             },
             {
-                new: true,
+                returnDocument: 'after',
                 session: mongoSession,
             }
         );
@@ -786,51 +786,26 @@ export async function getTransactions(req, res) {
         const filter = {};
 
         // Type filter
-        if (type && ["ALLOCATE", "DEDUCT", "REFUND", "RECLAIM"].includes(type)) {
+        if (type && ["ALLOCATE", "DEDUCT", "REFUND", "RECLAIM", "REQUEST"].includes(type)) {
             filter.type = type;
         }
 
-        // Role-based visibility
+        // Account filters may narrow the authenticated scope, never widen it.
+        const ownId = req.user._id;
+        if (userId && !mongoose.isValidObjectId(userId)) return res.status(400).json({ success: false, message: "Invalid account filter." });
         if (req.user.role === "User") {
-            // Users can only see their own transactions
-            filter.$or = [
-                { fromUser: req.user._id },
-                { toUser: req.user._id },
-            ];
+            if (userId && String(userId) !== String(ownId)) return res.status(403).json({ success: false, message: "You can only view your own transactions." });
+            filter.$or = [{ fromUser: ownId }, { toUser: ownId }];
         } else if (req.user.role === "Reseller") {
-            if (userId) {
-                // Reseller querying a specific user — must be their own
-                const targetUser = await userModel.findById(userId);
-                if (
-                    !targetUser ||
-                    (String(targetUser.resellerId) !== String(req.user._id) &&
-                        String(userId) !== String(req.user._id))
-                ) {
-                    return res.status(403).json({
-                        message:
-                            "Resellers can only view transactions of their own users.",
-                        success: false,
-                    });
-                }
-                filter.$or = [{ fromUser: userId }, { toUser: userId }];
-            } else {
-                // Reseller sees all transactions involving themselves or their users
-                const resellerUsers = await userModel
-                    .find({ resellerId: req.user._id })
-                    .select("_id");
-                const userIds = resellerUsers.map((u) => u._id);
-                userIds.push(req.user._id);
-
-                filter.$or = [
-                    { fromUser: { $in: userIds } },
-                    { toUser: { $in: userIds } },
-                ];
-            }
+            const users = await userModel.find({ role: "User", resellerId: ownId, createdBy: ownId }).select("_id");
+            const allowedIds = [ownId, ...users.map((user) => user._id)];
+            if (userId && !allowedIds.some((id) => String(id) === String(userId))) return res.status(403).json({ success: false, message: "You can only view your own transactions and those of users you created." });
+            const ids = userId ? [userId] : allowedIds;
+            filter.$or = [{ fromUser: { $in: ids } }, { toUser: { $in: ids } }];
         } else if (req.user.role === "Super Admin") {
-            // Super Admin sees everything, optionally filtered by userId
-            if (userId) {
-                filter.$or = [{ fromUser: userId }, { toUser: userId }];
-            }
+            if (userId) filter.$or = [{ fromUser: userId }, { toUser: userId }];
+        } else {
+            return res.status(403).json({ success: false, message: "You cannot access credit transactions." });
         }
 
         const total = await transactionModel.countDocuments(filter);
@@ -1013,7 +988,7 @@ export async function updateCreditExpiry(req, res) {
         const wallet = await walletModel.findOneAndUpdate(
             { userId },
             { $set: updateData },
-            { new: true, upsert: true }
+            { returnDocument: 'after', upsert: true }
         );
 
         notifyUser(userId.toString(), "WALLET_UPDATED", {

@@ -1,6 +1,7 @@
+import NotificationBell from "@/features/notifications/NotificationBell";
 import { useState, useRef, useEffect } from "react";
 import { Link, NavLink, Navigate, Outlet, useLocation } from "react-router";
-import { LayoutDashboard, Megaphone, Users, Contact, Building2, Wallet, ReceiptText, Settings, LogOut, ChevronDown, PanelLeftClose, PanelLeftOpen, Search, Bell, X } from "lucide-react";
+import { LayoutDashboard, Megaphone, Users, Building2, Wallet, ReceiptText, Settings, LogOut, ChevronDown, PanelLeftClose, PanelLeftOpen, Search, Bell, X } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,12 +15,12 @@ const navigation = {
   "Super Admin": [
     ["Overview", "", LayoutDashboard],
     ["Campaigns", "/campaigns", Megaphone],
-    ["Contacts", "/contacts", Contact],
     ["Super admins", "/administrators", Users],
     ["Resellers", "/resellers", Building2],
     ["Users", "/users", Users],
     ["Credits", "/credits", Wallet],
     ["Transactions", "/activity", ReceiptText],
+    ["Notifications", "/notifications", Bell],
     ["Settings", "/settings", Settings],
   ],
   Reseller: [
@@ -27,14 +28,14 @@ const navigation = {
     ["Campaigns", "/campaigns", Megaphone],
     ["Users", "/users", Users],
     ["Credits", "/credits", Wallet],
-    ["Transactions", "/activity", ReceiptText],
+    ["Notifications", "/notifications", Bell],
     ["Settings", "/settings", Settings],
   ],
   User: [
     ["Overview", "", LayoutDashboard],
     ["Campaigns", "/campaigns", Megaphone],
     ["Credits", "/credits", Wallet],
-    ["Transactions", "/activity", ReceiptText],
+    ["Notifications", "/notifications", Bell],
     ["Settings", "/settings", Settings],
   ],
 };
@@ -124,12 +125,10 @@ export default function DashboardLayout({ role }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const searchInputRef = useRef(null);
-  const { pathname } = useLocation();
   const base = rolePaths[role];
   const items = navigation[role];
 
   // Keep a manager's data out of a workspace labelled for another role.
-  if (user?.role !== role) return <Navigate to={rolePaths[user?.role] || "/login"} replace />;
   const username = user?.username || role;
 
   async function signOut() {
@@ -151,6 +150,8 @@ export default function DashboardLayout({ role }) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  if (user?.role !== role) return <Navigate to={rolePaths[user?.role] || "/login"} replace />;
 
   const filteredItems = searchQuery.trim()
     ? items.filter(([label]) => label.toLowerCase().includes(searchQuery.trim().toLowerCase()))
@@ -221,41 +222,7 @@ export default function DashboardLayout({ role }) {
               </div>
 
               <div className="portal-topbar-actions">
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <button
-                        type="button"
-                        aria-label="Notifications"
-                        className="portal-notification-btn"
-                      />
-                    }
-                  >
-                    <Bell className="size-4.5" aria-hidden="true" />
-                    <span className="portal-notification-badge" aria-hidden="true" />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="portal-notifications-menu w-80 p-2">
-                    <div className="flex items-center justify-between px-2 py-1.5">
-                      <span className="text-xs font-semibold text-slate-900">Notifications</span>
-                      <span className="rounded-full bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600">
-                        2 new
-                      </span>
-                    </div>
-                    <DropdownMenuSeparator />
-                    <div className="space-y-1 py-1">
-                      <div className="rounded-lg p-2 transition-colors hover:bg-slate-50 cursor-pointer">
-                        <p className="text-xs font-medium text-slate-800">System Ready</p>
-                        <p className="text-[11px] text-slate-500">All WhatsApp gateway channels are operational and synchronized.</p>
-                        <span className="text-[10px] text-slate-400 mt-1 block">Just now</span>
-                      </div>
-                      <div className="rounded-lg p-2 transition-colors hover:bg-slate-50 cursor-pointer">
-                        <p className="text-xs font-medium text-slate-800">Campaign Dispatched</p>
-                        <p className="text-[11px] text-slate-500">Scheduled broadcast completed reach confirmation.</p>
-                        <span className="text-[10px] text-slate-400 mt-1 block">1 hour ago</span>
-                      </div>
-                    </div>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <NotificationBell base={base} />
 
                 <DropdownMenu>
                   <DropdownMenuTrigger

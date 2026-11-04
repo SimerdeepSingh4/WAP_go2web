@@ -24,6 +24,7 @@ async function loadModule(path, dependencies) {
 async function fixture({ failSave = false } = {}) {
     const calls = [];
     let balance = 100;
+    let settledRefund = 0;
     const ledger = [];
     const campaign = {
         _id: new mongoose.Types.ObjectId(), userId: new mongoose.Types.ObjectId(),
@@ -54,7 +55,12 @@ async function fixture({ failSave = false } = {}) {
             findOne: () => query({ balance: 100 }),
             findOneAndUpdate: async (_, update, options) => { assert.equal(options.session, session); balance += update.$inc.balance; return { balance }; },
         } },
-        "../models/transaction.model.js": { default: { create: async ([record], options) => {
+        "../models/transaction.model.js": { default: {
+            aggregate: () => {
+                const result = () => [{ total: settledRefund + ledger.reduce((sum, row) => sum + (row.type === "REFUND" ? row.amount : row.type === "DEDUCT" && row.refundOperationId ? -row.amount : 0), 0) }];
+                return { session: async () => result(), then: (resolve) => Promise.resolve(result()).then(resolve) };
+            },
+            create: async ([record], options) => {
             assert.equal(options.session, session);
             const tx = { ...record, _id: new mongoose.Types.ObjectId() }; ledger.push(tx); return [tx];
         } } },
@@ -65,7 +71,7 @@ async function fixture({ failSave = false } = {}) {
         },
     });
     return {
-        campaign, calls, ledger, getBalance: () => balance,
+        campaign, calls, ledger, getBalance: () => balance, setSettledRefund: (amount) => { settledRefund = amount; },
         invoke: async (handler, role, body) => {
             const response = { status(code) { this.code = code; return this; }, json(value) { this.body = value; return this; } };
             await controller[handler]({ user: { role, _id: campaign.userId }, params: { id: String(campaign._id) }, body }, response);
@@ -79,6 +85,7 @@ for (const alreadyRefunded of [0, 20, 60]) {
         const f = await fixture();
         f.campaign.creditsDeducted = 60;
         f.campaign.campaignSummary.creditsRefunded = alreadyRefunded;
+        f.setSettledRefund(alreadyRefunded);
         const response = await f.invoke("updateCampaignStatus", "Super Admin", { status: "failed" });
         assert.equal(response.code, 200, response.body.message);
         assert.equal(f.campaign.status, "failed");
@@ -112,6 +119,7 @@ test("status failure tops up 48 refunded credits to the full 80-credit charge", 
     const f = await fixture();
     f.campaign.creditsDeducted = 80;
     f.campaign.campaignSummary.creditsRefunded = 48;
+    f.setSettledRefund(48);
     const response = await f.invoke("updateCampaignStatus", "Super Admin", { status: "failed" });
     assert.equal(response.code, 200, response.body.message);
     assert.equal(f.campaign.status, "failed");
@@ -126,6 +134,21 @@ test("a campaign without a credit charge can fail without creating a refund", as
     assert.equal(response.code, 200);
     assert.equal(f.getBalance(), 100);
     assert.equal(f.ledger.length, 0);
+});
+
+test("48 planned credits do not reduce the single full 80-credit failure refund", async () => {
+    const f = await fixture();
+    f.campaign.creditsDeducted = 80;
+    f.campaign.campaignSummary.creditsRefunded = 48;
+    const response = await f.invoke("updateCampaignStatus", "Super Admin", { status: "failed" });
+    assert.equal(response.code, 200, response.body.message);
+    assert.equal(f.getBalance(), 180);
+    assert.equal(f.ledger.length, 1);
+    assert.equal(f.ledger[0].amount, 80);
+    assert.equal(f.campaign.campaignSummary.creditsRefunded, 80);
+    await f.invoke("updateCampaignStatus", "Super Admin", { status: "failed" });
+    assert.equal(f.getBalance(), 180);
+    assert.equal(f.ledger.length, 1);
 });
 
 for (const role of ["User", "Reseller"]) {

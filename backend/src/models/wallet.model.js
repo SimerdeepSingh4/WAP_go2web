@@ -1,3 +1,4 @@
+import { notificationHooks } from "../helpers/notification-hooks.js";
 import mongoose from "mongoose";
 
 /**
@@ -43,6 +44,8 @@ const walletSchema = new mongoose.Schema(
         timestamps: true,
     }
 );
+
+notificationHooks(walletSchema, "wallet");
 
 const walletModel =
     mongoose.models.Wallet || mongoose.model("Wallet", walletSchema);

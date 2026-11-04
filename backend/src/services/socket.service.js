@@ -114,6 +114,10 @@ export function initSocket(httpServer) {
 
         // 4. Session Room: for targeted eviction of a specific device
         socket.join(`session:${socket.sessionId}`);
+        socket.data.sessionId = socket.sessionId;
+        socket.on("NOTIFICATION_VISIBILITY", (data) => {
+            socket.data.notificationVisible = data?.visible === true;
+        });
 
         socket.on("disconnect", () => {
             // Cleanup happens automatically in Socket.IO

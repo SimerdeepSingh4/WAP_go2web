@@ -45,7 +45,7 @@ export function RecentTransactions({ query, base }) {
           <h2>Recent credit movements</h2>
           <p className="text-xs text-muted-foreground mt-0.5">Audited allocation and adjustment ledger</p>
         </div>
-        <Button variant="outline" size="sm" nativeButton={false} render={<Link to={`${base}/activity`} />}>
+        <Button variant="outline" size="sm" nativeButton={false} render={<Link to={base === "/admin" ? `${base}/activity` : `${base}/credits`} />}>
           View all activity
         </Button>
       </div>

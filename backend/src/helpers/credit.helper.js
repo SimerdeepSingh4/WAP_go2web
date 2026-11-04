@@ -72,7 +72,7 @@ export async function deductCredits(userId, count, session = null, options = {})
                 $inc: { balance: -deductionAmount }, // Atomic decrement
             },
             {
-                new: true,
+                returnDocument: 'after',
                 session: mongoSession,
             }
         );
@@ -158,7 +158,7 @@ export async function refundCredits(userId, count, session = null, options = {})
                 $setOnInsert: { resellerId: targetUser?.resellerId || null },
             },
             {
-                new: true,
+                returnDocument: 'after',
                 upsert: true,
                 session: mongoSession,
             }

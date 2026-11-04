@@ -1,3 +1,4 @@
+import NotificationsPage from "./features/notifications/NotificationsPage.jsx";
 import { createBrowserRouter, Navigate, useLocation, useParams } from "react-router";
 import LoginPage from "./features/auth/pages/Login.jsx";
 import { useAuth } from "./features/auth/hooks/useAuth.js";
@@ -26,7 +27,6 @@ import ExpiredAccountPage from "./features/auth/pages/ExpiredAccountPage.jsx";
 const AdminLayout = lazy(() => import("./features/admin/components/AdminLayout.jsx"));
 const AdminOverview = lazy(() => import("./features/admin/pages/Overview.jsx"));
 const AdminCampaigns = lazy(() => import("./features/admin/pages/Campaigns.jsx"));
-const AdminContacts = lazy(() => import("./features/admin/pages/Contacts.jsx"));
 const Administrators = lazy(() => import("./features/admin/pages/Administrators.jsx"));
 const AdminAccounts = lazy(() => import("./features/admin/pages/Accounts.jsx"));
 const AdminCredits = lazy(() => import("./features/admin/pages/Credits.jsx"));
@@ -137,13 +137,14 @@ export const router = createBrowserRouter([
       { path: "campaigns/:id", element: <CampaignDetailPage /> },
       { path: "campaigns/:id/report/create", element: <CreateCampaignReportPage /> },
       { path: "campaigns/:id/report", element: <CampaignReportPage /> },
-      { path: "contacts", element: <AdminContacts /> },
+      { path: "contacts", element: <Navigate to="/admin" replace /> },
       { path: "reports", element: <Navigate to="/admin/campaigns?status=unreported" replace /> },
       { path: "administrators", element: <Administrators /> },
       { path: "resellers", element: <AdminAccounts key="resellers" role="Reseller" /> },
       { path: "users", element: <AdminAccounts key="users" role="User" /> },
       { path: "credits", element: <AdminCredits key="credits" /> },
       { path: "activity", element: <AdminCredits key="activity" activity /> },
+      { path: "notifications", element: <NotificationsPage /> },
       { path: "settings", element: <AdminOperatingRules /> },
     ],
   },
@@ -164,7 +165,8 @@ export const router = createBrowserRouter([
       { path: "reports", element: <Navigate to="/reseller/campaigns?status=unreported" replace /> },
       { path: "users", element: <ResellerUsers /> },
       { path: "credits", element: <ResellerCredits key="credits" /> },
-      { path: "activity", element: <ResellerCredits key="activity" activity /> },
+      { path: "activity", element: <Navigate to="/reseller/credits" replace /> },
+      { path: "notifications", element: <NotificationsPage /> },
       { path: "settings", element: <ResellerSettings /> },
     ],
   },
@@ -183,7 +185,8 @@ export const router = createBrowserRouter([
       { path: "campaigns/:id", element: <CampaignDetailPage /> },
       { path: "campaigns/:id/report", element: <CampaignReportPage /> },
       { path: "credits", element: <UserCredits key="credits" /> },
-      { path: "activity", element: <UserCredits key="activity" activity /> },
+      { path: "activity", element: <Navigate to="/user/credits" replace /> },
+      { path: "notifications", element: <NotificationsPage /> },
       { path: "settings", element: <UserSettings /> },
     ],
   },

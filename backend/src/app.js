@@ -13,6 +13,7 @@ import dashboardRouter from "./routes/dashboard.routes.js";
 import cookieParser from "cookie-parser";
 import morgan from "morgan";
 import helmet from "helmet";
+import notificationRouter from "./routes/notification.routes.js";
 
 const app = express();
 
@@ -56,5 +57,6 @@ app.use("/api/templates", templateRouter);
 app.use("/api/groups", groupRouter);
 app.use("/api/contacts", contactRouter);
 app.use("/api/dashboard", dashboardRouter);
+app.use("/api/notifications", notificationRouter);
 
 export default app;

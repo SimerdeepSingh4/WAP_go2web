@@ -1,4 +1,5 @@
 import apiClient from "../../../api/client.js";
+import { clearPushOwner } from "@/features/notifications/push";
 
 export async function register(username, email, password) {
     const payload = typeof username === "object"
@@ -31,6 +32,7 @@ export async function login(credentials, password) {
 }
 
 export async function logout() {
+    await clearPushOwner().catch(() => {});
     const response = await apiClient.post("/auth/logout");
     return response.data;
 }
@@ -46,6 +48,7 @@ export async function getSessions() {
 }
 
 export async function logoutAll() {
+    await clearPushOwner().catch(() => {});
     const response = await apiClient.post("/auth/logout-all");
     return response.data;
 }

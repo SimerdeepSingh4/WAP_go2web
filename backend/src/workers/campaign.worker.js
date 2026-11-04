@@ -138,7 +138,7 @@ export function initCampaignWorker() {
                         const updatedWallet = await walletModel.findOneAndUpdate(
                             { userId: campaign.userId },
                             { $inc: { balance: refundAmount } },
-                            { new: true, upsert: true }
+                            { returnDocument: 'after', upsert: true }
                         );
 
                         // Insert immutable ledger record (protected by unique index on { campaignId: 1, type: "REFUND" })

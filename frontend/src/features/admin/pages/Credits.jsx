@@ -119,12 +119,16 @@ export default function Credits({ activity = false }) {
 
   const accountsQuery = useAdminQuery("accounts");
   const overview = useAdminQuery("overview", {}, !activity);
-  const ledger = useAdminQuery("transactions", {
-    page: activity ? page : 1,
-    limit: activity ? 10 : 5,
-    ...(type !== "all" && activity ? { type } : {}),
-    ...(account !== "all" && activity ? { userId: account } : {}),
-  });
+  const ledger = useAdminQuery(
+    "transactions",
+    {
+      page,
+      limit: 10,
+      ...(type !== "all" ? { type } : {}),
+      ...(account !== "all" ? { userId: account } : {}),
+    },
+    activity
+  );
 
   const accounts = (accountsQuery.data?.users || []).filter((a) => a.role !== "Super Admin");
   const activeAccounts = accounts.filter((a) => a.status === "active");
@@ -558,36 +562,6 @@ export default function Credits({ activity = false }) {
               rows={filteredAccounts}
               columns={walletColumns}
               pageSize={10}
-            />
-          </QueryState>
-        </div>
-
-        {/* Recent Credit Activity Preview Section */}
-        <div className="space-y-3 pt-4 border-t">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold">Recent Credit Activity</h2>
-              <p className="text-xs text-muted-foreground">Latest transactions across the platform</p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              render={<Link to="/admin/activity" />}
-              className="gap-1.5 text-xs"
-            >
-              <ReceiptText className="size-3.5" />
-              View all transactions
-              <ArrowUpRight className="size-3.5 ml-0.5" />
-            </Button>
-          </div>
-
-          <QueryState query={ledger}>
-            <DataTable
-              caption="Recent credit activity"
-              rows={ledger.data?.transactions || []}
-              columns={transactionColumns}
-              paginated={false}
-              emptyTitle="No recent transactions"
             />
           </QueryState>
         </div>

@@ -39,7 +39,8 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [confirmFailure, setConfirmFailure] = useState(false);
-  const remainingRefund = Math.max(0, (campaign.creditsDeducted || 0) - (campaign.campaignSummary?.creditsRefunded || 0));
+  const settledRefund = campaign.refundAccounting?.settled || 0;
+  const remainingRefund = campaign.refundAccounting?.remaining ?? campaign.creditsDeducted ?? 0;
 
   const updateStatusMutation = useMutation({
     mutationFn: async (newStatus) => {
@@ -180,14 +181,14 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
         <DialogContent className="gap-5 rounded-2xl p-5 sm:max-w-sm">
           <DialogHeader className="gap-1.5 pr-6">
             <DialogTitle>Mark campaign as failed?</DialogTitle>
-            <DialogDescription className="text-xs leading-5">This stops the campaign and returns all charged credits to its creator. Credits already refunded will not be refunded again.</DialogDescription>
+            <DialogDescription className="text-xs leading-5">This stops the campaign and returns its full charge. Planned category refunds do not reduce this amount. Only credits actually returned to the wallet are accounted for.</DialogDescription>
           </DialogHeader>
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
             <dl className="space-y-2 tabular-nums">
               <div className="flex justify-between gap-3"><dt>Original charge</dt><dd>{number(campaign.creditsDeducted || 0)} credits</dd></div>
-              <div className="flex justify-between gap-3"><dt>Already refunded</dt><dd>{number(campaign.campaignSummary?.creditsRefunded || 0)} credits</dd></div>
+              {settledRefund > 0 && <div className="flex justify-between gap-3"><dt>Already paid to wallet</dt><dd>{number(settledRefund)} credits</dd></div>}
               <div className="flex justify-between gap-3"><dt>Refund on confirmation</dt><dd className="font-semibold">{number(remainingRefund)} credits</dd></div>
-              <div className="flex justify-between gap-3 border-t border-amber-200 pt-2 font-semibold dark:border-amber-800"><dt>Total refunded afterward</dt><dd>{number(Math.max(campaign.creditsDeducted || 0, campaign.campaignSummary?.creditsRefunded || 0))} credits</dd></div>
+              <div className="flex justify-between gap-3 border-t border-amber-200 pt-2 font-semibold dark:border-amber-800"><dt>Total refunded afterward</dt><dd>{number(settledRefund + remainingRefund)} credits</dd></div>
             </dl>
           </div>
           <DialogFooter className="m-0 flex-row justify-end rounded-none border-0 bg-transparent p-0">

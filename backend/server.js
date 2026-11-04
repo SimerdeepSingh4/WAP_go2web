@@ -3,12 +3,14 @@ import app from "./src/app.js";
 import { initSocket } from "./src/services/socket.service.js";
 import { initCampaignWorker, closeCampaignWorker } from "./src/workers/campaign.worker.js";
 import { campaignQueue } from "./src/queues/campaign.queue.js";
+import { startNotificationWorker, closeNotificationWorker } from "./src/workers/notification.worker.js";
 
 const PORT = process.env.PORT || 3000;
 const server = http.createServer(app);
 
 // 1. Initialize Socket.IO on HTTP Server
 initSocket(server);
+await startNotificationWorker();
 
 // 2. Initialize BullMQ Campaign Worker
 initCampaignWorker();
@@ -21,6 +23,7 @@ server.listen(PORT, () => {
 async function gracefulShutdown(signal) {
     console.log(`Received ${signal}. Shutting down gracefully...`);
     try {
+        await closeNotificationWorker();
         await closeCampaignWorker();
         await campaignQueue.close();
         server.close(() => {
