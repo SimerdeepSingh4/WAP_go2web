@@ -1,18 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { setImpersonationToken } from "@/api/sessionToken";
 
 export default function ImpersonationHandoff() {
   const { checkAuth } = useAuth();
   const navigate = useNavigate();
-  const [error, setError] = useState("");
+  const [error, setError] = useState(() => window.opener ? "" : "Open this page from the superadmin account list.");
 
   useEffect(() => {
     const opener = window.opener;
-    if (!opener) {
-      setError("Open this page from the superadmin account list.");
-      return undefined;
-    }
+    if (!opener) return undefined;
 
     let active = true;
     async function receiveSession(event) {
@@ -24,7 +22,7 @@ export default function ImpersonationHandoff() {
       ) return;
 
       window.removeEventListener("message", receiveSession);
-      sessionStorage.setItem("impersonationToken", event.data.token);
+      setImpersonationToken(event.data.token);
       try {
         const result = await checkAuth();
         const account = result.data;

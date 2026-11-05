@@ -1,16 +1,9 @@
 import { createContext, useContext, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getMe, login as loginApi, register as registerApi, logout as logoutApi, logoutAll as logoutAllApi } from "./services/auth.api";
+import { clearCurrentSessionToken, setSessionToken } from "@/api/sessionToken";
 
 export const AuthContext = createContext(null);
-
-function clearCurrentToken() {
-    if (sessionStorage.getItem("impersonationToken")) {
-        sessionStorage.removeItem("impersonationToken");
-    } else {
-        localStorage.removeItem("token");
-    }
-}
 
 export const AuthProvider = ({ children }) => {
     const queryClient = useQueryClient();
@@ -29,6 +22,9 @@ export const AuthProvider = ({ children }) => {
                 return response.user ?? null;
             } catch (err) {
                 // If 401 or not logged in, return null
+                if (err.response?.status === 401 || err.response?.data?.isAccountBlocked) {
+                    clearCurrentSessionToken();
+                }
                 return null;
             }
         },
@@ -43,7 +39,7 @@ export const AuthProvider = ({ children }) => {
         mutationFn: (credentials) => loginApi(credentials),
         onSuccess: (data) => {
             if (data.token) {
-                localStorage.setItem("token", data.token);
+                setSessionToken(data.token);
             }
             // Update query cache with logged-in user
             queryClient.setQueryData(["authUser"], data.user);
@@ -56,7 +52,7 @@ export const AuthProvider = ({ children }) => {
         mutationFn: (credentials) => registerApi(credentials),
         onSuccess: (data) => {
             if (data.token) {
-                localStorage.setItem("token", data.token);
+                setSessionToken(data.token);
             }
             queryClient.setQueryData(["authUser"], data.user);
             queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
@@ -67,13 +63,13 @@ export const AuthProvider = ({ children }) => {
     const logoutMutation = useMutation({
         mutationFn: logoutApi,
         onSuccess: () => {
-            clearCurrentToken();
+            clearCurrentSessionToken();
             queryClient.setQueryData(["authUser"], null);
             queryClient.removeQueries({ queryKey: ["activeSessions"] });
         },
         onError: () => {
             // Even if server request fails, clear local session
-            clearCurrentToken();
+            clearCurrentSessionToken();
             queryClient.setQueryData(["authUser"], null);
         },
     });
@@ -82,12 +78,12 @@ export const AuthProvider = ({ children }) => {
     const logoutAllMutation = useMutation({
         mutationFn: logoutAllApi,
         onSuccess: () => {
-            clearCurrentToken();
+            clearCurrentSessionToken();
             queryClient.setQueryData(["authUser"], null);
             queryClient.removeQueries({ queryKey: ["activeSessions"] });
         },
         onError: () => {
-            clearCurrentToken();
+            clearCurrentSessionToken();
             queryClient.setQueryData(["authUser"], null);
         },
     });
@@ -95,7 +91,7 @@ export const AuthProvider = ({ children }) => {
     // 5. Listen for auto-logout (e.g. 1st device evicted when 4th logs in)
     useEffect(() => {
         const handleUnauthorized = () => {
-            clearCurrentToken();
+            clearCurrentSessionToken();
             queryClient.setQueryData(["authUser"], null);
         };
 

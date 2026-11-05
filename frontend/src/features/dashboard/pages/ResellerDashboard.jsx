@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../auth/hooks/useAuth.js";
 import { fetchUsers, createClientUser, accessUserAccount } from "../services/users.api.js";
+import { setSessionToken } from "@/api/sessionToken";
 
 export default function ResellerDashboard() {
   const { user } = useAuth();
@@ -46,7 +47,7 @@ export default function ResellerDashboard() {
     mutationFn: accessUserAccount,
     onSuccess: (data) => {
       if (data.token) {
-        localStorage.setItem("token", data.token);
+        setSessionToken(data.token);
       }
       queryClient.setQueryData(["authUser"], data.user);
       queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
