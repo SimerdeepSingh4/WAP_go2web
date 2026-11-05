@@ -8,6 +8,7 @@ import {
   Eye,
   Paperclip,
 } from "lucide-react";
+import { normalizeCampaignMedia } from "../../lib/mediaUrl";
 
 function formatBytes(bytes) {
   if (!bytes) return null;
@@ -54,10 +55,10 @@ export default function CampaignAttachmentsView({
   onPreviewImage,
   onDownloadMedia,
 }) {
-  const images = campaign.images || [];
-  const documents = campaign.documents || [];
-  const videos = campaign.video || [];
-  const audios = campaign.audio || [];
+  const images = normalizeCampaignMedia(campaign.images);
+  const documents = normalizeCampaignMedia(campaign.documents);
+  const videos = normalizeCampaignMedia(campaign.video);
+  const audios = normalizeCampaignMedia(campaign.audio);
   const attachmentsCount = images.length + documents.length + videos.length + audios.length;
   const hasAttachments = attachmentsCount > 0;
 

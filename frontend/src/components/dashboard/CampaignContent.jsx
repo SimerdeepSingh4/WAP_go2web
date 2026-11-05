@@ -1,6 +1,7 @@
 import { createElement } from "react";
 import { Download } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { campaignMediaUrl } from "@/features/campaigns/lib/mediaUrl";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const allowedTags = new Set(["p", "br", "strong", "b", "em", "i", "u", "s", "ol", "ul", "li", "blockquote", "pre", "code"]);
@@ -25,12 +26,7 @@ export function CampaignMedia({ campaign }) {
   return ["images", "video", "audio", "documents"].map(type => campaign[type]?.length > 0 && <section className="mt-3 space-y-2" key={type}>
     <h3 className="text-sm font-medium capitalize">{type}</h3>
     <ul className="space-y-2">{campaign[type].map((media, index) => {
-      const raw = typeof media === "string" ? media : media.url;
-      let url;
-      try {
-        const parsed = new URL(raw, new URL(import.meta.env.VITE_API_URL || "http://localhost:3000/api").origin);
-        if (raw && ["http:", "https:"].includes(parsed.protocol)) url = parsed.href;
-      } catch { /* Show the attachment name if its URL is unavailable. */ }
+      const url = campaignMediaUrl(media);
       const name = media.filename || `${type === "documents" ? "Document" : "Attachment"} ${index + 1}`;
       return <li key={index} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm break-words">{url ? <><a href={url} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-4">{name}<span className="sr-only"> (opens in a new tab)</span></a><a href={url} download={name} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"><Download className="size-3.5" />Download</a></> : `${name} — unavailable`}</li>;
     })}</ul>
