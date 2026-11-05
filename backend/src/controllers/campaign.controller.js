@@ -428,7 +428,6 @@ export const createCampaign = async (req, res) => {
         // Check required fields (userId is securely taken from authenticated req.user._id)
         const missingFields = [];
         if (!campaignTitle) missingFields.push("campaignTitle");
-        if (!campaignDescription) missingFields.push("campaignDescription");
         
         const hasContent =
             messageBody ||
@@ -612,7 +611,7 @@ export const createCampaign = async (req, res) => {
                 {
                     userId: req.user._id,
                     campaignTitle,
-                    campaignDescription,
+                    campaignDescription: campaignDescription || "",
                     templateId: templateId || null,
                     messageBody: messageBody || "",
                     recipients: sanitizedRecipients,
@@ -1057,6 +1056,9 @@ export const updateCampaignStatus = async (req, res) => {
         }
 
         const previousStatus = campaign.status;
+        if (["completed", "sent"].includes(previousStatus)) {
+            campaign.manualStatusOverride = true;
+        }
         campaign.status = status;
 
         if (status === "stopped" || status === "failed") {
@@ -1070,14 +1072,14 @@ export const updateCampaignStatus = async (req, res) => {
         } else if (status === "completed") {
             campaign.campaignEndDate = new Date();
         } else if (status === "ongoing") {
-            if (["completed", "stopped", "failed"].includes(previousStatus)) {
+            if (["completed", "sent", "stopped", "failed"].includes(previousStatus)) {
                 campaign.campaignEndDate = null;
             }
             if (!campaign.campaignStartDate) {
                 campaign.campaignStartDate = new Date();
             }
         } else if (status === "pending" || status === "scheduled" || status === "paused") {
-            if (["completed", "stopped", "failed"].includes(previousStatus)) {
+            if (["completed", "sent", "stopped", "failed"].includes(previousStatus)) {
                 campaign.campaignEndDate = null;
             }
             // Put on hold: remove from queue if scheduled
@@ -1091,7 +1093,7 @@ export const updateCampaignStatus = async (req, res) => {
         await campaign.save();
 
         // Persist admin approval before a worker can pick up the job.
-        if (status === "ongoing") {
+        if (status === "ongoing" && !campaign.manualStatusOverride) {
             try {
                 await scheduleCampaignJob(campaign);
             } catch (queueErr) {

@@ -21,7 +21,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import { StatusBadge } from "@/features/admin/components/shared";
 import { dateTime, number, ownerName, statusLabels } from "@/features/admin/lib/format";
 import { toast } from "@/components/ui/toast";
 
@@ -30,10 +29,24 @@ const STATUS_OPTIONS = [
   { value: "completed", label: "Completed", description: "All messages finished", dot: "bg-emerald-500" },
   { value: "pending", label: "Pending", description: "Queued for processing", dot: "bg-amber-500" },
   { value: "paused", label: "Paused", description: "Temporarily pause execution", dot: "bg-amber-400" },
-  { value: "scheduled", label: "Scheduled", description: "Waiting for dispatch time", dot: "bg-stone-400" },
+  { value: "scheduled", label: "Scheduled", description: "Waiting for dispatch time", dot: "bg-purple-500" },
   { value: "stopped", label: "Stopped", description: "Terminated / cancelled", dot: "bg-stone-500" },
   { value: "failed", label: "Failed", description: "Mark campaign as failed", dot: "bg-red-500" },
 ];
+
+const STATUS_BUTTON_STYLES = {
+  ongoing: "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100/80 hover:text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300",
+  completed: "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100/80 hover:text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
+  active: "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100/80 hover:text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
+  sent: "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100/80 hover:text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300",
+  pending: "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100/80 hover:text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
+  paused: "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100/80 hover:text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
+  scheduled: "border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100/80 hover:text-purple-800 dark:border-purple-800 dark:bg-purple-950/40 dark:text-purple-300",
+  stopped: "border-stone-300 bg-stone-100 text-stone-800 hover:bg-stone-200/80 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300",
+  failed: "border-red-200 bg-red-50 text-red-800 hover:bg-red-100/80 hover:text-red-900 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300",
+  blocked: "border-red-200 bg-red-50 text-red-800 hover:bg-red-100/80 hover:text-red-900 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300",
+  expired: "border-red-200 bg-red-50 text-red-800 hover:bg-red-100/80 hover:text-red-900 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300",
+};
 
 export default function CampaignDetailHeader({ campaign, base, id }) {
   const { user } = useAuth();
@@ -83,7 +96,7 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
 
   return (
     <header className="space-y-4">
-      {/* Left: Back button + Title & Status */}
+      {/* Left: Back button + Title */}
       <div>
         <Button
           variant="ghost"
@@ -103,7 +116,6 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
             <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground break-words sm:text-2xl">
               {campaign.campaignTitle}
             </h1>
-            <StatusBadge status={campaign.status} />
           </div>
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span>{ownerName(campaign.userId)}</span>
@@ -120,15 +132,18 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
                 variant="outline"
                 size="sm"
                 disabled={isUpdating}
-                className="h-8 gap-1.5 text-xs"
+                aria-label={`Change campaign status, current status: ${statusLabels[campaign.status] || campaign.status}`}
+                className={`h-8 gap-1.5 text-xs font-medium border shadow-none transition-colors ${
+                  STATUS_BUTTON_STYLES[campaign.status] || "border-border bg-background text-foreground hover:bg-muted"
+                }`}
               >
                 {isUpdating ? (
-                  <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+                  <Loader2 className="size-3.5 animate-spin" />
                 ) : (
-                  <SlidersHorizontal className="size-3.5 text-muted-foreground" />
+                  <SlidersHorizontal className="size-3.5 opacity-80" />
                 )}
-                <span>Change status</span>
-                <ChevronDown className="size-3 text-muted-foreground" />
+                <span>{statusLabels[campaign.status] || campaign.status}</span>
+                <ChevronDown className="size-3 opacity-70" />
               </Button>
             }
           />

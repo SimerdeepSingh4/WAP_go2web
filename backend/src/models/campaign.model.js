@@ -17,8 +17,8 @@ const campaignSchema = new mongoose.Schema(
         },
         campaignDescription: {
             type: String,
-            required: [true, "Campaign description is required"],
             trim: true,
+            default: "",
         },
         templateId: {
             type: mongoose.Schema.Types.ObjectId,
@@ -232,6 +232,11 @@ const campaignSchema = new mongoose.Schema(
                 "failed",     // Manual Admin / System: Encountered failure / banned
             ],
             default: "pending",
+        },
+        // Reopening a completed campaign changes its status without redispatching.
+        manualStatusOverride: {
+            type: Boolean,
+            default: false,
         },
         campaignSummary: {
             sent: {

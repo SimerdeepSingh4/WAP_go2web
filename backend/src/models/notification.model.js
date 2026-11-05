@@ -4,17 +4,25 @@ const notificationSchema = new mongoose.Schema({
     recipientId: { type: mongoose.Schema.Types.ObjectId, required: true },
     recipientRole: { type: String, required: true },
     eventId: { type: String, required: true },
+    lastEventId: { type: String },
+    groupKey: { type: String, required: true, index: true },
+    itemType: { type: String },
+    itemId: { type: String },
+    changeType: { type: String },
+    fieldKey: { type: String },
+    version: { type: Number, default: 0 },
     category: { type: String, enum: ["campaigns", "credits", "accounts", "system"], required: true },
     title: { type: String, required: true, maxlength: 180 },
     body: { type: String, maxlength: 800 },
     href: { type: String, required: true },
-    subjectUserId: mongoose.Schema.Types.ObjectId,
+    subjectUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     managed: { type: Boolean, default: false },
     readAt: { type: Date, default: null },
     archivedAt: { type: Date, default: null },
     expiresAt: { type: Date, default: () => new Date(Date.now() + 90 * 86400000) },
 }, { timestamps: true });
-notificationSchema.index({ eventId: 1, recipientId: 1 }, { unique: true });
+notificationSchema.index({ recipientId: 1, groupKey: 1 }, { unique: true });
+notificationSchema.index({ eventId: 1, recipientId: 1 });
 notificationSchema.index({ recipientId: 1, archivedAt: 1, createdAt: -1 });
 notificationSchema.index({ recipientId: 1, readAt: 1 });
 notificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });

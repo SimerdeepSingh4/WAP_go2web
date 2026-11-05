@@ -34,7 +34,7 @@ export function initCampaignWorker() {
             }
 
             // Even stale queued jobs must never bypass admin approval.
-            if (campaign.status !== "ongoing") {
+            if (campaign.status !== "ongoing" || campaign.manualStatusOverride) {
                 console.log(`[Worker] Campaign ${campaignId} is in "${campaign.status}" state. Skipping dispatch.`);
                 return { success: true, status: campaign.status, skipped: true };
             }
@@ -69,8 +69,8 @@ export function initCampaignWorker() {
 
             for (let i = 0; i < totalRecipients; i += BATCH_SIZE) {
                 // Check if campaign was paused or stopped mid-execution
-                const freshCheck = await campaignModel.findById(campaignId).select("status");
-                if (!freshCheck || freshCheck.status !== "ongoing") {
+                const freshCheck = await campaignModel.findById(campaignId).select("status manualStatusOverride");
+                if (!freshCheck || freshCheck.status !== "ongoing" || freshCheck.manualStatusOverride) {
                     console.log(`[Worker] Campaign ${campaignId} is no longer ongoing. Halting dispatch.`);
                     return { success: true, status: freshCheck?.status, haltedAt: i };
                 }

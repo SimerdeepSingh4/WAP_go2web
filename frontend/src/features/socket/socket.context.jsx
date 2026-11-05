@@ -32,11 +32,42 @@ export const SocketProvider = ({ children }) => {
         socket.on("disconnect", () => setConnectedSocket(null));
         socket.on("NOTIFICATIONS_CHANGED", refreshNotifications);
         socket.on("NOTIFICATION_CREATED", (data) => {
+            const toastId = data.toastId || `notification-${data.id}`;
+            if (document.visibilityState === "visible") {
+                toast.add({ id: toastId, title: data.title, type: "info" });
+            }
+
+            // Update inbox in-place by notification ID and keep unread badge accurate
+            queryClient.setQueriesData({ queryKey: ["notifications", accountId] }, (old) => {
+                if (!old || !Array.isArray(old.items)) return old;
+                const existingIndex = old.items.findIndex((item) => String(item._id) === String(data.id));
+                let updatedItems = [...old.items];
+                let newUnreadCount = old.unreadCount || 0;
+
+                if (existingIndex !== -1) {
+                    const existing = updatedItems[existingIndex];
+                    if (existing.readAt) newUnreadCount += 1;
+                    const updated = {
+                        ...existing,
+                        title: data.title || existing.title,
+                        body: data.body || existing.body,
+                        readAt: null,
+                        createdAt: new Date().toISOString(),
+                    };
+                    updatedItems.splice(existingIndex, 1);
+                    updatedItems.unshift(updated);
+                } else {
+                    newUnreadCount += 1;
+                }
+
+                return {
+                    ...old,
+                    items: updatedItems,
+                    unreadCount: newUnreadCount,
+                };
+            });
+
             refreshNotifications();
-            if (seen.has(data.id)) return;
-            seen.add(data.id);
-            if (seen.size > 500) seen.delete(seen.values().next().value);
-            if (document.visibilityState === "visible") toast.add({ id: `notification-${data.id}`, title: data.title, type: "info" });
         });
         // Existing socket events keep business screens current. Persistent
         // notifications own the toast so the same event is not shown twice.

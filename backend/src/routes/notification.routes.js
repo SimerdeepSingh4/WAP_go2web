@@ -24,7 +24,12 @@ router.get("/", route(async (req, res) => {
     const page = Math.min(10000, Math.max(1, Math.trunc(Number(req.query.page)) || 1));
     const limit = Math.min(50, Math.max(1, Math.trunc(Number(req.query.limit)) || 20));
     const [items, total, unreadCount] = await Promise.all([
-        Notification.find(filter).sort({ createdAt: -1, _id: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+        Notification.find(filter)
+            .populate("subjectUserId", "username email role")
+            .sort({ createdAt: -1, _id: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .lean(),
         Notification.countDocuments(filter), Notification.countDocuments({ ...scope, archivedAt: null, readAt: null }),
     ]);
     res.json({ items, unreadCount, pagination: { page, limit, total, pages: Math.max(1, Math.ceil(total / limit)) } });

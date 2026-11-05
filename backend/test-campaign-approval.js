@@ -200,6 +200,46 @@ test("admin approval persists ongoing status before dispatch is enqueued", async
     assert.deepEqual(f.calls, ["save", "enqueue"]);
 });
 
+for (const previousStatus of ["completed", "sent"]) {
+    test(`reopening ${previousStatus} keeps ongoing without dispatching again, including after a pause`, async () => {
+        const f = await fixture();
+        f.campaign.status = previousStatus;
+        f.campaign.campaignEndDate = new Date();
+        f.campaign.campaignSummary = { sent: 5, delivered: 4, failed: 1, creditsRefunded: 12 };
+        const originalSummary = { ...f.campaign.campaignSummary };
+        for (const status of ["ongoing", "paused", "ongoing"]) {
+            const response = await f.invoke("updateCampaignStatus", "Super Admin", { status });
+            assert.equal(response.code, 200, response.body.message);
+            assert.equal(f.campaign.status, status);
+            assert.equal(f.campaign.manualStatusOverride, true);
+        }
+        assert.equal(f.campaign.campaignEndDate, null);
+        assert.ok(!f.calls.includes("enqueue"));
+        assert.deepEqual(f.campaign.campaignSummary, originalSummary);
+        assert.equal(f.ledger.length, 0);
+    });
+}
+
+test("stale queued jobs cannot redispatch a manually reopened campaign", async () => {
+    let processJob;
+    const worker = await loadModule("./src/workers/campaign.worker.js", {
+        bullmq: { Worker: class {
+            constructor(_, handler) { processJob = handler; }
+            on() {}
+        } },
+        "../config/redis.js": { redisConnection: {} },
+        "../models/campaign.model.js": { default: { findById: async () => ({
+            status: "ongoing", manualStatusOverride: true,
+            save: async () => assert.fail("reopened campaign was modified"),
+        }) } },
+        "../services/socket.service.js": { notifyUser() {}, notifyRole() {}, notifyReseller() {} },
+    });
+    worker.initCampaignWorker();
+    const result = await processJob({ data: { campaignId: "test", campaignTitle: "Reopened" } });
+    assert.equal(result.skipped, true);
+    assert.equal(result.status, "ongoing");
+});
+
 test("stale queued jobs cannot start campaigns awaiting admin action", async () => {
     let processJob;
     let status = "pending";
@@ -237,6 +277,7 @@ test("queue requires ongoing status and replaces a retained stale job on approva
         "../config/redis.js": { redisConnection: {} },
     });
     await queue.scheduleCampaignJob({ _id: "test", status: "pending" });
+    await queue.scheduleCampaignJob({ _id: "test", status: "ongoing", manualStatusOverride: true });
     assert.deepEqual(calls, []);
     await queue.scheduleCampaignJob({ _id: "test", status: "ongoing", campaignTitle: "Approved" });
     assert.deepEqual(calls, ["remove", "add"]);

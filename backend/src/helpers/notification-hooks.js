@@ -1,24 +1,32 @@
 import { randomUUID } from "node:crypto";
 import { NotificationEvent } from "../models/notification.model.js";
 
+let sequenceCounter = Date.now();
+export function getNextNotificationSequence() {
+    sequenceCounter = Math.max(Date.now(), sequenceCounter + 1);
+    return sequenceCounter;
+}
+
 const watched = {
     campaign: ["status", "publishedSpreadsheet", "campaignSummary.reportedAt"],
-    user: ["status", "ratePerMsg", "expiresAt"],
+    user: ["status", "role", "ratePerMsg", "expiresAt", "deviceLimit"],
     wallet: ["balance", "expiresAt", "isLocked"],
 };
 
 function snapshot(doc, kind) {
     if (kind === "transaction") return { id: doc._id, type: doc.type, amount: doc.amount, fromUser: doc.fromUser, toUser: doc.toUser, campaignId: doc.campaignId, performedBy: doc.performedBy };
     if (kind === "campaign") return { id: doc._id, userId: doc.userId, title: doc.campaignTitle, status: doc.status, total: doc.totalRecipients, publishedAt: doc.publishedSpreadsheet?.publishedAt || doc.campaignSummary?.reportedAt };
-    if (kind === "user") return { id: doc._id, username: doc.username, role: doc.role, status: doc.status, rate: doc.ratePerMsg, expiresAt: doc.expiresAt, createdBy: doc.createdBy, resellerId: doc.resellerId };
+    if (kind === "user") return { id: doc._id, username: doc.username, role: doc.role, status: doc.status, rate: doc.ratePerMsg, expiresAt: doc.expiresAt, createdBy: doc.createdBy, resellerId: doc.resellerId, deviceLimit: doc.deviceLimit };
     return { id: doc._id, userId: doc.userId, balance: doc.balance, expiresAt: doc.expiresAt, isLocked: doc.isLocked };
 }
 
-async function enqueue(doc, kind, changes, isNew, previous, session) {
+async function enqueue(doc, kind, changeField, isNew, previous, session) {
+    const version = getNextNotificationSequence();
+    const eventKey = kind === "transaction" ? `transaction:${doc._id}` : `${kind}:${doc._id}:${changeField || "default"}:${randomUUID()}`;
     await NotificationEvent.create([{
-        eventKey: kind === "transaction" ? `transaction:${doc._id}` : `${kind}:${doc._id}:${randomUUID()}`,
+        eventKey,
         kind,
-        data: { ...snapshot(doc, kind), changes, isNew, previous },
+        data: { ...snapshot(doc, kind), changeField: changeField || null, changes: changeField ? [changeField] : [], isNew, previous, version },
     }], { session: session || undefined });
 }
 
@@ -46,7 +54,13 @@ export function notificationHooks(schema, kind) {
     schema.post("save", async function (doc) {
         const event = doc.$locals.notificationEvent;
         if (!event) return;
-        await enqueue(doc, kind, event.changes, event.isNew, event.previous, doc.$session());
+        if (event.isNew) {
+            await enqueue(doc, kind, null, true, null, doc.$session());
+        } else {
+            for (const field of event.changes) {
+                await enqueue(doc, kind, field, false, event.previous, doc.$session());
+            }
+        }
         doc.$locals.notificationEvent = null;
         const owned = doc.$locals.notificationOwnedSession;
         if (owned) {
@@ -83,7 +97,9 @@ export function notificationHooks(schema, kind) {
         if (!doc) return;
         const previous = this.notificationPrevious;
         const changes = watched.wallet.filter((key) => String(doc[key] ?? "") !== String(previous?.[key] ?? ""));
-        if (changes.length) await enqueue(doc, kind, changes, !previous, previous && { balance: previous.balance, expiresAt: previous.expiresAt, isLocked: previous.isLocked }, this.getOptions().session);
+        for (const field of changes) {
+            await enqueue(doc, kind, field, !previous, previous && { balance: previous.balance, expiresAt: previous.expiresAt, isLocked: previous.isLocked }, this.getOptions().session);
+        }
         if (this.notificationOwnedSession) { await this.notificationOwnedSession.commitTransaction(); await this.notificationOwnedSession.endSession(); this.notificationOwnedSession = null; }
     });
     schema.post("findOneAndUpdate", function (error, result, next) {
