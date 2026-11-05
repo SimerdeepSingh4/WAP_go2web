@@ -4,9 +4,18 @@ export const dateTime = (value) => value && !Number.isNaN(new Date(value).getTim
   : "—";
 export const ownerName = (owner) => owner?.username || owner?.email || "Unavailable account";
 export const statusLabels = {
-  draft: "Draft", pending: "Pending", scheduled: "Scheduled", ongoing: "Ongoing",
-  completed: "Completed", sent: "Completed", paused: "Paused", stopped: "Stopped", failed: "Failed",
-  active: "Active", blocked: "Blocked", expired: "Expired",
+  draft: "Draft",
+  pending: "Approval Pending",
+  scheduled: "Scheduled",
+  ongoing: "Ongoing",
+  completed: "Completed",
+  sent: "Completed",
+  paused: "Paused",
+  stopped: "Stopped",
+  failed: "Failed",
+  active: "Active",
+  blocked: "Blocked",
+  expired: "Expired",
 };
 export const waiting = (campaign) => ["pending", "scheduled"].includes(campaign.status);
 export const needsReport = (campaign) => ["completed", "sent", "stopped", "failed"].includes(campaign.status) && !campaign.campaignSummary?.reportedAt;

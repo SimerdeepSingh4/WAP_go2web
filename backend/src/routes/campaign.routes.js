@@ -12,6 +12,9 @@ import {
     uploadRecipientReport,
     downloadRecipientReport,
     exportCampaignRecipients,
+    cancelScheduledCampaign,
+    rescheduleCampaign,
+    launchCampaignNow,
     exportRecipientDraft,
 } from "../controllers/campaign.controller.js";
 import {

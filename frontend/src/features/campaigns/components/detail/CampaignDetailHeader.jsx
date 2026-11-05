@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -8,11 +8,23 @@ import {
   Check,
   Loader2,
   SlidersHorizontal,
+  Play,
+  CalendarClock,
+  XCircle,
+  CalendarDays,
 } from "lucide-react";
 import api from "@/api/client";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -51,10 +63,42 @@ const STATUS_BUTTON_STYLES = {
 export default function CampaignDetailHeader({ campaign, base, id }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const isAdmin = user?.role === "Super Admin";
+
   const [confirmFailure, setConfirmFailure] = useState(false);
+  const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
+  const [editScheduleOpen, setEditScheduleOpen] = useState(false);
+  const [newScheduledTime, setNewScheduledTime] = useState(() => {
+    if (campaign.scheduledTime) {
+      const d = new Date(campaign.scheduledTime);
+      d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+      return d.toISOString().slice(0, 16);
+    }
+    const d = new Date(Date.now() + 10 * 60_000);
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+  });
+
+  const isScheduledCampaign = campaign.schedule === "later" && Boolean(campaign.scheduledTime);
+  const isApprovalPending = campaign.status === "pending";
+  const displayStatusLabel = isApprovalPending
+    ? "Approval Pending"
+    : statusLabels[campaign.status] || campaign.status;
+
   const settledRefund = campaign.refundAccounting?.settled || 0;
   const remainingRefund = campaign.refundAccounting?.remaining ?? campaign.creditsDeducted ?? 0;
 
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["campaign-detail", id] });
+    queryClient.invalidateQueries({ queryKey: ["campaign-report", id] });
+    queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+    queryClient.invalidateQueries({ queryKey: ["admin-campaigns"] });
+    queryClient.invalidateQueries({ queryKey: ["user-campaigns"] });
+    queryClient.invalidateQueries({ queryKey: ["reseller-campaigns"] });
+    queryClient.invalidateQueries({ queryKey: ["wallet"] });
+  };
+
+  // Status mutation for admin
   const updateStatusMutation = useMutation({
     mutationFn: async (newStatus) => {
       const res = await api.patch(`/campaigns/${id}/status`, { status: newStatus });
@@ -64,19 +108,84 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
       setConfirmFailure(false);
       toast.add({
         title: `Campaign status updated to "${statusLabels[newStatus] || newStatus}"`,
-        description: data.refundInfo ? `${number(data.refundInfo.amount)} credits returned to the campaign creator.` : undefined,
+        description: data.refundInfo ? `${number(data.refundInfo.amount)} credits returned to creator.` : undefined,
         type: "success",
       });
-      queryClient.invalidateQueries({ queryKey: ["campaign-detail", id] });
-      queryClient.invalidateQueries({ queryKey: ["campaign-report", id] });
-      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-campaigns"] });
-      queryClient.invalidateQueries({ queryKey: ["user-campaigns"] });
-      queryClient.invalidateQueries({ queryKey: ["reseller-campaigns"] });
+      invalidateAll();
     },
     onError: (err) => {
       toast.add({
         title: err?.response?.data?.message || "Failed to update campaign status",
+        type: "error",
+      });
+    },
+  });
+
+  // Cancel campaign mutation
+  const cancelMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.post(`/campaigns/${id}/cancel`);
+      return res.data;
+    },
+    onSuccess: (data) => {
+      setConfirmCancelOpen(false);
+      toast.add({
+        title: "Campaign cancelled",
+        description: data.refundInfo
+          ? `${number(data.refundInfo.amount)} credits returned to your wallet.`
+          : data.message,
+        type: "success",
+      });
+      invalidateAll();
+    },
+    onError: (err) => {
+      toast.add({
+        title: err?.response?.data?.message || "Failed to cancel campaign",
+        type: "error",
+      });
+    },
+  });
+
+  // Reschedule mutation
+  const rescheduleMutation = useMutation({
+    mutationFn: async (scheduledTime) => {
+      const res = await api.patch(`/campaigns/${id}/schedule`, { scheduledTime });
+      return res.data;
+    },
+    onSuccess: () => {
+      setEditScheduleOpen(false);
+      toast.add({
+        title: "Schedule updated",
+        description: "Campaign dispatch timer has been updated.",
+        type: "success",
+      });
+      invalidateAll();
+    },
+    onError: (err) => {
+      toast.add({
+        title: err?.response?.data?.message || "Failed to reschedule campaign",
+        type: "error",
+      });
+    },
+  });
+
+  // Launch now mutation
+  const launchNowMutation = useMutation({
+    mutationFn: async () => {
+      const res = await api.post(`/campaigns/${id}/launch-now`);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.add({
+        title: "Campaign launched",
+        description: "Message dispatch is now active.",
+        type: "success",
+      });
+      invalidateAll();
+    },
+    onError: (err) => {
+      toast.add({
+        title: err?.response?.data?.message || "Failed to launch campaign",
         type: "error",
       });
     },
@@ -88,16 +197,95 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
       toast.add({ title: "Action disabled in demo preview mode", type: "error" });
       return;
     }
-    if (newStatus === "failed") { setConfirmFailure(true); return; }
+    if (newStatus === "failed") {
+      setConfirmFailure(true);
+      return;
+    }
     updateStatusMutation.mutate(newStatus);
   };
 
-  const isUpdating = updateStatusMutation.isPending;
-  const finalizedFailure = campaign.publicStatus === "failed" || (campaign.publishedSpreadsheet?.publishedAt && (campaign.publishedSpreadsheet.status === "failed" || (!campaign.publicStatus && campaign.status === "failed")));
+  // Admin status choices tailored to current campaign state
+  const statusOptions = useMemo(() => {
+    if (isApprovalPending) {
+      if (isScheduledCampaign) {
+        return [
+          {
+            value: "scheduled",
+            label: "Approve Schedule",
+            description: `Schedule for ${dateTime(campaign.scheduledTime)}`,
+            dot: "bg-purple-500",
+          },
+          {
+            value: "ongoing",
+            label: "Launch Now",
+            description: "Bypass schedule and start dispatch immediately",
+            dot: "bg-blue-500",
+          },
+          {
+            value: "failed",
+            label: "Reject / Fail",
+            description: "Reject campaign and refund 100% credits",
+            dot: "bg-red-500",
+          },
+        ];
+      }
+      return [
+        {
+          value: "ongoing",
+          label: "Approve & Start",
+          description: "Start dispatching immediately",
+          dot: "bg-blue-500",
+        },
+        {
+          value: "failed",
+          label: "Reject / Fail",
+          description: "Reject campaign and refund 100% credits",
+          dot: "bg-red-500",
+        },
+      ];
+    }
+
+    if (campaign.status === "scheduled") {
+      return [
+        {
+          value: "ongoing",
+          label: "Launch Now",
+          description: "Trigger dispatch immediately",
+          dot: "bg-blue-500",
+        },
+        {
+          value: "paused",
+          label: "Pause Schedule",
+          description: "Temporarily pause execution",
+          dot: "bg-amber-400",
+        },
+        {
+          value: "failed",
+          label: "Cancel & Fail",
+          description: "Terminate campaign and refund remaining credits",
+          dot: "bg-red-500",
+        },
+      ];
+    }
+
+    if (campaign.status === "ongoing") {
+      return [
+        { value: "completed", label: "Completed", description: "All messages finished", dot: "bg-emerald-500" },
+        { value: "paused", label: "Pause", description: "Temporarily pause execution", dot: "bg-amber-400" },
+        { value: "stopped", label: "Stop", description: "Terminate execution", dot: "bg-stone-500" },
+        { value: "failed", label: "Fail", description: "Mark as failed and refund", dot: "bg-red-500" },
+      ];
+    }
+
+    return STATUS_OPTIONS;
+  }, [campaign.status, isApprovalPending, isScheduledCampaign, campaign.scheduledTime]);
+
+  const isUpdating = updateStatusMutation.isPending || launchNowMutation.isPending || cancelMutation.isPending;
+  const isPendingOrScheduled = ["pending", "scheduled"].includes(campaign.status);
 
   return (
     <header className="space-y-4">
-      {/* Left: Back button + Title */}
+      {/* Back button */}
       <div>
         <Button
           variant="ghost"
@@ -109,9 +297,10 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
           <ArrowLeft className="size-3.5" />
           Back to campaigns
         </Button>
-
       </div>
+
       <div className="flex flex-wrap items-start justify-between gap-4">
+        {/* Title & Metadata */}
         <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2.5">
             <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground break-words sm:text-2xl">
@@ -121,123 +310,284 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span>{ownerName(campaign.userId)}</span>
             <span>Submitted {dateTime(campaign.createdAt)}</span>
+            {campaign.scheduledTime && (
+              <span className="inline-flex items-center gap-1 font-medium text-purple-700 dark:text-purple-300">
+                <CalendarDays className="size-3.5" />
+                Scheduled for {dateTime(campaign.scheduledTime)}
+              </span>
+            )}
           </div>
         </div>
 
-      {/* Right: Actions */}
-      <div className="flex flex-wrap items-center gap-2">
-        {user?.role === "Super Admin" ? (
-          <>
-            <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={isUpdating}
-                aria-label={`Change campaign status, current status: ${statusLabels[campaign.status] || campaign.status}`}
-                className={`h-8 gap-1.5 text-xs font-medium border shadow-none transition-colors ${
-                  STATUS_BUTTON_STYLES[campaign.status] || "border-border bg-background text-foreground hover:bg-muted"
-                }`}
-              >
-                {isUpdating ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <SlidersHorizontal className="size-3.5 opacity-80" />
-                )}
-                <span>{statusLabels[campaign.status] || campaign.status}</span>
-                <ChevronDown className="size-3 opacity-70" />
-              </Button>
-            }
-          />
-          <DropdownMenuContent align="end" className="w-60 p-1.5 shadow-lg border border-border">
-            <DropdownMenuLabel className="px-2 py-1 text-xs font-semibold text-foreground">
-              Update Campaign Status
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {STATUS_OPTIONS.map((opt) => {
-              const isCurrent = campaign.status === opt.value;
-              return (
-                <DropdownMenuItem
-                  key={opt.value}
-                  onClick={() => handleSelectStatus(opt.value)}
-                  disabled={isUpdating || isCurrent || finalizedFailure}
-                  className="flex items-center justify-between gap-2.5 py-2 px-2.5 rounded-md cursor-pointer transition-colors"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className={`size-2.5 shrink-0 rounded-full ${opt.dot}`} />
-                    <div className="min-w-0">
-                      <p
-                        className={`text-xs ${
-                          isCurrent ? "font-semibold text-foreground" : "font-medium text-foreground/90"
-                        }`}
-                      >
-                        {opt.label}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground truncate">{opt.description}</p>
-                    </div>
-                  </div>
-                  {isCurrent && <Check className="size-3.5 text-emerald-600 shrink-0" />}
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <Button
-          nativeButton={false}
-          render={<Link to={`${base}/campaigns/${id}/report/create`} />}
-          size="sm"
-          className="h-8 gap-1.5 text-xs"
-        >
-          <FileText className="size-3.5" />
-          Create report
-        </Button>
-          </>
-        ) : (
-          <>
-            <span
-              className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-xs font-medium border shadow-none ${
-                STATUS_BUTTON_STYLES[campaign.status] || "border-border bg-background text-foreground"
-              }`}
+        {/* Right Actions */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Creator / Admin Action: Launch Now */}
+          {((campaign.status === "scheduled") || (isAdmin && isApprovalPending)) && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => launchNowMutation.mutate()}
+              disabled={isUpdating}
+              className="h-8 gap-1.5 text-xs font-medium border-blue-300 text-blue-700 hover:bg-blue-50 hover:text-blue-800 dark:border-blue-700 dark:text-blue-300"
             >
-              <span className={`size-2 rounded-full ${STATUS_OPTIONS.find((o) => o.value === campaign.status)?.dot || "bg-stone-500"}`} />
-              <span>{statusLabels[campaign.status] || campaign.status}</span>
-            </span>
+              {launchNowMutation.isPending ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Play className="size-3.5" />
+              )}
+              <span>Launch Now</span>
+            </Button>
+          )}
 
-            {(campaign.publishedSpreadsheet?.publishedAt || campaign.recipientReport?.uploadedAt) && (
+          {/* Creator / Admin Action: Edit Schedule */}
+          {isPendingOrScheduled && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setEditScheduleOpen(true)}
+              disabled={isUpdating}
+              className="h-8 gap-1.5 text-xs font-medium"
+            >
+              <CalendarClock className="size-3.5" />
+              <span>Edit Schedule</span>
+            </Button>
+          )}
+
+          {/* Creator / Admin Action: Cancel Campaign with 100% Refund */}
+          {isPendingOrScheduled && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setConfirmCancelOpen(true)}
+              disabled={isUpdating}
+              className="h-8 gap-1.5 text-xs font-medium border-rose-300 text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:border-rose-800 dark:text-rose-300"
+            >
+              <XCircle className="size-3.5" />
+              <span>Cancel Campaign</span>
+            </Button>
+          )}
+
+          {/* Admin Status Dropdown */}
+          {isAdmin ? (
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={isUpdating}
+                      aria-label={`Change campaign status, current status: ${displayStatusLabel}`}
+                      className={`h-8 gap-1.5 text-xs font-medium border shadow-none transition-colors ${
+                        isApprovalPending
+                          ? "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100/80 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+                          : STATUS_BUTTON_STYLES[campaign.status] || "border-border bg-background text-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {updateStatusMutation.isPending ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <SlidersHorizontal className="size-3.5 opacity-80" />
+                      )}
+                      <span>{displayStatusLabel}</span>
+                      <ChevronDown className="size-3 opacity-70" />
+                    </Button>
+                  }
+                />
+                <DropdownMenuContent align="end" className="w-64 p-1.5 shadow-lg border border-border">
+                  <DropdownMenuLabel className="px-2 py-1 text-xs font-semibold text-foreground">
+                    {isApprovalPending ? "Approve or Reject Campaign" : "Update Campaign Status"}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {statusOptions.map((opt) => {
+                    const isCurrent = campaign.status === opt.value;
+                    return (
+                      <DropdownMenuItem
+                        key={opt.value}
+                        onClick={() => handleSelectStatus(opt.value)}
+                        disabled={isUpdating || isCurrent}
+                        className="flex items-center justify-between gap-2.5 py-2 px-2.5 rounded-md cursor-pointer transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <span className={`size-2.5 shrink-0 rounded-full ${opt.dot}`} />
+                          <div className="min-w-0">
+                            <p
+                              className={`text-xs ${
+                                isCurrent ? "font-semibold text-foreground" : "font-medium text-foreground/90"
+                              }`}
+                            >
+                              {opt.label}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground truncate">{opt.description}</p>
+                          </div>
+                        </div>
+                        {isCurrent && <Check className="size-3.5 text-emerald-600 shrink-0" />}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               <Button
                 nativeButton={false}
-                render={<Link to={`${base}/campaigns/${id}/report`} />}
+                render={<Link to={`${base}/campaigns/${id}/report/create`} />}
                 size="sm"
-                variant="outline"
                 className="h-8 gap-1.5 text-xs"
               >
                 <FileText className="size-3.5" />
-                View report
+                Create report
               </Button>
-            )}
-          </>
-        )}
+            </>
+          ) : (
+            <>
+              <span
+                className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-xs font-medium border shadow-none ${
+                  isApprovalPending
+                    ? "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+                    : STATUS_BUTTON_STYLES[campaign.status] || "border-border bg-background text-foreground"
+                }`}
+              >
+                <span
+                  className={`size-2 rounded-full ${
+                    isApprovalPending ? "bg-amber-500" : (STATUS_OPTIONS.find((o) => o.value === campaign.status)?.dot || "bg-stone-500")
+                  }`}
+                />
+                <span>{displayStatusLabel}</span>
+              </span>
+
+              {(campaign.publishedSpreadsheet?.publishedAt || campaign.recipientReport?.uploadedAt) && (
+                <Button
+                  nativeButton={false}
+                  render={<Link to={`${base}/campaigns/${id}/report`} />}
+                  size="sm"
+                  variant="outline"
+                  className="h-8 gap-1.5 text-xs"
+                >
+                  <FileText className="size-3.5" />
+                  View report
+                </Button>
+              )}
+            </>
+          )}
+        </div>
       </div>
-      </div>
+
+      {/* Super Admin Mark as Failed / Reject Dialog */}
       <Dialog open={confirmFailure} onOpenChange={(open) => !isUpdating && setConfirmFailure(open)}>
         <DialogContent className="gap-5 rounded-2xl p-5 sm:max-w-sm">
           <DialogHeader className="gap-1.5 pr-6">
             <DialogTitle>Mark campaign as failed?</DialogTitle>
-            <DialogDescription className="text-xs leading-5">This stops the campaign and prepares a failure report. The creator will see Failed and receive the remaining refund only after you publish the report with a failure reason.</DialogDescription>
+            <DialogDescription className="text-xs leading-5">
+              This will reject/fail the campaign and return 100% of remaining deducted credits ({number(remainingRefund)} credits) to the creator's wallet.
+            </DialogDescription>
           </DialogHeader>
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
             <dl className="space-y-2 tabular-nums">
-              <div className="flex justify-between gap-3"><dt>Original charge</dt><dd>{number(campaign.creditsDeducted || 0)} credits</dd></div>
-              {settledRefund > 0 && <div className="flex justify-between gap-3"><dt>Already paid to wallet</dt><dd>{number(settledRefund)} credits</dd></div>}
-              <div className="flex justify-between gap-3"><dt>Refund when report is published</dt><dd className="font-semibold">{number(remainingRefund)} credits</dd></div>
-              <div className="flex justify-between gap-3 border-t border-amber-200 pt-2 font-semibold dark:border-amber-800"><dt>Total refunded after publication</dt><dd>{number(settledRefund + remainingRefund)} credits</dd></div>
+              <div className="flex justify-between gap-3">
+                <dt>Original charge</dt>
+                <dd>{number(campaign.creditsDeducted || 0)} credits</dd>
+              </div>
+              {settledRefund > 0 && (
+                <div className="flex justify-between gap-3">
+                  <dt>Already returned</dt>
+                  <dd>{number(settledRefund)} credits</dd>
+                </div>
+              )}
+              <div className="flex justify-between gap-3 font-semibold border-t border-amber-200 pt-1.5 dark:border-amber-800">
+                <dt>Refund on rejection</dt>
+                <dd>{number(remainingRefund)} credits</dd>
+              </div>
             </dl>
           </div>
           <DialogFooter className="m-0 flex-row justify-end rounded-none border-0 bg-transparent p-0">
-            <Button type="button" variant="ghost" size="sm" disabled={isUpdating} onClick={() => setConfirmFailure(false)}>Cancel</Button>
-            <Button type="button" variant="destructive" size="sm" disabled={isUpdating} onClick={() => updateStatusMutation.mutate("failed")}>{isUpdating && <Loader2 className="size-3.5 animate-spin" />}Prepare failure report</Button>
+            <Button type="button" variant="ghost" size="sm" disabled={isUpdating} onClick={() => setConfirmFailure(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={isUpdating}
+              onClick={() => updateStatusMutation.mutate("failed")}
+            >
+              {updateStatusMutation.isPending && <Loader2 className="size-3.5 animate-spin mr-1" />}
+              Reject &amp; Refund
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Creator Cancel Scheduled Campaign Dialog */}
+      <Dialog open={confirmCancelOpen} onOpenChange={(open) => !isUpdating && setConfirmCancelOpen(open)}>
+        <DialogContent className="gap-5 rounded-2xl p-5 sm:max-w-sm">
+          <DialogHeader className="gap-1.5 pr-6">
+            <DialogTitle>Cancel scheduled campaign?</DialogTitle>
+            <DialogDescription className="text-xs leading-5">
+              Cancelling will abort this campaign before dispatch. All {number(campaign.creditsDeducted || 0)} reserved credits will be returned to your wallet immediately.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-100">
+            <div className="flex justify-between items-center tabular-nums">
+              <span className="font-medium">Credits to be refunded:</span>
+              <span className="text-sm font-semibold">{number(campaign.creditsDeducted || 0)} credits</span>
+            </div>
+          </div>
+          <DialogFooter className="m-0 flex-row justify-end rounded-none border-0 bg-transparent p-0">
+            <Button type="button" variant="ghost" size="sm" disabled={cancelMutation.isPending} onClick={() => setConfirmCancelOpen(false)}>
+              Keep Campaign
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={cancelMutation.isPending}
+              onClick={() => cancelMutation.mutate()}
+            >
+              {cancelMutation.isPending && <Loader2 className="size-3.5 animate-spin mr-1" />}
+              Confirm Cancellation
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Schedule Dialog */}
+      <Dialog open={editScheduleOpen} onOpenChange={setEditScheduleOpen}>
+        <DialogContent className="gap-5 rounded-2xl p-5 sm:max-w-sm">
+          <DialogHeader className="gap-1.5 pr-6">
+            <DialogTitle>Edit scheduled dispatch time</DialogTitle>
+            <DialogDescription className="text-xs leading-5">
+              Select a new date and time for this campaign to automatically start sending.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label htmlFor="newScheduleInput" className="text-xs font-medium text-foreground">
+              New date &amp; time:
+            </label>
+            <Input
+              id="newScheduleInput"
+              type="datetime-local"
+              value={newScheduledTime}
+              min={new Date().toISOString().slice(0, 16)}
+              onChange={(e) => setNewScheduledTime(e.target.value)}
+              className="h-9 text-xs"
+            />
+          </div>
+          <DialogFooter className="m-0 flex-row justify-end rounded-none border-0 bg-transparent p-0">
+            <Button type="button" variant="ghost" size="sm" disabled={rescheduleMutation.isPending} onClick={() => setEditScheduleOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={rescheduleMutation.isPending || !newScheduledTime}
+              onClick={() => rescheduleMutation.mutate(new Date(newScheduledTime).toISOString())}
+            >
+              {rescheduleMutation.isPending && <Loader2 className="size-3.5 animate-spin mr-1" />}
+              Save Schedule
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

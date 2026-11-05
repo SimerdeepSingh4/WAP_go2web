@@ -2,13 +2,34 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { getSessions, logoutSession, changePassword } from "@/features/auth/services/auth.api";
-import { PageHeading, QueryState, Field, FormError } from "@/features/admin/components/shared";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { QueryState, FormError } from "@/features/admin/components/shared";
+import { Card } from "@/components/ui/card";
+import { UserRound, LockKeyhole, MonitorSmartphone, Laptop, Smartphone, Tablet, RefreshCw, LogOut, Info, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { dateTime } from "@/features/admin/lib/format";
 import { toast } from "@/components/ui/toast";
+import "./account-settings.css";
+
+function SettingsCard({ title, description, icon: Icon, action, children }) {
+  return <Card className="portal-card portal-settings-card account-settings-card">
+    <div className="portal-card-heading">
+      <span className="portal-settings-card-icon"><Icon aria-hidden="true" /></span>
+      <div><h2>{title}</h2><p>{description}</p></div>
+      {action}
+    </div>
+    <div className="portal-settings-card-body">{children}</div>
+  </Card>;
+}
+
+function deviceDetails(userAgent = "") {
+  const ua = userAgent.toLowerCase();
+  const browser = /edg(e|a|ios)?\//.test(ua) ? "Microsoft Edge" : /opr\/|opera/.test(ua) ? "Opera" : /firefox|fxios/.test(ua) ? "Firefox" : /chrome|crios/.test(ua) ? "Google Chrome" : /safari/.test(ua) ? "Safari" : "Web browser";
+  const os = /ipad/.test(ua) ? "iPad" : /iphone|ipod/.test(ua) ? "iPhone" : /android/.test(ua) ? "Android" : /windows/.test(ua) ? "Windows" : /macintosh|mac os/.test(ua) ? "macOS" : /linux/.test(ua) ? "Linux" : null;
+  const Icon = /ipad|android(?!.*mobile)/.test(ua) ? Tablet : /iphone|ipod|mobile/.test(ua) ? Smartphone : Laptop;
+  return { label: os ? `${browser} on ${os}` : browser, Icon };
+}
 
 export default function AccountSettings() {
   const { user } = useAuth();
@@ -35,29 +56,54 @@ export default function AccountSettings() {
     password.mutate({ currentPassword: passwords.currentPassword, newPassword: passwords.newPassword });
   }
   const rows = sessions.data?.sessions || [];
-  return <>
-    <PageHeading title="Settings" description="Your account, password and signed-in devices." />
-    <div className="dashboard-two-column">
-      <div className="dashboard-section">
-        <Card><CardHeader><CardTitle>Account</CardTitle></CardHeader><CardContent><dl className="dashboard-details">{[["Name", user?.username], ["Email", user?.email], ["Role", user?.role]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || "Unavailable"}</dd></div>)}</dl><p className="mt-4 text-sm text-muted-foreground">Contact your administrator to change account details.</p></CardContent></Card>
-        <Card><CardHeader><CardTitle>Change password</CardTitle></CardHeader><CardContent>
-          {user?.isPreview ? <p className="dashboard-note">Exit account preview to manage your password.</p> : <form onSubmit={submit} className="space-y-4">
-            {[["currentPassword", "Current password"], ["newPassword", "New password"], ["confirmPassword", "Confirm new password"]].map(([key, label]) => <Field key={key} id={key} label={label} hint={key === "newPassword" ? "Use at least 8 characters." : undefined}><Input id={key} type="password" autoComplete={key === "currentPassword" ? "current-password" : "new-password"} minLength={key === "currentPassword" ? undefined : 8} required value={passwords[key]} onChange={e => { setPasswords(old => ({ ...old, [key]: e.target.value })); setError(""); password.reset(); }} /></Field>)}
-            <FormError message={error || password.error?.message} /><Button type="submit" disabled={password.isPending}>{password.isPending ? "Saving…" : "Save password"}</Button>
+  const otherDevices = rows.filter(session => !(session.isCurrent || session.isCurrentDevice));
+  const initials = (user?.username || "Account").trim().split(/\s+/).slice(0, 2).map(part => part[0]).join("").toUpperCase();
+  return <div className="account-settings portal-settings">
+    <header className="portal-page-heading">
+      <div className="portal-heading-copy"><h1>Settings</h1><p>Manage your account and keep your workspace secure.</p></div>
+      <span className="account-settings-role"><UserRound aria-hidden="true" />{user?.role || "Account"} account</span>
+    </header>
+    <div className="account-settings-grid">
+      <div className="account-settings-stack">
+        <SettingsCard title="Account profile" description="Your personal details and account information." icon={UserRound}>
+          <div className="account-settings-identity">
+            <span className="account-settings-avatar" aria-hidden="true">{initials}</span>
+            <div><h3>{user?.username || "Your account"}</h3><span>{user?.role || "Account"}</span></div>
+          </div>
+          <dl className="account-settings-details">{[["Email address", user?.email], ["Account name", user?.username]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || "Unavailable"}</dd></div>)}</dl>
+          <p className="account-settings-note"><Info aria-hidden="true" /><span>Contact your {user?.role === "User" ? "account manager" : "administrator"} to update these details.</span></p>
+        </SettingsCard>
+        <SettingsCard title="Change password" description="Choose a strong password to protect your account." icon={LockKeyhole}>
+          {user?.isPreview ? <p className="account-settings-note"><Info aria-hidden="true" /><span>Exit account preview to manage your password.</span></p> : <form onSubmit={submit} className="account-settings-password">
+            <div className="account-settings-password-fields">
+              {[["currentPassword", "Current password"], ["newPassword", "New password"], ["confirmPassword", "Confirm new password"]].map(([key, label]) => <div key={key} className={`portal-field ${key === "currentPassword" ? "account-settings-current-password" : ""}`}>
+                <label htmlFor={key}>{label}</label>
+                <Input id={key} type="password" autoComplete={key === "currentPassword" ? "current-password" : "new-password"} minLength={key === "currentPassword" ? undefined : 8} required disabled={password.isPending} aria-describedby={key === "newPassword" ? "new-password-hint" : undefined} value={passwords[key]} onChange={e => { setPasswords(old => ({ ...old, [key]: e.target.value })); setError(""); password.reset(); }} />
+                {key === "newPassword" && <p id="new-password-hint" className="portal-field-hint">Use at least 8 characters.</p>}
+              </div>)}
+            </div>
+            <FormError message={error || password.error?.message} />
+            <div className="account-settings-form-footer"><span><ShieldCheck aria-hidden="true" />Keep your password private.</span><Button type="submit" disabled={password.isPending}>{password.isPending ? "Saving…" : "Save password"}</Button></div>
           </form>}
-        </CardContent></Card>
+        </SettingsCard>
       </div>
-      <Card><CardHeader><CardTitle>Signed-in devices</CardTitle></CardHeader><CardContent className="space-y-4">
-        {user?.isPreview ? <p className="dashboard-note">Exit account preview to manage your devices.</p> : <QueryState query={sessions} empty={!rows.length} emptyTitle="No devices found" emptyDescription="Refresh to check your current sessions.">
-          <ul className="space-y-4">{rows.map(session => {
+      <SettingsCard title="Signed-in devices" description="Review and manage access to your account." icon={MonitorSmartphone} action={!user?.isPreview && <Button variant="ghost" size="icon-sm" aria-label="Refresh devices" title="Refresh devices" onClick={() => sessions.refetch()} disabled={sessions.isFetching}><RefreshCw aria-hidden="true" className={sessions.isFetching ? "animate-spin motion-reduce:animate-none" : ""} /></Button>}>
+        {user?.isPreview ? <p className="account-settings-note"><Info aria-hidden="true" /><span>Exit account preview to manage your devices.</span></p> : <QueryState query={sessions} empty={!rows.length} emptyTitle="No devices found" emptyDescription="Refresh to check your current sessions.">
+          <div className="account-settings-session-summary"><span>{rows.length} signed-in {rows.length === 1 ? "device" : "devices"}</span><span>Sessions</span></div>
+          <ul className="account-settings-devices">{rows.map(session => {
             const current = session.isCurrent || session.isCurrentDevice;
-            return <li key={session.id || session._id} className="border-b pb-4 space-y-2"><p className="text-sm break-words">{session.userAgent || "Unknown device"}</p><p className="text-xs text-muted-foreground break-words">{session.ipAddress || session.ip || "IP unavailable"} · {dateTime(session.createdAt)}</p>{current ? <span className="text-sm font-medium text-primary">This device</span> : <Button size="sm" variant="outline" onClick={() => { revoke.reset(); setDisconnect(session.id || session._id); }}>Sign out device</Button>}</li>;
+            const { label, Icon } = deviceDetails(session.userAgent);
+            return <li key={session.id || session._id}>
+              <span className="account-settings-device-icon"><Icon aria-hidden="true" /></span>
+              <div className="account-settings-device-copy"><h3>{label}</h3><p>{session.ipAddress || session.ip || "IP unavailable"}</p><p>Signed in {dateTime(session.createdAt)}</p>
+                {current ? <span className="account-settings-current-device"><span aria-hidden="true" />This device</span> : <Button size="sm" variant="outline" onClick={() => { revoke.reset(); setDisconnect(session.id || session._id); }}><LogOut aria-hidden="true" />Sign out device</Button>}
+              </div>
+            </li>;
           })}</ul>
-          {rows.some(s => !(s.isCurrent || s.isCurrentDevice)) && <Button variant="outline" onClick={() => { revoke.reset(); setDisconnect("all"); }}>Sign out other devices</Button>}
+          {otherDevices.length > 0 && <div className="account-settings-devices-footer"><p>Your current device will stay signed in.</p><Button variant="outline" onClick={() => { revoke.reset(); setDisconnect("all"); }}><LogOut aria-hidden="true" />Sign out other devices</Button></div>}
         </QueryState>}
-        {!user?.isPreview && <Button variant="ghost" onClick={() => sessions.refetch()} disabled={sessions.isFetching}>Refresh devices</Button>}
-      </CardContent></Card>
+      </SettingsCard>
     </div>
     {disconnect && <Dialog open onOpenChange={open => { if (!open && !revoke.isPending) setDisconnect(null); }}><DialogContent><DialogHeader><DialogTitle>Sign out {disconnect === "all" ? "other devices" : "this device"}?</DialogTitle><DialogDescription>The affected devices will need to sign in again. Your current session stays signed in.</DialogDescription></DialogHeader><FormError message={revoke.error?.message} /><div className="flex justify-end gap-2"><Button variant="outline" disabled={revoke.isPending} onClick={() => setDisconnect(null)}>Cancel</Button><Button variant="destructive" disabled={revoke.isPending} onClick={() => revoke.mutate(disconnect)}>{revoke.isPending ? "Signing out…" : "Sign out devices"}</Button></div></DialogContent></Dialog>}
-  </>;
+  </div>;
 }
