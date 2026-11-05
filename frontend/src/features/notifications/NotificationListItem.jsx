@@ -61,7 +61,7 @@ export default function NotificationListItem({ item, base, action, isPreview, on
   };
 
   return (
-    <motion.li layout={!reduced} initial={reduced ? false : { opacity: 0, height: 0, y: -16, scale: 0.96 }} animate={{ opacity: 1, height: "auto", y: 0, scale: 1 }} exit={{ opacity: 0, height: 0, x: reduced ? 0 : 64, scale: reduced ? 1 : 0.98 }} transition={reduced ? { duration: 0 } : { duration: 0.34, opacity: { duration: 0.2 }, y: { type: "spring", stiffness: 340, damping: 25 } }} className="relative min-w-0" data-notification={item._id}>
+    <motion.li layout={reduced ? false : "position"} initial={reduced ? false : { opacity: 0, height: 0, y: -16, scale: 0.96 }} animate={{ opacity: 1, height: "auto", y: 0, scale: 1 }} exit={{ opacity: 0, height: 0, x: reduced ? 0 : 64, scale: reduced ? 1 : 0.98 }} transition={reduced ? { duration: 0 } : { duration: 0.34, opacity: { duration: 0.2 }, y: { type: "spring", stiffness: 340, damping: 25 } }} className="relative min-w-0 overflow-hidden" data-notification={item._id}>
       {day && <p className="px-2 pb-2 pt-3 text-[10px] font-medium text-muted-foreground">{day}</p>}
       <article aria-label={`${category.label}: ${item.title}`} className={`group relative mb-2 rounded-2xl border border-border/80 bg-card text-card-foreground shadow-sm transition-colors hover:border-border ${compact ? "p-3" : "p-4 sm:p-5"}`}>
         <div className="flex items-start gap-3">
