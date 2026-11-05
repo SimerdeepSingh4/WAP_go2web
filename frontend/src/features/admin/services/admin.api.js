@@ -15,6 +15,7 @@ export const adminQueries = {
 
 export const adminActions = {
   createAccount: async (body) => (await api.post("/auth/register", body)).data,
+  updateAccount: async ({ id, ...body }) => (await api.patch(`/users/${id}`, body)).data,
   accountAccess: async ({ id, ...body }) => (await api.patch(`/users/${id}/access`, body)).data,
   changeRole: async ({ id, role }) => (await api.patch(`/users/${id}/role`, { role })).data,
   deleteAccount: async (id) => (await api.delete(`/users/${id}`)).data,

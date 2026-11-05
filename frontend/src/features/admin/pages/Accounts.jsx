@@ -377,6 +377,10 @@ export default function Accounts({ role }) {
               <Eye className="size-4 mr-2" />
               Account details & audit
             </DropdownMenuItem>
+            <DropdownMenuItem disabled={query.isPending} onClick={() => setModal({ type: "edit", account: a })}>
+              <Pencil className="size-4 mr-2" />
+              Edit account
+            </DropdownMenuItem>
             <DropdownMenuItem disabled={query.isPending} onClick={() => setModal({ type: "accountAccess", account: a })}>
               <Lock className="size-4 mr-2" />
               Manage access & expiry
@@ -511,12 +515,18 @@ export default function Accounts({ role }) {
           action="createAccount"
           successMessage={`${role} account created`}
           onClose={() => setModal(null)}
-          initialValues={{ username: "", email: "", password: "", ratePerMsg: "", resellerId: "" }}
+          initialValues={{ username: "", email: "", password: "", ratePerMsg: "", resellerId: "", expiresAt: "" }}
           fields={[
             { key: "username", label: "Account name", required: true, maxLength: 100 },
             { key: "email", label: "Email", type: "email", required: true },
             { key: "password", label: "Initial password", type: "password", required: true, hint: "Use at least 8 characters." },
             { key: "ratePerMsg", label: "Rate (credits / recipient)", type: "number", min: 0.01, step: 0.01, required: true },
+            {
+              key: "expiresAt",
+              label: "Account expiry date (optional)",
+              type: "date",
+              hint: "The account remains active through this date. Leave blank for no expiry.",
+            },
             ...(role === "User"
               ? [
                   {
@@ -534,6 +544,7 @@ export default function Accounts({ role }) {
             password: v.password,
             role,
             ratePerMsg: Number(v.ratePerMsg),
+            expiresAt: v.expiresAt || null,
             ...(role === "User" && v.resellerId ? { resellerId: v.resellerId } : {}),
           })}
           review={(v) => (
@@ -542,10 +553,82 @@ export default function Accounts({ role }) {
               <p>{v.email}</p>
               <p>Role: {role}</p>
               <p>Rate: {number(Number(v.ratePerMsg))} credits / recipient</p>
+              <p>Expiry: {v.expiresAt || "No expiry"}</p>
               {role === "User" && <p>Reseller: {resellers.find((a) => a._id === v.resellerId)?.username || "Direct (None)"}</p>}
             </>
           )}
           submitLabel="Create account"
+        />
+      )}
+
+            {modal?.type === "edit" && (
+        <ActionForm
+          title={`Edit ${role.toLowerCase()} account`}
+          description={`Update details, rate, or access expiry for ${modal.account.username}.`}
+          action="updateAccount"
+          successMessage="Account updated successfully"
+          onClose={() => setModal(null)}
+          initialValues={{
+            username: modal.account.username || "",
+            email: modal.account.email || "",
+            password: "",
+            ratePerMsg: String(modal.account.ratePerMsg ?? 12),
+            status: modal.account.status === "expired" || (modal.account.isExpired && modal.account.status === "active") ? "expired" : modal.account.status || "active",
+            expiresAt: modal.account.expiresAt ? new Date(modal.account.expiresAt).toISOString().slice(0, 10) : "",
+            resellerId: modal.account.resellerId?._id || modal.account.resellerId || "",
+          }}
+          fields={[
+            { key: "username", label: "Account name", required: true, maxLength: 100 },
+            { key: "email", label: "Email", type: "email", required: true },
+            { key: "password", label: "New password (optional)", type: "password", hint: "Leave blank to keep existing password. If setting new, min 8 characters." },
+            { key: "ratePerMsg", label: "Rate (credits / recipient)", type: "number", min: 0.01, step: 0.01, required: true },
+            {
+              key: "status",
+              label: "Account status",
+              options: [
+                { value: "active", label: "Active" },
+                { value: "blocked", label: "Blocked" },
+                { value: "expired", label: "Expired" },
+              ],
+            },
+            {
+              key: "expiresAt",
+              label: "Account expiry date (optional)",
+              type: "date",
+              hint: "The account remains active through this date. Leave blank for no expiry.",
+            },
+            ...(role === "User"
+              ? [
+                  {
+                    key: "resellerId",
+                    label: "Assigned reseller",
+                    options: [{ value: "", label: "Direct (Managed by Admin)" }, ...resellers.map((a) => ({ value: a._id, label: a.username }))],
+                  },
+                ]
+              : []),
+          ]}
+          validate={(v) => (v.password && v.password.trim().length > 0 && v.password.trim().length < 8 ? "New password must be at least 8 characters." : "")}
+          payload={(v) => ({
+            id: modal.account._id,
+            username: v.username.trim(),
+            email: v.email.trim(),
+            ...(v.password && v.password.trim() ? { password: v.password.trim() } : {}),
+            ratePerMsg: Number(v.ratePerMsg),
+            status: v.status,
+            expiresAt: v.expiresAt || null,
+            ...(role === "User" ? { resellerId: v.resellerId || null } : {}),
+          })}
+          review={(v) => (
+            <>
+              <p className="font-medium text-foreground">{v.username}</p>
+              <p className="text-xs text-muted-foreground">{v.email}</p>
+              <p className="text-xs">Rate: <strong>{number(Number(v.ratePerMsg))} credits / recipient</strong></p>
+              <p className="text-xs">Status: <strong>{v.status}</strong></p>
+              <p className="text-xs">Expiry: <strong>{v.expiresAt || "No expiry"}</strong></p>
+              {role === "User" && <p className="text-xs">Reseller: <strong>{resellers.find((a) => a._id === v.resellerId)?.username || "Direct (None)"}</strong></p>}
+            </>
+          )}
+          submitLabel="Save changes"
         />
       )}
 

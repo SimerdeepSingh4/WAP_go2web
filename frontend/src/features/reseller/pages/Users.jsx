@@ -249,6 +249,10 @@ export default function ResellerUsers() {
               <Eye className="size-4 mr-2" />
               Account details
             </DropdownMenuItem>
+            <DropdownMenuItem disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "edit", account: a })}>
+              <Pencil className="size-4 mr-2" />
+              Edit user
+            </DropdownMenuItem>
             <DropdownMenuItem disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "accountAccess", account: a })}>
               <Lock className="size-4 mr-2" />
               Manage access & expiry
@@ -406,7 +410,7 @@ export default function ResellerUsers() {
           action="createAccount"
           successMessage="User account created successfully"
           onClose={() => setModal(null)}
-          initialValues={{ username: "", email: "", password: "", ratePerMsg: "1" }}
+          initialValues={{ username: "", email: "", password: "", ratePerMsg: "1", expiresAt: "" }}
           fields={[
             { key: "username", label: "Username / Company", required: true, maxLength: 100 },
             { key: "email", label: "Email address", type: "email", required: true },
@@ -426,6 +430,12 @@ export default function ResellerUsers() {
               required: true,
               hint: "Deducted from user's balance per contact message.",
             },
+            {
+              key: "expiresAt",
+              label: "Account expiry date (optional)",
+              type: "date",
+              hint: "The account remains active through this date. Leave blank for no expiry.",
+            },
           ]}
           validate={(v) =>
             v.password.trim().length < 8
@@ -438,6 +448,7 @@ export default function ResellerUsers() {
             password: v.password,
             role: "User",
             ratePerMsg: Number(v.ratePerMsg),
+            expiresAt: v.expiresAt || null,
           })}
           review={(v) => (
             <>
@@ -447,9 +458,84 @@ export default function ResellerUsers() {
               <p className="text-xs">
                 Rate: <strong>{number(Number(v.ratePerMsg))} credits / recipient</strong>
               </p>
+              <p className="text-xs">
+                Expiry: <strong>{v.expiresAt || "No expiry"}</strong>
+              </p>
             </>
           )}
           submitLabel="Create account"
+        />
+      )}
+
+            {modal?.type === "edit" && (
+        <ResellerActionForm
+          title="Edit user details"
+          description={`Update details, rate, or access expiry for ${modal.account.username}.`}
+          action="updateAccount"
+          successMessage="User updated successfully"
+          onClose={() => setModal(null)}
+          initialValues={{
+            username: modal.account.username || "",
+            email: modal.account.email || "",
+            password: "",
+            ratePerMsg: String(modal.account.ratePerMsg ?? 12),
+            status: modal.account.status === "expired" || (modal.account.isExpired && modal.account.status === "active") ? "expired" : modal.account.status || "active",
+            expiresAt: modal.account.expiresAt ? new Date(modal.account.expiresAt).toISOString().slice(0, 10) : "",
+          }}
+          fields={[
+            { key: "username", label: "Username / Company", required: true, maxLength: 100 },
+            { key: "email", label: "Email address", type: "email", required: true },
+            {
+              key: "password",
+              label: "New password (optional)",
+              type: "password",
+              hint: "Leave blank to keep existing password. If setting new, min 8 characters.",
+            },
+            {
+              key: "ratePerMsg",
+              label: "Rate (credits / recipient)",
+              type: "number",
+              min: 0.01,
+              step: 0.01,
+              required: true,
+              hint: "Deducted from user's balance per contact message.",
+            },
+            {
+              key: "status",
+              label: "Account status",
+              options: [
+                { value: "active", label: "Active" },
+                { value: "blocked", label: "Blocked" },
+                { value: "expired", label: "Expired" },
+              ],
+            },
+            {
+              key: "expiresAt",
+              label: "Account expiry date (optional)",
+              type: "date",
+              hint: "The account remains active through this date. Leave blank for no expiry.",
+            },
+          ]}
+          validate={(v) => (v.password && v.password.trim().length > 0 && v.password.trim().length < 8 ? "New password must be at least 8 characters." : "")}
+          payload={(v) => ({
+            id: modal.account._id,
+            username: v.username.trim(),
+            email: v.email.trim(),
+            ...(v.password && v.password.trim() ? { password: v.password.trim() } : {}),
+            ratePerMsg: Number(v.ratePerMsg),
+            status: v.status,
+            expiresAt: v.expiresAt || null,
+          })}
+          review={(v) => (
+            <>
+              <p className="font-medium text-foreground">{v.username}</p>
+              <p className="text-xs text-muted-foreground">{v.email}</p>
+              <p className="text-xs">Rate: <strong>{number(Number(v.ratePerMsg))} credits / recipient</strong></p>
+              <p className="text-xs">Status: <strong>{v.status}</strong></p>
+              <p className="text-xs">Expiry: <strong>{v.expiresAt || "No expiry"}</strong></p>
+            </>
+          )}
+          submitLabel="Save changes"
         />
       )}
 
