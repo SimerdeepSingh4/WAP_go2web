@@ -10,6 +10,9 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { toast } from "@/components/ui/toast";
 import PreviewBanner from "@/components/PreviewBanner";
+import { Button } from "@/components/ui/button";
+import { Sparkles } from "lucide-react";
+import { useAppTour } from "@/features/tour/useAppTour";
 
 const rolePaths = { "Super Admin": "/admin", Reseller: "/reseller", User: "/user" };
 const navigation = {
@@ -122,6 +125,7 @@ function Navigation({ role, base, items }) {
 
 export default function DashboardLayout({ role }) {
   const { user, logout, isLoggingOut } = useAuth();
+  const { startTour } = useAppTour(role, user?._id || user?.id);
   const [open, setOpen] = useState(true);
   const base = rolePaths[role];
   const items = navigation[role];
@@ -146,9 +150,25 @@ export default function DashboardLayout({ role }) {
           <SidebarInset className="portal-inset">
             <header className="portal-topbar">
               <SidebarTrigger className="md:hidden" aria-label="Toggle navigation" />
-              <GlobalSearch />
-              <div className="portal-topbar-actions ml-auto">
-                <NotificationBell base={base} />
+              <div id="tour-topbar-search" className="flex-1 max-w-md">
+                <GlobalSearch />
+              </div>
+              <div className="portal-topbar-actions ml-auto flex items-center gap-2">
+                <div id="tour-notification-bell">
+                  <NotificationBell base={base} />
+                </div>
+                <div id="tour-help-button">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => startTour(true)}
+                    className="h-8 gap-1.5 text-xs font-medium border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    title="Take an interactive tour of the platform"
+                  >
+                    <Sparkles className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>Tour</span>
+                  </Button>
+                </div>
 
                 <DropdownMenu>
                   <DropdownMenuTrigger
