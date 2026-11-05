@@ -48,6 +48,8 @@ export default function CreateCampaignPage() {
   const base = user?.role === "Super Admin" ? "/admin" : user?.role === "Reseller" ? "/reseller" : "/user";
   const parentCampaignsPath = `${base}/campaigns`;
   const isAdmin = user?.role === "Super Admin";
+  const accountId = user?.id || user?._id;
+  const draftKey = accountId ? `campaign-create:${user?.role}:${accountId}` : null;
 
   const [campaignTitle, setCampaignTitle] = useState("");
   const [campaignDescription, setCampaignDescription] = useState("");
@@ -59,8 +61,6 @@ export default function CreateCampaignPage() {
   const [dropActive, setDropActive] = useState(false);
   const [draftReady, setDraftReady] = useState(() => !draftKey);
   const draftSaveTimer = useRef(null);
-  const accountId = user?.id || user?._id;
-  const draftKey = accountId ? `campaign-create:${user.role}:${accountId}` : null;
 
   // Exactly one image, one video, one PDF
   const [media, setMedia] = useState({ image: null, video: null, pdf: null });
@@ -147,7 +147,7 @@ export default function CreateCampaignPage() {
 
   // What's still missing before "Review campaign" works
   const checks = [
-    { ok: Boolean(campaignTitle.trim() && campaignDescription.trim()), label: "Title and description" },
+    { ok: Boolean(campaignTitle.trim()), label: "Campaign title" },
     { ok: (Boolean(messageText) || totalMediaCount > 0) && !isOverCharacterLimit, label: "Message or attachment" },
     { ok: validRecipients.length > 0, label: isAdmin ? "At least one valid recipient" : "Recipient numbers added" },
     { ok: Boolean(scheduleValid), label: scheduleType === "later" ? "Future schedule time" : "Delivery timing" },
@@ -295,7 +295,6 @@ export default function CreateCampaignPage() {
     if (scheduleType === "later" && !scheduleValid) return setFormError("Choose a future date and time.");
     if (isLocked) return setFormError("Your credit balance is expired and locked. Please contact your administrator.");
     if (!campaignTitle.trim()) return setFormError("Please provide a campaign title.");
-    if (!campaignDescription.trim()) return setFormError("Please provide a brief campaign description.");
     if (!messageText && totalMediaCount === 0) return setFormError("Please provide message content or attach media (image, video, or PDF).");
     if (isOverCharacterLimit) return setFormError(`Message exceeds the maximum limit of ${CHARACTER_LIMIT} characters (currently ${charCount}). Please shorten it.`);
     if (validRecipients.length === 0) return setFormError("Please provide at least one valid recipient phone number.");

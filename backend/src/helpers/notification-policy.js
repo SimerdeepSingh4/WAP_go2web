@@ -8,42 +8,285 @@ export function mayReadNotification(viewer, notification, subject) {
     return !notification.managed || managesUser(viewer, subject);
 }
 
+export function getNotificationGroup(event, changeField) {
+    const d = event.data;
+    const kind = event.kind;
+
+    if (kind === "campaign") {
+        const campaignId = String(d.id || d._id);
+        if (d.isNew) {
+            return {
+                groupKey: `campaign:${campaignId}:creation:submission`,
+                itemType: "campaign",
+                itemId: campaignId,
+                changeType: "creation",
+                fieldKey: "submission",
+            };
+        }
+        const field = changeField || (
+            d.changes?.includes("status") ? "status" :
+            d.changes?.includes("publishedSpreadsheet") ? "publishedSpreadsheet" :
+            d.changes?.includes("campaignSummary.reportedAt") ? "campaignSummary.reportedAt" :
+            (d.changes?.[0] || "status")
+        );
+        const changeType = field === "status" ? "status" : "report";
+        return {
+            groupKey: `campaign:${campaignId}:${changeType}:${field}`,
+            itemType: "campaign",
+            itemId: campaignId,
+            changeType,
+            fieldKey: field,
+        };
+    }
+
+    if (kind === "user") {
+        const userId = String(d.id || d._id);
+        if (d.isNew) {
+            return {
+                groupKey: `user:${userId}:creation:account`,
+                itemType: "user",
+                itemId: userId,
+                changeType: "creation",
+                fieldKey: "account",
+            };
+        }
+        const field = changeField || d.changes?.[0] || "status";
+        return {
+            groupKey: `user:${userId}:setting:${field}`,
+            itemType: "user",
+            itemId: userId,
+            changeType: "setting",
+            fieldKey: field,
+        };
+    }
+
+    if (kind === "wallet") {
+        const walletId = String(d.id || d.userId || d._id);
+        const field = changeField || (d.changes?.includes("isLocked") ? "isLocked" : d.changes?.includes("expiresAt") ? "expiresAt" : "lowBalance");
+        const changeType = field === "lowBalance" ? "balance" : "setting";
+        return {
+            groupKey: `wallet:${walletId}:${changeType}:${field}`,
+            itemType: "wallet",
+            itemId: walletId,
+            changeType,
+            fieldKey: field,
+        };
+    }
+
+    if (kind === "transaction") {
+        const txId = String(d.id || d._id);
+        const type = d.type || "transaction";
+        return {
+            groupKey: `transaction:${txId}:transaction:${type}`,
+            itemType: "transaction",
+            itemId: txId,
+            changeType: "transaction",
+            fieldKey: type,
+        };
+    }
+
+    if (kind === "expiry") {
+        const userId = String(d.userId || d.id || "account");
+        const state = d.expired ? "expired" : "soon";
+        return {
+            groupKey: `expiry:${userId}:expiry:${state}`,
+            itemType: "expiry",
+            itemId: userId,
+            changeType: "expiry",
+            fieldKey: state,
+        };
+    }
+
+    if (kind === "operations") {
+        return {
+            groupKey: "operations:system:delivery-failure",
+            itemType: "system",
+            itemId: "operations",
+            changeType: "delivery",
+            fieldKey: "failure",
+        };
+    }
+
+    return {
+        groupKey: `generic:${event.eventKey || String(d?.id || "unknown")}`,
+        itemType: "generic",
+        itemId: String(d?.id || "unknown"),
+        changeType: "update",
+        fieldKey: "default",
+    };
+}
+
 export function formatNotification(event, viewer, subject, threshold = 100) {
     const d = event.data;
     const base = roleBase(viewer.role);
-    const prefix = sameId(viewer._id, subject?._id) ? "" : `${subject?.username || "Account"}: `;
-    const result = (category, title, body, href) => ({ category, title, body: prefix + body, href });
+    const isSelf = sameId(viewer._id, subject?._id);
+    const subjectRole = subject?.role || "User";
+    const subjectName = subject?.username || "Account";
+    const subjectLabel = subject?.username ? `${subjectRole} "${subjectName}"` : "Account";
+
+    const result = (category, title, body, href) => ({ category, title, body, href });
+
     if (event.kind === "campaign") {
         const href = `${base}/campaigns/${d.id}${viewer.role === "Super Admin" ? "" : "/report"}`;
-        if (d.isNew) return result("campaigns", viewer.role === "Super Admin" ? "Campaign awaiting approval" : "Campaign submitted", `“${d.title}” was submitted with ${Number(d.total || 0).toLocaleString("en-IN")} recipients.`, href);
-        if (d.changes?.includes("publishedSpreadsheet") && d.publishedAt) return result("campaigns", "Campaign report published", `The report for “${d.title}” is available.`, `${base}/campaigns/${d.id}/report`);
-        if (d.changes?.includes("status")) return result("campaigns", `Campaign ${d.status}`, `“${d.title}” is now ${d.status}.`, href);
-        if (d.publishedAt && d.changes?.includes("campaignSummary.reportedAt")) return result("campaigns", "Delivery results updated", `Delivery results for “${d.title}” have been updated.`, href);
+        if (d.isNew) {
+            if (isSelf) {
+                return result("campaigns", "Campaign submitted", `“${d.title}” was submitted with ${Number(d.total || 0).toLocaleString("en-IN")} recipients.`, href);
+            }
+            const title = viewer.role === "Super Admin"
+                ? `Campaign awaiting approval: ${subjectName} (${subjectRole})`
+                : `Campaign submitted by ${subjectName} (${subjectRole})`;
+            const body = `${subjectLabel} submitted campaign “${d.title}” with ${Number(d.total || 0).toLocaleString("en-IN")} recipients.`;
+            return result("campaigns", title, body, href);
+        }
+        if (d.changes?.includes("publishedSpreadsheet") && d.publishedAt) {
+            const title = isSelf ? "Campaign report published" : `Campaign report published • ${subjectName}`;
+            const body = isSelf
+                ? `The report for “${d.title}” is available.`
+                : `The report for campaign “${d.title}” (${subjectLabel}) is available.`;
+            return result("campaigns", title, body, `${base}/campaigns/${d.id}/report`);
+        }
+        if (d.changes?.includes("status")) {
+            const title = isSelf ? `Campaign ${d.status}` : `Campaign ${d.status} • ${subjectName}`;
+            const body = isSelf
+                ? `“${d.title}” is now ${d.status}.`
+                : `Campaign “${d.title}” by ${subjectLabel} is now ${d.status}.`;
+            return result("campaigns", title, body, href);
+        }
+        if (d.publishedAt && d.changes?.includes("campaignSummary.reportedAt")) {
+            const title = isSelf ? "Delivery results updated" : `Delivery results updated • ${subjectName}`;
+            const body = isSelf
+                ? `Delivery results for “${d.title}” have been updated.`
+                : `Delivery results for campaign “${d.title}” (${subjectLabel}) have been updated.`;
+            return result("campaigns", title, body, href);
+        }
     }
+
     if (event.kind === "transaction") {
         const amount = Number(d.amount || 0).toLocaleString("en-IN");
         const outgoing = sameId(viewer._id, d.fromUser) && !sameId(d.fromUser, d.toUser);
-        const titles = { ALLOCATE: outgoing ? "Credits allocated" : "Credits received", DEDUCT: "Credits charged", REFUND: "Credits refunded", RECLAIM: "Credits reclaimed", REQUEST: "Credit request submitted" };
-        const descriptions = {
-            ALLOCATE: `${amount} credits were allocated.`, DEDUCT: `${amount} credits were charged.`,
-            REFUND: `${amount} credits were returned to the wallet.`, RECLAIM: `${amount} credits were reclaimed.`,
-            REQUEST: `${amount} credits were requested.`,
+
+        if (isSelf) {
+            const titles = {
+                ALLOCATE: outgoing ? "Credits allocated" : "Credits received",
+                DEDUCT: "Credits charged",
+                REFUND: "Credits refunded",
+                RECLAIM: "Credits reclaimed",
+                REQUEST: "Credit request submitted",
+            };
+            const descriptions = {
+                ALLOCATE: `${amount} credits were allocated.`,
+                DEDUCT: `${amount} credits were charged.`,
+                REFUND: `${amount} credits were returned to the wallet.`,
+                RECLAIM: `${amount} credits were reclaimed.`,
+                REQUEST: `${amount} credits were requested.`,
+            };
+            return result("credits", titles[d.type] || "Credit activity", descriptions[d.type] || "Credit activity was recorded.", `${base}/credits`);
+        }
+
+        const titles = {
+            ALLOCATE: outgoing ? `Credits allocated to ${subjectName}` : `Credits received from ${subjectName}`,
+            DEDUCT: `Credits charged • ${subjectName}`,
+            REFUND: `Credits refunded • ${subjectName}`,
+            RECLAIM: `Credits reclaimed • ${subjectName}`,
+            REQUEST: `Credit request from ${subjectName}`,
         };
-        return result("credits", titles[d.type] || "Credit activity", descriptions[d.type] || "Credit activity was recorded.", `${base}/credits`);
+        const descriptions = {
+            ALLOCATE: outgoing
+                ? `${amount} credits were allocated to ${subjectLabel}.`
+                : `${amount} credits were received from ${subjectLabel}.`,
+            DEDUCT: `${amount} credits were charged for ${subjectLabel}.`,
+            REFUND: `${amount} credits were refunded to ${subjectLabel}.`,
+            RECLAIM: `${amount} credits were reclaimed from ${subjectLabel}.`,
+            REQUEST: `${amount} credits were requested by ${subjectLabel}.`,
+        };
+        return result("credits", titles[d.type] || `Credit activity • ${subjectName}`, descriptions[d.type] || `Credit activity was recorded for ${subjectLabel}.`, `${base}/credits`);
     }
+
     if (event.kind === "user") {
-        const href = sameId(viewer._id, d.id) ? `${base}/settings` : viewer.role === "Super Admin" ? `${base}/${d.role === "Reseller" ? "resellers" : d.role === "Super Admin" ? "administrators" : "users"}?search=${encodeURIComponent(d.username || "")}` : `${base}/users?search=${encodeURIComponent(d.username || "")}`;
-        if (d.isNew) return result("accounts", "Account created", `${d.username || "An account"} was created.`, href);
-        if (d.changes?.includes("status")) return result("accounts", "Account status changed", `Account status is now ${d.status}.`, href);
-        if (d.changes?.includes("ratePerMsg")) return result("accounts", "Message rate updated", `The rate is now ${d.rate} credits per message.`, href);
-        if (d.changes?.includes("expiresAt")) return result("accounts", "Account expiry updated", "The account expiry date has changed.", href);
+        const href = isSelf
+            ? `${base}/settings`
+            : viewer.role === "Super Admin"
+                ? `${base}/${d.role === "Reseller" ? "resellers" : d.role === "Super Admin" ? "administrators" : "users"}?search=${encodeURIComponent(d.username || "")}`
+                : `${base}/users?search=${encodeURIComponent(d.username || "")}`;
+
+        if (d.isNew) {
+            const title = `New ${d.role || "user"} created: ${d.username}`;
+            const body = `New ${d.role || "user"} account "${d.username}" was created.`;
+            return result("accounts", title, body, href);
+        }
+        if (d.changes?.includes("status")) {
+            const title = isSelf ? "Account status changed" : `Account status changed • ${subjectName}`;
+            const body = isSelf
+                ? `Account status is now ${d.status}.`
+                : `Account status for ${subjectLabel} is now ${d.status}.`;
+            return result("accounts", title, body, href);
+        }
+        if (d.changes?.includes("ratePerMsg")) {
+            const title = isSelf ? "Message rate updated" : `Message rate updated • ${subjectName}`;
+            const body = isSelf
+                ? `The rate is now ${d.rate} credits per message.`
+                : `Message rate for ${subjectLabel} is now ${d.rate} credits per message.`;
+            return result("accounts", title, body, href);
+        }
+        if (d.changes?.includes("expiresAt")) {
+            const title = isSelf ? "Account expiry updated" : `Account expiry updated • ${subjectName}`;
+            const body = isSelf
+                ? "The account expiry date has changed."
+                : `Account expiry date for ${subjectLabel} has changed.`;
+            return result("accounts", title, body, href);
+        }
+        if (d.changes?.includes("role")) {
+            const title = isSelf ? "Account role updated" : `Account role updated • ${subjectName}`;
+            const body = isSelf
+                ? `Your account role is now ${d.role}.`
+                : `Role for ${subjectLabel} is now ${d.role}.`;
+            return result("accounts", title, body, href);
+        }
+        if (d.changes?.includes("deviceLimit")) {
+            const title = isSelf ? "Device limit updated" : `Device limit updated • ${subjectName}`;
+            const body = isSelf
+                ? `Your allowed device limit is now ${d.deviceLimit}.`
+                : `Device limit for ${subjectLabel} is now ${d.deviceLimit}.`;
+            return result("accounts", title, body, href);
+        }
     }
+
     if (event.kind === "wallet") {
-        if (d.changes?.includes("isLocked")) return result("credits", d.isLocked ? "Credit wallet locked" : "Credit wallet unlocked", d.isLocked ? "Campaign submission is unavailable while the wallet is locked." : "The wallet is available again.", `${base}/credits`);
-        if (d.changes?.includes("expiresAt")) return result("credits", "Credit expiry updated", "The credit expiry date has changed.", `${base}/credits`);
-        if (threshold > 0 && Number(d.balance) < threshold && Number(d.previous?.balance) >= threshold) return result("credits", "Low credit balance", `The wallet balance is ${Number(d.balance).toLocaleString("en-IN")} credits, below the ${threshold}-credit alert threshold.`, `${base}/credits`);
+        if (d.changes?.includes("isLocked")) {
+            const title = isSelf
+                ? (d.isLocked ? "Credit wallet locked" : "Credit wallet unlocked")
+                : `Wallet ${d.isLocked ? "locked" : "unlocked"} • ${subjectName}`;
+            const body = isSelf
+                ? (d.isLocked ? "Campaign submission is unavailable while the wallet is locked." : "The wallet is available again.")
+                : `Wallet for ${subjectLabel} is ${d.isLocked ? "locked. Campaign submission is unavailable." : "now unlocked and available again."}`;
+            return result("credits", title, body, `${base}/credits`);
+        }
+        if (d.changes?.includes("expiresAt")) {
+            const title = isSelf ? "Credit expiry updated" : `Credit expiry updated • ${subjectName}`;
+            const body = isSelf
+                ? "The credit expiry date has changed."
+                : `Credit expiry date for ${subjectLabel} has changed.`;
+            return result("credits", title, body, `${base}/credits`);
+        }
+        if (threshold > 0 && Number(d.balance) < threshold && Number(d.previous?.balance) >= threshold) {
+            const title = isSelf ? "Low credit balance" : `Low credit balance • ${subjectName}`;
+            const body = isSelf
+                ? `The wallet balance is ${Number(d.balance).toLocaleString("en-IN")} credits, below the ${threshold}-credit alert threshold.`
+                : `Wallet balance for ${subjectLabel} is ${Number(d.balance).toLocaleString("en-IN")} credits, below the ${threshold}-credit alert threshold.`;
+            return result("credits", title, body, `${base}/credits`);
+        }
     }
-    if (event.kind === "expiry") return result("accounts", d.expired ? "Credits or account expired" : "Expiry approaching", d.expired ? "Access or credits have expired. Contact your account manager." : "Access or credits expire within seven days.", `${base}/credits`);
+
+    if (event.kind === "expiry") {
+        const title = isSelf
+            ? (d.expired ? "Credits or account expired" : "Expiry approaching")
+            : `${d.expired ? "Account expired" : "Expiry approaching"} • ${subjectName}`;
+        const body = isSelf
+            ? (d.expired ? "Access or credits have expired. Contact your account manager." : "Access or credits expire within seven days.")
+            : `Access or credits for ${subjectLabel} ${d.expired ? "have expired." : "expire within seven days."}`;
+        return result("accounts", title, body, `${base}/credits`);
+    }
+
     if (event.kind === "operations") return result("system", "Notification delivery needs attention", "Some deliveries exhausted their retries. Open the notification centre to inspect and retry them.", `${base}/notifications`);
     return null;
 }

@@ -93,7 +93,7 @@ async function scanExpiry() {
                 if (stopping) break;
                 const expired = new Date(item.expiresAt) <= now;
                 const eventKey = `expiry:${kind}:${item._id}:${new Date(item.expiresAt).toISOString()}:${expired ? "expired" : "soon"}`;
-                await NotificationEvent.updateOne({ eventKey }, { $setOnInsert: { kind: "expiry", data: { userId: kind === "wallet" ? item.userId : item._id, expired } } }, { upsert: true });
+                await NotificationEvent.updateOne({ eventKey }, { $setOnInsert: { kind: "expiry", data: { userId: kind === "wallet" ? item.userId : item._id, expired, kind, version: Date.now() } } }, { upsert: true });
             }
         }
     })();

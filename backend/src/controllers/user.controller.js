@@ -4,6 +4,7 @@ import config from "../config/config.js";
 import userModel from "../models/user.model.js";
 import sessionModel from "../models/session.model.js";
 import walletModel from "../models/wallet.model.js";
+import { notifyUser } from "../services/socket.service.js";
 
 /**
  * Get all users accessible by current user:
@@ -309,6 +310,114 @@ export async function updateUserAccess(req, res) {
     } catch (error) {
         console.error("UpdateUserAccess error:", error);
         return res.status(500).json({ message: "Failed to update account access", success: false });
+    }
+}
+
+/**
+ * PATCH /api/users/:id/role
+ * Change role of an account.
+ * Strict rules:
+ * 1. Only Super Admin can change roles.
+ * 2. Only Reseller and User accounts can be changed (Super Admin cannot be changed).
+ * 3. New role must strictly be "Reseller" or "User".
+ */
+export async function updateUserRole(req, res) {
+    try {
+        const { id } = req.params;
+        const { role: newRole } = req.body;
+
+        if (req.user.role !== "Super Admin") {
+            return res.status(403).json({
+                message: "Forbidden: Only Super Admin can change account roles.",
+                success: false,
+            });
+        }
+
+        if (!newRole || !["Reseller", "User"].includes(newRole)) {
+            return res.status(400).json({
+                message: "Invalid role. Role can only be changed to 'Reseller' or 'User'.",
+                success: false,
+            });
+        }
+
+        const targetUser = await userModel.findById(id);
+        if (!targetUser) {
+            return res.status(404).json({
+                message: "User not found.",
+                success: false,
+            });
+        }
+
+        if (targetUser.role === "Super Admin") {
+            return res.status(403).json({
+                message: "Super Admin accounts cannot have their role changed.",
+                success: false,
+            });
+        }
+
+        if (targetUser.role === newRole) {
+            return res.status(400).json({
+                message: `This account is already a ${newRole}.`,
+                success: false,
+            });
+        }
+
+        const previousRole = targetUser.role;
+        targetUser.role = newRole;
+
+        // If converting Reseller -> User:
+        // Client users previously under this reseller are unlinked (resellerId: null - direct admin accounts)
+        if (previousRole === "Reseller" && newRole === "User") {
+            await userModel.updateMany(
+                { resellerId: targetUser._id },
+                { $set: { resellerId: null } }
+            );
+            await walletModel.updateMany(
+                { resellerId: targetUser._id },
+                { $set: { resellerId: null } }
+            );
+            targetUser.resellerId = null;
+        }
+
+        // If converting User -> Reseller:
+        // A reseller is directly under Super Admin, not under another reseller
+        if (newRole === "Reseller") {
+            targetUser.resellerId = null;
+            await walletModel.updateOne(
+                { userId: targetUser._id },
+                { $set: { resellerId: null } }
+            );
+        }
+
+        await targetUser.save();
+
+        // Evict active sessions so the target user is forced to re-login into the proper dashboard
+        await sessionModel.deleteMany({ userId: targetUser._id });
+
+        // Realtime notification
+        notifyUser(targetUser._id.toString(), "ROLE_CHANGED", {
+            previousRole,
+            newRole,
+            message: `Your account role has been updated to ${newRole}. Please log in again.`,
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: `Account role successfully changed from ${previousRole} to ${newRole}.`,
+            user: {
+                id: targetUser._id,
+                username: targetUser.username,
+                email: targetUser.email,
+                role: targetUser.role,
+                resellerId: targetUser.resellerId,
+            },
+        });
+    } catch (error) {
+        console.error("UpdateUserRole error:", error);
+        return res.status(500).json({
+            message: "Failed to update account role.",
+            success: false,
+        });
     }
 }
 

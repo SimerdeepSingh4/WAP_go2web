@@ -31,7 +31,7 @@ export const campaignQueue = new Queue("campaignQueue", {
  * @returns {Promise<import("bullmq").Job>}
  */
 export async function scheduleCampaignJob(campaign) {
-    if (campaign.status !== "ongoing") return null;
+    if (campaign.status !== "ongoing" || campaign.manualStatusOverride) return null;
     const campaignId = campaign._id.toString();
     const jobId = `campaign_${campaignId}`;
     const previousJob = await campaignQueue.getJob(jobId);

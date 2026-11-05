@@ -1,13 +1,12 @@
 import { useState } from "react";
-import { useParams, Link, Navigate } from "react-router";
+import { useParams, Navigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, AlertCircle } from "lucide-react";
 import api from "@/api/client";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 
 import CampaignDetailHeader from "../components/detail/CampaignDetailHeader";
+import CampaignLoadError from "../components/detail/CampaignLoadError";
 import CampaignDetailMetrics from "../components/detail/CampaignDetailMetrics";
 import CampaignMessagePreview from "../components/detail/CampaignMessagePreview";
 import CampaignAttachmentsView from "../components/detail/CampaignAttachmentsView";
@@ -35,7 +34,7 @@ export default function CampaignDetailPage() {
   const base =
     isAdmin ? "/admin" : user?.role === "Reseller" ? "/reseller" : "/user";
 
-  const { data: campaign, isLoading, isError, error } = useQuery({
+  const { data: campaign, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["campaign-detail", id],
     queryFn: async () => {
       const res = await api.get(`/campaigns/${id}`);
@@ -97,21 +96,7 @@ export default function CampaignDetailPage() {
   }
 
   if (isError || !campaign) {
-    return (
-      <div className="portal-overview py-16 text-center">
-        <div className="mx-auto mb-4 size-12 rounded-full bg-muted flex items-center justify-center">
-          <AlertCircle className="size-6 text-muted-foreground" />
-        </div>
-        <h2 className="text-lg font-semibold text-foreground">Campaign not found</h2>
-        <p className="text-sm text-muted-foreground mt-1 mb-5 max-w-sm mx-auto">
-          {error?.message || "It may have been deleted, or you may not have access to it."}
-        </p>
-        <Button nativeButton={false} render={<Link to={`${base}/campaigns`} />}>
-          <ArrowLeft className="size-4 mr-2" />
-          Back to campaigns
-        </Button>
-      </div>
-    );
+    return <CampaignLoadError error={error} base={base} onRetry={refetch} isRetrying={isFetching} />;
   }
 
   return (

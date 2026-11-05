@@ -51,15 +51,14 @@ export default function CampaignDetailsSection({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="description" className="text-xs font-medium">
-            Description <span className="text-destructive">*</span>
+            Description <span className="text-muted-foreground font-normal">(optional)</span>
           </Label>
           <Input
             id="description"
-            placeholder="e.g. 20% flat discount promotion"
+            placeholder="e.g. 20% flat discount promotion (optional)"
             value={campaignDescription}
             onChange={(e) => onCampaignDescriptionChange(e.target.value)}
             className="h-10 bg-background text-sm focus-visible:ring-2 focus-visible:ring-ring/20"
-            required
           />
         </div>
       </div>

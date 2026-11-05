@@ -20,9 +20,9 @@ export function StatusBadge({ status }) {
     : status === "pending"
     ? "border-amber-200 bg-amber-50 text-amber-800"
     : status === "scheduled"
-    ? "border-stone-200 bg-stone-50 text-stone-700"
+    ? "border-purple-200 bg-purple-50 text-purple-700"
     : status === "ongoing"
-    ? "border-stone-200 bg-stone-50 text-stone-700"
+    ? "border-blue-200 bg-blue-50 text-blue-700"
     : status === "stopped"
     ? "border-stone-300 bg-stone-100 text-stone-800"
     : ["failed", "blocked", "expired"].includes(status)

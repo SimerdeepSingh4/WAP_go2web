@@ -1262,8 +1262,7 @@ export default function TestControlPanel() {
                 />
                 <input
                   type="text"
-                  required
-                  placeholder="Campaign Description"
+                  placeholder="Campaign Description (Optional)"
                   value={newCampaign.campaignDescription}
                   onChange={(e) => setNewCampaign({ ...newCampaign, campaignDescription: e.target.value })}
                   className="text-xs p-2 rounded border border-[#cfd6c7] bg-white"

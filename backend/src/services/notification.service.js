@@ -1,6 +1,6 @@
 import userModel from "../models/user.model.js";
 import { Notification, NotificationPreference, PushSubscription, PushDelivery } from "../models/notification.model.js";
-import { formatNotification, managesUser, mayReadNotification, sameId } from "../helpers/notification-policy.js";
+import { formatNotification, getNotificationGroup, managesUser, mayReadNotification, sameId } from "../helpers/notification-policy.js";
 import { notifyUser } from "./socket.service.js";
 
 export async function notificationScope(user) {
@@ -42,14 +42,105 @@ export async function deliverEvent(event) {
     for (const { user, subject, managed } of recipients.values()) {
         const message = formatNotification(event, user, subject, thresholdPreference?.lowBalanceThreshold ?? 100);
         if (!message) continue;
-        const notification = await Notification.findOneAndUpdate(
-            { eventId: event.eventKey, recipientId: user._id },
-            { $setOnInsert: { ...message, recipientRole: user.role, subjectUserId: subject?._id, managed } },
-            { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
+
+        const group = getNotificationGroup(event, event.data?.changeField);
+        const incomingVersion = Number(event.data?.version) || Date.now();
+        const incomingEventId = event.eventKey;
+
+        let notification;
+        // 1. Try atomic update of existing notification if incomingVersion is newer
+        const updated = await Notification.findOneAndUpdate(
+            {
+                recipientId: user._id,
+                groupKey: group.groupKey,
+                $or: [
+                    { version: { $lt: incomingVersion } },
+                    { version: { $exists: false } }
+                ]
+            },
+            {
+                $set: {
+                    title: message.title,
+                    body: message.body,
+                    href: message.href,
+                    category: message.category,
+                    version: incomingVersion,
+                    lastEventId: incomingEventId,
+                    readAt: null,          // Mark unread
+                    archivedAt: null,      // Restore if archived
+                    createdAt: new Date(),  // Move to top of inbox
+                    subjectUserId: subject?._id,
+                    managed,
+                    recipientRole: user.role,
+                    itemType: group.itemType,
+                    itemId: group.itemId,
+                    changeType: group.changeType,
+                    fieldKey: group.fieldKey,
+                }
+            },
+            { returnDocument: "after" }
         ).lean();
+
+        if (updated) {
+            notification = updated;
+        } else {
+            // Check if document exists with version >= incomingVersion
+            const existing = await Notification.findOne({ recipientId: user._id, groupKey: group.groupKey }).lean();
+            if (existing) {
+                // Older event or replay of same event: preserve read state & skip duplicate alert
+                continue;
+            }
+            // Document does not exist yet -> insert atomically
+            try {
+                notification = await Notification.findOneAndUpdate(
+                    { recipientId: user._id, groupKey: group.groupKey },
+                    {
+                        $setOnInsert: {
+                            recipientId: user._id,
+                            recipientRole: user.role,
+                            eventId: incomingEventId,
+                            lastEventId: incomingEventId,
+                            groupKey: group.groupKey,
+                            itemType: group.itemType,
+                            itemId: group.itemId,
+                            changeType: group.changeType,
+                            fieldKey: group.fieldKey,
+                            version: incomingVersion,
+                            category: message.category,
+                            title: message.title,
+                            body: message.body,
+                            href: message.href,
+                            subjectUserId: subject?._id,
+                            managed,
+                            readAt: null,
+                            archivedAt: null,
+                            createdAt: new Date(),
+                        }
+                    },
+                    { upsert: true, returnDocument: "after" }
+                ).lean();
+            } catch (err) {
+                if (err.code === 11000) {
+                    notification = await Notification.findOne({ recipientId: user._id, groupKey: group.groupKey }).lean();
+                } else {
+                    throw err;
+                }
+            }
+        }
+
+        if (!notification) continue;
+
         // Re-emission is safe: clients deduplicate by notification ID and fetch
         // the authoritative list/count after reconnecting.
-        notifyUser(user._id, "NOTIFICATION_CREATED", { id: notification._id, title: notification.title });
+        notifyUser(user._id, "NOTIFICATION_CREATED", {
+            id: notification._id,
+            title: notification.title,
+            body: notification.body,
+            groupKey: notification.groupKey,
+            toastId: `notification-${notification._id}`,
+            version: notification.version,
+        });
+
         const preference = await NotificationPreference.findOne({ userId: user._id }).lean();
         if (preference && !preference.pushCategories.includes(message.category)) continue;
         const subscriptions = await PushSubscription.find({ userId: user._id }).select("_id").lean();
