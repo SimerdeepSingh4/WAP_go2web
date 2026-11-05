@@ -9,6 +9,7 @@
   --sidebar-primary: #000080; --sidebar-primary-foreground: #fff; --sidebar-border: #d4e1eb;
   color-scheme: light;
 }
+html { scrollbar-gutter: stable; }
 body { margin: 0; min-width: 320px; }
 :where(a, button, input, textarea, select, [tabindex]):focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
 .portal-main { max-width: 1600px; display: flex; flex-direction: column; gap: 24px; padding: clamp(20px, 2.5vw, 36px); }
