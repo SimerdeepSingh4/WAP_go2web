@@ -4,126 +4,147 @@
 .driver-popover {
   font-family: inherit;
   border-radius: 14px;
-  background-color: #ffffff;
-  color: #1e293b;
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.06);
-  padding: 18px 20px 16px;
-  max-width: 360px;
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+  box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.08) !important;
+  padding: 18px 20px 16px !important;
+  max-width: 360px !important;
   transition: all 0.25s ease-out;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e2e8f0 !important;
 }
 
 .dark .driver-popover {
-  background-color: #0f172a;
-  color: #f8fafc;
-  border-color: #334155;
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+  box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.1) !important;
 }
 
 .driver-popover-title {
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.35;
-  margin-bottom: 8px;
-  color: #0f172a;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  line-height: 1.35 !important;
+  margin-bottom: 8px !important;
+  color: #0f172a !important;
 }
 
 .dark .driver-popover-title {
-  color: #f8fafc;
+  color: #f8fafc !important;
 }
 
 .driver-popover-description {
-  font-size: 13.5px;
-  line-height: 1.55;
-  color: #475569;
-  margin-bottom: 16px;
+  font-size: 13.5px !important;
+  line-height: 1.55 !important;
+  color: #475569 !important;
+  margin-bottom: 16px !important;
 }
 
 .dark .driver-popover-description {
-  color: #94a3b8;
+  color: #94a3b8 !important;
 }
 
 .driver-popover-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding-top: 10px;
-  border-top: 1px solid #f1f5f9;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  padding-top: 12px !important;
+  border-top: 1px solid #f1f5f9 !important;
 }
 
 .dark .driver-popover-footer {
-  border-top-color: #1e293b;
+  border-top-color: #1e293b !important;
 }
 
 .driver-popover-progress-text {
-  font-size: 11.5px;
-  font-weight: 600;
-  color: #64748b;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  color: #64748b !important;
 }
 
 .dark .driver-popover-progress-text {
-  color: #94a3b8;
+  color: #94a3b8 !important;
 }
 
 .driver-popover-close-btn {
-  color: #94a3b8;
-  transition: color 0.15s ease;
+  color: #94a3b8 !important;
+  transition: color 0.15s ease !important;
 }
 
 .driver-popover-close-btn:hover {
-  color: #334155;
+  color: #334155 !important;
 }
 
 .dark .driver-popover-close-btn:hover {
-  color: #f1f5f9;
+  color: #f1f5f9 !important;
 }
 
-.driver-popover-prev-btn {
-  font-size: 12.5px;
-  font-weight: 500;
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-  background-color: #ffffff;
-  color: #334155;
-  cursor: pointer;
-  transition: all 0.15s ease;
+/* Explicit high-specificity styling for Back button */
+.driver-popover .driver-popover-footer-btn.driver-popover-prev-btn {
+  all: unset !important;
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 6px 14px !important;
+  border-radius: 8px !important;
+  border: 1px solid #cbd5e1 !important;
+  background-color: #ffffff !important;
+  color: #334155 !important;
+  cursor: pointer !important;
+  line-height: 1.4 !important;
+  transition: all 0.15s ease !important;
 }
 
-.driver-popover-prev-btn:hover {
-  background-color: #f8fafc;
-  color: #0f172a;
+.driver-popover .driver-popover-footer-btn.driver-popover-prev-btn:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #94a3b8 !important;
 }
 
-.dark .driver-popover-prev-btn {
-  background-color: #1e293b;
-  border-color: #334155;
-  color: #cbd5e1;
+.dark .driver-popover .driver-popover-footer-btn.driver-popover-prev-btn {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
 }
 
-.dark .driver-popover-prev-btn:hover {
-  background-color: #334155;
-  color: #ffffff;
+.dark .driver-popover .driver-popover-footer-btn.driver-popover-prev-btn:hover {
+  background-color: #334155 !important;
+  color: #ffffff !important;
 }
 
-.driver-popover-next-btn {
-  font-size: 12.5px;
-  font-weight: 600;
-  padding: 6px 14px;
-  border-radius: 8px;
-  border: none;
-  background: #000080;
-  color: #ffffff;
-  cursor: pointer;
-  transition: opacity 0.15s ease, transform 0.1s ease;
+/* Explicit high-specificity styling for Next & Done buttons (Deep navy solid with white text) */
+.driver-popover .driver-popover-footer-btn.driver-popover-next-btn,
+.driver-popover .driver-popover-footer-btn.driver-popover-done-btn {
+  all: unset !important;
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  padding: 6px 16px !important;
+  border-radius: 8px !important;
+  border: 1px solid #000080 !important;
+  background-color: #000080 !important;
+  color: #ffffff !important;
+  cursor: pointer !important;
+  line-height: 1.4 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 128, 0.25) !important;
+  transition: all 0.15s ease !important;
 }
 
-.driver-popover-next-btn:hover {
-  opacity: 0.92;
-  transform: translateY(-1px);
+.driver-popover .driver-popover-footer-btn.driver-popover-next-btn:hover,
+.driver-popover .driver-popover-footer-btn.driver-popover-done-btn:hover {
+  background-color: #000066 !important;
+  border-color: #000066 !important;
+  color: #ffffff !important;
+  transform: translateY(-1px) !important;
 }
 
-.driver-popover-next-btn:active {
-  transform: translateY(0);
+.driver-popover .driver-popover-footer-btn.driver-popover-next-btn:active,
+.driver-popover .driver-popover-footer-btn.driver-popover-done-btn:active {
+  transform: translateY(0) !important;
 }
