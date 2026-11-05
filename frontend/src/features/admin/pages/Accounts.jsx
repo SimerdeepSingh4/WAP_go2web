@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
   MoreHorizontal,
@@ -15,6 +16,7 @@ import {
   RotateCcw,
   Lock,
   Trash2,
+  LogIn,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,6 +26,7 @@ import { PageHeading, QueryState, SearchBox, FilterSelect, StatusBadge, DataTabl
 import ActionForm from "../components/ActionForm";
 import { useAdminQuery } from "../hooks/useAdmin";
 import { number, dateTime } from "../lib/format";
+import { toast } from "@/components/ui/toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,6 +38,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useAdminMutation } from "../hooks/useAdmin";
+import { exitFullAccessImpersonation, startFullAccessImpersonation } from "@/features/dashboard/services/users.api";
 
 function AccountDetail({ account, onClose, onAction }) {
   const [showAudit, setShowAudit] = useState(false);
@@ -194,12 +198,50 @@ function AccountDetail({ account, onClose, onAction }) {
 
 export default function Accounts({ role }) {
   const query = useAdminQuery("accounts");
+  const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
   const search = params.get("search") || "";
   const status = params.get("status") || "all";
   const [modal, setModal] = useState(null);
   const [detail, setDetail] = useState(null);
   const removeAccount = useAdminMutation("deleteAccount", "Account removed", () => setModal(null));
+  const accessAccount = useMutation({
+    mutationFn: ({ id }) => startFullAccessImpersonation(id),
+    onSuccess: async (data, { targetWindow }) => {
+      if (targetWindow.closed) {
+        await exitFullAccessImpersonation(data.token).catch(() => {});
+        return;
+      }
+      targetWindow.postMessage({ type: "FULL_ACCESS_SESSION", token: data.token }, window.location.origin);
+      queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
+    },
+    onError: (error, { targetWindow }) => {
+      if (!targetWindow.closed) targetWindow.close();
+      toast.add({ title: "Could not open account", description: error.message, type: "error" });
+    },
+  });
+
+  function openAccount(account) {
+    const targetWindow = window.open("about:blank", "_blank");
+    if (!targetWindow) {
+      toast.add({ title: "New tab blocked", description: "Allow pop-ups to open the account in a separate tab.", type: "error" });
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      window.removeEventListener("message", handleReady);
+      if (!targetWindow.closed) targetWindow.close();
+      toast.add({ title: "Account tab did not respond", type: "error" });
+    }, 30000);
+    function handleReady(event) {
+      if (event.origin !== window.location.origin || event.source !== targetWindow || event.data?.type !== "FULL_ACCESS_READY") return;
+      window.clearTimeout(timeout);
+      window.removeEventListener("message", handleReady);
+      accessAccount.mutate({ id: account._id, targetWindow });
+    }
+    window.addEventListener("message", handleReady);
+    targetWindow.location.href = "/impersonation-handoff";
+  }
 
   const accounts = query.data?.users || [];
   const resellers = accounts.filter((a) => a.role === "Reseller" && a.status === "active");
@@ -300,6 +342,13 @@ export default function Accounts({ role }) {
             <MoreHorizontal />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem
+              disabled={accessAccount.isPending || query.isPending}
+              onClick={() => openAccount(a)}
+            >
+              <LogIn className="size-4 mr-2" />
+              {accessAccount.isPending ? "Opening account…" : "Login as account"}
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setDetail(a)}>
               <Eye className="size-4 mr-2" />
               Account details & audit

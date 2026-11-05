@@ -271,10 +271,10 @@ export async function login(req, res) {
 export async function logout(req, res) {
     try {
         let token;
-        if (req.cookies && req.cookies.token) {
-            token = req.cookies.token;
-        } else if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
+        if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
             token = req.headers.authorization.split(" ")[1];
+        } else if (req.cookies && req.cookies.token) {
+            token = req.cookies.token;
         }
 
         if (token) {
@@ -403,6 +403,7 @@ export async function getMe(req, res) {
                 expiresAt: req.user.expiresAt || null,
                 isExpired: req.accountExpired,
                 isPreview: req.isPreview || false,
+                isImpersonation: req.isImpersonation || false,
                 originalAdmin: req.originalAdmin || null,
             },
             currentSession: {

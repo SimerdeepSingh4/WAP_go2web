@@ -21,7 +21,18 @@ export async function accessUserAccount(userId) {
     return response.data;
 }
 
+export async function startFullAccessImpersonation(userId) {
+    const response = await apiClient.post(`/users/${userId}/impersonate`);
+    return response.data;
+}
+
 export async function exitPreview() {
     const response = await apiClient.post("/users/exit-preview");
+    return response.data;
+}
+
+export async function exitFullAccessImpersonation(token) {
+    const config = token ? { headers: { Authorization: `Bearer ${token}` } } : undefined;
+    const response = await apiClient.post("/users/exit-impersonation", null, config);
     return response.data;
 }

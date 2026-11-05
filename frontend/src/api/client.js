@@ -11,7 +11,7 @@ const apiClient = axios.create({
 // Request Interceptor: attaches Bearer token if stored in localStorage (fallback for mobile/non-cookie environments)
 apiClient.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem("token");
+        const token = sessionStorage.getItem("impersonationToken") || localStorage.getItem("token");
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }

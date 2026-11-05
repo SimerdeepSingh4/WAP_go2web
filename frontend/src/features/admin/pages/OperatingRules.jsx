@@ -16,7 +16,7 @@ import { dateTime, number } from "../lib/format";
 
 const STORAGE_KEY = "admin_platform_settings";
 const DEFAULT_SETTINGS = {
-  dailyCampaignLimit: 10, maxRecipientsPerCampaign: 50000,
+  dailyCampaignLimit: 10,
   startTime: "09:00", endTime: "19:00", outOfWindowBehavior: "queue",
   maxAllowedDevices: 3, deviceEvictionStrategy: "fifo",
   defaultRatePerMsg: 1, lowBalanceThreshold: 500,
@@ -30,7 +30,6 @@ const TABS = [
 ];
 const FIELD_META = {
   dailyCampaignLimit: ["campaigns", "daily-limit"],
-  maxRecipientsPerCampaign: ["campaigns", "max-recipients"],
   sendingWindow: ["campaigns", "start-time"],
   maxAllowedDevices: ["devices", "device-limit"],
   defaultRatePerMsg: ["billing", "default-rate"],
@@ -41,9 +40,10 @@ const FIELD_META = {
 function readSettings() {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
-      ? { ...DEFAULT_SETTINGS, ...parsed }
-      : { ...DEFAULT_SETTINGS };
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return { ...DEFAULT_SETTINGS };
+    const savedSettings = { ...parsed };
+    delete savedSettings.maxRecipientsPerCampaign;
+    return { ...DEFAULT_SETTINGS, ...savedSettings };
   } catch { return { ...DEFAULT_SETTINGS }; }
 }
 
@@ -108,7 +108,6 @@ function validateSettings(settings) {
   const errors = {};
   const integer = (value, min, max = Infinity) => value !== "" && Number.isInteger(Number(value)) && Number(value) >= min && Number(value) <= max;
   if (!integer(settings.dailyCampaignLimit, 1, 500)) errors.dailyCampaignLimit = "Enter a whole number from 1 to 500.";
-  if (!integer(settings.maxRecipientsPerCampaign, 100)) errors.maxRecipientsPerCampaign = "Enter a whole number of at least 100.";
   if (!/^\d{2}:\d{2}$/.test(settings.startTime) || !/^\d{2}:\d{2}$/.test(settings.endTime)) errors.sendingWindow = "Choose a valid start and end time.";
   else {
     const windowError = validateOperatingWindow(settings.startTime, settings.endTime);
@@ -174,7 +173,7 @@ export default function OperatingRules() {
       return;
     }
     const normalized = { ...settings };
-    ["dailyCampaignLimit", "maxRecipientsPerCampaign", "maxAllowedDevices", "defaultRatePerMsg", "lowBalanceThreshold", "creditExpiryValue"].forEach((key) => { normalized[key] = Number(settings[key]); });
+    ["dailyCampaignLimit", "maxAllowedDevices", "defaultRatePerMsg", "lowBalanceThreshold", "creditExpiryValue"].forEach((key) => { normalized[key] = Number(settings[key]); });
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
       setSettings(normalized); setSavedSettings(normalized); setShowErrors(false);
@@ -231,8 +230,7 @@ export default function OperatingRules() {
         {activeTab === "campaigns" && <div className="portal-settings-columns">
           <SettingsCard title="Campaign allowances" description="Set the volume each account can submit." icon={SlidersHorizontal}>
             <NumberField id="daily-limit" label="Daily campaigns per account" hint="Maximum campaigns a user or reseller can create per calendar day." min={1} max={500} step={1} value={settings.dailyCampaignLimit} onChange={(value) => updateSetting("dailyCampaignLimit", value)} error={errors.dailyCampaignLimit} />
-            <NumberField id="max-recipients" label="Contacts per campaign" hint="Maximum phone numbers allowed in one contact list." min={100} step={1} value={settings.maxRecipientsPerCampaign} onChange={(value) => updateSetting("maxRecipientsPerCampaign", value)} error={errors.maxRecipientsPerCampaign} />
-            <div className="portal-rule-summary"><strong>Draft rule summary</strong><p>Up to <b>{settings.dailyCampaignLimit || "—"} campaigns</b> per day, with <b>{number(settings.maxRecipientsPerCampaign)} recipients</b> in each.</p></div>
+            <div className="portal-rule-summary"><strong>Campaign limits</strong><p>Up to <b>{settings.dailyCampaignLimit || "—"} campaigns</b> per day. There is <b>no contact limit per campaign</b>.</p></div>
           </SettingsCard>
           <SettingsCard title="Sending window" description="Choose daily hours for sending campaigns." icon={Clock}>
             <div key={resetKey} className="portal-time-grid">

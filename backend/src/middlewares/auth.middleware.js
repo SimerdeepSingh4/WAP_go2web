@@ -34,10 +34,10 @@ export function hasRolePermission(userRole, allowedRoles) {
 export async function protect(req, res, next) {
     try {
         let token;
-        if (req.cookies && req.cookies.token) {
-            token = req.cookies.token;
-        } else if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
+        if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
             token = req.headers.authorization.split(" ")[1];
+        } else if (req.cookies && req.cookies.token) {
+            token = req.cookies.token;
         }
 
         if (!token) {
@@ -82,7 +82,7 @@ export async function protect(req, res, next) {
             });
         }
 
-        if (user.status === "blocked") {
+        if (user.status === "blocked" && !decoded.isPreview) {
             return res.status(403).json({
                 message: "User account is blocked.",
                 success: false,
@@ -112,6 +112,7 @@ export async function protect(req, res, next) {
         req.token = token;
         req.accountExpired = accountExpired;
         req.isPreview = !!decoded.isPreview;
+        req.isImpersonation = !!decoded.isImpersonation;
         req.originalAdmin = decoded.originalAdmin || null;
 
         next();

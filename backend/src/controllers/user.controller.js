@@ -453,6 +453,90 @@ export async function impersonateUser(req, res) {
     }
 }
 
+export async function startFullAccessImpersonation(req, res) {
+    try {
+        const { id } = req.params;
+        const targetUser = await userModel.findById(id).select("-password");
+
+        if (!targetUser || !["User", "Reseller"].includes(targetUser.role)) {
+            return res.status(404).json({ message: "Account not found", success: false });
+        }
+
+        const expired = targetUser.status !== "active" || Boolean(
+            targetUser.expiresAt && new Date(targetUser.expiresAt) <= new Date()
+        );
+        if (expired) {
+            return res.status(403).json({
+                message: "Blocked or expired accounts cannot be opened for full access.",
+                success: false,
+            });
+        }
+
+        const token = jwt.sign(
+            {
+                userId: targetUser._id.toString(),
+                nonce: crypto.randomBytes(16).toString("hex"),
+                isImpersonation: true,
+                originalAdmin: {
+                    id: req.user._id.toString(),
+                    username: req.user.username,
+                    role: req.user.role,
+                },
+            },
+            config.JWT_SECRET,
+            { expiresIn: "4h" }
+        );
+        const expiresAt = new Date(Date.now() + 4 * 60 * 60 * 1000);
+        const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+        await sessionModel.create({
+            userId: targetUser._id,
+            tokenHash,
+            ip: req.ip || req.headers["x-forwarded-for"] || null,
+            userAgent: `Full access as ${targetUser.role}; started by Super Admin ${req.user.username}`,
+            expiresAt,
+        });
+
+        return res.status(200).json({
+            success: true,
+            token,
+            expiresAt,
+            user: {
+                id: targetUser._id,
+                username: targetUser.username,
+                email: targetUser.email,
+                role: targetUser.role,
+                resellerId: targetUser.resellerId,
+                isImpersonation: true,
+                originalAdmin: {
+                    id: req.user._id.toString(),
+                    username: req.user.username,
+                    role: req.user.role,
+                },
+            },
+        });
+    } catch (error) {
+        console.error("Start full access impersonation error:", error);
+        return res.status(500).json({ message: "Failed to open account", success: false });
+    }
+}
+
+export async function exitFullAccessImpersonation(req, res) {
+    try {
+        if (!req.isImpersonation || req.originalAdmin?.role !== "Super Admin") {
+            return res.status(400).json({ message: "Not in a full access session.", success: false });
+        }
+
+        const tokenHash = crypto.createHash("sha256").update(req.token).digest("hex");
+        await sessionModel.deleteOne({ tokenHash, userId: req.user._id });
+
+        return res.status(200).json({ success: true, message: "Full access session ended." });
+    } catch (error) {
+        console.error("Exit full access impersonation error:", error);
+        return res.status(500).json({ message: "Failed to end full access session", success: false });
+    }
+}
+
 /**
  * Exit Preview Mode:
  * Restores the original Super Admin or Reseller session immediately.

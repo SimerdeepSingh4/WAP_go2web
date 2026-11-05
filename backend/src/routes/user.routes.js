@@ -4,6 +4,8 @@ import {
     getUserById,
     createUser,
     impersonateUser,
+    startFullAccessImpersonation,
+    exitFullAccessImpersonation,
     exitPreviewMode,
     getCurrentUser,
     updateUserAccess,
@@ -20,6 +22,7 @@ userRouter.get("/me", getCurrentUser);
 
 // Exit preview mode (any manager currently in preview mode)
 userRouter.post("/exit-preview", exitPreviewMode);
+userRouter.post("/exit-impersonation", exitFullAccessImpersonation);
 
 // Reseller & Super Admin can view user list
 userRouter.get("/", authorizeRoles("Reseller", "Super Admin"), getUsers);
@@ -36,5 +39,6 @@ userRouter.get("/:id", getUserById);
 
 // Preview / Access user account (Super Admin or assigned Reseller)
 userRouter.post("/:id/access", authorizeRoles("Reseller", "Super Admin"), impersonateUser);
+userRouter.post("/:id/impersonate", authorizeRoles("Super Admin"), startFullAccessImpersonation);
 
 export default userRouter;

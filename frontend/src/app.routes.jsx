@@ -23,6 +23,7 @@ import PreviewBanner from "./components/PreviewBanner.jsx";
 import { lazy, Suspense } from "react";
 import AdminAccess from "./features/admin/components/AdminAccess.jsx";
 import ExpiredAccountPage from "./features/auth/pages/ExpiredAccountPage.jsx";
+import ImpersonationHandoff from "./features/auth/pages/ImpersonationHandoff.jsx";
 
 const AdminLayout = lazy(() => import("./features/admin/components/AdminLayout.jsx"));
 const AdminOverview = lazy(() => import("./features/admin/pages/Overview.jsx"));
@@ -223,6 +224,10 @@ export const router = createBrowserRouter([
         <CreateCampaignPage />
       </RoleRoute>
     ),
+  },
+  {
+    path: "/impersonation-handoff",
+    element: <ImpersonationHandoff />,
   },
   {
     path: "/login",

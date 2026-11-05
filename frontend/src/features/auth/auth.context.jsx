@@ -4,6 +4,14 @@ import { getMe, login as loginApi, register as registerApi, logout as logoutApi,
 
 export const AuthContext = createContext(null);
 
+function clearCurrentToken() {
+    if (sessionStorage.getItem("impersonationToken")) {
+        sessionStorage.removeItem("impersonationToken");
+    } else {
+        localStorage.removeItem("token");
+    }
+}
+
 export const AuthProvider = ({ children }) => {
     const queryClient = useQueryClient();
 
@@ -59,13 +67,13 @@ export const AuthProvider = ({ children }) => {
     const logoutMutation = useMutation({
         mutationFn: logoutApi,
         onSuccess: () => {
-            localStorage.removeItem("token");
+            clearCurrentToken();
             queryClient.setQueryData(["authUser"], null);
             queryClient.removeQueries({ queryKey: ["activeSessions"] });
         },
         onError: () => {
             // Even if server request fails, clear local session
-            localStorage.removeItem("token");
+            clearCurrentToken();
             queryClient.setQueryData(["authUser"], null);
         },
     });
@@ -74,12 +82,12 @@ export const AuthProvider = ({ children }) => {
     const logoutAllMutation = useMutation({
         mutationFn: logoutAllApi,
         onSuccess: () => {
-            localStorage.removeItem("token");
+            clearCurrentToken();
             queryClient.setQueryData(["authUser"], null);
             queryClient.removeQueries({ queryKey: ["activeSessions"] });
         },
         onError: () => {
-            localStorage.removeItem("token");
+            clearCurrentToken();
             queryClient.setQueryData(["authUser"], null);
         },
     });
@@ -87,7 +95,7 @@ export const AuthProvider = ({ children }) => {
     // 5. Listen for auto-logout (e.g. 1st device evicted when 4th logs in)
     useEffect(() => {
         const handleUnauthorized = () => {
-            localStorage.removeItem("token");
+            clearCurrentToken();
             queryClient.setQueryData(["authUser"], null);
         };
 
