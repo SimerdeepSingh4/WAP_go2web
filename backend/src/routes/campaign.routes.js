@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { creditRequest } from "../helpers/credit-operation.js";
 import {
     createCampaign,
     getCampaigns,
@@ -10,6 +11,7 @@ import {
     downloadRecipientReportTemplate,
     uploadRecipientReport,
     downloadRecipientReport,
+    exportCampaignRecipients,
     exportRecipientDraft,
 } from "../controllers/campaign.controller.js";
 import {
@@ -22,9 +24,10 @@ const campaignRouter = Router();
 
 campaignRouter.use(protect);
 
-campaignRouter.post("/", uploadFiles, blockInPreviewMode("Campaign creation"), createCampaign);
+campaignRouter.post("/", uploadFiles, blockInPreviewMode("Campaign creation"), creditRequest, createCampaign);
 campaignRouter.get("/", getCampaigns);
 campaignRouter.get("/:id/recipient-report", downloadRecipientReport);
+campaignRouter.get("/:id/export-recipients", exportCampaignRecipients);
 campaignRouter.post("/:id/recipient-report/export", authorizeRoles("Super Admin"), exportRecipientDraft);
 campaignRouter.get(
     "/:id/recipient-report/template",

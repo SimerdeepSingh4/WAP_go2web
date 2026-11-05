@@ -221,7 +221,13 @@ export default function Accounts({ role }) {
   const search = params.get("search") || "";
   const status = params.get("status") || "all";
   const [modal, setModal] = useState(null);
-  const [detail, setDetail] = useState(null);
+  const [localDetail, setDetail] = useState(null);
+  const selectedAccount = params.get("account");
+  const detail = selectedAccount ? (query.data?.users || []).find((account) => String(account._id || account.id) === selectedAccount && account.role === role) : localDetail;
+  function closeDetail() {
+    setDetail(null);
+    setParams((previous) => { const next = new URLSearchParams(previous); next.delete("account"); return next; }, { replace: true });
+  }
   const removeAccount = useAdminMutation("deleteAccount", "Account removed", () => setModal(null));
   const accessAccount = useMutation({
     mutationFn: ({ id }) => startFullAccessImpersonation(id),
@@ -463,7 +469,7 @@ export default function Accounts({ role }) {
         />
       </QueryState>
 
-      {detail && <AccountDetail account={detail} onClose={() => setDetail(null)} onAction={(type, account) => setModal({ type, account })} />}
+      {detail && <AccountDetail account={detail} onClose={closeDetail} onAction={(type, account) => setModal({ type, account })} />}
 
       {modal?.type === "deleteAccount" && (
         <AlertDialog open onOpenChange={(open) => { if (!open && !removeAccount.isPending) setModal(null); }}>

@@ -10,6 +10,7 @@ import { toast } from "@/components/ui/toast";
 import CampaignReportHeader from "../components/report/CampaignReportHeader";
 import AdminCampaignReportEditor from "../components/report/AdminCampaignReportEditor";
 import PublishedSpreadsheetReport from "../components/report/PublishedSpreadsheetReport";
+import FailedCampaignReport from "../components/report/FailedCampaignReport";
 import PendingCampaignReport from "../components/report/PendingCampaignReport";
 import ReportLoadError from "../components/report/ReportLoadError";
 import CampaignReportMetrics from "../components/report/CampaignReportMetrics";
@@ -328,11 +329,7 @@ export default function CampaignReportPage() {
     return <ReportLoadError error={error} base={base} onRetry={() => refetch()} isRetrying={isFetching} />;
   }
 
-  const isReportPublished = Boolean(
-    campaign?.publishedSpreadsheet?.publishedAt ||
-    campaign?.campaignSummary?.reportedAt ||
-      (campaign?.campaignSummary?.categories?.length > 0 && campaign?.recipientReport?.records?.length > 0)
-  );
+  const isReportPublished = Boolean(campaign?.publishedSpreadsheet?.publishedAt);
 
   if (isAdmin) return <AdminCampaignReportEditor key={campaign._id} campaign={campaign} base={base} onRefresh={refetch} isRefreshing={isFetching} />;
 
@@ -349,7 +346,7 @@ export default function CampaignReportPage() {
 
   const q = digits(search);
   if (campaign.publishedSpreadsheet?.publishedAt) {
-    return <PublishedSpreadsheetReport campaign={campaign} base={base} isAdmin={isAdmin} />;
+    return campaign.publishedSpreadsheet.status === "failed" || campaign.status === "failed" ? <FailedCampaignReport campaign={campaign} base={base} /> : <PublishedSpreadsheetReport campaign={campaign} base={base} isAdmin={isAdmin} />;
   }
   const deltaLabel =
     metrics.delta > 0

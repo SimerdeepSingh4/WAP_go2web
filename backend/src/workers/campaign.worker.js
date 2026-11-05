@@ -5,253 +5,86 @@ import campaignModel from "../models/campaign.model.js";
 import userModel from "../models/user.model.js";
 import walletModel from "../models/wallet.model.js";
 import transactionModel from "../models/transaction.model.js";
-import { notifyUser, notifyRole, notifyReseller } from "../services/socket.service.js";
+import { notifyUser, notifyRole } from "../services/socket.service.js";
+import { creditAmount, creditDifference, creditsForCount, creditTransactionOptions } from "../helpers/credit-amount.js";
+import { campaignPublicStatus } from "../helpers/campaign-visibility.js";
 
 let campaignWorker = null;
 
-/**
- * Helper to pause execution between message batches
- */
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-/**
- * Initialize the BullMQ Campaign Worker.
- */
-export function initCampaignWorker() {
-    if (campaignWorker) return campaignWorker;
-
-    campaignWorker = new Worker(
-        "campaignQueue",
-        async (job) => {
-            const { campaignId, campaignTitle } = job.data;
-            console.log(`[Worker] Started processing campaign: "${campaignTitle}" (${campaignId})`);
-
-            // 1. Fetch campaign from DB
-            const campaign = await campaignModel.findById(campaignId);
-            if (!campaign) {
-                console.warn(`[Worker] Campaign ${campaignId} not found. Aborting job.`);
-                return { success: false, reason: "Campaign not found" };
+export async function finalizeCampaignDelivery(campaignId) {
+    const session = await mongoose.startSession();
+    let result;
+    try {
+        await session.withTransaction(async () => {
+            // Reload on every transaction retry; never save a stale worker snapshot
+            // over an admin's failed status, published report, or refund total.
+            const campaign = await campaignModel.findById(campaignId).session(session);
+            if (!campaign || campaign.status !== "ongoing" || campaign.manualStatusOverride || campaign.campaignSummary?.reportedBy) {
+                result = { success: true, skipped: true, status: campaign?.status };
+                return;
             }
-
-            // Even stale queued jobs must never bypass admin approval.
-            if (campaign.status !== "ongoing" || campaign.manualStatusOverride) {
-                console.log(`[Worker] Campaign ${campaignId} is in "${campaign.status}" state. Skipping dispatch.`);
-                return { success: true, status: campaign.status, skipped: true };
-            }
-
-            // 2. Dispatch only after the admin has set the campaign to ongoing.
-            if (!campaign.campaignStartDate) {
-                campaign.campaignStartDate = new Date();
-            }
-            await campaign.save();
-
-            // Broadcast status change in real time
-            notifyUser(campaign.userId, "CAMPAIGN_UPDATED", {
-                campaignId: campaign._id,
-                campaignTitle: campaign.campaignTitle,
-                status: "ongoing",
-                startedAt: campaign.campaignStartDate,
-            });
-
-            notifyRole("Super Admin", "CAMPAIGN_UPDATED", {
-                campaignId: campaign._id,
-                campaignTitle: campaign.campaignTitle,
-                status: "ongoing",
-            });
-
-            // 3. Batch Dispatching
             const recipients = campaign.recipients || [];
-            const totalRecipients = recipients.length;
-            const BATCH_SIZE = 25; // Process in batches to simulate gateway throughput
-            let sentCount = 0;
-            let deliveredCount = 0;
-            let failedCount = 0;
-
-            for (let i = 0; i < totalRecipients; i += BATCH_SIZE) {
-                // Check if campaign was paused or stopped mid-execution
-                const freshCheck = await campaignModel.findById(campaignId).select("status manualStatusOverride");
-                if (!freshCheck || freshCheck.status !== "ongoing" || freshCheck.manualStatusOverride) {
-                    console.log(`[Worker] Campaign ${campaignId} is no longer ongoing. Halting dispatch.`);
-                    return { success: true, status: freshCheck?.status, haltedAt: i };
-                }
-
-                const batch = recipients.slice(i, i + BATCH_SIZE);
-
-                for (const recipient of batch) {
-                    // Gateway simulation: 96% success rate, 4% fail (simulating unreachable/wrong numbers)
-                    const isSuccess = Math.random() > 0.04;
-
-                    if (isSuccess) {
-                        recipient.status = "delivered";
-                        deliveredCount++;
-                        sentCount++;
-                    } else {
-                        recipient.status = "failed";
-                        failedCount++;
-                        sentCount++;
-                    }
-                }
-
-                // Small pause between batches (50ms) to throttle throughput safely
-                await sleep(50);
-
-                // Update job progress (0 - 100%)
-                const progressPercent = Math.min(100, Math.round(((i + batch.length) / totalRecipients) * 100));
-                await job.updateProgress(progressPercent);
-
-                // Emit real-time progress update to the client
-                notifyUser(campaign.userId, "CAMPAIGN_PROGRESS", {
-                    campaignId: campaign._id,
-                    sent: sentCount,
-                    delivered: deliveredCount,
-                    failed: failedCount,
-                    total: totalRecipients,
-                    percent: progressPercent,
-                });
+            if (!recipients.length || recipients.some((row) => !["delivered", "read", "failed"].includes(row.status))) {
+                result = { success: true, skipped: true, status: "ongoing", reason: "Awaiting actual delivery results or an admin report" };
+                return;
             }
-
-            // 4. Update Campaign Summary
-            campaign.campaignSummary = {
-                sent: sentCount,
-                delivered: deliveredCount,
-                read: Math.round(deliveredCount * 0.7), // Simulated read receipts
-                failed: failedCount,
-                reportedAt: new Date(),
-                reportedBy: null, // Automated system report
-            };
-
-            // 5. Automated Wrong / Failed Number Refund Flow (ACID & Idempotent)
-            let refundInfo = null;
-            if (failedCount > 0) {
-                const owner = await userModel.findById(campaign.userId);
-                // Super Admin has unlimited credits, so no refund needed
-                if (owner && owner.role !== "Super Admin" && (campaign.campaignSummary.creditsRefunded || 0) === 0) {
-                    const rate = campaign.rateSnapshot || owner.ratePerMsg || 12;
-                    let refundAmount = failedCount * rate;
-
-                    if (campaign.creditsDeducted > 0 && refundAmount > campaign.creditsDeducted) {
-                        refundAmount = campaign.creditsDeducted;
-                    }
-
-                    if (refundAmount > 0) {
-                        // Atomic CAS increment on wallet
-                        const updatedWallet = await walletModel.findOneAndUpdate(
-                            { userId: campaign.userId },
-                            { $inc: { balance: refundAmount } },
-                            { returnDocument: 'after', upsert: true }
-                        );
-
-                        // Insert immutable ledger record (protected by unique index on { campaignId: 1, type: "REFUND" })
-                        try {
-                            const refundTx = await transactionModel.create({
-                                fromUser: null,
-                                toUser: campaign.userId,
-                                amount: refundAmount,
-                                type: "REFUND",
-                                campaignId: campaign._id,
-                                notes: `Automated refund for ${failedCount} failed recipient(s) in campaign "${campaign.campaignTitle}"`,
-                                rateSnapshot: rate,
-                                balanceAfterTo: updatedWallet.balance,
-                                performedBy: campaign.userId,
-                            });
-
-                            campaign.campaignSummary.creditsRefunded = refundAmount;
-                            refundInfo = {
-                                amount: refundAmount,
-                                failedCount,
-                                newBalance: updatedWallet.balance,
-                            };
-
-                            // Real-time wallet update via Socket.IO
-                            notifyUser(campaign.userId, "WALLET_UPDATED", {
-                                newBalance: updatedWallet.balance,
-                                delta: +refundAmount,
-                                reason: "REFUND",
-                                campaignTitle: campaign.campaignTitle,
-                                campaignId: campaign._id,
-                                failedCount,
-                            });
-                        } catch (indexErr) {
-                            if (indexErr.code === 11000) {
-                                console.warn(`[Worker] Duplicate refund prevented by unique index for campaign ${campaign._id}`);
-                            } else {
-                                throw indexErr;
-                            }
-                        }
-                    }
-                }
+            const failed = recipients.filter((row) => row.status === "failed").length;
+            const read = recipients.filter((row) => row.status === "read").length;
+            const delivered = recipients.length - failed;
+            const [totals] = await transactionModel.aggregate([
+                { $match: { campaignId: campaign._id, $or: [{ type: "REFUND" }, { type: "DEDUCT", refundOperationId: { $exists: true } }] } },
+                { $group: { _id: null, total: { $sum: { $cond: [{ $eq: ["$type", "REFUND"] }, "$amount", { $multiply: ["$amount", -1] }] } } } },
+            ]).session(session);
+            const settled = creditAmount(totals?.total || 0);
+            const charged = creditAmount(campaign.creditsDeducted || 0);
+            if (settled < 0 || settled > charged) throw new Error("Campaign ledger does not reconcile; automatic billing stopped");
+            const owner = await userModel.findById(campaign.userId).session(session);
+            if (!owner) throw new Error("Campaign creator not found");
+            const target = Math.min(charged, Math.max(settled, creditsForCount(campaign.rateSnapshot ?? owner.ratePerMsg, failed)));
+            const amount = owner.role === "Super Admin" ? 0 : creditDifference(target, settled);
+            let refund = null;
+            if (amount > 0) {
+                const wallet = await walletModel.findOneAndUpdate(
+                    { userId: campaign.userId },
+                    { $inc: { balance: amount }, $setOnInsert: { resellerId: owner.resellerId || null } },
+                    { returnDocument: "after", upsert: true, session }
+                );
+                const [entry] = await transactionModel.create([{
+                    fromUser: null, toUser: campaign.userId, performedBy: campaign.userId,
+                    campaignId: campaign._id, refundOperationId: new mongoose.Types.ObjectId(),
+                    type: "REFUND", amount, rateSnapshot: campaign.rateSnapshot ?? owner.ratePerMsg,
+                    balanceAfterTo: wallet.balance,
+                    notes: `Delivery refund for ${failed} failed recipient(s) in campaign "${campaign.campaignTitle}"`,
+                }], { session });
+                refund = { amount, newBalance: wallet.balance, transactionId: entry._id };
             }
-
-            // 6. Finalize Campaign
+            if (!campaign.campaignSummary) campaign.campaignSummary = {};
+            Object.assign(campaign.campaignSummary, { sent: recipients.length, delivered, read, failed, creditsRefunded: creditAmount(settled + amount), reportedAt: new Date(), reportedBy: null });
             campaign.status = "completed";
             campaign.campaignEndDate = new Date();
-            await campaign.save();
-
-            console.log(
-                `[Worker] Campaign "${campaignTitle}" finished. Delivered: ${deliveredCount}, Failed: ${failedCount}, Refunded: ${campaign.campaignSummary.creditsRefunded || 0} credits.`
-            );
-
-            // 7. Emit final completion events
-            notifyUser(campaign.userId, "CAMPAIGN_UPDATED", {
-                campaignId: campaign._id,
-                campaignTitle: campaign.campaignTitle,
-                status: "completed",
-                delivered: deliveredCount,
-                failed: failedCount,
-                sent: sentCount,
-                creditsRefunded: campaign.campaignSummary.creditsRefunded,
-                completedAt: campaign.campaignEndDate,
-            });
-
-            notifyRole("Super Admin", "CAMPAIGN_UPDATED", {
-                campaignId: campaign._id,
-                campaignTitle: campaign.campaignTitle,
-                status: "completed",
-                delivered: deliveredCount,
-                failed: failedCount,
-            });
-
-            return {
-                success: true,
-                campaignId: campaign._id,
-                delivered: deliveredCount,
-                failed: failedCount,
-                refund: refundInfo,
-            };
-        },
-        {
-            connection: redisConnection,
-            concurrency: 5, // Process up to 5 campaigns in parallel
-        }
-    );
-
-    campaignWorker.on("completed", (job) => {
-        console.log(`[Worker] Job ${job.id} completed successfully.`);
-    });
-
-    campaignWorker.on("failed", (job, err) => {
-        console.error(`[Worker] Job ${job?.id} failed with error:`, err.message);
-    });
-
-    console.log("BullMQ Campaign Worker initialized and listening for jobs.");
-    return campaignWorker;
-}
-
-export function getCampaignWorker() {
-    return campaignWorker;
-}
-
-export async function closeCampaignWorker() {
-    if (campaignWorker) {
-        await campaignWorker.close();
-        campaignWorker = null;
-        console.log("BullMQ Campaign Worker shut down gracefully.");
+            await campaign.save({ session });
+            result = { success: true, campaignId: campaign._id, campaignTitle: campaign.campaignTitle, userId: campaign.userId, status: "completed", publicStatus: campaignPublicStatus(campaign), delivered, failed, sent: recipients.length, creditsRefunded: campaign.campaignSummary.creditsRefunded, completedAt: campaign.campaignEndDate, refund };
+        }, creditTransactionOptions);
+    } finally { await session.endSession(); }
+    // No success event is emitted from an aborted transaction or a retry callback.
+    if (!result.skipped) {
+        const { userId, refund, publicStatus, ...update } = result;
+        notifyUser(userId, "CAMPAIGN_UPDATED", { ...update, status: publicStatus });
+        notifyRole("Super Admin", "CAMPAIGN_UPDATED", update);
+        if (refund) notifyUser(userId, "WALLET_UPDATED", { campaignId: result.campaignId, newBalance: refund.newBalance, delta: refund.amount, reason: "REFUND" });
     }
+    return result;
 }
 
-export default {
-    initCampaignWorker,
-    getCampaignWorker,
-    closeCampaignWorker,
-};
+export function initCampaignWorker() {
+    if (campaignWorker) return campaignWorker;
+    campaignWorker = new Worker("campaignQueue", async (job) => finalizeCampaignDelivery(job.data.campaignId), { connection: redisConnection, concurrency: 5 });
+    campaignWorker.on("failed", (job, error) => console.error(`[Worker] Campaign job ${job?.id} failed:`, error.message));
+    return campaignWorker;
+}
 
+export const getCampaignWorker = () => campaignWorker;
+export async function closeCampaignWorker() {
+    if (campaignWorker) { await campaignWorker.close(); campaignWorker = null; }
+}
+export default { initCampaignWorker, getCampaignWorker, closeCampaignWorker };

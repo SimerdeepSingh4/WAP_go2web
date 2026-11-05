@@ -23,10 +23,11 @@ export function useNotificationAction() {
   const client = useQueryClient();
   const { user } = useAuth();
   return useMutation({
-    mutationFn: async ({ id, ...changes }) => id === "all" ? api.patch("/notifications/read-all") : api.patch(`/notifications/${id}`, changes),
-    onSuccess: () => {
+    mutationFn: async ({ id, ...changes }) => id === "all" ? api.patch(changes.archived ? "/notifications/archive-all" : "/notifications/read-all") : api.patch(`/notifications/${id}`, changes),
+    onSuccess: (_, variables) => {
       client.invalidateQueries({ queryKey: ["notifications", user?.id || user?._id] });
       localStorage.setItem("notification-sync", String(Date.now()));
+      if (variables.id === "all" && variables.archived) toast.add({ title: "Notifications cleared", description: "You can find them under Archived.", type: "success" });
     },
     onError: (error) => toast.add({ title: error.message, type: "error" }),
   });

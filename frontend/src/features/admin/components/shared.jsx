@@ -10,8 +10,21 @@ import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { statusLabels } from "../lib/format";
 
-export function PageHeading({ title, description, action }) {
-  return <div className="portal-page-heading"><div className="min-w-0"><h1 className="text-2xl font-semibold tracking-tight">{title}</h1>{description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}</div>{action}</div>;
+export function PageHeading({ title, description, action, eyebrow }) {
+  return (
+    <div className="portal-page-heading">
+      <div className="min-w-0">
+        {eyebrow && (
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+            {eyebrow}
+          </p>
+        )}
+        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+      </div>
+      {action}
+    </div>
+  );
 }
 
 export function StatusBadge({ status }) {

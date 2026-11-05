@@ -4,6 +4,8 @@ import mongoose from "mongoose";
 import walletModel from "../models/wallet.model.js";
 import transactionModel from "../models/transaction.model.js";
 import userModel from "../models/user.model.js";
+import { creditAmount as normalizeCreditAmount, creditsForCount, creditTransactionOptions } from "../helpers/credit-amount.js";
+import { startCreditSession, saveCreditReceipt } from "../helpers/credit-operation.js";
 
 /**
  * GET /api/credits/balance
@@ -83,8 +85,8 @@ export async function getBalance(req, res) {
         });
     } catch (error) {
         console.error("GetBalance error:", error);
-        return res.status(500).json({
-            message: "Internal server error",
+        return res.status(error.statusCode || (error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? 409 : 500)).json({
+            message: error.statusCode ? error.message : error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? "A concurrent credit operation is being processed. Retry using the same request reference." : "Internal server error",
             success: false,
         });
     }
@@ -104,8 +106,8 @@ export async function getBalance(req, res) {
  * Body: { toUserId, amount, notes? }
  */
 export async function allocateCredits(req, res) {
-    const mongoSession = await mongoose.startSession();
-    mongoSession.startTransaction();
+    const mongoSession = await startCreditSession(req);
+    mongoSession.startTransaction(creditTransactionOptions);
 
     try {
         const { toUserId, amount, notes, password, expiryYears, expiryMonths, expiresAt } = req.body;
@@ -120,7 +122,7 @@ export async function allocateCredits(req, res) {
             });
         }
 
-        const creditAmount = Number(amount);
+        const creditAmount = normalizeCreditAmount(amount);
         if (isNaN(creditAmount) || creditAmount <= 0) {
             await mongoSession.abortTransaction();
             mongoSession.endSession();
@@ -323,6 +325,7 @@ export async function allocateCredits(req, res) {
             { session: mongoSession }
         );
 
+        await saveCreditReceipt(req, mongoSession, 200, { success: true, message: "Credit allocation processed.", transaction: { id: transaction[0]._id, amount: creditAmount, toUser: { id: toUser._id, username: toUser.username, role: toUser.role }, balanceAfterFrom, balanceAfterTo } });
         await mongoSession.commitTransaction();
         mongoSession.endSession();
 
@@ -362,8 +365,8 @@ export async function allocateCredits(req, res) {
         await mongoSession.abortTransaction();
         mongoSession.endSession();
         console.error("AllocateCredits error:", error);
-        return res.status(500).json({
-            message: "Internal server error",
+        return res.status(error.statusCode || (error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? 409 : 500)).json({
+            message: error.statusCode ? error.message : error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? "A concurrent credit operation is being processed. Retry using the same request reference." : "Internal server error",
             success: false,
         });
     }
@@ -372,7 +375,7 @@ export async function allocateCredits(req, res) {
 export async function requestCredits(req, res) {
   try {
     const { amount, note } = req.body;
-    const creditAmount = Number(amount);
+    const creditAmount = normalizeCreditAmount(amount);
     if (isNaN(creditAmount) || creditAmount <= 0) {
       return res.status(400).json({ message: "Invalid credit amount.", success: false });
     }
@@ -408,8 +411,8 @@ export async function requestCredits(req, res) {
  * Body: { fromUserId, amount, notes? }
  */
 export async function reclaimCredits(req, res) {
-    const mongoSession = await mongoose.startSession();
-    mongoSession.startTransaction();
+    const mongoSession = await startCreditSession(req);
+    mongoSession.startTransaction(creditTransactionOptions);
 
     try {
         const { fromUserId, amount, notes } = req.body;
@@ -423,7 +426,7 @@ export async function reclaimCredits(req, res) {
             });
         }
 
-        const reclaimAmount = Number(amount);
+        const reclaimAmount = normalizeCreditAmount(amount);
         if (isNaN(reclaimAmount) || reclaimAmount <= 0) {
             await mongoSession.abortTransaction();
             mongoSession.endSession();
@@ -551,6 +554,7 @@ export async function reclaimCredits(req, res) {
             { session: mongoSession }
         );
 
+        await saveCreditReceipt(req, mongoSession, 200, { success: true, message: "Credit reclaim processed.", transaction: { id: transaction[0]._id, amount: reclaimAmount, fromUser: { id: fromUser._id, username: fromUser.username, role: fromUser.role }, balanceAfterFrom, balanceAfterTo } });
         await mongoSession.commitTransaction();
         mongoSession.endSession();
 
@@ -573,8 +577,8 @@ export async function reclaimCredits(req, res) {
         await mongoSession.abortTransaction();
         mongoSession.endSession();
         console.error("ReclaimCredits error:", error);
-        return res.status(500).json({
-            message: "Internal server error",
+        return res.status(error.statusCode || (error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? 409 : 500)).json({
+            message: error.statusCode ? error.message : error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? "A concurrent credit operation is being processed. Retry using the same request reference." : "Internal server error",
             success: false,
         });
     }
@@ -590,8 +594,8 @@ export async function reclaimCredits(req, res) {
  * Deduction = user.ratePerMsg × messageCount (default 1)
  */
 export async function deductCredits(req, res) {
-    const mongoSession = await mongoose.startSession();
-    mongoSession.startTransaction();
+    const mongoSession = await startCreditSession(req);
+    mongoSession.startTransaction(creditTransactionOptions);
 
     try {
         const { userId: bodyUserId, messageCount, amount, notes } = req.body;
@@ -628,7 +632,7 @@ export async function deductCredits(req, res) {
         let deductionAmount;
         let count = null;
         if (amount !== undefined && amount !== null && amount !== "") {
-            const amt = Number(amount);
+            const amt = normalizeCreditAmount(amount);
             if (isNaN(amt) || amt <= 0) {
                 await mongoSession.abortTransaction();
                 mongoSession.endSession();
@@ -640,7 +644,7 @@ export async function deductCredits(req, res) {
             deductionAmount = amt;
         } else {
             count = Number(messageCount ?? 1);
-            if (isNaN(count) || count <= 0) {
+            if (!Number.isSafeInteger(count) || count <= 0) {
                 await mongoSession.abortTransaction();
                 mongoSession.endSession();
                 return res.status(400).json({
@@ -659,7 +663,7 @@ export async function deductCredits(req, res) {
                 });
             }
 
-            deductionAmount = targetUser.ratePerMsg * count;
+            deductionAmount = creditsForCount(targetUser.ratePerMsg, count);
         }
 
         // Permission check: Reseller can only deduct from their own users
@@ -733,6 +737,7 @@ export async function deductCredits(req, res) {
             { session: mongoSession }
         );
 
+        await saveCreditReceipt(req, mongoSession, 200, { success: true, message: "Credit deduction processed.", deduction: { amount: deductionAmount, remainingBalance: wallet.balance, messageCount: count, ratePerMsg: targetUser.ratePerMsg } });
         await mongoSession.commitTransaction();
         mongoSession.endSession();
 
@@ -752,8 +757,8 @@ export async function deductCredits(req, res) {
         await mongoSession.abortTransaction();
         mongoSession.endSession();
         console.error("DeductCredits error:", error);
-        return res.status(500).json({
-            message: "Internal server error",
+        return res.status(error.statusCode || (error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? 409 : 500)).json({
+            message: error.statusCode ? error.message : error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? "A concurrent credit operation is being processed. Retry using the same request reference." : "Internal server error",
             success: false,
         });
     }
@@ -784,6 +789,11 @@ export async function getTransactions(req, res) {
 
         // Build filter
         const filter = {};
+
+        if (req.query.transactionId) {
+            if (!mongoose.isValidObjectId(req.query.transactionId)) return res.status(400).json({ success: false, message: "Invalid transaction reference." });
+            filter._id = req.query.transactionId;
+        }
 
         // Type filter
         if (type && ["ALLOCATE", "DEDUCT", "REFUND", "RECLAIM", "REQUEST"].includes(type)) {
@@ -831,8 +841,8 @@ export async function getTransactions(req, res) {
         });
     } catch (error) {
         console.error("GetTransactions error:", error);
-        return res.status(500).json({
-            message: "Internal server error",
+        return res.status(error.statusCode || (error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? 409 : 500)).json({
+            message: error.statusCode ? error.message : error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? "A concurrent credit operation is being processed. Retry using the same request reference." : "Internal server error",
             success: false,
         });
     }
@@ -858,7 +868,7 @@ export async function updateRate(req, res) {
             });
         }
 
-        const rate = Number(ratePerMsg);
+        const rate = normalizeCreditAmount(ratePerMsg);
         if (isNaN(rate) || rate < 0) {
             return res.status(400).json({
                 message: "ratePerMsg must be a non-negative number.",
@@ -915,8 +925,8 @@ export async function updateRate(req, res) {
         });
     } catch (error) {
         console.error("UpdateRate error:", error);
-        return res.status(500).json({
-            message: "Internal server error",
+        return res.status(error.statusCode || (error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? 409 : 500)).json({
+            message: error.statusCode ? error.message : error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? "A concurrent credit operation is being processed. Retry using the same request reference." : "Internal server error",
             success: false,
         });
     }

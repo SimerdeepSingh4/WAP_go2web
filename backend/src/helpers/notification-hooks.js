@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NotificationEvent } from "../models/notification.model.js";
+import { campaignPublicStatus } from "./campaign-visibility.js";
 
 let sequenceCounter = Date.now();
 export function getNextNotificationSequence() {
@@ -8,19 +9,20 @@ export function getNextNotificationSequence() {
 }
 
 const watched = {
-    campaign: ["status", "publishedSpreadsheet", "campaignSummary.reportedAt"],
+    campaign: ["status", "publicStatus", "publishedSpreadsheet", "campaignSummary.reportedAt"],
     user: ["status", "role", "ratePerMsg", "expiresAt", "deviceLimit"],
     wallet: ["balance", "expiresAt", "isLocked"],
 };
 
 function snapshot(doc, kind) {
     if (kind === "transaction") return { id: doc._id, type: doc.type, amount: doc.amount, fromUser: doc.fromUser, toUser: doc.toUser, campaignId: doc.campaignId, performedBy: doc.performedBy };
-    if (kind === "campaign") return { id: doc._id, userId: doc.userId, title: doc.campaignTitle, status: doc.status, total: doc.totalRecipients, publishedAt: doc.publishedSpreadsheet?.publishedAt || doc.campaignSummary?.reportedAt };
+    if (kind === "campaign") return { id: doc._id, userId: doc.userId, title: doc.campaignTitle, status: doc.status, statusVisible: campaignPublicStatus(doc) === doc.status, total: doc.totalRecipients, publishedAt: doc.publishedSpreadsheet?.publishedAt };
     if (kind === "user") return { id: doc._id, username: doc.username, role: doc.role, status: doc.status, rate: doc.ratePerMsg, expiresAt: doc.expiresAt, createdBy: doc.createdBy, resellerId: doc.resellerId, deviceLimit: doc.deviceLimit };
     return { id: doc._id, userId: doc.userId, balance: doc.balance, expiresAt: doc.expiresAt, isLocked: doc.isLocked };
 }
 
 async function enqueue(doc, kind, changeField, isNew, previous, session) {
+    if (kind === "campaign" && changeField === "publicStatus") changeField = "status";
     const version = getNextNotificationSequence();
     const eventKey = kind === "transaction" ? `transaction:${doc._id}` : `${kind}:${doc._id}:${changeField || "default"}:${randomUUID()}`;
     await NotificationEvent.create([{

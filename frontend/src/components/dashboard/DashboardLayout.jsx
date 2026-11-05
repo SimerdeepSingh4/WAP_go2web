@@ -1,12 +1,13 @@
 import NotificationBell from "@/features/notifications/NotificationBell";
-import { useState, useRef, useEffect } from "react";
+import GlobalSearch from "./GlobalSearch";
+import { useState } from "react";
 import { Link, NavLink, Navigate, Outlet, useLocation } from "react-router";
-import { LayoutDashboard, Megaphone, Users, Building2, Wallet, ReceiptText, Settings, LogOut, ChevronDown, PanelLeftClose, PanelLeftOpen, Search, Bell, X } from "lucide-react";
+import { LayoutDashboard, Megaphone, Users, Building2, Wallet, ReceiptText, Settings, LogOut, ChevronDown, PanelLeftClose, PanelLeftOpen, Bell } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
-import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, useSidebar } from "@/components/ui/sidebar";
+import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { toast } from "@/components/ui/toast";
 import PreviewBanner from "@/components/PreviewBanner";
 
@@ -122,9 +123,6 @@ function Navigation({ role, base, items }) {
 export default function DashboardLayout({ role }) {
   const { user, logout, isLoggingOut } = useAuth();
   const [open, setOpen] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const searchInputRef = useRef(null);
   const base = rolePaths[role];
   const items = navigation[role];
 
@@ -136,26 +134,7 @@ export default function DashboardLayout({ role }) {
     catch (error) { toast.add({ title: "Sign out failed", description: error.message, type: "error" }); }
   }
 
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-      if (e.key === "Escape") {
-        setIsSearchFocused(false);
-        searchInputRef.current?.blur();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
   if (user?.role !== role) return <Navigate to={rolePaths[user?.role] || "/login"} replace />;
-
-  const filteredItems = searchQuery.trim()
-    ? items.filter(([label]) => label.toLowerCase().includes(searchQuery.trim().toLowerCase()))
-    : [];
 
   return (
     <div className="admin-portal dashboard-portal">
@@ -166,62 +145,9 @@ export default function DashboardLayout({ role }) {
           <Navigation role={role} base={base} items={items} />
           <SidebarInset className="portal-inset">
             <header className="portal-topbar">
-              <div className="portal-search-wrapper">
-                <div className="portal-search-bar">
-                  <Search className="size-4.5 text-slate-500 shrink-0" aria-hidden="true" />
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    placeholder="find a control"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onFocus={() => setIsSearchFocused(true)}
-                    onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-                    aria-label="Find a control"
-                    style={{ outline: "none", border: "none", boxShadow: "none" }}
-                    className="portal-search-input outline-none ring-0 border-0 shadow-none focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
-                  />
-                  {searchQuery ? (
-                    <button
-                      type="button"
-                      onClick={() => setSearchQuery("")}
-                      aria-label="Clear search"
-                      className="text-slate-400 hover:text-slate-600 shrink-0 p-0.5"
-                    >
-                      <X className="size-3.5" />
-                    </button>
-                  ) : (
-                    <kbd className="portal-search-kbd">
-                      <span>⌘</span>
-                      <span>K</span>
-                    </kbd>
-                  )}
-                </div>
-
-                {isSearchFocused && filteredItems.length > 0 && (
-                  <div className="portal-search-results">
-                    <div className="portal-search-section-label">Pages</div>
-                    {filteredItems.map(([label, path, Icon]) => (
-                      <Link
-                        key={path}
-                        to={`${base}${path}`}
-                        className="portal-search-result-item"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={() => {
-                          setSearchQuery("");
-                          setIsSearchFocused(false);
-                        }}
-                      >
-                        <Icon className="size-4 text-slate-500 shrink-0" />
-                        <span>{label}</span>
-                        <span className="portal-search-result-path">{base}{path || "/"}</span>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="portal-topbar-actions">
+              <SidebarTrigger className="md:hidden" aria-label="Toggle navigation" />
+              <GlobalSearch />
+              <div className="portal-topbar-actions ml-auto">
                 <NotificationBell base={base} />
 
                 <DropdownMenu>

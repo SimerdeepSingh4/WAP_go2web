@@ -1,11 +1,12 @@
 import { notificationHooks } from "../helpers/notification-hooks.js";
 import mongoose from "mongoose";
+import { walletAccountingHooks } from "../helpers/wallet-accounting.js";
 
 /**
  * Wallet Model
  * -----------
  * Every User and Reseller gets exactly ONE wallet document.
- * - `balance` is stored in the smallest credit unit (paise).
+ * - `balance` is exposed in credits; `balanceMinor` records integer hundredths.
  * - Super Admin has unlimited credits (no wallet needed, but can optionally have one).
  * - Reseller's wallet is topped up by Super Admin.
  * - User's wallet is topped up by their assigned Reseller (from the Reseller's own balance).
@@ -25,6 +26,7 @@ const walletSchema = new mongoose.Schema(
             default: 0,
             min: [0, "Balance cannot be negative"],
         },
+        balanceMinor: { type: Number, min: 0 },
         resellerId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
@@ -45,6 +47,7 @@ const walletSchema = new mongoose.Schema(
     }
 );
 
+walletAccountingHooks(walletSchema);
 notificationHooks(walletSchema, "wallet");
 
 const walletModel =

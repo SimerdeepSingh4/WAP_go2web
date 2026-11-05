@@ -12,6 +12,11 @@ import { scheduleCampaignJob, cancelCampaignJob } from "../queues/campaign.queue
 import xlsx from "xlsx";
 import { loadSpreadsheetRows, saveSpreadsheetRows } from "../helpers/spreadsheet-storage.js";
 import { normalizeColumns, buildPublishedSheet, normalizeDuplicateRows } from "../../../shared/campaignSpreadsheet.js";
+import { creditAmount, creditsForCount, creditDifference, creditTransactionOptions } from "../helpers/credit-amount.js";
+import { startCreditSession, saveCreditReceipt } from "../helpers/credit-operation.js";
+import { campaignPublicStatus, publicCampaignView } from "../helpers/campaign-visibility.js";
+import { failureReportEntries, failureReportSheet } from "../../../shared/campaignFailure.js";
+import { campaignContactRows, restoreOriginalCampaignEntries } from "../../../shared/campaignContacts.js";
 
 const REPORT_CATEGORIES = [
     "whatsapp_successful",
@@ -185,6 +190,37 @@ export const uploadRecipientReport = async (req, res) => {
     }
 };
 
+export const exportCampaignRecipients = async (req, res) => {
+    try {
+        const result = await findCampaignForReport(req, req.params.id);
+        if (result.error) return res.status(result.error.status).json({ success: false, message: result.error.message });
+        const { campaign } = result;
+
+        if (campaign.publishedSpreadsheet?.publishedAt) campaign.publishedSpreadsheet.rows = await loadSpreadsheetRows(campaign._id, "published");
+        const contacts = campaignContactRows(campaign);
+        const rows = [["#", "Phone Number", "Status", "Category"], ...contacts.map((row) => [row.rowNumber, row.phoneNumber, row.status === "pending_report" ? "Awaiting report" : row.status, row.kind === "invalid" ? "Invalid input" : row.kind === "duplicate" ? "Repeated entry" : "Submitted"] )];
+
+        const workbook = xlsx.utils.book_new();
+        const worksheet = xlsx.utils.aoa_to_sheet(rows);
+        worksheet["!cols"] = [
+            { wch: 8 },   // #
+            { wch: 20 },  // Phone Number
+            { wch: 16 },  // Status
+            { wch: 24 }   // Category
+        ];
+        xlsx.utils.book_append_sheet(workbook, worksheet, "Recipients");
+        const buffer = xlsx.write(workbook, { type: "buffer", bookType: "xlsx" });
+
+        const safeTitle = String(campaign.campaignTitle || "campaign").replace(/[^a-z0-9_-]+/gi, "-");
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", `attachment; filename="${safeTitle}-recipients.xlsx"`);
+        return res.send(buffer);
+    } catch (error) {
+        console.error("Export campaign recipients error:", error);
+        return res.status(500).json({ success: false, message: "Failed to export campaign recipients." });
+    }
+};
+
 export const exportRecipientDraft = async (req, res) => {
     try {
         if (req.user.role !== "Super Admin") return res.status(403).json({ success: false, message: "Only Super Admin can export draft recipients." });
@@ -293,7 +329,7 @@ export const downloadRecipientReport = async (req, res) => {
 };
 
 export const createCampaign = async (req, res) => {
-    const mongoSession = await mongoose.startSession();
+    const mongoSession = await startCreditSession(req);
     mongoSession.startTransaction({
         readConcern: { level: "snapshot" },
         writeConcern: { w: "majority", j: true },
@@ -525,8 +561,8 @@ export const createCampaign = async (req, res) => {
                 });
             }
 
-            rate = senderUser.ratePerMsg && senderUser.ratePerMsg > 0 ? senderUser.ratePerMsg : 12;
-            requiredCredits = totalRecipients * rate;
+            rate = creditAmount(senderUser.ratePerMsg ?? 12);
+            requiredCredits = creditsForCount(rate, totalRecipients);
 
             // Check if wallet is expired or locked
             const currentWallet = await walletModel.findOne({ userId: req.user._id }).session(mongoSession);
@@ -544,6 +580,7 @@ export const createCampaign = async (req, res) => {
                 });
             }
 
+            if (requiredCredits > 0) {
             // ATOMIC ISOLATION GUARD (Compare-And-Swap):
             // Deducts strictly if current balance >= requiredCredits at DB engine level
             updatedWallet = await walletModel.findOneAndUpdate(
@@ -580,6 +617,7 @@ export const createCampaign = async (req, res) => {
                 remainingBalance: updatedWallet.balance,
                 ratePerMsg: rate,
             };
+            }
         }
 
         // Determine inferred messageType if not specified
@@ -615,6 +653,7 @@ export const createCampaign = async (req, res) => {
                     templateId: templateId || null,
                     messageBody: messageBody || "",
                     recipients: sanitizedRecipients,
+                    originalRecipients: recipients.map((number) => String(number)),
                     recipientStats: {
                         totalSubmitted: recipients.length,
                         uniqueCount: sanitizedRecipients.length,
@@ -667,10 +706,11 @@ export const createCampaign = async (req, res) => {
             );
         }
 
+        const newCampaign = createdCampaigns[0];
+        await saveCreditReceipt(req, mongoSession, 201, { success: true, message: "Campaign created successfully.", data: newCampaign, creditDeduction });
         await mongoSession.commitTransaction();
         mongoSession.endSession();
 
-        const newCampaign = createdCampaigns[0];
 
         // ── Real-Time WebSockets (POST-COMMIT) ────────────────────
         if (creditDeduction && updatedWallet) {
@@ -770,14 +810,14 @@ export const getCampaigns = async (req, res) => {
 
         const campaigns = await campaignModel
             .find(filter)
-            .select("-recipients -recipientReport.records -recipientEntries -spreadsheetColumns -publishedSpreadsheet.rows -publishedSpreadsheet.columns -customRecipientTabs -deletedTabKeys -draftReportNotes -recipientCategoryLabels")
+            .select("-originalRecipients -recipients -recipientReport.records -recipientEntries -spreadsheetColumns -publishedSpreadsheet.rows -publishedSpreadsheet.columns -customRecipientTabs -deletedTabKeys -draftReportNotes -recipientCategoryLabels")
             .populate("userId", "username email role")
             .sort({ createdAt: -1 });
 
         return res.status(200).json({
             success: true,
             count: campaigns.length,
-            data: campaigns,
+            data: req.user.role === "Super Admin" ? campaigns : campaigns.map(publicCampaignView),
         });
     } catch (error) {
         console.error("Get campaigns error:", error);
@@ -832,7 +872,7 @@ export const getCampaignById = async (req, res) => {
             }
         }
         // Initialize permanent row numbers for recipientEntries if not yet established
-        if (isSuperAdmin && (!campaign.recipientEntries || campaign.recipientEntries.length === 0)) {
+        if (!campaign.recipientEntries || campaign.recipientEntries.length === 0) {
             const reportMap = new Map();
             for (const rec of campaign.recipientReport?.records || []) {
                 if (rec.phoneNumber) {
@@ -884,7 +924,7 @@ export const getCampaignById = async (req, res) => {
 
             // 3. Invalid format numbers submitted
             for (const inv of campaign.recipientStats?.invalidList || []) {
-                const clean = String(inv).replace(/\D/g, "");
+                const clean = String(inv).replace(/\D/g, "") || String(inv).trim();
                 if (!clean) continue;
                 const info = reportMap.get(clean);
                 initialEntries.push({
@@ -908,17 +948,27 @@ export const getCampaignById = async (req, res) => {
         if (campaign.publishedSpreadsheet?.publishedAt) {
             campaign.publishedSpreadsheet.rows = await loadSpreadsheetRows(campaign._id, "published");
         }
+        if (isSuperAdmin) campaign.recipientEntries = restoreOriginalCampaignEntries(campaign);
         const view = campaign.toObject ? campaign.toObject() : { ...campaign };
-        if (isSuperAdmin) view.refundAccounting = await getCampaignRefundAccounting(campaign);
+        const accounting = await getCampaignRefundAccounting(campaign);
+        view.settledRefundCredits = accounting.settled;
+        if (isSuperAdmin) view.refundAccounting = accounting;
         if (!isSuperAdmin) {
-            delete view.recipientEntries;
+            if (Array.isArray(view.recipientEntries)) {
+                view.recipientEntries = view.recipientEntries.map((e) => ({
+                    rowNumber: e.rowNumber,
+                    phoneNumber: e.phoneNumber,
+                    status: e.status,
+                    category: e.category,
+                }));
+            }
             delete view.spreadsheetColumns;
             delete view.customRecipientTabs;
             delete view.deletedTabKeys;
             delete view.draftReportNotes;
             delete view.recipientCategoryLabels;
         }
-        return res.status(200).json({ success: true, data: view });
+        return res.status(200).json({ success: true, data: isSuperAdmin ? view : publicCampaignView(view) });
     } catch (error) {
         console.error("Get campaign by ID error:", error);
         return res.status(500).json({
@@ -938,65 +988,30 @@ async function getCampaignRefundAccounting(campaign, session) {
     // A report/category amount can be a plan. Only posted wallet transactions
     // count as money returned; debit adjustments reverse earlier refunds.
     let query = transactionModel.aggregate([
-        { $match: { campaignId: campaign._id, $or: [
-            { type: "REFUND" },
-            { type: "DEDUCT", refundOperationId: { $exists: true } },
-        ] } },
-        { $group: { _id: null, total: { $sum: { $cond: [
-            { $eq: ["$type", "REFUND"] }, "$amount", { $multiply: ["$amount", -1] },
-        ] } } } },
+        { $match: { campaignId: campaign._id, type: { $in: ["REFUND", "DEDUCT"] } } },
+        { $group: { _id: null,
+            charged: { $sum: { $cond: [{ $and: [{ $eq: ["$type", "DEDUCT"] }, { $eq: [{ $ifNull: ["$refundOperationId", null] }, null] }] }, "$amount", 0] } },
+            total: { $sum: { $cond: [{ $eq: ["$type", "REFUND"] }, "$amount", { $cond: [{ $ne: [{ $ifNull: ["$refundOperationId", null] }, null] }, { $multiply: ["$amount", -1] }, 0] }] } },
+        } },
     ]);
     if (session) query = query.session(session);
     const [record] = await query;
-    const charged = Math.max(0, Number(campaign.creditsDeducted) || 0);
-    const settled = Math.max(0, Number(record?.total) || 0);
-    return { charged, settled, remaining: Math.max(0, charged - settled) };
+    const charged = creditAmount(Number(record?.charged) || 0);
+    const settled = creditAmount(Number(record?.total) || 0);
+    if (charged !== creditAmount(campaign.creditsDeducted || 0) || settled < 0 || settled > charged) {
+        const error = new Error("Campaign credit records do not reconcile. Review the ledger before making further billing changes.");
+        error.statusCode = 409;
+        throw error;
+    }
+    return { charged, settled, remaining: creditDifference(charged, settled) };
 }
 
-async function failCampaignAndRefund(id, adminId) {
-    const session = await mongoose.startSession();
-    let result;
-    try {
-        await session.withTransaction(async () => {
-            const campaign = await campaignModel.findById(id).session(session);
-            if (!campaign) { result = null; return; }
-            const previousStatus = campaign.status;
-            const accounting = await getCampaignRefundAccounting(campaign, session);
-            const refunded = accounting.settled;
-            const amount = accounting.remaining;
-            let refundInfo = null;
-            if (amount > 0) {
-                const owner = await userModel.findById(campaign.userId).session(session);
-                if (!owner) throw new Error("Campaign creator not found. No credits were changed.");
-                const wallet = await walletModel.findOneAndUpdate(
-                    { userId: campaign.userId },
-                    { $inc: { balance: amount }, $setOnInsert: { resellerId: owner.resellerId || null } },
-                    { returnDocument: 'after', upsert: true, session }
-                );
-                const [transaction] = await transactionModel.create([{
-                    type: "REFUND", campaignId: campaign._id, refundOperationId: new mongoose.Types.ObjectId(),
-                    fromUser: adminId, toUser: campaign.userId, performedBy: adminId,
-                    amount, balanceAfterTo: wallet.balance, rateSnapshot: campaign.rateSnapshot,
-                    notes: `Full credit refund: campaign "${campaign.campaignTitle}" marked failed by admin.`,
-                }], { session });
-                refundInfo = { amount, newBalance: wallet.balance, transactionId: transaction._id };
-            }
-            if (previousStatus !== "failed" || amount > 0 || campaign.campaignSummary?.creditsRefunded !== refunded) {
-                campaign.status = "failed";
-                campaign.campaignEndDate = new Date();
-                if (!campaign.campaignSummary) campaign.campaignSummary = {};
-                campaign.campaignSummary.creditsRefunded = refunded + amount;
-                if (campaign.publishedSpreadsheet?.summary) {
-                    campaign.publishedSpreadsheet.summary.creditsRefunded = refunded + amount;
-                    campaign.markModified("publishedSpreadsheet");
-                }
-                await campaign.save({ session });
-            }
-            result = { campaign, previousStatus, refundInfo };
-        });
-        return result;
-    } finally {
-        await session.endSession();
+function validateCampaignBillingStatus(campaign, status) {
+    const finalizedFailure = campaign.publicStatus === "failed" || (campaign.publishedSpreadsheet?.publishedAt && (campaign.publishedSpreadsheet.status === "failed" || (!campaign.publicStatus && campaign.status === "failed")));
+    if (finalizedFailure && status && status !== "failed") {
+        const error = new Error("A failed campaign cannot be restarted after its credits have been refunded. Create a new campaign for another run.");
+        error.statusCode = 409;
+        throw error;
     }
 }
 
@@ -1026,87 +1041,36 @@ export const updateCampaignStatus = async (req, res) => {
             });
         }
 
-        if (status === "failed") {
-            const result = await failCampaignAndRefund(id, req.user._id);
-            if (!result) return res.status(404).json({ success: false, message: "Campaign not found" });
-            const { campaign, previousStatus, refundInfo } = result;
-            try { await cancelCampaignJob(id); }
-            catch (error) { console.error("[BullMQ] Failed to cancel failed campaign job:", error.message); }
-            const update = { campaignId: campaign._id, campaignTitle: campaign.campaignTitle, previousStatus, status: "failed", updatedAt: campaign.updatedAt };
-            notifyUser(campaign.userId, "CAMPAIGN_UPDATED", update);
-            notifyRole("Super Admin", "CAMPAIGN_UPDATED", update);
-            if (refundInfo) notifyUser(campaign.userId, "WALLET_UPDATED", { campaignId: campaign._id, newBalance: refundInfo.newBalance, delta: refundInfo.amount, reason: "REFUND" });
-            return res.status(200).json({ success: true, message: "Campaign marked failed. All charged credits have been returned to its creator.", data: update, refundInfo });
-        }
+        const session = await mongoose.startSession();
+        let campaign;
+        let previousStatus;
+        try {
+            await session.withTransaction(async () => {
+                campaign = await campaignModel.findById(id).session(session);
+                if (!campaign) { const error = new Error("Campaign not found"); error.statusCode = 404; throw error; }
+                validateCampaignBillingStatus(campaign, status);
+                previousStatus = campaign.status;
+                if (previousStatus === status) return;
+                if (["completed", "sent", "failed"].includes(previousStatus)) campaign.manualStatusOverride = true;
+                if (!["completed", "sent", "failed"].includes(status)) campaign.publicStatus = status;
+                else campaign.publicStatus = campaignPublicStatus(campaign);
+                campaign.status = status;
+                campaign.campaignEndDate = ["completed", "stopped", "failed"].includes(status) ? new Date() : null;
+                if (status === "ongoing" && !campaign.campaignStartDate) campaign.campaignStartDate = new Date();
+                await campaign.save({ session });
+            }, creditTransactionOptions);
+        } finally { await session.endSession(); }
+        if (previousStatus === status) return res.status(200).json({ success: true, message: "Campaign already has this status.", data: campaign });
+        try {
+            if (status === "ongoing" && !campaign.manualStatusOverride) await scheduleCampaignJob(campaign);
+            else await cancelCampaignJob(id);
+        } catch (error) { console.error("[BullMQ] Status saved, but queue update failed:", error.message); }
 
-        const campaign = await campaignModel.findById(id);
-        if (!campaign) {
-            return res.status(404).json({
-                message: "Campaign not found",
-                success: false,
-            });
-        }
-
-        if (campaign.status === status) {
-            return res.status(200).json({
-                success: true,
-                message: `Campaign is already in "${status}" status.`,
-                data: campaign,
-            });
-        }
-
-        const previousStatus = campaign.status;
-        if (["completed", "sent"].includes(previousStatus)) {
-            campaign.manualStatusOverride = true;
-        }
-        campaign.status = status;
-
-        if (status === "stopped" || status === "failed") {
-            campaign.campaignEndDate = new Date();
-            // Cancel BullMQ job if it was waiting in queue
-            try {
-                await cancelCampaignJob(id);
-            } catch (queueErr) {
-                console.error("[BullMQ] Failed to cancel job:", queueErr.message);
-            }
-        } else if (status === "completed") {
-            campaign.campaignEndDate = new Date();
-        } else if (status === "ongoing") {
-            if (["completed", "sent", "stopped", "failed"].includes(previousStatus)) {
-                campaign.campaignEndDate = null;
-            }
-            if (!campaign.campaignStartDate) {
-                campaign.campaignStartDate = new Date();
-            }
-        } else if (status === "pending" || status === "scheduled" || status === "paused") {
-            if (["completed", "sent", "stopped", "failed"].includes(previousStatus)) {
-                campaign.campaignEndDate = null;
-            }
-            // Put on hold: remove from queue if scheduled
-            try {
-                await cancelCampaignJob(id);
-            } catch (queueErr) {
-                console.error("[BullMQ] Failed to cancel job on pending hold:", queueErr.message);
-            }
-        }
-
-        await campaign.save();
-
-        // Persist admin approval before a worker can pick up the job.
-        if (status === "ongoing" && !campaign.manualStatusOverride) {
-            try {
-                await scheduleCampaignJob(campaign);
-            } catch (queueErr) {
-                console.error("[BullMQ] Failed to enqueue on start:", queueErr.message);
-            }
-        }
-
-        // ── Real-Time WebSockets ──────────────────────────────────
         notifyUser(campaign.userId, "CAMPAIGN_UPDATED", {
             campaignId: campaign._id,
             campaignTitle: campaign.campaignTitle,
             previousStatus,
-            status: campaign.status,
+            status: campaignPublicStatus(campaign),
             updatedAt: campaign.updatedAt,
         });
 
@@ -1131,7 +1095,7 @@ export const updateCampaignStatus = async (req, res) => {
         });
     } catch (error) {
         console.error("Update campaign status error:", error);
-        return res.status(500).json({
+        return res.status(error.statusCode || 500).json({
             message: error.message || "Failed to update campaign status",
             success: false,
         });
@@ -1176,10 +1140,10 @@ export const updateCampaignMetrics = async (req, res) => {
         const numFailed = Number(failed);
 
         if (
-            isNaN(numSent) || numSent < 0 ||
-            isNaN(numDelivered) || numDelivered < 0 ||
-            isNaN(numRead) || numRead < 0 ||
-            isNaN(numFailed) || numFailed < 0
+            !Number.isSafeInteger(numSent) || numSent < 0 ||
+            !Number.isSafeInteger(numDelivered) || numDelivered < 0 ||
+            !Number.isSafeInteger(numRead) || numRead < 0 ||
+            !Number.isSafeInteger(numFailed) || numFailed < 0
         ) {
             await mongoSession.abortTransaction();
             mongoSession.endSession();
@@ -1203,23 +1167,23 @@ export const updateCampaignMetrics = async (req, res) => {
         let refundInfo = null;
         let updatedUserWallet = null;
 
+        validateCampaignBillingStatus(campaign, req.body.status);
+        if (campaign.status === "failed" || req.body.status === "failed") { const error = new Error("Publish the failure report to finalize the campaign and refund its credits."); error.statusCode = 409; throw error; }
         const campaignOwner = await userModel.findById(campaign.userId).session(mongoSession);
         const isEligibleForRefund = campaignOwner && campaignOwner.role !== "Super Admin";
 
         const wholeCampaignFailed = status === "failed" || campaign.status === "failed";
         if (isEligibleForRefund && (numFailed > 0 || wholeCampaignFailed)) {
-            const alreadyRefunded = wholeCampaignFailed ? (await getCampaignRefundAccounting(campaign, mongoSession)).settled : campaign.campaignSummary?.creditsRefunded || 0;
+            const alreadyRefunded = (await getCampaignRefundAccounting(campaign, mongoSession)).settled;
 
-            if (alreadyRefunded > 0 && !wholeCampaignFailed) {
-                console.log(`Campaign ${campaign._id} was already refunded ${alreadyRefunded} credits. Skipping duplicate refund.`);
-            } else {
+            {
                 const rate = campaign.rateSnapshot || campaignOwner.ratePerMsg || 12;
-                let refundAmount = wholeCampaignFailed ? campaign.creditsDeducted || 0 : numFailed * rate;
+                let refundAmount = wholeCampaignFailed ? campaign.creditsDeducted || 0 : creditsForCount(rate, numFailed);
 
-                if (campaign.creditsDeducted > 0 && refundAmount > campaign.creditsDeducted) {
+                if (refundAmount > (campaign.creditsDeducted || 0)) {
                     refundAmount = campaign.creditsDeducted;
                 }
-                if (wholeCampaignFailed) refundAmount = Math.max(0, refundAmount - alreadyRefunded);
+                refundAmount = Math.max(0, creditDifference(refundAmount, alreadyRefunded));
 
                 if (refundAmount > 0) {
                     updatedUserWallet = await walletModel.findOneAndUpdate(
@@ -1242,7 +1206,7 @@ export const updateCampaignMetrics = async (req, res) => {
                                 toUser: campaign.userId,
                                 amount: refundAmount,
                                 type: "REFUND",
-                                ...(wholeCampaignFailed ? { refundOperationId: new mongoose.Types.ObjectId() } : {}),
+                                refundOperationId: new mongoose.Types.ObjectId(),
                                 campaignId: campaign._id,
                                 notes: wholeCampaignFailed ? `Remaining credit refund: campaign "${campaign.campaignTitle}" marked failed.` : `Automated refund for ${numFailed} failed/wrong number(s) on campaign "${campaign.campaignTitle}" at rate ${rate}/msg`,
                                 rateSnapshot: rate,
@@ -1357,7 +1321,7 @@ export const updateCampaignMetrics = async (req, res) => {
         await mongoSession.abortTransaction();
         mongoSession.endSession();
         console.error("Update campaign metrics error:", error);
-        return res.status(500).json({
+        return res.status(error.statusCode || 500).json({
             message: error.message || "Failed to update campaign metrics",
             success: false,
         });
@@ -1411,6 +1375,8 @@ export const saveCampaignReport = async (req, res) => {
             });
         }
 
+        validateCampaignBillingStatus(campaign, req.body.status);
+        if (campaign.status === "failed" || req.body.status === "failed") { const error = new Error("Publish the failure report to finalize the campaign and refund its credits."); error.statusCode = 409; throw error; }
         const campaignOwner = await userModel.findById(campaign.userId).session(mongoSession);
         const rate = campaign.rateSnapshot || (campaignOwner && campaignOwner.ratePerMsg > 0 ? campaignOwner.ratePerMsg : 12);
 
@@ -1472,17 +1438,17 @@ export const saveCampaignReport = async (req, res) => {
         let updatedUserWallet = null;
 
         if (isEligibleForBilling) {
-            let targetRefundAmount = campaign.status === "failed" || status === "failed" ? campaign.creditsDeducted || 0 : totalRefundNumbersCount * rate;
-            if (campaign.creditsDeducted > 0 && targetRefundAmount > campaign.creditsDeducted) {
+            let targetRefundAmount = campaign.status === "failed" || status === "failed" ? campaign.creditsDeducted || 0 : creditsForCount(rate, totalRefundNumbersCount);
+            if (targetRefundAmount > (campaign.creditsDeducted || 0)) {
                 targetRefundAmount = campaign.creditsDeducted;
             }
 
-            const previousRefundAmount = campaign.status === "failed" || status === "failed" ? (await getCampaignRefundAccounting(campaign, mongoSession)).settled : campaign.campaignSummary?.creditsRefunded || 0;
-            const netRefundDelta = targetRefundAmount - previousRefundAmount;
+            const previousRefundAmount = (await getCampaignRefundAccounting(campaign, mongoSession)).settled;
+            const netRefundDelta = creditDifference(targetRefundAmount, previousRefundAmount);
 
             if (netRefundDelta !== 0) {
                 updatedUserWallet = await walletModel.findOneAndUpdate(
-                    { userId: campaign.userId },
+                    { userId: campaign.userId, ...(netRefundDelta < 0 ? { balance: { $gte: -netRefundDelta } } : {}) },
                     {
                         $inc: { balance: netRefundDelta },
                         $setOnInsert: { resellerId: campaignOwner.resellerId || null },
@@ -1494,6 +1460,7 @@ export const saveCampaignReport = async (req, res) => {
                     }
                 );
 
+                if (!updatedUserWallet) { const error = new Error("Insufficient credits to reverse the previous refund. No changes were saved."); error.statusCode = 409; throw error; }
                 const txType = netRefundDelta > 0 ? "REFUND" : "DEDUCT";
                 const absAmount = Math.abs(netRefundDelta);
                 const txNotes = netRefundDelta > 0
@@ -1504,13 +1471,14 @@ export const saveCampaignReport = async (req, res) => {
                     [
                         {
                             fromUser: netRefundDelta > 0 ? req.user._id : campaign.userId,
-                            toUser: netRefundDelta > 0 ? campaign.userId : req.user._id,
+                            toUser: campaign.userId,
                             amount: absAmount,
                             type: txType,
                             campaignId: campaign._id,
                             refundOperationId: new mongoose.Types.ObjectId(),
                             notes: txNotes,
                             rateSnapshot: rate,
+                            balanceAfterFrom: netRefundDelta < 0 ? updatedUserWallet.balance : null,
                             balanceAfterTo: updatedUserWallet.balance,
                             performedBy: req.user._id,
                         },
@@ -1591,7 +1559,7 @@ export const saveCampaignReport = async (req, res) => {
         await mongoSession.abortTransaction();
         mongoSession.endSession();
         console.error("Save campaign report error:", error);
-        return res.status(500).json({
+        return res.status(error.statusCode || 500).json({
             message: error.message || "Failed to save campaign report",
             success: false,
         });
@@ -1604,6 +1572,59 @@ export const saveCampaignReport = async (req, res) => {
  * Update campaign recipient entries, custom tabs, classifications, and credit adjustments.
  * STRICTLY Super Admin ONLY.
  */
+async function saveFailureReport(req, res, campaign, session) {
+    const mode = req.body.saveMode;
+    if (!["draft", "publish"].includes(mode)) { const error = new Error("Save or publish the failure report before finalizing this campaign."); error.statusCode = 409; throw error; }
+    if (Number(req.body.spreadsheetRevision) !== (campaign.spreadsheetRevision || 0)) { const error = new Error("This report changed in another session. Refresh before saving."); error.statusCode = 409; throw error; }
+    const notes = String(req.body.reportNotes ?? campaign.draftReportNotes ?? "").trim();
+    if (notes.length > 4000 || (mode === "publish" && !notes)) { const error = new Error("Enter a failure reason of 1 to 4000 characters before publishing."); error.statusCode = 400; throw error; }
+    const entries = failureReportEntries(campaign);
+    if (!entries.length) { const error = new Error("The original campaign contacts are unavailable. Review this campaign before publishing."); error.statusCode = 409; throw error; }
+    campaign.draftReportNotes = notes;
+    campaign.spreadsheetRevision = (campaign.spreadsheetRevision || 0) + 1;
+    let refundInfo = null;
+    if (mode === "publish") {
+        const accounting = await getCampaignRefundAccounting(campaign, session);
+        const owner = await userModel.findById(campaign.userId).session(session);
+        if (!owner) throw new Error("Campaign creator not found");
+        if (accounting.remaining > 0 && owner.role !== "Super Admin") {
+            const wallet = await walletModel.findOneAndUpdate(
+                { userId: campaign.userId },
+                { $inc: { balance: accounting.remaining }, $setOnInsert: { resellerId: owner.resellerId || null } },
+                { returnDocument: "after", upsert: true, session }
+            );
+            const [transaction] = await transactionModel.create([{
+                type: "REFUND", campaignId: campaign._id, refundOperationId: new mongoose.Types.ObjectId(),
+                fromUser: req.user._id, toUser: campaign.userId, performedBy: req.user._id,
+                amount: accounting.remaining, balanceAfterTo: wallet.balance, rateSnapshot: campaign.rateSnapshot,
+                notes: `Full credit refund: failure report published for campaign "${campaign.campaignTitle}".`,
+            }], { session });
+            refundInfo = { amount: accounting.remaining, newBalance: wallet.balance, transactionId: transaction._id };
+        }
+        const sheet = failureReportSheet(campaign, notes);
+        const publishedAt = new Date();
+        campaign.status = "failed";
+        campaign.publicStatus = "failed";
+        campaign.manualStatusOverride = true;
+        campaign.campaignEndDate = publishedAt;
+        if (!campaign.campaignSummary) campaign.campaignSummary = {};
+        Object.assign(campaign.campaignSummary, { delivered: 0, read: 0, failed: entries.length, creditsRefunded: accounting.charged, adminNotes: notes, reportedAt: publishedAt, reportedBy: req.user._id });
+        await saveSpreadsheetRows(campaign._id, "published", sheet.rows, session);
+        campaign.publishedSpreadsheet = { ...sheet, rows: [], publishedAt, publishedBy: req.user._id };
+    }
+    await campaign.save({ session });
+    await session.commitTransaction();
+    await session.endSession();
+    if (mode === "publish") {
+        notifyUser(campaign.userId, "CAMPAIGN_UPDATED", { campaignId: campaign._id, campaignTitle: campaign.campaignTitle, status: "failed", reportUpdated: true });
+        if (refundInfo) notifyUser(campaign.userId, "WALLET_UPDATED", { campaignId: campaign._id, reason: "REFUND", delta: refundInfo.amount, newBalance: refundInfo.newBalance });
+    }
+    notifyRole("Super Admin", "CAMPAIGN_UPDATED", { campaignId: campaign._id, status: "failed", reportUpdated: true });
+    const view = campaign.toObject ? campaign.toObject() : { ...campaign };
+    if (view.publishedSpreadsheet?.publishedAt) view.publishedSpreadsheet = { ...view.publishedSpreadsheet, rows: await loadSpreadsheetRows(campaign._id, "published") };
+    return res.status(200).json({ success: true, message: mode === "publish" ? "Failure report published and remaining credits refunded." : "Failure report draft saved.", data: view, refundInfo });
+}
+
 export const updateCampaignRecipientsManagement = async (req, res) => {
     const mongoSession = await mongoose.startSession();
     mongoSession.startTransaction({
@@ -1644,8 +1665,12 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
             });
         }
 
+        if (campaign.status === "failed") return await saveFailureReport(req, res, campaign, mongoSession);
+        if (req.body.status === "failed") { const error = new Error("Select Failed on the campaign before preparing its failure report."); error.statusCode = 409; throw error; }
+
         entries = normalizeDuplicateRows(entries);
         const spreadsheetSave = saveMode === "draft" || saveMode === "publish";
+        if (saveMode === "publish" && req.body.status && req.body.status !== "completed") { const error = new Error("A completed report must be published as Completed. Use the failure report for a failed campaign."); error.statusCode = 400; throw error; }
         if (saveMode && !spreadsheetSave) throw new Error("Invalid spreadsheet save mode.");
         if (spreadsheetSave && Number(spreadsheetRevision) !== (campaign.spreadsheetRevision || 0)) {
             await mongoSession.abortTransaction();
@@ -1655,6 +1680,7 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
         if (spreadsheetSave && campaign.spreadsheetRevision > 0) {
             campaign.recipientEntries = await loadSpreadsheetRows(campaign._id, "draft", mongoSession);
         }
+        campaign.recipientEntries = restoreOriginalCampaignEntries(campaign);
         let sheetColumns;
         let publishedSheet;
         if (spreadsheetSave) {
@@ -1668,7 +1694,7 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
                 const rowNumber = Number(entry.rowNumber);
                 if (!Number.isSafeInteger(rowNumber) || rowNumber < 1 || rowIds.has(rowNumber) || (!knownIds.has(rowNumber) && rowNumber <= maxId)) throw new Error("Each recipient must retain its unique All index.");
                 rowIds.add(rowNumber);
-                const phoneNumber = String(entry.phoneNumber || "").replace(/\D/g, "");
+                const phoneNumber = String(entry.phoneNumber || "").replace(/\D/g, "") || String(entry.phoneNumber || "").trim();
                 if (!phoneNumber) throw new Error("Every row needs a phone number.");
                 const cells = Object.fromEntries(Object.entries(entry.cells || {}).filter(([id]) => customIds.has(id)).map(([id, value]) => [id, String(value ?? "").slice(0, 2000)]));
                 return { ...entry, rowNumber, phoneNumber, notes: String(entry.notes || "").slice(0, 2000), cells };
@@ -1678,6 +1704,7 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
           } catch (error) { error.statusCode = 400; throw error; }
         }
 
+        validateCampaignBillingStatus(campaign, saveMode === "publish" && campaign.status === "failed" ? "failed" : req.body.status);
         const campaignOwner = await userModel.findById(campaign.userId).session(mongoSession);
         const rate =
             campaign.rateSnapshot ||
@@ -1722,17 +1749,17 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
         let refundInfo = null;
 
         if (isEligibleForBilling && saveMode !== "draft") {
-            let targetRefundAmount = campaign.status === "failed" || req.body.status === "failed" ? campaign.creditsDeducted || 0 : refundCount * rate;
-            if (campaign.creditsDeducted > 0 && targetRefundAmount > campaign.creditsDeducted) {
+            let targetRefundAmount = campaign.status === "failed" || req.body.status === "failed" ? campaign.creditsDeducted || 0 : creditsForCount(rate, refundCount);
+            if (targetRefundAmount > (campaign.creditsDeducted || 0)) {
                 targetRefundAmount = campaign.creditsDeducted;
             }
 
-            const previousRefundAmount = campaign.status === "failed" || req.body.status === "failed" ? (await getCampaignRefundAccounting(campaign, mongoSession)).settled : campaign.campaignSummary?.creditsRefunded || 0;
-            const netRefundDelta = targetRefundAmount - previousRefundAmount;
+            const previousRefundAmount = (await getCampaignRefundAccounting(campaign, mongoSession)).settled;
+            const netRefundDelta = creditDifference(targetRefundAmount, previousRefundAmount);
 
             if (netRefundDelta !== 0) {
                 const updatedUserWallet = await walletModel.findOneAndUpdate(
-                    { userId: campaign.userId },
+                    { userId: campaign.userId, ...(netRefundDelta < 0 ? { balance: { $gte: -netRefundDelta } } : {}) },
                     {
                         $inc: { balance: netRefundDelta },
                         $setOnInsert: { resellerId: campaignOwner.resellerId || null },
@@ -1744,6 +1771,7 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
                     }
                 );
 
+                if (!updatedUserWallet) { const error = new Error("Insufficient credits to reverse the previous refund. No changes were saved."); error.statusCode = 409; throw error; }
                 const txType = netRefundDelta > 0 ? "REFUND" : "DEDUCT";
                 const absAmount = Math.abs(netRefundDelta);
                 const txNotes =
@@ -1755,13 +1783,14 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
                     [
                         {
                             fromUser: netRefundDelta > 0 ? req.user._id : campaign.userId,
-                            toUser: netRefundDelta > 0 ? campaign.userId : req.user._id,
+                            toUser: campaign.userId,
                             amount: absAmount,
                             type: txType,
                             campaignId: campaign._id,
                             refundOperationId: new mongoose.Types.ObjectId(),
                             notes: txNotes,
                             rateSnapshot: rate,
+                            balanceAfterFrom: netRefundDelta < 0 ? updatedUserWallet.balance : null,
                             balanceAfterTo: updatedUserWallet.balance,
                             performedBy: req.user._id,
                         },
@@ -1818,15 +1847,18 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
         if (saveMode === "publish") {
             const publishedAt = new Date();
             campaign.status = campaign.status === "failed" ? "failed" : req.body.status || "completed";
+            campaign.publicStatus = campaign.status;
+            campaign.campaignEndDate = publishedAt;
             campaign.campaignSummary.reportedAt = publishedAt;
             campaign.campaignSummary.reportedBy = req.user._id;
             campaign.campaignSummary.adminNotes = campaign.draftReportNotes;
             campaign.campaignSummary.failed = refundCount;
             await saveSpreadsheetRows(campaign._id, "published", publishedSheet.rows, mongoSession);
             campaign.publishedSpreadsheet = {
-                columns: publishedSheet.columns, notes: campaign.draftReportNotes, publishedAt, publishedBy: req.user._id,
+                columns: publishedSheet.columns, status: campaign.status, notes: campaign.draftReportNotes, publishedAt, publishedBy: req.user._id,
                 summary: {
                     total: entries.length, delivered: entries.filter((row) => ["delivered", "read"].includes(row.status)).length,
+                    failed: entries.filter((row) => row.status === "failed").length, read: entries.filter((row) => row.status === "read").length,
                     refunded: refundCount, creditsRefunded: campaign.campaignSummary.creditsRefunded || 0,
                     creditsCharged: campaign.creditsDeducted || 0,
                 },

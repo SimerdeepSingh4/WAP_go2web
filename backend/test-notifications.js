@@ -26,8 +26,8 @@ test("financial messages reflect posted transaction amounts and never planned ca
 test("campaign links use each viewer's role and publication differs from status updates", () => {
     const event = { kind: "campaign", data: { id: "campaign", title: "Offer", status: "completed", changes: ["publishedSpreadsheet", "status"], publishedAt: new Date() } };
     assert.equal(formatNotification(event, user, user).href, "/user/campaigns/campaign/report");
-    assert.equal(formatNotification(event, reseller, user).title, "Campaign report published");
-    assert.match(formatNotification(event, reseller, user).body, /^Client:/);
+    assert.equal(formatNotification(event, reseller, user).title, "Campaign report published • Client");
+    assert.match(formatNotification(event, reseller, user).body, /User "Client"/);
 });
 
 test("low balance warns on threshold crossings rather than every wallet update", () => {

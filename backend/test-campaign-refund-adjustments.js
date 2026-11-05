@@ -1,3 +1,7 @@
+import * as contacts from "../shared/campaignContacts.js";
+import * as visibility from "./src/helpers/campaign-visibility.js";
+import * as failure from "../shared/campaignFailure.js";
+import * as creditAmounts from "./src/helpers/credit-amount.js";
 import * as spreadsheet from "../shared/campaignSpreadsheet.js";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -118,7 +122,7 @@ async function controllerFixture() {
         } },
         "../models/transaction.model.js": { default: {
             aggregate: () => {
-                const result = () => [{ total: ledger.reduce((sum, row) => sum + (row.type === "REFUND" ? row.amount : row.type === "DEDUCT" && row.refundOperationId ? -row.amount : 0), 0) }];
+                const result = () => [{ charged: campaign.creditsDeducted, total: ledger.reduce((sum, row) => sum + (row.type === "REFUND" ? row.amount : row.type === "DEDUCT" && row.refundOperationId ? -row.amount : 0), 0) }];
                 return { session: async () => result(), then: (resolve) => Promise.resolve(result()).then(resolve) };
             },
             create: async ([record], options) => {
@@ -140,7 +144,7 @@ async function controllerFixture() {
     const context = vm.createContext({ console: { error() {} }, Date, Set, Map, Buffer });
     const module = new vm.SourceTextModule(source, { context });
     await module.link(async (specifier) => {
-        const exports = dependencies[specifier] || (specifier === "../../../shared/campaignSpreadsheet.js" ? spreadsheet : specifier === "../helpers/spreadsheet-storage.js" ? { loadSpreadsheetRows: async () => [], saveSpreadsheetRows: async () => {} } : { default: {} });
+        const exports = (specifier === "../../../shared/campaignContacts.js" ? contacts : null) || (specifier === "../helpers/campaign-visibility.js" ? visibility : specifier === "../../../shared/campaignFailure.js" ? failure : null) || (specifier === "../helpers/credit-amount.js" ? creditAmounts : specifier === "../helpers/credit-operation.js" ? { startCreditSession: () => dependencies.mongoose.default.startSession(), saveCreditReceipt: async () => {} } : dependencies[specifier]) || (specifier === "../../../shared/campaignSpreadsheet.js" ? spreadsheet : specifier === "../helpers/spreadsheet-storage.js" ? { loadSpreadsheetRows: async () => [], saveSpreadsheetRows: async () => {} } : { default: {} });
         return new vm.SyntheticModule(Object.keys(exports), function () {
             for (const [key, value] of Object.entries(exports)) this.setExport(key, value);
         }, { context });
@@ -251,25 +255,13 @@ test("draft Excel export is restricted to admin and requires recipient rows", as
 });
 
 for (const handler of ["updateCampaignMetrics", "saveCampaignReport", "updateCampaignRecipientsManagement"]) {
-    test(`${handler}: failing an 80-credit campaign with 48 refunded returns the remaining 32`, async () => {
+    test(handler + ": legacy writes cannot finalize or refund a failed campaign", async () => {
         const fixture = await controllerFixture();
-        fixture.campaign.creditsDeducted = 80;
-        fixture.campaign.campaignSummary.creditsRefunded = 48;
-        fixture.ledger[0].amount = 48;
-        const body = handler === "updateCampaignMetrics"
-            ? { sent: 2, delivered: 2, failed: 0, status: "failed" }
-            : handler === "saveCampaignReport"
-                ? { categories: [{ name: "Delivered", billingAction: "deduct", numbers: ["919876543210"] }], status: "failed" }
-                : { entries: [{ rowNumber: 1, phoneNumber: "919876543210", tabKey: "delivered", category: "Delivered", status: "delivered", billingAction: "keep" }], saveMode: "publish", spreadsheetRevision: 0, spreadsheetColumns: spreadsheet.BASE_COLUMNS, status: "failed" };
-        const response = await fixture.invoke(handler, 0, body);
-        assert.equal(response.code, 200, response.body.message);
-        assert.equal(fixture.campaign.status, "failed");
-        assert.equal(fixture.campaign.campaignSummary.creditsRefunded, 80);
-        assert.equal(fixture.getBalance(), 132);
-        assert.equal(fixture.ledger.at(-1).amount, 32);
-        const retry = await fixture.invoke(handler, 0, { ...body, ...(body.saveMode ? { spreadsheetRevision: 1 } : {}) });
-        assert.equal(retry.code, 200, retry.body.message);
-        assert.equal(fixture.getBalance(), 132);
+        const body = handler === "updateCampaignMetrics" ? { sent: 2, delivered: 2, read: 0, failed: 0, status: "failed" } : handler === "saveCampaignReport" ? { categories: [], status: "failed" } : { entries: [], status: "failed" };
+        const result = await fixture.invoke(handler, 0, body);
+        assert.equal(result.code, 409, result.body.message);
+        assert.equal(fixture.getBalance(), 100);
+        assert.equal(fixture.ledger.length, 1);
     });
 }
 
@@ -291,7 +283,7 @@ test("spreadsheet drafts stay private, publish evaluates columns, and republishi
     assert.equal(fixture.storedRows.draft.length, 2);
     const privateView = await fixture.invoke("getCampaignById", 0, null, "User");
     assert.equal(privateView.code, 200);
-    assert.ok(!privateView.body.data.recipientEntries);
+    assert.ok(privateView.body.data.recipientEntries.every((entry) => Object.keys(entry).every((key) => ["rowNumber", "phoneNumber", "status", "category"].includes(key))));
     assert.ok(!privateView.body.data.spreadsheetColumns);
     assert.ok(!("draftReportNotes" in privateView.body.data));
     assert.ok(!privateView.body.data.publishedSpreadsheet);
@@ -321,7 +313,7 @@ test("spreadsheet drafts stay private, publish evaluates columns, and republishi
     assert.equal(viewer.body.data.publishedSpreadsheet.rows[0].values.notes, "Published note");
     assert.equal(viewer.body.data.publishedSpreadsheet.notes, "Reviewed delivery results.");
     assert.ok(!("draftReportNotes" in viewer.body.data));
-    assert.ok(!viewer.body.data.recipientEntries);
+    assert.ok(viewer.body.data.recipientEntries.every((entry) => Object.keys(entry).every((key) => ["rowNumber", "phoneNumber", "status", "category"].includes(key))));
     const stale = await fixture.invoke("updateCampaignRecipientsManagement", 0, payload);
     assert.equal(stale.code, 409);
 });
@@ -341,22 +333,6 @@ test("saving duplicate occurrences accepts the first row and refunds only later 
     assert.equal(rows[2].notes, "Already listed in row 8.");
     assert.equal(fixture.campaign.campaignSummary.creditsRefunded, 24);
     assert.equal(fixture.storedRows.published[1].values.notes, "Already listed in row 8.");
-});
-
-test("publishing a failed campaign preserves its full refund and failed status", async () => {
-    const fixture = await controllerFixture();
-    fixture.campaign.status = "failed";
-    fixture.campaign.campaignSummary.creditsRefunded = 120;
-    fixture.ledger[0].amount = 120;
-    const result = await fixture.invoke("updateCampaignRecipientsManagement", 0, {
-        entries: [{ rowNumber: 1, phoneNumber: "919876543210", category: "Delivered", status: "delivered", billingAction: "keep" }],
-        saveMode: "publish", status: "completed", spreadsheetRevision: 0, spreadsheetColumns: spreadsheet.BASE_COLUMNS,
-    });
-    assert.equal(result.code, 200, result.body.message);
-    assert.equal(fixture.campaign.status, "failed");
-    assert.equal(fixture.campaign.campaignSummary.creditsRefunded, 120);
-    assert.equal(fixture.getBalance(), 100);
-    assert.equal(fixture.ledger.length, 1);
 });
 
 test("spreadsheet publishing rejects changed All indexes and formula errors before moving credits", async () => {

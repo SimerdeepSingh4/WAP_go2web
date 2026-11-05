@@ -151,7 +151,13 @@ export default function ResellerUsers() {
   const search = params.get("search") || "";
   const status = params.get("status") || "all";
   const [modal, setModal] = useState(null);
-  const [detail, setDetail] = useState(null);
+  const [localDetail, setDetail] = useState(null);
+  const selectedAccount = params.get("account");
+  const detail = selectedAccount ? (query.data?.users || []).find((account) => String(account._id || account.id) === selectedAccount && account.role === "User") : localDetail;
+  function closeDetail() {
+    setDetail(null);
+    setParams((previous) => { const next = new URLSearchParams(previous); next.delete("account"); return next; }, { replace: true });
+  }
   const removeAccount = useResellerMutation("deleteAccount", "User account removed", () => setModal(null));
 
   const rawAccounts = query.data?.users || [];
@@ -361,7 +367,7 @@ export default function ResellerUsers() {
       {detail && (
         <UserDetail
           account={detail}
-          onClose={() => setDetail(null)}
+          onClose={closeDetail}
           onAction={(type, acc) => setModal({ type, account: acc })}
         />
       )}

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { Popover } from "@base-ui/react/popover";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowUpRight, Bell, Check, CheckCheck, RefreshCw } from "lucide-react";
+import { Archive, ArrowUpRight, Bell, Check, CheckCheck, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useNotifications, useNotificationAction } from "./useNotifications";
@@ -40,7 +40,10 @@ export default function NotificationBell({ base }) {
           <ul aria-label="Recent notifications" aria-busy={query.isFetching}><AnimatePresence initial={false}>{query.data?.items.map((item) => <NotificationListItem key={item._id} item={item} base={base} action={action} isPreview={user?.isPreview} compact onOpen={() => setOpen(false)} />)}</AnimatePresence></ul>
           {query.isSuccess && !query.data.items.length && <div className="absolute inset-0 flex flex-col items-center justify-center px-4 text-center"><span className="mx-auto mb-3 grid size-10 place-items-center rounded-full bg-background"><Check className="size-5 text-muted-foreground" /></span><p className="text-sm font-medium">You're all caught up</p><p className="mt-1 text-xs text-muted-foreground">New notifications will land here.</p></div>}
         </motion.div>
-        <Link to={`${base}/notifications`} onClick={() => setOpen(false)} className="mt-1 flex items-center justify-center gap-1.5 rounded-2xl px-4 py-3 text-xs font-medium outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring">View all notifications<ArrowUpRight className="size-3.5" /></Link>
+        <div className="mt-1 flex items-center justify-between gap-2 px-2 py-1">
+          <Link to={`${base}/notifications`} onClick={() => setOpen(false)} className="flex items-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring">View all notifications<ArrowUpRight className="size-3.5" /></Link>
+          <Button type="button" variant="ghost" size="xs" aria-label="Clear all notifications" title="Archive all inbox notifications" disabled={!query.data?.items?.length || action.isPending || user?.isPreview} onClick={() => action.mutate({ id: "all", archived: true })} className="gap-1 text-xs text-muted-foreground"><Archive className="size-3.5" />{action.isPending && action.variables?.archived && action.variables?.id === "all" ? "Clearing..." : "Clear all"}</Button>
+        </div>
       </Popover.Popup></Popover.Positioner></Popover.Portal>
     </Popover.Root>
   );

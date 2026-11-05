@@ -60,6 +60,7 @@ const campaignSchema = new mongoose.Schema(
             type: Date,
             default: null,
         },
+        originalRecipients: { type: [String], default: undefined, immutable: true },
         // Multiple images support
         images: [
             {
@@ -238,6 +239,7 @@ const campaignSchema = new mongoose.Schema(
             type: Boolean,
             default: false,
         },
+        publicStatus: { type: String, enum: ["draft", "pending", "scheduled", "ongoing", "paused", "stopped", "completed", "sent", "failed"] },
         campaignSummary: {
             sent: {
                 type: Number,
