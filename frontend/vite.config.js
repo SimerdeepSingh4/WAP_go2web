@@ -12,7 +12,20 @@ export default defineConfig({
       '@campaign-sheet': fileURLToPath(new URL('../shared/campaignSpreadsheet.js', import.meta.url)),
     },
   },
-  server: { fs: { allow: [fileURLToPath(new URL('..', import.meta.url))] } },
+  server: {
+    fs: { allow: [fileURLToPath(new URL('..', import.meta.url))] },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/socket.io': {
+        target: 'http://localhost:3000',
+        ws: true,
+      },
+    },
+  },
   optimizeDeps: {
     include: [
       'react',
