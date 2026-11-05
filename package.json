@@ -1,0 +1,14 @@
+{
+  "name": "wap-go2web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "npm install --prefix frontend && npm run build --prefix frontend && npm install --prefix backend",
+    "start": "node backend/server.js",
+    "dev:backend": "cd backend && npx nodemon server.js",
+    "dev:frontend": "cd frontend && npm run dev",
+    "install:all": "npm install --prefix frontend && npm install --prefix backend"
+  }
+}
+
