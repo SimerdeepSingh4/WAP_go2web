@@ -1,18 +1,45 @@
+import { useState } from "react";
 import { useSearchParams, Link } from "react-router";
-import { MoreHorizontal, Eye, FileText, Megaphone, Clock, CheckCircle, AlertTriangle, RefreshCw, Pencil } from "lucide-react";
+import { Popover } from "@base-ui/react/popover";
+import { MoreHorizontal, Eye, FileText, RefreshCw, CalendarDays, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Calendar } from "@/components/ui/calendar";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { PageHeading, SearchBox, FilterSelect, QueryState, DataTable, StatusBadge } from "../components/shared";
+import { PageHeading, SearchBox, QueryState, DataTable, StatusBadge } from "../components/shared";
 import { useAdminQuery } from "../hooks/useAdmin";
-import { number, dateTime, statusLabels, ownerName, needsReport, published, waiting } from "../lib/format";
+import { number, dateTime, ownerName, needsReport, published, waiting } from "../lib/format";
 import CampaignDetail from "../components/CampaignDetail";
+
+const IST_OFFSET = 330 * 60_000;
+
+function campaignDay(value) {
+  if (!value) return null;
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? new Date(timestamp + IST_OFFSET).toISOString().slice(0, 10) : null;
+}
+
+function dateFromKey(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value || "")) return undefined;
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(year, month - 1, day, 12);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
+    ? date
+    : undefined;
+}
+
+function dateKey(date) {
+  if (!date) return "";
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
 
 export default function Campaigns({ reports = false }) {
   const query = useAdminQuery("campaigns");
   const [params, setParams] = useSearchParams();
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const search = params.get("search") || "";
   const status = params.get("status") || "all";
+  const selectedDateKey = params.get("date") || "";
+  const selectedDate = dateFromKey(selectedDateKey);
   const selected = params.get("campaign");
 
   function update(key, value) {
@@ -27,15 +54,18 @@ export default function Campaigns({ reports = false }) {
   }
 
   const all = query.data?.data || [];
+  const datedCampaigns = selectedDateKey
+    ? all.filter((campaign) => campaignDay(campaign.createdAt) === selectedDateKey)
+    : all;
 
   // Metrics counts
-  const totalCount = all.length;
-  const pendingCount = all.filter(waiting).length;
-  const ongoingCount = all.filter((c) => c.status === "ongoing").length;
-  const completedCount = all.filter((c) => ["completed", "sent"].includes(c.status)).length;
-  const needsReportCount = all.filter(needsReport).length;
+  const totalCount = datedCampaigns.length;
+  const pendingCount = datedCampaigns.filter(waiting).length;
+  const ongoingCount = datedCampaigns.filter((c) => c.status === "ongoing").length;
+  const completedCount = datedCampaigns.filter((c) => ["completed", "sent"].includes(c.status)).length;
+  const needsReportCount = datedCampaigns.filter(needsReport).length;
 
-  const rows = all.filter((c) => {
+  const rows = datedCampaigns.filter((c) => {
     const matches = `${c.campaignTitle} ${ownerName(c.userId)} ${c.userId?.email || ""}`
       .toLowerCase()
       .includes(search.toLowerCase());
@@ -50,17 +80,6 @@ export default function Campaigns({ reports = false }) {
         : c.status === status || (status === "completed" && c.status === "sent"));
     return matches && matchesStatus;
   });
-
-  const open = (campaign, report = false, editStatus = false) =>
-    setParams((current) => {
-      const next = new URLSearchParams(current);
-      next.set("campaign", campaign._id);
-      if (report) next.set("editReport", "1");
-      else next.delete("editReport");
-      if (editStatus) next.set("editStatus", "1");
-      else next.delete("editStatus");
-      return next;
-    });
 
   const columns = [
     {
@@ -168,7 +187,7 @@ export default function Campaigns({ reports = false }) {
     ? [
         { label: "All reports", val: "all", count: totalCount },
         { label: "Needs report", val: "unreported", count: needsReportCount },
-        { label: "Published", val: "published", count: all.filter(published).length },
+        { label: "Published", val: "published", count: datedCampaigns.filter(published).length },
       ]
     : [
         { label: "All", val: "all", count: totalCount },
@@ -230,21 +249,51 @@ export default function Campaigns({ reports = false }) {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SearchBox value={search} onChange={(value) => update("search", value)} label="Search campaigns or accounts..." />
-        {(search || status !== "all") && (
-          <Button variant="ghost" size="sm" onClick={() => setParams({})}>
-            Clear all filters
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <Popover.Root open={calendarOpen} onOpenChange={setCalendarOpen}>
+            <Popover.Trigger
+              render={<Button type="button" variant={selectedDateKey ? "default" : "outline"} size="sm" className="gap-2" />}
+            >
+              <CalendarDays className="size-4" />
+              {selectedDate ? selectedDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "Filter by date"}
+            </Popover.Trigger>
+            <Popover.Portal>
+              <Popover.Positioner align="end" sideOffset={8} className="z-50">
+                <Popover.Popup className="rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-lg outline-none">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    defaultMonth={selectedDate || new Date()}
+                    onSelect={(day) => {
+                      update("date", dateKey(day));
+                      setCalendarOpen(false);
+                    }}
+                  />
+                </Popover.Popup>
+              </Popover.Positioner>
+            </Popover.Portal>
+          </Popover.Root>
+          {selectedDateKey && (
+            <Button variant="ghost" size="icon-sm" aria-label="Clear date filter" title="Clear date filter" onClick={() => update("date", "")}>
+              <X className="size-4" />
+            </Button>
+          )}
+          {(search || status !== "all" || selectedDateKey) && (
+            <Button variant="ghost" size="sm" onClick={() => setParams({})}>
+              Clear all filters
+            </Button>
+          )}
+        </div>
       </div>
 
       <QueryState
         query={query}
-        empty={!all.length}
+        empty={!rows.length}
         emptyTitle={reports ? "No campaign reports yet" : "No campaigns yet"}
-        emptyDescription="Campaigns created by your resellers and users will appear here."
+        emptyDescription={selectedDateKey ? "No campaigns were submitted on this date." : "Campaigns created by your resellers and users will appear here."}
       >
         <DataTable
-          key={`${search}-${status}`}
+          key={`${search}-${status}-${selectedDateKey}`}
           caption={reports ? "Campaign performance reports" : "Campaign list"}
           rows={rows}
           columns={columns}
