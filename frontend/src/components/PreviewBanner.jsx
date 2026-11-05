@@ -1,8 +1,8 @@
-import React from "react";
 import { useAuth } from "../features/auth/hooks/useAuth.js";
 import { exitPreview } from "../features/dashboard/services/users.api.js";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
+import { setSessionToken } from "../api/sessionToken.js";
 
 export default function PreviewBanner() {
   const { user } = useAuth();
@@ -13,7 +13,7 @@ export default function PreviewBanner() {
     mutationFn: exitPreview,
     onSuccess: (data) => {
       if (data.token) {
-        localStorage.setItem("token", data.token);
+        setSessionToken(data.token);
       }
       queryClient.setQueryData(["authUser"], data.user);
       queryClient.invalidateQueries({ queryKey: ["activeSessions"] });

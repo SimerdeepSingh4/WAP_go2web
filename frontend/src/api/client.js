@@ -1,4 +1,5 @@
 import axios from "axios";
+import { getSessionToken } from "./sessionToken";
 
 const apiClient = axios.create({
     baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000/api",
@@ -11,7 +12,7 @@ const apiClient = axios.create({
 // Request Interceptor: attaches Bearer token if stored in localStorage (fallback for mobile/non-cookie environments)
 apiClient.interceptors.request.use(
     (config) => {
-        const token = sessionStorage.getItem("impersonationToken") || localStorage.getItem("token");
+        const token = getSessionToken();
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -31,7 +32,8 @@ apiClient.interceptors.response.use(
         }
 
         // Handle 401 Unauthorized (e.g. session evicted when 4th device logged in)
-        if (error.response?.status === 401 || error.response?.data?.isAccountBlocked) {
+        const isAuthCheck = /\/auth\/me(?:\?|$)/.test(error.config?.url || "");
+        if (error.response?.data?.isLoggedOut || isAuthCheck || error.response?.data?.isAccountBlocked) {
             // Optional: notify app or clear local auth state if needed
             window.dispatchEvent(new CustomEvent("auth:unauthorized", {
                 detail: error.response?.data || { message: "Session expired" }

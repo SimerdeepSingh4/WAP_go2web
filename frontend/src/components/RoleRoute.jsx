@@ -2,6 +2,7 @@ import { Navigate, Link, useNavigate } from "react-router";
 import { useAuth } from "../features/auth/hooks/useAuth.js";
 import { exitPreview } from "../features/dashboard/services/users.api.js";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { setSessionToken } from "../api/sessionToken.js";
 
 /**
  * Checks if a user's role has permission, considering role hierarchy & preview mode:
@@ -38,7 +39,7 @@ export default function RoleRoute({ allowedRoles = [], children }) {
     mutationFn: exitPreview,
     onSuccess: (data) => {
       if (data.token) {
-        localStorage.setItem("token", data.token);
+        setSessionToken(data.token);
       }
       queryClient.setQueryData(["authUser"], data.user);
       queryClient.invalidateQueries({ queryKey: ["activeSessions"] });

@@ -156,7 +156,7 @@ export default function OperatingRules() {
   });
   const logoutAllMutation = useMutation({
     mutationFn: logoutAll,
-    onSuccess: () => { localStorage.removeItem("token"); window.dispatchEvent(new CustomEvent("auth:unauthorized")); },
+    onSuccess: () => { sessionStorage.removeItem("authToken"); sessionStorage.removeItem("impersonationToken"); localStorage.removeItem("token"); window.dispatchEvent(new CustomEvent("auth:unauthorized")); },
     onError: (error) => toast.add({ title: "Could not sign out devices", description: error?.response?.data?.message || error?.message, type: "error" }),
   });
   const activeSessions = sessionsQuery.data?.sessions || [];

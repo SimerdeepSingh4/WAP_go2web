@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuthContext } from "@/features/auth/auth.context";
 import { toast } from "@/components/ui/toast";
 import { syncPushAccount, clearPushOwner } from "@/features/notifications/push";
+import { clearCurrentSessionToken, getSessionToken } from "@/api/sessionToken";
 
 const SocketContext = createContext(null);
 
@@ -18,7 +19,7 @@ export const SocketProvider = ({ children }) => {
         if (!accountId) { void clearPushOwner().catch(() => {}); return; }
         if (!preview) void syncPushAccount(accountId).catch(() => {});
         const socket = io(import.meta.env.VITE_BACKEND_URL || "http://localhost:3000", {
-            auth: { token: sessionStorage.getItem("impersonationToken") || localStorage.getItem("token") }, withCredentials: true,
+            auth: { token: getSessionToken() }, withCredentials: true,
             transports: ["websocket", "polling"], reconnectionAttempts: Infinity,
             reconnectionDelay: 1000, reconnectionDelayMax: 15000,
         });
@@ -84,8 +85,7 @@ export const SocketProvider = ({ children }) => {
         socket.on("SESSION_EXPIRED", (data) => {
             void clearPushOwner().catch(() => {});
             toast.add({ title: "Session ended", description: data?.reason || "Please sign in again.", type: "error" });
-            if (sessionStorage.getItem("impersonationToken")) sessionStorage.removeItem("impersonationToken");
-            else localStorage.removeItem("token");
+            clearCurrentSessionToken();
             queryClient.setQueryData(["authUser"], null);
             queryClient.removeQueries({ queryKey: ["notifications"] });
             window.dispatchEvent(new CustomEvent("auth:unauthorized"));
