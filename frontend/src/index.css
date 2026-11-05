@@ -5,6 +5,61 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Shared by document scrolling, tables, dialogs and portalled menus. */
+:root {
+  --scrollbar-track: #f1f5f9;
+  --scrollbar-thumb: #a3b2c5;
+  --scrollbar-thumb-hover: #657a96;
+  --scrollbar-thumb-active: #353580;
+}
+
+.dark {
+  --scrollbar-track: #182230;
+  --scrollbar-thumb: #52647c;
+  --scrollbar-thumb-hover: #7d90aa;
+  --scrollbar-thumb-active: #a5b4fc;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  min-height: 36px;
+  min-width: 36px;
+  border: 2px solid var(--scrollbar-track);
+  border-radius: 999px;
+  background: var(--scrollbar-thumb);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover { background-color: var(--scrollbar-thumb-hover); }
+*::-webkit-scrollbar-thumb:active { background-color: var(--scrollbar-thumb-active); }
+*::-webkit-scrollbar-corner { background: var(--scrollbar-track); }
+
+/* Firefox uses the standard properties instead of WebKit pseudo-elements. */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+}
+
+@media (forced-colors: active) {
+  :root, .dark {
+    --scrollbar-track: Canvas;
+    --scrollbar-thumb: ButtonText;
+    --scrollbar-thumb-hover: Highlight;
+    --scrollbar-thumb-active: Highlight;
+  }
+}
+
 @theme inline {
   --font-sans: "Geist Variable", sans-serif;
 

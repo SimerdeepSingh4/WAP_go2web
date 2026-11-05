@@ -23,7 +23,7 @@ router.get("/", route(async (req, res) => {
     }
     const page = Math.min(10000, Math.max(1, Math.trunc(Number(req.query.page)) || 1));
     const limit = Math.min(50, Math.max(1, Math.trunc(Number(req.query.limit)) || 20));
-    const [items, total, unreadCount] = await Promise.all([
+    const [items, total, unreadCount, inboxCount] = await Promise.all([
         Notification.find(filter)
             .populate("subjectUserId", "username email role")
             .sort({ createdAt: -1, _id: -1 })
@@ -31,8 +31,9 @@ router.get("/", route(async (req, res) => {
             .limit(limit)
             .lean(),
         Notification.countDocuments(filter), Notification.countDocuments({ ...scope, archivedAt: null, readAt: null }),
+        Notification.countDocuments({ ...scope, archivedAt: null }),
     ]);
-    res.json({ items, unreadCount, pagination: { page, limit, total, pages: Math.max(1, Math.ceil(total / limit)) } });
+    res.json({ items, unreadCount, inboxCount, pagination: { page, limit, total, pages: Math.max(1, Math.ceil(total / limit)) } });
 }));
 
 router.get("/preferences", route(async (req, res) => {
@@ -54,6 +55,13 @@ router.patch("/read-all", route(async (req, res) => {
     await Notification.updateMany({ ...scope, archivedAt: null, readAt: null }, { $set: { readAt: new Date() } });
     notifyUser(req.user._id, "NOTIFICATIONS_CHANGED", {});
     res.json({ success: true });
+}));
+
+router.patch("/archive-all", route(async (req, res) => {
+    const scope = await notificationScope(req.user);
+    const result = await Notification.updateMany({ ...scope, archivedAt: null }, { $set: { archivedAt: new Date() } });
+    notifyUser(req.user._id, "NOTIFICATIONS_CHANGED", {});
+    res.json({ success: true, cleared: result.modifiedCount });
 }));
 
 router.patch("/:id", route(async (req, res) => {

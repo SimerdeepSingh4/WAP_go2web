@@ -32,7 +32,7 @@ import { number } from "@/features/admin/lib/format";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { readCampaignDraft, removeCampaignDraft, writeCampaignDraft } from "../../lib/draftStorage";
 
-const digits = (v) => String(v ?? "").replace(/\D/g, "");
+const digits = (v) => String(v ?? "").replace(/\D/g, "") || String(v ?? "").trim();
 
 const DEFAULT_CARDS = [
   {

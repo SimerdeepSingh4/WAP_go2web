@@ -1,3 +1,4 @@
+import * as creditAmounts from "./src/helpers/credit-amount.js";
 ﻿import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
@@ -46,7 +47,7 @@ async function invoke(role, accountId, query = {}) {
   const context = vm.createContext({ console });
   const module = new vm.SourceTextModule(await readFile(new URL('./src/controllers/credit.controller.js', import.meta.url), 'utf8'), { context });
   await module.link(async (specifier) => {
-    const exports = dependencies[specifier] || { default: {} };
+    const exports = (specifier === "../helpers/credit-amount.js" ? creditAmounts : specifier === "../helpers/credit-operation.js" ? { startCreditSession: () => dependencies.mongoose.default.startSession(), saveCreditReceipt: async () => {} } : dependencies[specifier]) || { default: {} };
     return new vm.SyntheticModule(Object.keys(exports), function () { for (const [key, value] of Object.entries(exports)) this.setExport(key, value); }, { context });
   });
   await module.evaluate();

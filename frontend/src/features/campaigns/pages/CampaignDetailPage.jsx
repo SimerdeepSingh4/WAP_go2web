@@ -10,6 +10,7 @@ import CampaignLoadError from "../components/detail/CampaignLoadError";
 import CampaignDetailMetrics from "../components/detail/CampaignDetailMetrics";
 import CampaignMessagePreview from "../components/detail/CampaignMessagePreview";
 import CampaignAttachmentsView from "../components/detail/CampaignAttachmentsView";
+import CampaignRecipientsTable from "../components/detail/CampaignRecipientsTable";
 import ImageLightbox from "../components/detail/ImageLightbox";
 import { messageTextFromHtml } from "../lib/messageText";
 
@@ -41,7 +42,7 @@ export default function CampaignDetailPage() {
       return res.data?.data;
     },
     staleTime: 10_000,
-    enabled: isAdmin,
+    enabled: Boolean(id && user),
   });
 
   const copyMessage = async () => {
@@ -69,10 +70,6 @@ export default function CampaignDetailPage() {
   };
 
   /* ---------- Loading / error ---------- */
-
-  if (user && !isAdmin) {
-    return <Navigate to={`${base}/campaigns/${id}/report`} replace />;
-  }
 
   if (isLoading) {
     return (
@@ -121,8 +118,10 @@ export default function CampaignDetailPage() {
             onDownloadMedia={downloadMedia}
           />
         </div>
-
       </div>
+
+      {/* Recipients Table with Excel Export */}
+      <CampaignRecipientsTable key={campaign._id} campaign={campaign} />
 
       {/* Lightbox */}
       <ImageLightbox

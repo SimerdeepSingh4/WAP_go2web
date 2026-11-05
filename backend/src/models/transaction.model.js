@@ -1,5 +1,6 @@
 import { notificationHooks } from "../helpers/notification-hooks.js";
 import mongoose from "mongoose";
+import { ledgerAccountingHooks } from "../helpers/ledger-postings.js";
 
 /**
  * Transaction Model (Credit Audit Log)
@@ -31,6 +32,15 @@ const transactionSchema = new mongoose.Schema(
             required: [true, "Amount is required"],
             min: [0.01, "Amount must be greater than 0"],
         },
+        amountMinor: { type: Number },
+        postings: [{
+            _id: false,
+            account: { type: String, required: true },
+            userId: { type: mongoose.Schema.Types.ObjectId },
+            deltaMinor: { type: Number, required: true },
+            balanceBeforeMinor: Number,
+            balanceAfterMinor: Number,
+        }],
         type: {
             type: String,
             enum: ["ALLOCATE", "DEDUCT", "REFUND", "RECLAIM", "REQUEST"],
@@ -91,6 +101,7 @@ transactionSchema.index(
     }
 );
 
+ledgerAccountingHooks(transactionSchema);
 notificationHooks(transactionSchema, "transaction");
 
 const transactionModel =

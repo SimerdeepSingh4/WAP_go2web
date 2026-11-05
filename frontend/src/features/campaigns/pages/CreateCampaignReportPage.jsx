@@ -5,6 +5,7 @@ import api from "@/api/client";
 import { StatusBadge } from "@/features/admin/components/shared";
 import CampaignCategoryCards from "../components/detail/CampaignCategoryCards";
 import ReportLoadError from "../components/report/ReportLoadError";
+import FailedCampaignReportEditor from "../components/report/FailedCampaignReportEditor";
 
 export default function CreateCampaignReportPage() {
   const { id } = useParams();
@@ -25,12 +26,12 @@ export default function CreateCampaignReportPage() {
       <header className="space-y-4">
         <Link to={`/admin/campaigns/${id}`} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft className="size-3.5" /> Back to campaign</Link>
         <div className="space-y-2">
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Create report</h1>
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{campaign.status === "failed" ? "Create failure report" : "Create report"}</h1>
           <div className="flex flex-wrap items-center gap-2.5"><p className="min-w-0 break-words text-sm font-medium">{campaign.campaignTitle}</p><StatusBadge status={campaign.status} /></div>
-          <p className="text-xs leading-5 text-muted-foreground">Organize recipients, then save and review the report before publishing.</p>
+          <p className="text-xs leading-5 text-muted-foreground">{campaign.status === "failed" ? "Review the original contacts and explain the failure before publishing." : "Organize recipients, then save and review the report before publishing."}</p>
         </div>
       </header>
-      <CampaignCategoryCards key={`${campaign._id}:${campaign.spreadsheetRevision || 0}`} campaign={campaign} />
+      {campaign.status === "failed" ? <FailedCampaignReportEditor key={`${campaign._id}:${campaign.spreadsheetRevision || 0}`} campaign={campaign} /> : <CampaignCategoryCards key={`${campaign._id}:${campaign.spreadsheetRevision || 0}`} campaign={campaign} />}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getMe, login as loginApi, register as registerApi, logout as logoutApi, logoutAll as logoutAllApi } from "./services/auth.api";
 import { clearCurrentSessionToken, setSessionToken } from "@/api/sessionToken";
+import { toast } from "@/components/ui/toast";
 
 export const AuthContext = createContext(null);
 
@@ -44,6 +45,12 @@ export const AuthProvider = ({ children }) => {
             // Update query cache with logged-in user
             queryClient.setQueryData(["authUser"], data.user);
             queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
+            if (data?.user?.username) {
+                toast.add({
+                    title: `Welcome back, ${data.user.username}!`,
+                    type: "success",
+                });
+            }
         },
     });
 

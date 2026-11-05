@@ -1,3 +1,4 @@
+import { publicCampaignView, publicCampaignStatusStage } from "../helpers/campaign-visibility.js";
 import userModel from "../models/user.model.js";
 import walletModel from "../models/wallet.model.js";
 import campaignModel from "../models/campaign.model.js";
@@ -69,7 +70,7 @@ export const getDashboardStats = async (req, res) => {
                 templateModel.countDocuments(),
                 campaignModel
                     .find()
-                    .select("campaignTitle totalRecipients status campaignSummary createdAt messageType")
+                    .select("campaignTitle totalRecipients status publicStatus publishedSpreadsheet.publishedAt campaignStartDate campaignSummary createdAt messageType")
                     .populate("userId", "username email role")
                     .sort({ createdAt: -1 })
                     .limit(5),
@@ -172,6 +173,7 @@ export const getDashboardStats = async (req, res) => {
                 campaignModel.countDocuments({ userId: { $in: allAssociatedIds } }),
                 campaignModel.aggregate([
                     { $match: { userId: { $in: allAssociatedIds } } },
+                    publicCampaignStatusStage,
                     {
                         $group: {
                             _id: null,
@@ -185,13 +187,14 @@ export const getDashboardStats = async (req, res) => {
                 ]),
                 campaignModel.aggregate([
                     { $match: { userId: { $in: allAssociatedIds } } },
+                    publicCampaignStatusStage,
                     { $group: { _id: "$status", count: { $sum: 1 } } },
                 ]),
                 contactModel.countDocuments({ userId: { $in: allAssociatedIds } }),
                 groupModel.countDocuments({ userId: { $in: allAssociatedIds }, isDeleted: false }),
                 campaignModel
                     .find({ userId: { $in: allAssociatedIds } })
-                    .select("campaignTitle totalRecipients status campaignSummary createdAt messageType")
+                    .select("campaignTitle totalRecipients status publicStatus publishedSpreadsheet.publishedAt campaignStartDate campaignSummary createdAt messageType")
                     .populate("userId", "username email role")
                     .sort({ createdAt: -1 })
                     .limit(5),
@@ -246,7 +249,7 @@ export const getDashboardStats = async (req, res) => {
                         totalContacts,
                         totalGroups,
                     },
-                    recentCampaigns,
+                    recentCampaigns: recentCampaigns.map(publicCampaignView),
                 },
             });
         }
@@ -268,6 +271,7 @@ export const getDashboardStats = async (req, res) => {
             campaignModel.countDocuments({ userId }),
             campaignModel.aggregate([
                 { $match: { userId } },
+                publicCampaignStatusStage,
                 {
                     $group: {
                         _id: null,
@@ -281,6 +285,7 @@ export const getDashboardStats = async (req, res) => {
             ]),
             campaignModel.aggregate([
                 { $match: { userId } },
+                publicCampaignStatusStage,
                 { $group: { _id: "$status", count: { $sum: 1 } } },
             ]),
             contactModel.countDocuments({ userId }),
@@ -288,7 +293,7 @@ export const getDashboardStats = async (req, res) => {
             templateModel.countDocuments({ userId }),
             campaignModel
                 .find({ userId })
-                .select("campaignTitle totalRecipients status campaignSummary createdAt messageType")
+                .select("campaignTitle totalRecipients status publicStatus publishedSpreadsheet.publishedAt campaignStartDate campaignSummary createdAt messageType")
                 .sort({ createdAt: -1 })
                 .limit(5),
         ]);
@@ -331,7 +336,7 @@ export const getDashboardStats = async (req, res) => {
                     totalGroups,
                     totalTemplates,
                 },
-                recentCampaigns,
+                recentCampaigns: recentCampaigns.map(publicCampaignView),
             },
         });
     } catch (error) {

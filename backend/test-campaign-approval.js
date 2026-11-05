@@ -1,3 +1,7 @@
+import * as contacts from "../shared/campaignContacts.js";
+import * as visibility from "./src/helpers/campaign-visibility.js";
+import * as failure from "../shared/campaignFailure.js";
+import * as creditAmounts from "./src/helpers/credit-amount.js";
 import * as spreadsheet from "../shared/campaignSpreadsheet.js";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -12,7 +16,7 @@ async function loadModule(path, dependencies) {
     });
     const module = new vm.SourceTextModule(await readFile(new URL(path, import.meta.url), "utf8"), { context });
     await module.link(async (name) => {
-        const exports = dependencies[name] || (name === "../../../shared/campaignSpreadsheet.js" ? spreadsheet : name === "../helpers/spreadsheet-storage.js" ? { loadSpreadsheetRows: async () => [], saveSpreadsheetRows: async () => {} } : { default: {} });
+        const exports = (name === "../../../shared/campaignContacts.js" ? contacts : null) || (name === "../helpers/campaign-visibility.js" ? visibility : name === "../../../shared/campaignFailure.js" ? failure : null) || (name === "../helpers/credit-amount.js" ? creditAmounts : name === "../helpers/credit-operation.js" ? { startCreditSession: () => dependencies.mongoose.default.startSession(), saveCreditReceipt: async () => {} } : dependencies[name]) || (name === "mongoose" ? { default: { startSession: async () => ({ withTransaction: async (fn) => fn(), endSession: async () => {} }) } } : null) || (name === "../../../shared/campaignSpreadsheet.js" ? spreadsheet : name === "../helpers/spreadsheet-storage.js" ? { loadSpreadsheetRows: async () => [], saveSpreadsheetRows: async () => {} } : { default: {} });
         return new vm.SyntheticModule(Object.keys(exports), function () {
             for (const [key, value] of Object.entries(exports)) this.setExport(key, value);
         }, { context });
@@ -57,7 +61,7 @@ async function fixture({ failSave = false } = {}) {
         } },
         "../models/transaction.model.js": { default: {
             aggregate: () => {
-                const result = () => [{ total: settledRefund + ledger.reduce((sum, row) => sum + (row.type === "REFUND" ? row.amount : row.type === "DEDUCT" && row.refundOperationId ? -row.amount : 0), 0) }];
+                const result = () => [{ charged: campaign.creditsDeducted, total: settledRefund + ledger.reduce((sum, row) => sum + (row.type === "REFUND" ? row.amount : row.type === "DEDUCT" && row.refundOperationId ? -row.amount : 0), 0) }];
                 return { session: async () => result(), then: (resolve) => Promise.resolve(result()).then(resolve) };
             },
             create: async ([record], options) => {
@@ -80,75 +84,30 @@ async function fixture({ failSave = false } = {}) {
     };
 }
 
-for (const alreadyRefunded of [0, 20, 60]) {
-    test(`marking failed returns only the remaining credits after ${alreadyRefunded} refunded, including retries`, async () => {
-        const f = await fixture();
-        f.campaign.creditsDeducted = 60;
-        f.campaign.campaignSummary.creditsRefunded = alreadyRefunded;
-        f.setSettledRefund(alreadyRefunded);
+test("selecting Failed is a private draft decision and does not move credits", async () => {
+    const f = await fixture();
+    f.campaign.creditsDeducted = 80;
+    for (let repeat = 0; repeat < 4; repeat++) {
         const response = await f.invoke("updateCampaignStatus", "Super Admin", { status: "failed" });
         assert.equal(response.code, 200, response.body.message);
         assert.equal(f.campaign.status, "failed");
-        assert.equal(f.campaign.campaignSummary.creditsRefunded, 60);
-        assert.equal(f.getBalance(), 100 + 60 - alreadyRefunded);
-        assert.equal(f.ledger.length, alreadyRefunded === 60 ? 0 : 1);
-        if (f.ledger.length) {
-            assert.equal(f.ledger[0].type, "REFUND");
-            assert.ok(f.ledger[0].refundOperationId);
-        }
-        const retry = await f.invoke("updateCampaignStatus", "Super Admin", { status: "failed" });
-        assert.equal(retry.code, 200);
-        assert.equal(f.getBalance(), 100 + 60 - alreadyRefunded);
-        assert.equal(f.ledger.length, alreadyRefunded === 60 ? 0 : 1);
-        assert.ok(f.calls.includes("cancel"));
-    });
-}
+        assert.equal(f.campaign.publicStatus, "pending");
+        assert.equal(f.getBalance(), 100);
+        assert.equal(f.ledger.length, 0);
+    }
+    const restart = await f.invoke("updateCampaignStatus", "Super Admin", { status: "ongoing" });
+    assert.equal(restart.code, 200);
+    assert.equal(f.campaign.status, "ongoing");
+    assert.equal(f.ledger.length, 0);
+});
 
-test("failure status and wallet refund roll back together when saving fails", async () => {
+test("failed status draft rolls back when saving fails", async () => {
     const f = await fixture({ failSave: true });
-    f.campaign.creditsDeducted = 60;
     const response = await f.invoke("updateCampaignStatus", "Super Admin", { status: "failed" });
     assert.equal(response.code, 500);
     assert.equal(f.campaign.status, "pending");
     assert.equal(f.getBalance(), 100);
     assert.equal(f.ledger.length, 0);
-    assert.ok(!f.calls.includes("cancel"));
-});
-
-test("status failure tops up 48 refunded credits to the full 80-credit charge", async () => {
-    const f = await fixture();
-    f.campaign.creditsDeducted = 80;
-    f.campaign.campaignSummary.creditsRefunded = 48;
-    f.setSettledRefund(48);
-    const response = await f.invoke("updateCampaignStatus", "Super Admin", { status: "failed" });
-    assert.equal(response.code, 200, response.body.message);
-    assert.equal(f.campaign.status, "failed");
-    assert.equal(f.campaign.campaignSummary.creditsRefunded, 80);
-    assert.equal(f.getBalance(), 132);
-    assert.equal(f.ledger[0].amount, 32);
-});
-
-test("a campaign without a credit charge can fail without creating a refund", async () => {
-    const f = await fixture();
-    const response = await f.invoke("updateCampaignStatus", "Super Admin", { status: "failed" });
-    assert.equal(response.code, 200);
-    assert.equal(f.getBalance(), 100);
-    assert.equal(f.ledger.length, 0);
-});
-
-test("48 planned credits do not reduce the single full 80-credit failure refund", async () => {
-    const f = await fixture();
-    f.campaign.creditsDeducted = 80;
-    f.campaign.campaignSummary.creditsRefunded = 48;
-    const response = await f.invoke("updateCampaignStatus", "Super Admin", { status: "failed" });
-    assert.equal(response.code, 200, response.body.message);
-    assert.equal(f.getBalance(), 180);
-    assert.equal(f.ledger.length, 1);
-    assert.equal(f.ledger[0].amount, 80);
-    assert.equal(f.campaign.campaignSummary.creditsRefunded, 80);
-    await f.invoke("updateCampaignStatus", "Super Admin", { status: "failed" });
-    assert.equal(f.getBalance(), 180);
-    assert.equal(f.ledger.length, 1);
 });
 
 for (const role of ["User", "Reseller"]) {
@@ -228,10 +187,10 @@ test("stale queued jobs cannot redispatch a manually reopened campaign", async (
             on() {}
         } },
         "../config/redis.js": { redisConnection: {} },
-        "../models/campaign.model.js": { default: { findById: async () => ({
+        "../models/campaign.model.js": { default: { findById: () => ({ session: async () => ({
             status: "ongoing", manualStatusOverride: true,
             save: async () => assert.fail("reopened campaign was modified"),
-        }) } },
+        }) }) } },
         "../services/socket.service.js": { notifyUser() {}, notifyRole() {}, notifyReseller() {} },
     });
     worker.initCampaignWorker();
@@ -249,9 +208,9 @@ test("stale queued jobs cannot start campaigns awaiting admin action", async () 
             on() {}
         } },
         "../config/redis.js": { redisConnection: {} },
-        "../models/campaign.model.js": { default: { findById: async () => ({
+        "../models/campaign.model.js": { default: { findById: () => ({ session: async () => ({
             status, save: async () => assert.fail("unapproved campaign was modified"),
-        }) } },
+        }) }) } },
         "../services/socket.service.js": { notifyUser() {}, notifyRole() {}, notifyReseller() {} },
     });
     worker.initCampaignWorker();

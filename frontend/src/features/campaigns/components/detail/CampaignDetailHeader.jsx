@@ -93,6 +93,7 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
   };
 
   const isUpdating = updateStatusMutation.isPending;
+  const finalizedFailure = campaign.publicStatus === "failed" || (campaign.publishedSpreadsheet?.publishedAt && (campaign.publishedSpreadsheet.status === "failed" || (!campaign.publicStatus && campaign.status === "failed")));
 
   return (
     <header className="space-y-4">
@@ -125,7 +126,9 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
 
       {/* Right: Actions */}
       <div className="flex flex-wrap items-center gap-2">
-        <DropdownMenu>
+        {user?.role === "Super Admin" ? (
+          <>
+            <DropdownMenu>
           <DropdownMenuTrigger
             render={
               <Button
@@ -158,7 +161,7 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
                 <DropdownMenuItem
                   key={opt.value}
                   onClick={() => handleSelectStatus(opt.value)}
-                  disabled={isUpdating || isCurrent}
+                  disabled={isUpdating || isCurrent || finalizedFailure}
                   className="flex items-center justify-between gap-2.5 py-2 px-2.5 rounded-md cursor-pointer transition-colors"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
@@ -190,25 +193,51 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
           <FileText className="size-3.5" />
           Create report
         </Button>
+          </>
+        ) : (
+          <>
+            <span
+              className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-md text-xs font-medium border shadow-none ${
+                STATUS_BUTTON_STYLES[campaign.status] || "border-border bg-background text-foreground"
+              }`}
+            >
+              <span className={`size-2 rounded-full ${STATUS_OPTIONS.find((o) => o.value === campaign.status)?.dot || "bg-stone-500"}`} />
+              <span>{statusLabels[campaign.status] || campaign.status}</span>
+            </span>
+
+            {(campaign.publishedSpreadsheet?.publishedAt || campaign.recipientReport?.uploadedAt) && (
+              <Button
+                nativeButton={false}
+                render={<Link to={`${base}/campaigns/${id}/report`} />}
+                size="sm"
+                variant="outline"
+                className="h-8 gap-1.5 text-xs"
+              >
+                <FileText className="size-3.5" />
+                View report
+              </Button>
+            )}
+          </>
+        )}
       </div>
       </div>
       <Dialog open={confirmFailure} onOpenChange={(open) => !isUpdating && setConfirmFailure(open)}>
         <DialogContent className="gap-5 rounded-2xl p-5 sm:max-w-sm">
           <DialogHeader className="gap-1.5 pr-6">
             <DialogTitle>Mark campaign as failed?</DialogTitle>
-            <DialogDescription className="text-xs leading-5">This stops the campaign and returns its full charge. Planned category refunds do not reduce this amount. Only credits actually returned to the wallet are accounted for.</DialogDescription>
+            <DialogDescription className="text-xs leading-5">This stops the campaign and prepares a failure report. The creator will see Failed and receive the remaining refund only after you publish the report with a failure reason.</DialogDescription>
           </DialogHeader>
           <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
             <dl className="space-y-2 tabular-nums">
               <div className="flex justify-between gap-3"><dt>Original charge</dt><dd>{number(campaign.creditsDeducted || 0)} credits</dd></div>
               {settledRefund > 0 && <div className="flex justify-between gap-3"><dt>Already paid to wallet</dt><dd>{number(settledRefund)} credits</dd></div>}
-              <div className="flex justify-between gap-3"><dt>Refund on confirmation</dt><dd className="font-semibold">{number(remainingRefund)} credits</dd></div>
-              <div className="flex justify-between gap-3 border-t border-amber-200 pt-2 font-semibold dark:border-amber-800"><dt>Total refunded afterward</dt><dd>{number(settledRefund + remainingRefund)} credits</dd></div>
+              <div className="flex justify-between gap-3"><dt>Refund when report is published</dt><dd className="font-semibold">{number(remainingRefund)} credits</dd></div>
+              <div className="flex justify-between gap-3 border-t border-amber-200 pt-2 font-semibold dark:border-amber-800"><dt>Total refunded after publication</dt><dd>{number(settledRefund + remainingRefund)} credits</dd></div>
             </dl>
           </div>
           <DialogFooter className="m-0 flex-row justify-end rounded-none border-0 bg-transparent p-0">
             <Button type="button" variant="ghost" size="sm" disabled={isUpdating} onClick={() => setConfirmFailure(false)}>Cancel</Button>
-            <Button type="button" variant="destructive" size="sm" disabled={isUpdating} onClick={() => updateStatusMutation.mutate("failed")}>{isUpdating && <Loader2 className="size-3.5 animate-spin" />}Mark failed &amp; refund</Button>
+            <Button type="button" variant="destructive" size="sm" disabled={isUpdating} onClick={() => updateStatusMutation.mutate("failed")}>{isUpdating && <Loader2 className="size-3.5 animate-spin" />}Prepare failure report</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

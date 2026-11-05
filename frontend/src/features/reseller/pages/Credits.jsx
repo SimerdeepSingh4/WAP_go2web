@@ -97,6 +97,7 @@ export default function ResellerCredits({ activity = false }) {
   const [params, setParams] = useSearchParams();
   const page = Math.max(1, Number(params.get("page")) || 1);
   const type = params.get("type") || "all";
+  const transactionId = params.get("transaction");
   const account = params.get("account") || "all";
   const allocation = params.get("allocate");
   const [reclaimOpen, setReclaimOpen] = useState(false);
@@ -107,6 +108,7 @@ export default function ResellerCredits({ activity = false }) {
   const ledger = useResellerQuery("transactions", {
     page,
     limit: 10,
+      ...(transactionId ? { transactionId } : {}),
     ...(type !== "all" ? { type } : {}),
     ...(account !== "all" ? { userId: account } : {}),
   });
@@ -404,6 +406,7 @@ export default function ResellerCredits({ activity = false }) {
 
       {accountsQuery.isError && <QueryState query={accountsQuery} />}
 
+      {transactionId && <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm"><span>Showing selected transaction</span><button type="button" className="font-medium text-indigo-700 underline" onClick={() => setParams((previous) => { const next = new URLSearchParams(previous); next.delete("transaction"); next.delete("page"); return next; }, { replace: true })}>View all transactions</button></div>}
       <QueryState query={ledger}>
         <div>
           <DataTable

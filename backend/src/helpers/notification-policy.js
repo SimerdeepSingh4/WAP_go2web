@@ -127,6 +127,7 @@ export function formatNotification(event, viewer, subject, threshold = 100) {
     const result = (category, title, body, href) => ({ category, title, body, href });
 
     if (event.kind === "campaign") {
+        if (viewer.role !== "Super Admin" && d.statusVisible === false && d.changes?.includes("status")) return null;
         const href = `${base}/campaigns/${d.id}${viewer.role === "Super Admin" ? "" : "/report"}`;
         if (d.isNew) {
             if (isSelf) {

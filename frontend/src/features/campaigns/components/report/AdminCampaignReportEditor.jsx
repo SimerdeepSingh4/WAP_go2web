@@ -9,6 +9,7 @@ import { toast } from "@/components/ui/toast";
 import { dateTime, number, ownerName } from "@/features/admin/lib/format";
 import { buildCampaignReportPreview } from "../../lib/reportPreview";
 import PublishedSpreadsheetReport from "./PublishedSpreadsheetReport";
+import FailedCampaignReport from "./FailedCampaignReport";
 
 export default function AdminCampaignReportEditor({ campaign, base, onRefresh, isRefreshing }) {
   const queryClient = useQueryClient();
@@ -19,7 +20,8 @@ export default function AdminCampaignReportEditor({ campaign, base, onRefresh, i
     catch (error) { return { error: error.message }; }
   }, [campaign]);
   const sheet = preview.campaign?.publishedSpreadsheet;
-  const creditDelta = (sheet?.summary.creditsRefunded || 0) - (campaign.campaignSummary?.creditsRefunded || 0);
+  const creditDelta = (sheet?.summary.creditsRefunded || 0) - (campaign.refundAccounting?.settled ?? campaign.campaignSummary?.creditsRefunded ?? 0);
+  const missingFailureReason = campaign.status === "failed" && !sheet?.notes?.trim();
   const publishedAt = campaign.publishedSpreadsheet?.publishedAt;
   const justPublished = publishedRevision === (campaign.spreadsheetRevision || 0);
   const publish = useMutation({
@@ -49,7 +51,7 @@ export default function AdminCampaignReportEditor({ campaign, base, onRefresh, i
     },
     onError: (error) => {
       setConfirmOpen(false);
-      toast.add({ title: error.response?.status === 409 ? "The saved campaign changed. Refresh and review it before publishing." : error.response?.data?.message || "Could not publish the report.", type: "error" });
+      toast.add({ title: error.response?.data?.message || error.message || "Could not publish the report.", type: "error" });
     },
   });
 
@@ -65,14 +67,15 @@ export default function AdminCampaignReportEditor({ campaign, base, onRefresh, i
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="ghost" size="sm" onClick={onRefresh} disabled={isRefreshing || publish.isPending}><RefreshCw className={"size-3.5 " + (isRefreshing ? "animate-spin" : "")} /> Refresh</Button>
           <Button variant="outline" size="sm" nativeButton={false} render={<Link to={`${base}/campaigns/${campaign._id}/report/create`} />}><Pencil className="size-3.5" /> Edit report</Button>
-          <Button type="button" size="sm" onClick={() => setConfirmOpen(true)} disabled={publish.isPending || isRefreshing || !sheet?.rows.length || justPublished}>{publish.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}{justPublished ? "Published" : publishedAt ? "Publish updates" : "Publish report"}</Button>
+          <Button type="button" size="sm" onClick={() => setConfirmOpen(true)} disabled={publish.isPending || isRefreshing || !sheet?.rows.length || justPublished || missingFailureReason}>{publish.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}{justPublished ? "Published" : publishedAt ? "Publish updates" : "Publish report"}</Button>
         </div>
       </header>
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-4 py-3 text-xs">
         <div className="space-y-1"><p className="font-medium">Campaign owner preview</p><p className="text-[11px] text-muted-foreground">Saved campaign changes appear below. The owner sees this report as a read-only table after publication.</p></div>
         <span className="text-[11px] text-muted-foreground">{creditDelta > 0 ? `${number(creditDelta)} credits to refund` : creditDelta < 0 ? `${number(Math.abs(creditDelta))} credits to deduct` : "No credit adjustment"}</span>
       </div>
-      {preview.error ? <div role="alert" className="rounded-lg border border-destructive/30 p-4 text-sm text-destructive">{preview.error} Use Edit report to correct the data.</div> : <PublishedSpreadsheetReport campaign={preview.campaign} base={base} embedded />}
+      {missingFailureReason && <p role="alert" className="text-xs text-destructive">Add a failure reason in Edit report before publishing.</p>}
+      {preview.error ? <div role="alert" className="rounded-lg border border-destructive/30 p-4 text-sm text-destructive">{preview.error} Use Edit report to correct the data.</div> : campaign.status === "failed" ? <FailedCampaignReport campaign={preview.campaign} base={base} embedded /> : <PublishedSpreadsheetReport campaign={preview.campaign} base={base} embedded />}
       <Dialog open={confirmOpen} onOpenChange={(open) => !publish.isPending && setConfirmOpen(open)}>
         <DialogContent className="gap-5 rounded-2xl p-5 sm:max-w-sm">
           <DialogHeader className="gap-1.5 pr-6"><DialogTitle>Publish this report?</DialogTitle><DialogDescription className="text-xs leading-5">{campaign.status === "failed" ? "This report will be visible to its owner. The campaign will stay failed with a full credit refund." : "The campaign will be completed and this report will be visible to its owner."}</DialogDescription></DialogHeader>
@@ -80,7 +83,7 @@ export default function AdminCampaignReportEditor({ campaign, base, onRefresh, i
             <div className="flex justify-between gap-3"><dt>Recipients</dt><dd className="font-medium tabular-nums">{number(sheet?.rows.length || 0)}</dd></div>
             <div className="flex justify-between gap-3"><dt>Credit adjustment</dt><dd className="font-medium tabular-nums">{creditDelta > 0 ? `Refund ${number(creditDelta)}` : creditDelta < 0 ? `Deduct ${number(Math.abs(creditDelta))}` : "0"} credits</dd></div>
           </dl>
-          <DialogFooter className="m-0 flex-row justify-end rounded-none border-0 bg-transparent p-0"><Button variant="ghost" size="sm" onClick={() => setConfirmOpen(false)} disabled={publish.isPending}>Cancel</Button><Button size="sm" onClick={() => publish.mutate()} disabled={publish.isPending || isRefreshing}>{publish.isPending && <Loader2 className="size-3.5 animate-spin" />}Publish report</Button></DialogFooter>
+          <DialogFooter className="m-0 flex-row justify-end rounded-none border-0 bg-transparent p-0"><Button variant="ghost" size="sm" onClick={() => setConfirmOpen(false)} disabled={publish.isPending}>Cancel</Button><Button size="sm" onClick={() => publish.mutate()} disabled={publish.isPending || isRefreshing || missingFailureReason}>{publish.isPending && <Loader2 className="size-3.5 animate-spin" />}Publish report</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

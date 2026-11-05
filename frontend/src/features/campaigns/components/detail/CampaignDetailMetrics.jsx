@@ -1,5 +1,6 @@
 import { Users, Coins, FileText, Calendar } from "lucide-react";
-import { number, dateTime, published } from "@/features/admin/lib/format";
+import { number, dateTime } from "@/features/admin/lib/format";
+import { campaignDetailSummary } from "../../lib/detailSummary";
 
 function MetricCard({ label, value, hint, icon: Icon }) {
   return (
@@ -22,16 +23,13 @@ export default function CampaignDetailMetrics({ campaign }) {
       : dateTime(campaign.scheduledTime);
 
   const rate =
-    campaign.rateSnapshot ||
-    (campaign.userId?.ratePerMsg > 0 ? campaign.userId.ratePerMsg : 12);
+    campaign.rateSnapshot ?? campaign.userId?.ratePerMsg ?? 12;
   const totalAudience =
     campaign.totalRecipients ||
     campaign.recipientCount ||
     campaign.recipients?.length ||
     0;
-  const isPublished = published(campaign);
-  const deliveredCount = campaign.campaignSummary?.delivered || 0;
-  const refundsRecorded = campaign.campaignSummary?.creditsRefunded || 0;
+  const report = campaignDetailSummary(campaign);
   const formatType = campaign.messageType
     ? campaign.messageType.charAt(0).toUpperCase() + campaign.messageType.slice(1)
     : "Text";
@@ -59,19 +57,19 @@ export default function CampaignDetailMetrics({ campaign }) {
         label="Delivery report"
         icon={FileText}
         value={
-          isPublished ? (
+          report.reportLabel ? (
+            <span className="text-lg font-semibold text-foreground">{report.reportLabel}</span>
+          ) : (
             <span>
-              {number(deliveredCount)}{" "}
+              {number(report.delivered)}{" "}
               <span className="text-sm font-medium text-muted-foreground">delivered</span>
             </span>
-          ) : (
-            <span className="text-lg font-semibold text-foreground">Not published</span>
           )
         }
         hint={
-          refundsRecorded > 0
-            ? `${number(refundsRecorded)} credits refunded`
-            : "No refunds recorded"
+          report.refunded > 0
+            ? `${number(report.refunded)} credits refunded · ${number(Math.max(0, report.charged - report.refunded))} net credits used`
+            : campaign.status === "failed" ? "Refund is posted when the failure report is published" : "No refunds recorded"
         }
       />
 

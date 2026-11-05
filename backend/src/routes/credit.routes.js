@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { creditRequest } from "../helpers/credit-operation.js";
 import {
     getBalance,
     allocateCredits,
@@ -36,6 +37,7 @@ creditRouter.post(
     "/allocate",
     authorizeRoles("Super Admin", "Reseller"),
     blockInPreviewMode("Credit allocation"),
+    creditRequest,
     allocateCredits
 );
 
@@ -53,6 +55,7 @@ creditRouter.post(
     "/reclaim",
     authorizeRoles("Super Admin", "Reseller"),
     blockInPreviewMode("Credit reclaim"),
+    creditRequest,
     reclaimCredits
 );
 
@@ -62,6 +65,7 @@ creditRouter.post(
 creditRouter.post(
     "/deduct",
     blockInPreviewMode("Credit deduction"),
+    creditRequest,
     deductCredits
 );
 

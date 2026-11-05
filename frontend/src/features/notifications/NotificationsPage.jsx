@@ -1,7 +1,7 @@
 import { useDeferredValue, useState } from "react";
 import { AnimatePresence } from "motion/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, CheckCheck, ChevronLeft, ChevronRight, RefreshCw, Search, X } from "lucide-react";
+import { Archive, Bell, CheckCheck, ChevronLeft, ChevronRight, RefreshCw, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -41,7 +41,7 @@ export default function NotificationsPage() {
     <div className="w-full min-w-0 space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-1.5"><div className="flex items-center gap-2.5"><h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Notifications</h1>{query.data?.unreadCount > 0 && <span className="rounded-md bg-primary/5 px-2 py-1 text-[11px] font-medium text-primary">{query.data.unreadCount} unread</span>}</div><p className="text-xs leading-5 text-muted-foreground">Stay up to date with your campaigns, credits and account.</p></div>
-        <div className="flex flex-wrap items-center gap-2"><Button type="button" size="sm" variant="ghost" onClick={() => query.refetch()} disabled={query.isFetching}><RefreshCw className={"size-3.5 " + (query.isFetching ? "animate-spin" : "")} /> Refresh</Button><Button type="button" size="sm" variant="outline" disabled={!query.data?.unreadCount || action.isPending || user.isPreview} onClick={() => action.mutate({ id: "all" })}><CheckCheck className="size-3.5" /> Mark all read</Button></div>
+        <div className="flex flex-wrap items-center gap-2"><Button type="button" size="sm" variant="ghost" onClick={() => query.refetch()} disabled={query.isFetching}><RefreshCw className={"size-3.5 " + (query.isFetching ? "animate-spin" : "")} /> Refresh</Button><Button type="button" size="sm" variant="outline" disabled={!query.data?.unreadCount || action.isPending || user.isPreview} onClick={() => action.mutate({ id: "all" })}><CheckCheck className="size-3.5" /> Mark all read</Button><Button type="button" size="sm" variant="outline" aria-label="Clear all notifications" title="Archive all inbox notifications" disabled={!(query.data?.inboxCount ?? (filter !== "archived" ? query.data?.pagination?.total : 0)) || action.isPending || user.isPreview} onClick={() => action.mutate({ id: "all", archived: true }, { onSuccess: () => setPage(1) })}><Archive className="size-3.5" />{action.isPending && action.variables?.archived && action.variables?.id === "all" ? "Clearing..." : "Clear all"}</Button></div>
       </header>
 
       {operations.data && (operations.data.failedEvents > 0 || operations.data.failedPush > 0) && <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100"><div className="space-y-1"><p className="font-medium">Some notifications need attention</p><p className="text-[11px]">{operations.data.failedEvents} events and {operations.data.failedPush} browser deliveries could not be delivered.</p></div><Button size="sm" variant="outline" onClick={() => retry.mutate()} disabled={retry.isPending}>Retry deliveries</Button></div>}
