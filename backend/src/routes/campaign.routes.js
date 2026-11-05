@@ -16,6 +16,7 @@ import {
     rescheduleCampaign,
     launchCampaignNow,
     exportRecipientDraft,
+    deleteCampaign,
 } from "../controllers/campaign.controller.js";
 import {
     protect,
@@ -78,6 +79,8 @@ campaignRouter.patch(
     blockInPreviewMode("Campaign metrics update"),
     updateCampaignMetrics
 );
+
+campaignRouter.delete("/:id", deleteCampaign);
 
 export default campaignRouter;
 

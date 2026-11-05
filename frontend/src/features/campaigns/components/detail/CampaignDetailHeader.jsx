@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useState, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -12,6 +12,7 @@ import {
   CalendarClock,
   XCircle,
   CalendarDays,
+  Trash2,
 } from "lucide-react";
 import api from "@/api/client";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -67,6 +68,26 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
 
   const [confirmFailure, setConfirmFailure] = useState(false);
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const deleteCampaignMutation = useMutation({
+    mutationFn: async () => {
+      return (await api.delete(`/campaigns/${campaign._id}`)).data;
+    },
+    onSuccess: (data) => {
+      toast.add({ title: "Campaign deleted", description: data?.message, type: "success" });
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["admin"] });
+      queryClient.invalidateQueries({ queryKey: ["reseller"] });
+      queryClient.invalidateQueries({ queryKey: ["user"] });
+      const returnPath = isAdmin ? "/admin/campaigns" : isReseller ? "/reseller/campaigns" : "/user/campaigns";
+      navigate(returnPath);
+    },
+    onError: (error) => {
+      toast.add({ title: "Delete failed", description: error?.response?.data?.message || error.message, type: "error" });
+    },
+  });
   const [editScheduleOpen, setEditScheduleOpen] = useState(false);
   const [newScheduledTime, setNewScheduledTime] = useState(() => {
     if (campaign.scheduledTime) {
@@ -552,6 +573,33 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Confirm Delete Warning Dialog */}
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete campaign "{campaign.campaignTitle}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this campaign? This action cannot be undone. All recipient contacts, media, and campaign logs will be permanently deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteCampaignMutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteCampaignMutation.isPending}
+              className="border border-destructive bg-white text-destructive hover:bg-red-50 dark:bg-destructive/10 dark:hover:bg-destructive/20"
+              onClick={(e) => {
+                e.preventDefault();
+                deleteCampaignMutation.mutate();
+              }}
+            >
+              {deleteCampaignMutation.isPending ? "Deleting…" : "Delete Campaign"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Edit Schedule Dialog */}
       <Dialog open={editScheduleOpen} onOpenChange={setEditScheduleOpen}>
