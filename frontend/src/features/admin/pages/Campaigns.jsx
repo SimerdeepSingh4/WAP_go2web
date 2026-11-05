@@ -36,10 +36,17 @@ export default function Campaigns({ reports = false }) {
   const query = useAdminQuery("campaigns");
   const [params, setParams] = useSearchParams();
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [draftRange, setDraftRange] = useState({ from: undefined, to: undefined });
   const search = params.get("search") || "";
   const status = params.get("status") || "all";
   const selectedDateKey = params.get("date") || "";
-  const selectedDate = dateFromKey(selectedDateKey);
+  const rangeFromKey = params.get("from") || selectedDateKey;
+  const rangeToKey = params.get("to") || selectedDateKey;
+  const selectedRange = {
+    from: dateFromKey(rangeFromKey),
+    to: dateFromKey(rangeToKey),
+  };
+  const hasCompleteRange = Boolean(selectedRange.from && selectedRange.to);
   const selected = params.get("campaign");
 
   function update(key, value) {
@@ -54,8 +61,11 @@ export default function Campaigns({ reports = false }) {
   }
 
   const all = query.data?.data || [];
-  const datedCampaigns = selectedDateKey
-    ? all.filter((campaign) => campaignDay(campaign.createdAt) === selectedDateKey)
+  const datedCampaigns = hasCompleteRange
+    ? all.filter((campaign) => {
+        const day = campaignDay(campaign.createdAt);
+        return day && day >= rangeFromKey && day <= rangeToKey;
+      })
     : all;
 
   // Metrics counts
@@ -250,35 +260,68 @@ export default function Campaigns({ reports = false }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SearchBox value={search} onChange={(value) => update("search", value)} label="Search campaigns or accounts..." />
         <div className="flex flex-wrap items-center gap-2">
-          <Popover.Root open={calendarOpen} onOpenChange={setCalendarOpen}>
+          <Popover.Root open={calendarOpen} onOpenChange={(open) => {
+            if (open) setDraftRange(selectedRange);
+            setCalendarOpen(open);
+          }}>
             <Popover.Trigger
-              render={<Button type="button" variant={selectedDateKey ? "default" : "outline"} size="sm" className="gap-2" />}
+                render={<Button type="button" variant={hasCompleteRange ? "default" : "outline"} size="sm" className="gap-2" />}
             >
               <CalendarDays className="size-4" />
-              {selectedDate ? selectedDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "Filter by date"}
+              {hasCompleteRange
+                ? selectedRange.from.getTime() === selectedRange.to.getTime()
+                  ? selectedRange.from.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                  : `${selectedRange.from.toLocaleDateString("en-IN", { day: "numeric", month: "short" })} – ${selectedRange.to.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`
+                : rangeFromKey ? "Select end date" : "Filter by date"}
             </Popover.Trigger>
             <Popover.Portal>
               <Popover.Positioner align="end" sideOffset={8} className="z-50">
                 <Popover.Popup className="rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-lg outline-none">
                   <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    defaultMonth={selectedDate || new Date()}
-                    onSelect={(day) => {
-                      update("date", dateKey(day));
-                      setCalendarOpen(false);
-                    }}
+                    mode="range"
+                    selected={draftRange}
+                    defaultMonth={draftRange.from || selectedRange.from || new Date()}
+                    onSelect={(range) => setDraftRange(range || { from: undefined, to: undefined })}
                   />
+                  <p className="px-2 pb-2 text-center text-xs text-muted-foreground" aria-live="polite">
+                    {draftRange.from && !draftRange.to ? "Select an end date" : "Select a start and end date"}
+                  </p>
+                  <div className="flex justify-between gap-2 border-t border-border px-2 pt-2">
+                    <Button type="button" size="sm" variant="ghost" onClick={() => setDraftRange({ from: undefined, to: undefined })}>Clear</Button>
+                    <div className="flex gap-2">
+                      <Button type="button" size="sm" variant="outline" onClick={() => setCalendarOpen(false)}>Cancel</Button>
+                      <Button type="button" size="sm" disabled={!draftRange.from || !draftRange.to} onClick={() => {
+                        const start = dateKey(draftRange.from);
+                        const end = dateKey(draftRange.to);
+                        setParams((current) => {
+                          const next = new URLSearchParams(current);
+                          next.delete("date");
+                          next.set("from", start <= end ? start : end);
+                          next.set("to", start <= end ? end : start);
+                          return next;
+                        }, { replace: true });
+                        setCalendarOpen(false);
+                      }}>Apply range</Button>
+                    </div>
+                  </div>
                 </Popover.Popup>
               </Popover.Positioner>
             </Popover.Portal>
           </Popover.Root>
-          {selectedDateKey && (
-            <Button variant="ghost" size="icon-sm" aria-label="Clear date filter" title="Clear date filter" onClick={() => update("date", "")}>
+          {(selectedDateKey || params.has("from") || params.has("to")) && (
+            <Button variant="ghost" size="icon-sm" aria-label="Clear date filter" title="Clear date filter" onClick={() => {
+              setParams((current) => {
+                const next = new URLSearchParams(current);
+                next.delete("date");
+                next.delete("from");
+                next.delete("to");
+                return next;
+              }, { replace: true });
+            }}>
               <X className="size-4" />
             </Button>
           )}
-          {(search || status !== "all" || selectedDateKey) && (
+          {(search || status !== "all" || selectedDateKey || params.has("from") || params.has("to")) && (
             <Button variant="ghost" size="sm" onClick={() => setParams({})}>
               Clear all filters
             </Button>
@@ -290,10 +333,10 @@ export default function Campaigns({ reports = false }) {
         query={query}
         empty={!rows.length}
         emptyTitle={reports ? "No campaign reports yet" : "No campaigns yet"}
-        emptyDescription={selectedDateKey ? "No campaigns were submitted on this date." : "Campaigns created by your resellers and users will appear here."}
+        emptyDescription={hasCompleteRange ? "No campaigns were submitted during this date range." : "Campaigns created by your resellers and users will appear here."}
       >
         <DataTable
-          key={`${search}-${status}-${selectedDateKey}`}
+          key={`${search}-${status}-${rangeFromKey}-${rangeToKey}`}
           caption={reports ? "Campaign performance reports" : "Campaign list"}
           rows={rows}
           columns={columns}
