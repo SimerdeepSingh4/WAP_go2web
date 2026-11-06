@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -9,18 +9,17 @@ import {
   Wallet,
   ShieldCheck,
   ShieldAlert,
-  CheckCircle2,
-  Ban,
-  Percent,
   RefreshCw,
   RotateCcw,
   Lock,
   Trash2,
   LogIn,
   UserCog,
+  Download,
+  Upload,
 } from "lucide-react";
+import api from "@/api/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { PageHeading, QueryState, SearchBox, FilterSelect, StatusBadge, DataTable } from "../components/shared";
@@ -41,11 +40,53 @@ import {
 import { useAdminMutation } from "../hooks/useAdmin";
 import { exitFullAccessImpersonation, startFullAccessImpersonation } from "@/features/dashboard/services/users.api";
 import UserAvatar from "@/components/dashboard/UserAvatar";
+import { resolveUserImageUrl } from "@/components/dashboard/profileImage";
 
 function AccountDetail({ account, onClose, onAction }) {
   const [showAudit, setShowAudit] = useState(false);
+  const [downloadingDp, setDownloadingDp] = useState(false);
+  const [dpImage, setDpImage] = useState(account.dp_img || "");
+  const dpInput = useRef(null);
+  const queryClient = useQueryClient();
   const balance = useAdminQuery("balance", { id: account._id });
   const reconcile = useAdminQuery("reconcile", { id: account._id }, showAudit);
+  const updateDp = useMutation({
+    mutationFn: async (file) => {
+      const body = new FormData();
+      body.append("dp_img", file);
+      return (await api.post(`/users/${account._id}/dp-image`, body)).data;
+    },
+    onSuccess: async (data) => {
+      setDpImage(data.user.dp_img || "");
+      if (dpInput.current) dpInput.current.value = "";
+      toast.add({ title: "Profile DP updated", type: "success" });
+      await queryClient.invalidateQueries({ queryKey: ["admin"] });
+    },
+    onError: (error) => toast.add({ title: "DP upload failed", description: error.message, type: "error" }),
+  });
+
+  async function downloadDp() {
+    if (!dpImage || downloadingDp) return;
+    setDownloadingDp(true);
+    let objectUrl;
+    let anchor;
+    try {
+      const response = await fetch(resolveUserImageUrl(dpImage));
+      if (!response.ok) throw new Error("Could not download this profile image.");
+      objectUrl = URL.createObjectURL(await response.blob());
+      anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = `${String(account.username || "user").replace(/[^a-z0-9_-]+/gi, "-")}-dp.webp`;
+      document.body.appendChild(anchor);
+      anchor.click();
+    } catch (error) {
+      toast.add({ title: "DP download failed", description: error.message, type: "error" });
+    } finally {
+      anchor?.remove();
+      if (objectUrl) window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      setDownloadingDp(false);
+    }
+  }
 
   return (
     <Sheet open onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -75,6 +116,35 @@ function AccountDetail({ account, onClose, onAction }) {
               <UserCog className="size-3.5" />
               Change role
             </Button>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/15 p-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <UserAvatar user={{ ...account, dp_img: dpImage }} className="size-14 border border-border" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium">Profile DP</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{dpImage ? "Uploaded image" : "No profile image uploaded"}</p>
+              </div>
+            </div>
+            <input ref={dpInput} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" aria-label={`Choose DP for ${account.username}`} disabled={updateDp.isPending} onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (!file) return;
+              if (file.size > 5 * 1024 * 1024) {
+                toast.add({ title: "Image is too large", description: "Choose an image up to 5 MB.", type: "error" });
+                event.target.value = "";
+                return;
+              }
+              updateDp.mutate(file);
+            }} />
+            <div className="flex shrink-0 items-center gap-2">
+              <Button size="sm" variant="outline" disabled={updateDp.isPending} onClick={() => dpInput.current?.click()}>
+                <Upload className="size-3.5" />
+                {updateDp.isPending ? "Uploading…" : dpImage ? "Change DP" : "Add DP"}
+              </Button>
+              <Button size="icon" variant="outline" aria-label={downloadingDp ? "Downloading DP" : "Download DP"} title={downloadingDp ? "Downloading DP" : "Download DP"} disabled={!dpImage || downloadingDp || updateDp.isPending} onClick={downloadDp}>
+                <Download className="size-3.5" />
+              </Button>
+            </div>
           </div>
 
           <dl className="space-y-3.5 text-sm">
@@ -271,12 +341,6 @@ export default function Accounts({ role }) {
   const accounts = query.data?.users || [];
   const resellers = accounts.filter((a) => a.role === "Reseller" && a.status === "active");
   const roleAccounts = accounts.filter((a) => a.role === role);
-
-  const activeCount = roleAccounts.filter((a) => a.status === "active").length;
-  const blockedCount = roleAccounts.filter((a) => a.status === "blocked").length;
-  const avgRate = roleAccounts.length
-    ? roleAccounts.reduce((sum, a) => sum + (Number(a.ratePerMsg) || 0), 0) / roleAccounts.length
-    : 0;
 
   const rows = roleAccounts.filter(
     (a) =>
