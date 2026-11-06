@@ -425,6 +425,7 @@ export default function Accounts({ role }) {
         }
         action={
           <Button
+            data-tour="add-account"
             disabled={query.isPending || query.isError}
             onClick={() => setModal({ type: "create" })}
           >

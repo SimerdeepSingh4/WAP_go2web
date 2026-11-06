@@ -20,6 +20,7 @@ export default function CampaignMessageEditor({
 
   return (
     <SectionCard
+      dataTour="create-message"
       icon={FileText}
       title="Message"
       description="What your recipients will receive."

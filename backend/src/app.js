@@ -17,8 +17,12 @@ import morgan from "morgan";
 import helmet from "helmet";
 import notificationRouter from "./routes/notification.routes.js";
 import searchRouter from "./routes/search.routes.js";
+import enterpriseRouter from "./routes/enterprise.routes.js";
+import campaignWebhookRouter from "./routes/campaign-webhook.routes.js";
+import { auditRequestContext } from "./services/audit.service.js";
 
 const app = express();
+if (process.env.TRUST_PROXY) app.set("trust proxy", process.env.TRUST_PROXY.split(",").map((entry) => entry.trim()).filter(Boolean));
 
 // Do not serve requests or start workers until the refund index is ready.
 await connectToDB();
@@ -46,6 +50,9 @@ app.use(helmet({
     contentSecurityPolicy: false,
     crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
+app.use(auditRequestContext);
+// Signature verification needs the original bytes, before JSON parsing.
+app.use("/api/webhooks/campaigns", campaignWebhookRouter);
 app.use(express.json({ limit: "50mb" }));
 app.use(morgan("dev"));
 app.use(express.urlencoded({ extended: true }));
@@ -63,6 +70,7 @@ app.use("/api/contacts", contactRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/notifications", notificationRouter);
 app.use("/api/search", searchRouter);
+app.use("/api/enterprise", enterpriseRouter);
 
 
 // Resolve frontend production build directory

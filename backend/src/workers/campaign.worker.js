@@ -77,6 +77,10 @@ export async function finalizeCampaignDelivery(campaignId) {
 }
 
 export async function processCampaignJob(campaignId) {
+    if (process.env.CAMPAIGN_WORKFLOW_ENABLED === "true") {
+        const { runCampaignWorkflow } = await import("../services/campaign-workflow.service.js");
+        return runCampaignWorkflow(campaignId);
+    }
     let campaign = await campaignModel.findById(campaignId);
     if (!campaign) return { success: false, reason: "Campaign not found" };
 

@@ -329,7 +329,7 @@ export default function CreateCampaignPage() {
     isOverCharacterLimit;
 
   return (
-    <div className="campaign-editor mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-5 pb-8">
+    <div data-tour-loading={!draftReady} className="campaign-editor mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-5 pb-8">
       <style>{`
         .quill-editor-container .ql-toolbar.ql-snow { border-top-left-radius:.75rem; border-top-right-radius:.75rem; border-color:var(--border); background-color:var(--muted); padding:.5rem .75rem; }
         .quill-editor-container .ql-container.ql-snow { border-bottom-left-radius:.75rem; border-bottom-right-radius:.75rem; border-color:var(--border); background-color:var(--card); font-family:inherit; font-size:.875rem; min-height:180px; }

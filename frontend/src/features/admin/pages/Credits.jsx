@@ -465,7 +465,7 @@ export default function Credits({ activity = false }) {
           title="Credits & Wallets"
           description="Manage wallet balances, allocate credits to users and resellers, and track network balances."
           action={
-            <div className="flex flex-wrap items-center gap-2">
+            <div data-tour="credit-actions" className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -492,7 +492,7 @@ export default function Credits({ activity = false }) {
 
         {/* Overview Stats Cards */}
         <QueryState query={overview}>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div data-tour="credit-summary" className="grid gap-3 sm:grid-cols-3">
             <Card className="rounded-lg shadow-none">
               <CardContent className="p-4 sm:p-5">
                 <p className="flex items-center justify-between text-xs text-muted-foreground">

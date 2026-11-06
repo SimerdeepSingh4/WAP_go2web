@@ -1080,44 +1080,8 @@ export const updateCampaignStatus = async (req, res) => {
                 campaign.campaignEndDate = ["completed", "stopped", "failed"].includes(status) ? new Date() : null;
                 if (status === "ongoing" && !campaign.campaignStartDate) campaign.campaignStartDate = new Date();
 
-                // If marked as failed, perform automated 100% refund of remaining credits
-                if (status === "failed") {
-                    const owner = await userModel.findById(campaign.userId).session(session);
-                    if (owner && owner.role !== "Super Admin") {
-                        const alreadyRefunded = (await getCampaignRefundAccounting(campaign, session)).settled;
-                        const totalCharged = campaign.creditsDeducted || 0;
-                        const remainingRefund = Math.max(0, totalCharged - alreadyRefunded);
-                        if (remainingRefund > 0) {
-                            const updatedWallet = await walletModel.findOneAndUpdate(
-                                { userId: campaign.userId },
-                                { $inc: { balance: remainingRefund }, $setOnInsert: { resellerId: owner.resellerId || null } },
-                                { returnDocument: 'after', upsert: true, session }
-                            );
-                            const rate = campaign.rateSnapshot || owner.ratePerMsg || 12;
-                            const [refundTx] = await transactionModel.create([
-                                {
-                                    fromUser: req.user._id,
-                                    toUser: campaign.userId,
-                                    amount: remainingRefund,
-                                    type: "REFUND",
-                                    refundOperationId: new mongoose.Types.ObjectId(),
-                                    campaignId: campaign._id,
-                                    notes: `Full credit refund: campaign "${campaign.campaignTitle}" marked failed by admin.`,
-                                    rateSnapshot: rate,
-                                    balanceAfterTo: updatedWallet.balance,
-                                    performedBy: req.user._id,
-                                }
-                            ], { session });
-                            if (!campaign.campaignSummary) campaign.campaignSummary = {};
-                            campaign.campaignSummary.creditsRefunded = alreadyRefunded + remainingRefund;
-                            refundInfo = {
-                                amount: remainingRefund,
-                                newBalance: updatedWallet.balance,
-                                transactionId: refundTx._id,
-                            };
-                        }
-                    }
-                }
+                // Draft status decisions do not settle credits. Refunds are posted
+                // atomically with final report publication or workflow settlement.
 
                 await campaign.save({ session });
             }, creditTransactionOptions);
@@ -2156,6 +2120,8 @@ export const launchCampaignNow = async (req, res) => {
 
         campaign.status = "ongoing";
         campaign.publicStatus = "ongoing";
+        campaign.schedule = "now";
+        campaign.scheduledTime = null;
         campaign.campaignStartDate = new Date();
         await campaign.save();
 

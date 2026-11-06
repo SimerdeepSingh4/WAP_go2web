@@ -27,7 +27,7 @@ export default function CampaignCostSummary({
   onCancel,
 }) {
   return (
-    <Card className="gap-0 rounded-xl border border-border py-0 shadow-none ring-0">
+    <Card data-tour="create-summary" className="gap-0 rounded-xl border border-border py-0 shadow-none ring-0">
       <CardHeader className="border-b border-border px-4 py-3 sm:px-5">
         <CardTitle className="flex items-center gap-2 text-sm font-semibold">
           <Coins className="size-3.5 text-muted-foreground" />

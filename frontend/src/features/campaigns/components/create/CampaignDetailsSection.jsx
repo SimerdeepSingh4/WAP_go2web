@@ -3,9 +3,9 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function SectionCard({ icon: Icon, title, description, aside, children }) {
+export function SectionCard({ icon: Icon, title, description, aside, children, dataTour }) {
   return (
-    <Card className="gap-0 rounded-xl border border-border py-0 shadow-none ring-0">
+    <Card data-tour={dataTour} className="gap-0 rounded-xl border border-border py-0 shadow-none ring-0">
       <CardHeader className="border-b border-border px-4 py-3 sm:px-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -31,6 +31,7 @@ export default function CampaignDetailsSection({
 }) {
   return (
     <SectionCard
+      dataTour="create-details"
       icon={FileText}
       title="Campaign details"
       description="Name your campaign and add a short description."

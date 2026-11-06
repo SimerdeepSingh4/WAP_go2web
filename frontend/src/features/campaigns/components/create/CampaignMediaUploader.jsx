@@ -145,6 +145,7 @@ export default function CampaignMediaUploader({
 
   return (
     <SectionCard
+      dataTour="create-media"
       icon={Upload}
       title="Attachments"
       description="Optional. One image, one video and one PDF at most."

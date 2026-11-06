@@ -63,7 +63,7 @@ export default function CampaignAttachmentsView({
   const hasAttachments = attachmentsCount > 0;
 
   return (
-    <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
+    <section data-tour="campaign-attachments" className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
       <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
         <h2 className="text-sm font-semibold text-foreground">Attachments</h2>
         <span className="text-xs text-muted-foreground tabular-nums">
