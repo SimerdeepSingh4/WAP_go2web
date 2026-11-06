@@ -146,7 +146,7 @@ export async function getCurrentUser(req, res) {
     }
 }
 
-export async function uploadCurrentUserProfileImage(req, res) {
+async function saveUserProfileImage(req, res, userId) {
     let savedFilePath;
     try {
         if (req.isPreview) {
@@ -155,6 +155,10 @@ export async function uploadCurrentUserProfileImage(req, res) {
         if (!req.file) {
             return res.status(400).json({ message: "Choose a profile image to upload.", success: false });
         }
+        const targetUser = await userModel.findById(userId).select("dp_img");
+        if (!targetUser) {
+            return res.status(404).json({ message: "User not found.", success: false });
+        }
 
         const imageBuffer = await sharp(req.file.buffer)
             .rotate()
@@ -162,13 +166,13 @@ export async function uploadCurrentUserProfileImage(req, res) {
             .webp({ quality: 82 })
             .toBuffer();
         const uploadDirectory = path.join(process.cwd(), "uploads", "profile-pictures");
-        const filename = `dp_${req.user._id}_${crypto.randomUUID()}.webp`;
+        const filename = `dp_${userId}_${crypto.randomUUID()}.webp`;
         savedFilePath = path.join(uploadDirectory, filename);
         await mkdir(uploadDirectory, { recursive: true });
         await writeFile(savedFilePath, imageBuffer);
 
         const user = await userModel.findByIdAndUpdate(
-            req.user._id,
+            userId,
             { $set: { dp_img: `/uploads/profile-pictures/${filename}` } },
             { new: true }
         ).select("username email role dp_img");
@@ -179,12 +183,31 @@ export async function uploadCurrentUserProfileImage(req, res) {
             return res.status(404).json({ message: "User not found.", success: false });
         }
 
+        const previousPath = targetUser.dp_img;
+        if (previousPath?.startsWith("/uploads/profile-pictures/")) {
+            const previousFile = path.basename(previousPath);
+            if (previousFile && previousFile !== filename) {
+                await unlink(path.join(uploadDirectory, previousFile)).catch(() => {});
+            }
+        }
+
         return res.status(200).json({ success: true, message: "Profile image updated.", user });
     } catch (error) {
         if (savedFilePath) await unlink(savedFilePath).catch(() => {});
         console.error("Upload profile image error:", error);
         return res.status(500).json({ message: "Failed to upload profile image.", success: false });
     }
+}
+
+export async function uploadCurrentUserProfileImage(req, res) {
+    return saveUserProfileImage(req, res, req.user._id);
+}
+
+export async function uploadManagedUserProfileImage(req, res) {
+    if (req.user.role !== "Super Admin") {
+        return res.status(403).json({ message: "Only Super Admin can change another user's profile image.", success: false });
+    }
+    return saveUserProfileImage(req, res, req.params.id);
 }
 
 /**

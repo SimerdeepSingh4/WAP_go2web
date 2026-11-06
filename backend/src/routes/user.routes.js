@@ -9,6 +9,7 @@ import {
     exitPreviewMode,
     getCurrentUser,
     uploadCurrentUserProfileImage,
+    uploadManagedUserProfileImage,
     updateUserAccess,
     updateManagedUserProfile,
     updateUserRole,
@@ -25,6 +26,7 @@ userRouter.use(protect);
 // Get current logged‑in user
 userRouter.get("/me", getCurrentUser);
 userRouter.post("/me/dp-image", uploadProfileImage, uploadCurrentUserProfileImage);
+userRouter.post("/:id/dp-image", authorizeRoles("Super Admin"), uploadProfileImage, uploadManagedUserProfileImage);
 
 // Exit preview mode (any manager currently in preview mode)
 userRouter.post("/exit-preview", exitPreviewMode);
