@@ -281,7 +281,7 @@ export default function Accounts({ role }) {
   const rows = roleAccounts.filter(
     (a) =>
       (status === "all" || (status === "expired" ? a.isExpired : a.status === status)) &&
-      `${a.username} ${a.email} ${a.resellerId?.username || ""}`.toLowerCase().includes(search.toLowerCase())
+      `${a.username} ${a.email} ${a.companyName || ""} ${a.phone || ""} ${a._id} ${a.resellerId?.username || ""}`.toLowerCase().includes(search.toLowerCase())
   );
 
   function update(key, value) {
@@ -522,10 +522,12 @@ export default function Accounts({ role }) {
           action="createAccount"
           successMessage={`${role} account created`}
           onClose={() => setModal(null)}
-          initialValues={{ username: "", email: "", password: "", ratePerMsg: "", resellerId: "", expiresAt: "" }}
+          initialValues={{ username: "", email: "", phone: "", companyName: "", password: "", ratePerMsg: "", resellerId: "", expiresAt: "" }}
           fields={[
             { key: "username", label: "Account name", required: true, maxLength: 100 },
             { key: "email", label: "Email", type: "email", required: true },
+            { key: "companyName", label: "Company name (optional)", maxLength: 150 },
+            { key: "phone", label: "Phone number (optional)", type: "tel", maxLength: 40, hint: "Include the country code, e.g. +919876543210." },
             { key: "password", label: "Initial password", type: "password", required: true, hint: "Use at least 8 characters." },
             { key: "ratePerMsg", label: "Rate (credits / recipient)", type: "number", min: 0.01, step: 0.01, required: true },
             {
@@ -548,6 +550,8 @@ export default function Accounts({ role }) {
           payload={(v) => ({
             username: v.username.trim(),
             email: v.email.trim(),
+            phone: (v.phone || "").trim(),
+            companyName: (v.companyName || "").trim(),
             password: v.password,
             role,
             ratePerMsg: Number(v.ratePerMsg),
@@ -557,7 +561,7 @@ export default function Accounts({ role }) {
           review={(v) => (
             <>
               <p className="font-medium">{v.username}</p>
-              <p>{v.email}</p>
+              <p>{v.email}</p>{v.companyName && <p>Company: {v.companyName}</p>}{v.phone && <p>Phone: {v.phone}</p>}
               <p>Role: {role}</p>
               <p>Rate: {number(Number(v.ratePerMsg))} credits / recipient</p>
               <p>Expiry: {v.expiresAt || "No expiry"}</p>
@@ -578,6 +582,8 @@ export default function Accounts({ role }) {
           initialValues={{
             username: modal.account.username || "",
             email: modal.account.email || "",
+            phone: modal.account.phone || "",
+            companyName: modal.account.companyName || "",
             password: "",
             ratePerMsg: String(modal.account.ratePerMsg ?? 12),
             status: modal.account.status === "expired" || (modal.account.isExpired && modal.account.status === "active") ? "expired" : modal.account.status || "active",
@@ -587,6 +593,8 @@ export default function Accounts({ role }) {
           fields={[
             { key: "username", label: "Account name", required: true, maxLength: 100 },
             { key: "email", label: "Email", type: "email", required: true },
+            { key: "companyName", label: "Company name (optional)", maxLength: 150 },
+            { key: "phone", label: "Phone number (optional)", type: "tel", maxLength: 40, hint: "Include the country code, e.g. +919876543210." },
             { key: "password", label: "New password (optional)", type: "password", hint: "Leave blank to keep existing password. If setting new, min 8 characters." },
             { key: "ratePerMsg", label: "Rate (credits / recipient)", type: "number", min: 0.01, step: 0.01, required: true },
             {
@@ -619,6 +627,8 @@ export default function Accounts({ role }) {
             id: modal.account._id,
             username: v.username.trim(),
             email: v.email.trim(),
+            phone: (v.phone || "").trim(),
+            companyName: (v.companyName || "").trim(),
             ...(v.password && v.password.trim() ? { password: v.password.trim() } : {}),
             ratePerMsg: Number(v.ratePerMsg),
             status: v.status,
@@ -628,7 +638,7 @@ export default function Accounts({ role }) {
           review={(v) => (
             <>
               <p className="font-medium text-foreground">{v.username}</p>
-              <p className="text-xs text-muted-foreground">{v.email}</p>
+              <p className="text-xs text-muted-foreground">{v.email}</p>{v.companyName && <p className="text-xs">Company: {v.companyName}</p>}{v.phone && <p className="text-xs">Phone: {v.phone}</p>}
               <p className="text-xs">Rate: <strong>{number(Number(v.ratePerMsg))} credits / recipient</strong></p>
               <p className="text-xs">Status: <strong>{v.status}</strong></p>
               <p className="text-xs">Expiry: <strong>{v.expiresAt || "No expiry"}</strong></p>

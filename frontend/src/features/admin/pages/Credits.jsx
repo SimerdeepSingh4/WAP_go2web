@@ -620,6 +620,7 @@ export default function Credits({ activity = false }) {
           />
           <FilterSelect
             label="Filter by account"
+            accountSearch={{}}
             value={account}
             onChange={(value) => update("account", value)}
             disabled={!accountsQuery.isSuccess}

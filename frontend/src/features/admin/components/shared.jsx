@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
 import MobileTableRows from "@/components/dashboard/MobileTableRows";
+import AccountPicker from "@/components/dashboard/AccountPicker";
 import "@/components/dashboard/responsive-table.css";
 import { Search, Inbox, RefreshCw, ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -47,7 +48,8 @@ export function StatusBadge({ status }) {
   return <Badge variant="outline" className={`rounded-md font-normal ${tone}`}>{statusLabels[status] || status}</Badge>;
 }
 
-export function FilterSelect({ label, value, onChange, options, id, disabled = false }) {
+export function FilterSelect({ label, value, onChange, options, id, disabled = false, accountSearch }) {
+  if (accountSearch || options.some(option => /^[a-f\d]{24}$/i.test(String(option.value)))) return <AccountPicker {...{ label, value, onChange, options, id, disabled }} accountSearch={accountSearch || {}} />;
   return <Select value={value} onValueChange={onChange} items={options} disabled={disabled}>
     <SelectTrigger id={id} aria-label={label} className="h-9 min-w-36 max-w-full"><SelectValue /></SelectTrigger>
     <SelectContent align="start" alignItemWithTrigger={false}>{options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>

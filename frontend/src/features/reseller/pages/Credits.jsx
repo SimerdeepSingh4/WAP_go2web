@@ -374,6 +374,7 @@ export default function ResellerCredits({ activity = false }) {
           />
           <FilterSelect
             label="Filter by account"
+            accountSearch={{ purpose: "credits" }}
             value={account}
             onChange={(value) => update("account", value)}
             disabled={!accountsQuery.isSuccess}

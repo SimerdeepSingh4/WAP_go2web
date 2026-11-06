@@ -16,6 +16,7 @@ import {
 } from "../controllers/user.controller.js";
 import { protect, authorizeRoles } from "../middlewares/auth.middleware.js";
 import { uploadProfileImage } from "../middlewares/upload.middleware.js";
+import { searchAccountOptions } from "../controllers/account-picker.controller.js";
 
 const userRouter = Router();
 
@@ -31,6 +32,7 @@ userRouter.post("/exit-impersonation", exitFullAccessImpersonation);
 
 // Reseller & Super Admin can view user list
 userRouter.get("/", authorizeRoles("Reseller", "Super Admin"), getUsers);
+userRouter.get("/picker", authorizeRoles("Reseller", "Super Admin"), searchAccountOptions);
 
 // Reseller & Super Admin can create user accounts
 userRouter.post("/", authorizeRoles("Reseller", "Super Admin"), createUser);

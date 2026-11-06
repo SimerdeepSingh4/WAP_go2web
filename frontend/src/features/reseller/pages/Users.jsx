@@ -163,7 +163,7 @@ export default function ResellerUsers() {
   const rows = accounts.filter(
     (a) =>
       (status === "all" || (status === "expired" ? a.isExpired : a.status === status)) &&
-      `${a.username} ${a.email}`.toLowerCase().includes(search.toLowerCase())
+      `${a.username} ${a.email} ${a.companyName || ""} ${a.phone || ""} ${a._id}`.toLowerCase().includes(search.toLowerCase())
   );
 
   function update(key, value) {
@@ -310,7 +310,7 @@ export default function ResellerUsers() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <SearchBox
-            label="Search username or email"
+            label="Search name, company, email or phone"
             value={search}
             onChange={(value) => update("search", value)}
           />
@@ -405,10 +405,12 @@ export default function ResellerUsers() {
           action="createAccount"
           successMessage="User account created successfully"
           onClose={() => setModal(null)}
-          initialValues={{ username: "", email: "", password: "", ratePerMsg: "1", expiresAt: "" }}
+          initialValues={{ username: "", email: "", phone: "", companyName: "", password: "", ratePerMsg: "1", expiresAt: "" }}
           fields={[
             { key: "username", label: "Username / Company", required: true, maxLength: 100 },
             { key: "email", label: "Email address", type: "email", required: true },
+            { key: "companyName", label: "Company name (optional)", maxLength: 150 },
+            { key: "phone", label: "Phone number (optional)", type: "tel", maxLength: 40, hint: "Include the country code, e.g. +919876543210." },
             {
               key: "password",
               label: "Initial password",
@@ -440,6 +442,8 @@ export default function ResellerUsers() {
           payload={(v) => ({
             username: v.username.trim(),
             email: v.email.trim(),
+            phone: (v.phone || "").trim(),
+            companyName: (v.companyName || "").trim(),
             password: v.password,
             role: "User",
             ratePerMsg: Number(v.ratePerMsg),
@@ -448,7 +452,7 @@ export default function ResellerUsers() {
           review={(v) => (
             <>
               <p className="font-medium text-foreground">{v.username}</p>
-              <p className="text-muted-foreground text-xs">{v.email}</p>
+              <p className="text-muted-foreground text-xs">{v.email}</p>{v.companyName && <p className="text-xs">Company: {v.companyName}</p>}{v.phone && <p className="text-xs">Phone: {v.phone}</p>}
               <p className="text-xs mt-1">Role: User</p>
               <p className="text-xs">
                 Rate: <strong>{number(Number(v.ratePerMsg))} credits / recipient</strong>
@@ -508,6 +512,8 @@ export default function ResellerUsers() {
           initialValues={{
             username: modal.account.username || "",
             email: modal.account.email || "",
+            phone: modal.account.phone || "",
+            companyName: modal.account.companyName || "",
             password: "",
             ratePerMsg: String(modal.account.ratePerMsg ?? 1),
             expiresAt: modal.account.expiresAt ? new Date(modal.account.expiresAt).toISOString().slice(0, 10) : "",
@@ -515,6 +521,8 @@ export default function ResellerUsers() {
           fields={[
             { key: "username", label: "Username / Company", required: true, maxLength: 100 },
             { key: "email", label: "Email address", type: "email", required: true },
+            { key: "companyName", label: "Company name (optional)", maxLength: 150 },
+            { key: "phone", label: "Phone number (optional)", type: "tel", maxLength: 40, hint: "Include the country code, e.g. +919876543210." },
             { key: "password", label: "New password (optional)", type: "password", hint: "Leave blank to keep the current password. If set, use at least 8 characters." },
             { key: "ratePerMsg", label: "Rate (credits / recipient)", type: "number", min: 0.01, step: 0.01, required: true },
             { key: "expiresAt", label: "Account expiry date (optional)", type: "date", hint: "Leave blank for no expiry." },
@@ -524,6 +532,8 @@ export default function ResellerUsers() {
             id: modal.account._id,
             username: values.username.trim(),
             email: values.email.trim(),
+            phone: (values.phone || "").trim(),
+            companyName: (values.companyName || "").trim(),
             ...(values.password ? { password: values.password } : {}),
             ratePerMsg: Number(values.ratePerMsg),
             expiresAt: values.expiresAt || null,
@@ -531,7 +541,7 @@ export default function ResellerUsers() {
           review={(values) => (
             <>
               <p className="font-medium text-foreground">{values.username}</p>
-              <p className="text-muted-foreground text-xs">{values.email}</p>
+              <p className="text-muted-foreground text-xs">{values.email}</p>{values.companyName && <p className="text-xs">Company: {values.companyName}</p>}{values.phone && <p className="text-xs">Phone: {values.phone}</p>}
               <p className="text-xs">Password: {values.password ? "Will be changed" : "Unchanged"}</p>
               <p className="text-xs">Rate: <strong>{number(Number(values.ratePerMsg))} credits / recipient</strong></p>
               <p className="text-xs">Expiry: <strong>{values.expiresAt || "No expiry"}</strong></p>

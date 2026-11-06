@@ -1,3 +1,4 @@
+import { normalizeAccountPhone, normalizeAccountCompany } from "../helpers/account-phone.js";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import config from "../config/config.js";
@@ -192,6 +193,9 @@ export async function uploadCurrentUserProfileImage(req, res) {
 export async function createUser(req, res) {
     try {
         const { username, email, password, role } = req.body;
+        let phone, companyName;
+        try { phone = normalizeAccountPhone(req.body.phone); companyName = normalizeAccountCompany(req.body.companyName); }
+        catch (error) { return res.status(400).json({ success: false, message: error.message }); }
 
         if (!username || !email || !password) {
             return res.status(400).json({
@@ -241,6 +245,8 @@ export async function createUser(req, res) {
         const newUser = await userModel.create({
             username,
             email,
+            phone,
+            companyName,
             password,
             role: assignedRole,
             resellerId: assignedReseller,
@@ -392,6 +398,10 @@ export async function updateManagedUserProfile(req, res) {
 
         const { username, email, password, ratePerMsg, expiresAt } = req.body;
         const updates = {};
+        try {
+            if (req.body.phone !== undefined) updates.phone = normalizeAccountPhone(req.body.phone);
+            if (req.body.companyName !== undefined) updates.companyName = normalizeAccountCompany(req.body.companyName);
+        } catch (error) { return res.status(400).json({ success: false, message: error.message }); }
 
         if (username !== undefined) {
             const normalizedUsername = String(username).trim();
@@ -869,6 +879,11 @@ export async function updateUser(req, res) {
         if (targetUser.role === "Super Admin" && !isSuperAdmin) {
             return res.status(403).json({ message: "Super Admin accounts cannot be edited here.", success: false });
         }
+
+        try {
+            if (req.body.phone !== undefined) targetUser.phone = normalizeAccountPhone(req.body.phone);
+            if (req.body.companyName !== undefined) targetUser.companyName = normalizeAccountCompany(req.body.companyName);
+        } catch (error) { return res.status(400).json({ success: false, message: error.message }); }
 
         // 1. Update username
         if (username !== undefined && username !== null) {

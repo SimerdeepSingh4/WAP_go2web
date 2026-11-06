@@ -21,6 +21,13 @@ const userSchema = new mongoose.Schema(
             default: "",
             trim: true,
         },
+        phone: {
+            type: String,
+            trim: true,
+            default: "",
+            validate: { validator: value => !value || /^\+?\d{7,15}$/.test(value), message: "Enter a valid phone number with 7 to 15 digits." },
+        },
+        companyName: { type: String, trim: true, default: "", maxlength: 150 },
         password: {
             type: String,
             required: [true, "Password is required"],

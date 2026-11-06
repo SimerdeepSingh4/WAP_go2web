@@ -1,3 +1,4 @@
+import { normalizeAccountPhone, normalizeAccountCompany } from "../helpers/account-phone.js";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
@@ -98,6 +99,9 @@ async function createDeviceSession(user, req, res) {
 export async function register(req, res) {
     try {
         const { username, email, password, role } = req.body;
+        let phone, companyName;
+        try { phone = normalizeAccountPhone(req.body.phone); companyName = normalizeAccountCompany(req.body.companyName); }
+        catch (error) { return res.status(400).json({ success: false, message: error.message }); }
 
         if (!username || !email || !password) {
             return res.status(400).json({
@@ -147,6 +151,8 @@ export async function register(req, res) {
         const user = await userModel.create({
             username,
             email,
+            phone,
+            companyName,
             password,
             role: assignedRole,
             resellerId: assignedReseller,
