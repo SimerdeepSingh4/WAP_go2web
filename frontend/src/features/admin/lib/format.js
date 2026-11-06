@@ -5,7 +5,7 @@ export const dateTime = (value) => value && !Number.isNaN(new Date(value).getTim
 export const ownerName = (owner) => owner?.username || owner?.email || "Unavailable account";
 export const statusLabels = {
   draft: "Draft",
-  pending: "Approval Pending",
+  pending: "Pending",
   scheduled: "Scheduled",
   ongoing: "Ongoing",
   completed: "Completed",

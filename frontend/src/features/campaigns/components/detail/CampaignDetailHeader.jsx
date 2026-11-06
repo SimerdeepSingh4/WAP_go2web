@@ -111,7 +111,7 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
   });
 
   const isScheduledCampaign = campaign.schedule === "later" && Boolean(campaign.scheduledTime);
-  const isApprovalPending = campaign.status === "pending";
+  const isApprovalPending = isScheduledCampaign && campaign.status === "pending";
   const displayStatusLabel = isApprovalPending
     ? "Approval Pending"
     : statusLabels[campaign.status] || campaign.status;
@@ -237,34 +237,19 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
 
   // Admin status choices tailored to current campaign state
   const statusOptions = useMemo(() => {
+    // Only scheduled campaigns awaiting Super Admin review get the approval workflow
     if (isApprovalPending) {
-      if (isScheduledCampaign) {
-        return [
-          {
-            value: "scheduled",
-            label: "Approve Schedule",
-            description: `Schedule for ${dateTime(campaign.scheduledTime)}`,
-            dot: "bg-purple-500",
-          },
-          {
-            value: "ongoing",
-            label: "Launch Now",
-            description: "Bypass schedule and start dispatch immediately",
-            dot: "bg-blue-500",
-          },
-          {
-            value: "failed",
-            label: "Reject / Fail",
-            description: "Reject campaign and refund 100% credits",
-            dot: "bg-red-500",
-          },
-        ];
-      }
       return [
         {
+          value: "scheduled",
+          label: "Approve Schedule",
+          description: `Schedule for ${dateTime(campaign.scheduledTime)}`,
+          dot: "bg-purple-500",
+        },
+        {
           value: "ongoing",
-          label: "Approve & Start",
-          description: "Start dispatching immediately",
+          label: "Launch Now",
+          description: "Bypass schedule and start dispatch immediately",
           dot: "bg-blue-500",
         },
         {
@@ -276,7 +261,7 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
       ];
     }
 
-    if (campaign.status === "scheduled") {
+    if (isScheduledCampaign && campaign.status === "scheduled") {
       return [
         {
           value: "ongoing",
@@ -299,23 +284,23 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
       ];
     }
 
-    if (campaign.status === "ongoing") {
-      return [
-        { value: "completed", label: "Completed", description: "All messages finished", dot: "bg-emerald-500" },
-        { value: "paused", label: "Pause", description: "Temporarily pause execution", dot: "bg-amber-400" },
-        { value: "stopped", label: "Stop", description: "Terminate execution", dot: "bg-stone-500" },
-        { value: "failed", label: "Fail", description: "Mark as failed and refund", dot: "bg-red-500" },
-      ];
-    }
-
-    return STATUS_OPTIONS;
+    // Standard statuses for Send Now campaigns or general state management:
+    // Pending, Ongoing, Completed, Paused, Stopped, Failed
+    return [
+      { value: "pending", label: "Pending", description: "Queued for processing", dot: "bg-amber-500" },
+      { value: "ongoing", label: "Ongoing", description: "Currently active & dispatching", dot: "bg-blue-500" },
+      { value: "completed", label: "Completed", description: "All messages finished", dot: "bg-emerald-500" },
+      { value: "paused", label: "Paused", description: "Temporarily pause execution", dot: "bg-amber-400" },
+      { value: "stopped", label: "Stopped", description: "Terminated / cancelled", dot: "bg-stone-500" },
+      { value: "failed", label: "Failed", description: "Mark campaign as failed and refund", dot: "bg-red-500" },
+    ];
   }, [campaign.status, isApprovalPending, isScheduledCampaign, campaign.scheduledTime]);
 
   const isUpdating = updateStatusMutation.isPending || launchNowMutation.isPending || cancelMutation.isPending;
   const isPendingOrScheduled = ["pending", "scheduled"].includes(campaign.status);
 
   return (
-    <header className="space-y-4">
+    <header data-tour="campaign-header" className="space-y-4">
       {/* Back button */}
       <div>
         <Button
@@ -372,7 +357,7 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
           )}
 
           {/* Creator / Admin Action: Edit Schedule */}
-          {isPendingOrScheduled && (
+          {isScheduledCampaign && isPendingOrScheduled && (
             <Button
               type="button"
               variant="outline"
