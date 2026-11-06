@@ -30,6 +30,7 @@ import ActionForm from "../components/ActionForm";
 import { dateTime, number, ownerName } from "../lib/format";
 
 const transactionLabels = {
+  REQUEST: "Credit request",
   ALLOCATE: "Credit Added",
   DEDUCT: "Campaign Usage",
   REFUND: "Refund",
@@ -45,6 +46,7 @@ const transactionLabels = {
  * - REFUND: Delivery failure refund -> Refund (+, Cyan, ↙)
  */
 function getTransactionDisplay(t) {
+  if(t.type === "REQUEST") return {label:"Credit request",badgeClass:"border-amber-200 bg-amber-50 text-amber-800",amountClass:"text-amber-800 font-medium",sign:"",icon:Coins};
   const isFromSuperAdmin = !t.fromUser || t.fromUser?.role === "Super Admin";
 
   if (t.type === "RECLAIM") {
@@ -158,6 +160,7 @@ export default function Credits({ activity = false }) {
 
   // Columns for the Transaction History Table
   const transactionColumns = [
+    {key:"actions",label:"Action",render:t => t.type === "REQUEST" ? <Button size="sm" variant="outline" nativeButton={false} render={<Link to={`/admin/credits?allocate=${t.toUser?._id || t.toUser}&amount=${t.amount}`} />}>Allocate credits</Button> : null},
     { key: "transactionId", label: "Transaction ID", render: transaction => <TransactionReference transaction={transaction} /> },
     {
       key: "date",
@@ -351,7 +354,7 @@ export default function Credits({ activity = false }) {
           onClose={() => update("allocate", null)}
           initialValues={{
             toUserId: accounts.some((a) => a._id === allocation) ? allocation : "",
-            amount: "",
+            amount: params.get("amount") || "",
             notes: "",
             expiryYears: "2",
           }}

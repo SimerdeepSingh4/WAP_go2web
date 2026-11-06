@@ -4,7 +4,7 @@ import mongoose from "mongoose";
 import { protect, blockInPreviewMode } from "../middlewares/auth.middleware.js";
 import { Notification, NotificationEvent, NotificationPreference, PushSubscription, PushDelivery } from "../models/notification.model.js";
 import { notificationScope } from "../services/notification.service.js";
-import { isAllowedPushEndpoint, notificationCategories } from "../helpers/notification-policy.js";
+import { isAllowedPushEndpoint, notificationCategories, notificationAttentionFilter } from "../helpers/notification-policy.js";
 import { pushConfigured } from "../workers/notification.worker.js";
 import { notifyUser } from "../services/socket.service.js";
 
@@ -23,7 +23,7 @@ router.get("/", route(async (req, res) => {
     }
     const page = Math.min(10000, Math.max(1, Math.trunc(Number(req.query.page)) || 1));
     const limit = Math.min(50, Math.max(1, Math.trunc(Number(req.query.limit)) || 20));
-    const [items, total, unreadCount, inboxCount] = await Promise.all([
+    const [items, total, unreadCount, inboxCount, attentionCount] = await Promise.all([
         Notification.find(filter)
             .populate("subjectUserId", "username email role")
             .sort({ createdAt: -1, _id: -1 })
@@ -32,8 +32,9 @@ router.get("/", route(async (req, res) => {
             .lean(),
         Notification.countDocuments(filter), Notification.countDocuments({ ...scope, archivedAt: null, readAt: null }),
         Notification.countDocuments({ ...scope, archivedAt: null }),
+        Notification.countDocuments({ $and: [scope, { archivedAt: null, readAt: null }, notificationAttentionFilter] }),
     ]);
-    res.json({ items, unreadCount, inboxCount, pagination: { page, limit, total, pages: Math.max(1, Math.ceil(total / limit)) } });
+    res.json({ items, unreadCount, inboxCount, attentionCount, pagination: { page, limit, total, pages: Math.max(1, Math.ceil(total / limit)) } });
 }));
 
 router.get("/preferences", route(async (req, res) => {

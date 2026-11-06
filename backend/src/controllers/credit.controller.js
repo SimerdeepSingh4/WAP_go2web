@@ -374,32 +374,36 @@ export async function allocateCredits(req, res) {
 }
 // New: User requests credits (creates a pending transaction)
 export async function requestCredits(req, res) {
+  let session;
   try {
-    const { amount, note } = req.body;
-    const creditAmount = normalizeCreditAmount(amount);
-    if (isNaN(creditAmount) || creditAmount <= 0) {
-      return res.status(400).json({ message: "Invalid credit amount.", success: false });
+    if (!["User", "Reseller"].includes(req.user.role)) return res.status(403).json({ success: false, message: "Only users and resellers can request credits." });
+    const amount = normalizeCreditAmount(req.body.amount);
+    if (amount <= 0) return res.status(400).json({ success: false, message: "Enter a credit amount greater than zero." });
+    const note = req.body.note ?? "";
+    if (typeof note !== "string" || note.length > 500) return res.status(400).json({ success: false, message: "The note must be 500 characters or fewer." });
+    let recipient = null;
+    if (req.user.role === "User" && req.user.createdBy) {
+      const creator = await userModel.findById(req.user.createdBy).select("role username");
+      if (creator?.role === "Reseller") {
+        if (String(req.user.resellerId) !== String(creator._id)) return res.status(409).json({ success: false, message: "Your account manager has changed. Contact the administrator before requesting credits." });
+        recipient = creator;
+      }
     }
-    // Create a pending request transaction
-    const transaction = await transactionModel.create([
-      {
-        fromUser: null,
-        toUser: req.user._id,
-        amount: creditAmount,
-        type: "REQUEST",
-        notes: note || "",
-        performedBy: req.user._id,
-      },
-    ]);
-    return res.status(200).json({
-      success: true,
-      message: `Credit request of ${creditAmount} submitted.`,
-      transaction: transaction[0],
-    });
+    session = await startCreditSession(req);
+    const response = await session.withTransaction(async () => {
+      const [transaction] = await transactionModel.create([{
+        fromUser: null, toUser: req.user._id, amount, type: "REQUEST",
+        notes: note.trim(), performedBy: req.user._id, requestedFrom: recipient?._id || null,
+      }], { session });
+      const result = { success: true, message: recipient ? "Credit request sent to your reseller." : "Credit request sent to the super admin.", transaction };
+      await saveCreditReceipt(req, session, 201, result);
+      return result;
+    }, creditTransactionOptions);
+    return res.status(201).json(response);
   } catch (error) {
     console.error("RequestCredits error:", error);
-    return res.status(500).json({ message: "Internal server error", success: false });
-  }
+    return res.status(error.statusCode || (error.code === 11000 ? 409 : 500)).json({ success: false, message: error.statusCode ? error.message : error.code === 11000 ? "This request is already being processed. Retry using the same request reference." : "Could not submit the credit request. Please retry." });
+  } finally { if (session) await session.endSession(); }
 }
 
 /**

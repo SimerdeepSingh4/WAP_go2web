@@ -1,5 +1,18 @@
 export const notificationCategories = ["campaigns", "credits", "accounts", "system"];
 export const roleBase = (role) => role === "Super Admin" ? "/admin" : role === "Reseller" ? "/reseller" : "/user";
+
+export const notificationAttentionFilter = {
+    $or: [{ itemType: "transaction", fieldKey: "REQUEST" }, { priority: "urgent" }],
+};
+
+export function notificationPriority(event) {
+    const d = event.data || {};
+    return d.priority === "urgent" || event.kind === "operations"
+        || (event.kind === "expiry" && d.expired)
+        || (event.kind === "wallet" && d.isLocked && d.changes?.includes("isLocked"))
+        || (event.kind === "campaign" && d.status === "failed" && d.changes?.includes("status"))
+        ? "urgent" : "normal";
+}
 export const sameId = (a, b) => Boolean(a && b && String(a._id || a) === String(b._id || b));
 export const managesUser = (viewer, subject) => viewer?.role === "Reseller" && subject?.role === "User" && sameId(subject.createdBy, viewer._id) && sameId(subject.resellerId, viewer._id);
 
@@ -164,6 +177,11 @@ export function formatNotification(event, viewer, subject, threshold = 100) {
 
     if (event.kind === "transaction") {
         const amount = Number(d.amount || 0).toLocaleString("en-IN");
+        if (d.type === "REQUEST") {
+            const href = `${base}/${viewer.role === "Super Admin" ? "activity" : "credits"}?transaction=${d.id}`;
+            const note = d.notes ? ` Note: ${d.notes}` : "";
+            return result("credits", isSelf ? "Credit request submitted" : `Credit request from ${subjectName}`, isSelf ? `Your request for ${amount} credits was submitted. Your balance has not changed.` : `${amount} credits were requested by ${subjectLabel}.${note}`, href);
+        }
         const outgoing = sameId(viewer._id, d.fromUser) && !sameId(d.fromUser, d.toUser);
 
         if (isSelf) {

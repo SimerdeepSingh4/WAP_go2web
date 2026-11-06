@@ -45,6 +45,7 @@ creditRouter.post(
 creditRouter.post(
     "/request",
     blockInPreviewMode("Credit request"),
+    creditRequest,
     requestCredits
 );
 

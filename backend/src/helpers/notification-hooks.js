@@ -18,7 +18,7 @@ const watched = {
 };
 
 function snapshot(doc, kind) {
-    if (kind === "transaction") return { id: doc._id, type: doc.type, amount: doc.amount, fromUser: doc.fromUser, toUser: doc.toUser, campaignId: doc.campaignId, performedBy: doc.performedBy };
+    if (kind === "transaction") return { id: doc._id, type: doc.type, amount: doc.amount, requestedFrom: doc.requestedFrom, notes: doc.notes, fromUser: doc.fromUser, toUser: doc.toUser, campaignId: doc.campaignId, performedBy: doc.performedBy };
     if (kind === "campaign") return { id: doc._id, userId: doc.userId, title: doc.campaignTitle, status: doc.status, statusVisible: campaignPublicStatus(doc) === doc.status, total: doc.totalRecipients, publishedAt: doc.publishedSpreadsheet?.publishedAt };
     if (kind === "user") return { id: doc._id, username: doc.username, role: doc.role, status: doc.status, rate: doc.ratePerMsg, expiresAt: doc.expiresAt, createdBy: doc.createdBy, resellerId: doc.resellerId, deviceLimit: doc.deviceLimit };
     return { id: doc._id, userId: doc.userId, balance: doc.balance, expiresAt: doc.expiresAt, isLocked: doc.isLocked };

@@ -1,6 +1,6 @@
 import userModel from "../models/user.model.js";
 import { Notification, NotificationPreference, PushSubscription, PushDelivery } from "../models/notification.model.js";
-import { formatNotification, getNotificationGroup, managesUser, mayReadNotification, sameId } from "../helpers/notification-policy.js";
+import { formatNotification, getNotificationGroup, managesUser, mayReadNotification, sameId, notificationPriority } from "../helpers/notification-policy.js";
 import { notifyUser } from "./socket.service.js";
 
 export async function notificationScope(user) {
@@ -24,6 +24,8 @@ export async function deliverEvent(event) {
     const subjects = await userModel.find({ _id: { $in: ids.filter(Boolean) } }).lean();
     const admins = await userModel.find({ role: "Super Admin" }).lean();
     const recipients = new Map();
+    const creditRequest = event.kind === "transaction" && d.type === "REQUEST";
+    let notifyAdmins = true;
     const put = (user, subject, managed = false) => {
         if (!user) return;
         const key = String(user._id);
@@ -31,13 +33,21 @@ export async function deliverEvent(event) {
     };
     for (const subject of subjects) {
         put(subject, subject);
+        if (creditRequest) {
+            const managerId = d.requestedFrom || subject.createdBy;
+            if (subject.role === "User" && managerId) {
+                const manager = await userModel.findById(managerId).lean();
+                if (managesUser(manager, subject)) { put(manager, subject, true); notifyAdmins = false; }
+            }
+            continue;
+        }
         if (subject.role === "User" && subject.resellerId && sameId(subject.resellerId, subject.createdBy)) {
             const parent = await userModel.findById(subject.resellerId).lean();
             if (managesUser(parent, subject)) put(parent, subject, true);
         }
     }
     const mainSubject = subjects.find((user) => user.role === "User") || subjects.find((user) => user.role !== "Super Admin") || subjects[0];
-    for (const admin of admins) put(admin, mainSubject || admin);
+    if (notifyAdmins) for (const admin of admins) put(admin, mainSubject || admin);
     const thresholdPreference = mainSubject && await NotificationPreference.findOne({ userId: mainSubject._id }).lean();
     for (const { user, subject, managed } of recipients.values()) {
         const message = formatNotification(event, user, subject, thresholdPreference?.lowBalanceThreshold ?? 100);
@@ -64,6 +74,7 @@ export async function deliverEvent(event) {
                     body: message.body,
                     href: message.href,
                     category: message.category,
+                    priority: notificationPriority(event),
                     version: incomingVersion,
                     lastEventId: incomingEventId,
                     readAt: null,          // Mark unread
@@ -107,6 +118,7 @@ export async function deliverEvent(event) {
                             fieldKey: group.fieldKey,
                             version: incomingVersion,
                             category: message.category,
+                            priority: notificationPriority(event),
                             title: message.title,
                             body: message.body,
                             href: message.href,

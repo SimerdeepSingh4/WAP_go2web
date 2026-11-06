@@ -69,6 +69,7 @@ const transactionSchema = new mongoose.Schema(
             ref: "User",
             required: true, // The admin/reseller/system who initiated this
         },
+        requestedFrom: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
         campaignId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Campaign",

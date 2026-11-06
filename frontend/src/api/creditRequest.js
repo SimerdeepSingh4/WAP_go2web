@@ -1,5 +1,5 @@
 const pending = new Map();
-const protectsCredits = (config) => config.method?.toLowerCase() === "post" && /^\/?(?:campaigns\/?|credits\/(?:allocate|reclaim|deduct))$/.test(config.url?.split("?")[0] || "");
+const protectsCredits = (config) => config.method?.toLowerCase() === "post" && /^\/?(?:campaigns\/?|credits\/(?:allocate|reclaim|deduct|request))$/.test(config.url?.split("?")[0] || "");
 
 const digest = async (value) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", value))].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 function canonical(value) {

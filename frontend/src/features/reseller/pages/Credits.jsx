@@ -1,6 +1,6 @@
 import TransactionReference from "@/components/dashboard/TransactionReference";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { useState } from "react";
 import {
   Plus,
@@ -32,6 +32,7 @@ import { dateTime, number, ownerName } from "@/features/admin/lib/format";
  * - RECLAIM: Returned to Super Admin -> Outflow (-, Amber, ↗) "Reclaimed"
  */
 function getTransactionDisplay(t) {
+  if(t.type === "REQUEST") return {label:"Credit request",badgeClass:"border-amber-200 bg-amber-50 text-amber-800",amountClass:"text-amber-800 font-medium",sign:"",icon:Coins};
   const isFromSuperAdmin = !t.fromUser || t.fromUser?.role === "Super Admin";
 
   if (t.type === "ALLOCATE") {
@@ -133,6 +134,7 @@ export default function ResellerCredits({ activity = false }) {
   }
 
   const columns = [
+    {key:"actions",label:"Action",render:t => t.type === "REQUEST" && String(t.toUser?._id || t.toUser) !== String(ownId) ? <Button size="sm" variant="outline" nativeButton={false} render={<Link to={`/reseller/credits?allocate=${t.toUser?._id || t.toUser}&amount=${t.amount}`} />}>Allocate credits</Button> : null},
     { key: "transactionId", label: "Transaction ID", render: transaction => <TransactionReference transaction={transaction} /> },
     {
       key: "date",
@@ -213,7 +215,7 @@ export default function ResellerCredits({ activity = false }) {
             : "Manage your credit wallet and allocate broadcast credits to your client accounts."
         }
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -234,6 +236,7 @@ export default function ResellerCredits({ activity = false }) {
             </Button>
             {!activity && (
               <>
+                <Button variant="outline" disabled={signedInUser?.isPreview} onClick={() => update("request", "new")}>Request credits</Button>
                 <Button
                   data-tour="reseller-allocate"
                   onClick={() => update("allocate", "new")}
@@ -369,6 +372,7 @@ export default function ResellerCredits({ activity = false }) {
               { value: "ALLOCATE", label: "Allocations & Topups" },
               { value: "DEDUCT", label: "Campaign Deductions" },
               { value: "REFUND", label: "Refunds" },
+              { value: "REQUEST", label: "Credit requests" },
               { value: "RECLAIM", label: "Reclaimed Credits" },
             ]}
           />
@@ -447,7 +451,7 @@ export default function ResellerCredits({ activity = false }) {
           onClose={() => update("allocate", null)}
           initialValues={{
             toUserId: accounts.some((a) => a._id === allocation) ? allocation : "",
-            amount: "",
+            amount: params.get("amount") || "",
             notes: "",
           }}
           fields={[
@@ -505,6 +509,7 @@ export default function ResellerCredits({ activity = false }) {
         />
       )}
 
+      {params.get("request") && !signedInUser?.isPreview && <ResellerActionForm title="Request credits" description="Send a credit request to the super admin. Your balance changes only when credits are allocated." action="requestCredits" successMessage="Credit request sent to super admin" onClose={() => update("request", null)} initialValues={{amount:"",note:""}} fields={[{key:"amount",label:"Credits requested",type:"number",required:true,min:0.01,step:0.01},{key:"note",label:"Note (optional)",type:"textarea",maxLength:500}]} payload={v => ({amount:Number(v.amount),note:v.note.trim()})} review={v => <div className="space-y-2"><p>Requested credits: <strong>{number(Number(v.amount))}</strong></p><p>Sent to: <strong>Super admin</strong></p>{v.note && <p className="whitespace-pre-wrap break-words">{v.note}</p>}</div>} submitLabel="Submit request" />}
       {/* Reclaim credits Dialog */}
       {reclaimOpen && accountsQuery.isSuccess && (
         <ResellerActionForm

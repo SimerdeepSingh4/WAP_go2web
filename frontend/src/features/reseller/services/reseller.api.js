@@ -18,6 +18,7 @@ export const resellerQueries = {
 };
 
 export const resellerActions = {
+  requestCredits: async (body) => (await api.post("/credits/request", body)).data,
   createAccount: async (body) => (await api.post("/users", body)).data,
   updateAccount: async ({ id, ...body }) => (await api.patch(`/users/${id}/profile`, body)).data,
   accountAccess: async ({ id, ...body }) => (await api.patch(`/users/${id}/access`, body)).data,

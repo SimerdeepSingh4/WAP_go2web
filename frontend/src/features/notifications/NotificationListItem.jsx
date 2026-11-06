@@ -43,7 +43,8 @@ function CreditAmount({ amount, reduced }) {
 export default function NotificationListItem({ item, base, action, isPreview, onArchive, onOpen, compact = false, day }) {
   const { user } = useAuth();
   const reduced = useReducedMotion();
-  const category = categories[item.category] || { icon: Bell, label: "Update", tone: "text-primary" };
+  const creditRequest = item.itemType === "transaction" && item.fieldKey === "REQUEST";
+  const category = creditRequest ? { icon: Wallet, label: "Credit request", tone: "text-amber-700 dark:text-amber-400" } : categories[item.category] || { icon: Bell, label: "Update", tone: "text-primary" };
   const Icon = category.icon;
   const unread = !item.readAt && !item.archivedAt;
   const subject = getNotificationSubject(item);
@@ -63,7 +64,7 @@ export default function NotificationListItem({ item, base, action, isPreview, on
   return (
     <motion.li layout={reduced ? false : "position"} initial={reduced ? false : { opacity: 0, height: 0, y: -16, scale: 0.96 }} animate={{ opacity: 1, height: "auto", y: 0, scale: 1 }} exit={{ opacity: 0, height: 0, x: reduced ? 0 : 64, scale: reduced ? 1 : 0.98 }} transition={reduced ? { duration: 0 } : { duration: 0.34, opacity: { duration: 0.2 }, y: { type: "spring", stiffness: 340, damping: 25 } }} className="relative min-w-0 overflow-hidden" data-notification={item._id}>
       {day && <p className="px-2 pb-2 pt-3 text-[10px] font-medium text-muted-foreground">{day}</p>}
-      <article aria-label={`${category.label}: ${item.title}`} className={`group relative mb-2 rounded-2xl border border-border/80 bg-card text-card-foreground shadow-sm transition-colors hover:border-border ${compact ? "p-3" : "p-4 sm:p-5"}`}>
+      <article aria-label={`${category.label}: ${item.title}`} className={`group relative mb-2 rounded-2xl border ${creditRequest ? "border-amber-300 border-l-4 bg-amber-50/70 dark:border-amber-700 dark:bg-amber-950/25" : "border-border/80 bg-card hover:border-border"} text-card-foreground shadow-sm transition-colors ${compact ? "p-3" : "p-4 sm:p-5"}`}>
         <div className="flex items-start gap-3">
           <span className={`relative grid size-9 shrink-0 place-items-center rounded-xl ${category.tone}`} style={{ background: tint }}>
             <Icon className="size-[18px]" aria-hidden="true" />
@@ -71,7 +72,7 @@ export default function NotificationListItem({ item, base, action, isPreview, on
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 pr-5 text-[11px] text-muted-foreground">
-              <span className="font-medium">{category.label}</span><span aria-hidden="true">&middot;</span>
+              <span className={creditRequest ? "rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 font-semibold text-amber-900 dark:border-amber-700 dark:bg-amber-900 dark:text-amber-100" : "font-medium"}>{category.label}</span><span aria-hidden="true">&middot;</span>
               <time dateTime={item.createdAt} title={new Date(item.createdAt).toLocaleString()} className="tabular-nums">{relativeTime(item.createdAt)}</time>
             </div>
             <Link to={href} onClick={open} onKeyDown={(event) => { if (event.key === "Delete") { event.preventDefault(); archive(); } }} className="mt-0.5 block rounded-sm outline-none after:absolute after:inset-0 after:rounded-2xl focus-visible:after:ring-2 focus-visible:after:ring-ring">

@@ -10,6 +10,7 @@ const notificationSchema = new mongoose.Schema({
     itemId: { type: String },
     changeType: { type: String },
     fieldKey: { type: String },
+    priority: { type: String, enum: ["normal", "urgent"], default: "normal" },
     version: { type: Number, default: 0 },
     category: { type: String, enum: ["campaigns", "credits", "accounts", "system"], required: true },
     title: { type: String, required: true, maxlength: 180 },

@@ -14,23 +14,34 @@ export default function NotificationBell({ base }) {
   const query = useNotifications({ limit: 6 });
   const action = useNotificationAction();
   const count = query.data?.unreadCount || 0;
+  const attentionCount = query.data?.attentionCount || 0;
   const reduced = useReducedMotion();
   const bell = useRef(null);
   const previousCount = useRef(null);
   useEffect(() => {
-    if (!query.isSuccess) return;
+    if (!query.data) return;
     const increased = previousCount.current !== null && count > previousCount.current;
     previousCount.current = count;
-    if (!increased || reduced) return;
-    const animation = bell.current?.animate([{ transform: "rotate(0deg)" }, { transform: "rotate(16deg)" }, { transform: "rotate(-12deg)" }, { transform: "rotate(7deg)" }, { transform: "rotate(-3deg)" }, { transform: "rotate(0deg)" }], { duration: 720, easing: "ease-out" });
+    if ((!increased && !attentionCount) || reduced) return;
+    const animation = bell.current?.animate([
+      { transform: "rotate(0deg)", offset: 0 },
+      { transform: "rotate(20deg)", offset: 0.06 },
+      { transform: "rotate(-18deg)", offset: 0.12 },
+      { transform: "rotate(14deg)", offset: 0.18 },
+      { transform: "rotate(-10deg)", offset: 0.24 },
+      { transform: "rotate(6deg)", offset: 0.30 },
+      { transform: "rotate(-3deg)", offset: 0.36 },
+      { transform: "rotate(0deg)", offset: 0.42 },
+      { transform: "rotate(0deg)", offset: 1 },
+    ], { duration: attentionCount ? 2400 : 1000, iterations: attentionCount ? Infinity : 1, easing: "ease-in-out" });
     return () => animation?.cancel();
-  }, [count, reduced, query.isSuccess]);
+  }, [count, attentionCount, reduced, query.isSuccess]);
 
   return (
     <Popover.Root open={open} onOpenChange={setOpen} modal={false}>
-      <Popover.Trigger className="portal-notification-btn relative" aria-label={`Notifications${count ? `, ${count} unread` : ""}`}>
+      <Popover.Trigger className="portal-notification-btn relative" aria-label={`Notifications${count ? `, ${count} unread` : ""}${attentionCount ? `, ${attentionCount} need attention` : ""}`}>
         <Bell ref={bell} className="size-4.5 origin-top" aria-hidden="true" />
-        {count > 0 && <span className="absolute -top-1 -right-1 grid min-w-4 place-items-center rounded-full bg-primary px-1 text-[9px] leading-4 text-primary-foreground" aria-hidden="true">{count > 99 ? "99+" : count}</span>}
+        {count > 0 && <span className={`absolute -top-1 -right-1 grid min-w-4 place-items-center rounded-full px-1 text-[9px] leading-4 ${attentionCount ? "bg-amber-500 text-slate-950" : "bg-primary text-primary-foreground"}`} aria-hidden="true">{count > 99 ? "99+" : count}</span>}
       </Popover.Trigger>
       <Popover.Portal><Popover.Positioner align="end" sideOffset={10} positionMethod="fixed" className="z-50"><Popover.Popup className="w-100 max-w-[calc(100vw-1rem)] origin-[var(--transform-origin)] overflow-hidden rounded-[28px] border border-border bg-popover/95 p-2 text-popover-foreground shadow-xl backdrop-blur-xl outline-none motion-safe:transition-[opacity,transform] motion-safe:duration-200 data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:scale-95 data-[ending-style]:opacity-0">
         <div className="flex items-center gap-2 px-3 pb-3 pt-2"><Bell className="size-[18px]" /><Popover.Title className="flex-1 text-sm font-semibold">Notifications</Popover.Title>{count > 0 && <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium tabular-nums">{count} new</span>}<Button size="icon-xs" variant="ghost" aria-label="Mark all notifications read" title="Mark all read" disabled={!count || action.isPending || user?.isPreview} onClick={() => action.mutate({ id: "all" })}><CheckCheck className="size-3.5" /></Button></div>
