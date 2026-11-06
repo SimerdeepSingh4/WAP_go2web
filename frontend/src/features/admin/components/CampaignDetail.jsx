@@ -144,12 +144,12 @@ export default function CampaignDetail({ id, initialReport, initialStatus, onClo
           if (!open && !action) onClose();
         }}
       >
-        <SheetContent className="w-full gap-0 overflow-y-auto sm:max-w-xl">
+        <SheetContent className="detail-sheet-wide">
           <SheetHeader className="border-b p-5 pr-12">
             <SheetTitle className="break-words">{campaign?.campaignTitle || "Campaign details"}</SheetTitle>
             <SheetDescription>Review campaign content, progress, and reported results.</SheetDescription>
           </SheetHeader>
-          <div className="space-y-6 p-5">
+          <div className="detail-sheet-body space-y-6">
             <QueryState query={query}>
               {campaign && (
                 <>

@@ -32,9 +32,9 @@ export default function ReadOnlyCampaignDetail({ id, onClose }) {
       if (url) window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
   }
-  return <Sheet open onOpenChange={open => { if (!open) onClose(); }}><SheetContent className="w-full overflow-y-auto sm:max-w-xl">
+  return <Sheet open onOpenChange={open => { if (!open) onClose(); }}><SheetContent className="detail-sheet-wide">
     <SheetHeader><SheetTitle className="break-words">{campaign?.campaignTitle || "Campaign details"}</SheetTitle><SheetDescription>Submission details and published results.</SheetDescription></SheetHeader>
-    <div className="space-y-6 p-5"><QueryState query={query}>{campaign && <>
+    <div className="detail-sheet-body space-y-6"><QueryState query={query}>{campaign && <>
       <div className="flex flex-wrap justify-between gap-3"><StatusBadge status={campaign.status} /><span className="inline-flex items-center gap-2 text-sm text-muted-foreground"><UserAvatar user={campaign.userId} className="size-8" />{ownerName(campaign.userId)}</span></div>
       <dl className="dashboard-details">{[["Recipients", number(campaign.totalRecipients)], ["Submitted", dateTime(campaign.createdAt)], ["Requested schedule", campaign.schedule === "later" ? dateTime(campaign.scheduledTime) : "As soon as approved"], ["Description", campaign.campaignDescription || "—"]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
       <section><h2 className="mb-3 font-medium">Message</h2><CampaignMessage content={campaign.messageBody || campaign.templateId?.body} /><CampaignMedia campaign={campaign} /></section>

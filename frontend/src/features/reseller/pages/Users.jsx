@@ -44,17 +44,20 @@ function UserDetail({ account, onClose, onAction }) {
           <SheetDescription>Client user account profile & wallet</SheetDescription>
         </SheetHeader>
 
-        <div className="space-y-5 px-4">
-          <div className="flex items-center justify-between">
+        <div className="detail-sheet-body space-y-5">
+          <div className="detail-sheet-toolbar">
             <StatusBadge status={account.status} />
             {account.isExpired && (
               <span className="text-xs font-medium text-destructive">Expired</span>
             )}
           </div>
 
-          <dl className="space-y-3.5 text-sm">
+          <div className="detail-sheet-profile"><div className="flex min-w-0 items-center gap-3"><UserAvatar user={account} className="size-14" /><div className="min-w-0"><p className="text-sm font-semibold">{account.username}</p><p className="mt-1 text-xs text-muted-foreground">{account.companyName || "User account"}</p></div></div></div>
+          <dl className="detail-sheet-details">
             {[
               ["Email", account.email],
+              ["Company", account.companyName || "Not provided"],
+              ["Phone", account.phone || "Not provided"],
               ["Role", account.role || "User"],
               ["Rate", `${number(account.ratePerMsg)} credits / recipient`],
               ["Account expiry", account.expiresAt ? `${dateTime(account.expiresAt)}${account.isExpired ? " (Expired)" : ""}` : "No expiry"],
@@ -67,9 +70,9 @@ function UserDetail({ account, onClose, onAction }) {
             ))}
           </dl>
 
-          <div className={`rounded-lg border p-4 space-y-2 ${balance.data?.wallet?.isLocked ? "border-red-300 bg-red-50/60" : "bg-muted/30"}`}>
+          <div data-locked={Boolean(balance.data?.wallet?.isLocked)} className={`detail-sheet-wallet space-y-2 ${balance.data?.wallet?.isLocked ? "border-red-300 bg-red-50/60" : "bg-muted/30"}`}>
             <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-muted-foreground">Current Wallet Balance</p>
+              <p className="text-xs font-medium text-muted-foreground">Available credits</p>
               {balance.data?.wallet?.isLocked && (
                 <span className="inline-flex items-center gap-1 rounded-md bg-red-100 text-red-800 px-2 py-0.5 text-xs font-semibold">
                   <Lock className="size-3 text-red-600" /> Locked & Expired
@@ -93,7 +96,7 @@ function UserDetail({ account, onClose, onAction }) {
           </div>
 
           {/* Quick Actions */}
-          <div className="border-t pt-4 space-y-2.5">
+          <div className="detail-sheet-actions space-y-2.5">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Account Actions</p>
             <div className="flex flex-col gap-2">
               <Button

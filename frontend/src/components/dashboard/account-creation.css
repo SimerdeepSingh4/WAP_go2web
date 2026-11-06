@@ -1,0 +1,44 @@
+.account-create-dialog[data-slot="dialog-content"] { display:flex; flex-direction:column; gap:0; width:760px; max-width:calc(100vw - 32px); max-height:90svh; padding:0; overflow:hidden; border-radius:18px; }
+.account-create-dialog [data-slot="dialog-header"] { flex-shrink:0; gap:6px; padding:24px 56px 22px 26px; border-bottom:1px solid var(--border); }
+.account-create-dialog [data-slot="dialog-title"] { font-size:21px; font-weight:650; letter-spacing:-.4px; }
+.account-create-dialog [data-slot="dialog-description"] { max-width:580px; font-size:13px; line-height:1.65; color:var(--muted-foreground); }
+.account-create-form { display:flex; flex-direction:column; min-height:0; overflow:hidden; }
+.account-create-body { overflow-y:auto; overscroll-behavior:contain; min-height:0; padding:24px 26px; }
+.account-create-sections { display:grid; gap:24px; }
+.account-create-section { display:grid; gap:18px; min-width:0; }
+.account-create-section + .account-create-section { border-top:1px solid var(--border); padding-top:22px; }
+.account-create-section-heading { display:flex; align-items:center; gap:10px; }
+.account-create-section-heading > span { display:grid; place-items:center; width:34px; height:34px; flex-shrink:0; border:1px solid var(--border); border-radius:10px; background:var(--muted); color:var(--muted-foreground); }
+.account-create-section-heading svg { width:16px; height:16px; }
+.account-create-section-heading h3 { margin:0; font-size:13px; font-weight:650; }
+.account-create-section-heading p { margin:3px 0 0; font-size:11px; color:var(--muted-foreground); }
+.account-create-field-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px 20px; }
+.account-create-field-grid > div { min-width:0; }
+.account-create-field-grid [data-slot="label"] { display:flex; flex-wrap:wrap; gap:6px; font-size:12px; line-height:1.5; font-weight:550; }
+.account-create-optional { color:var(--muted-foreground); font-size:10px; font-weight:400; }
+.account-create-field-grid input,.account-create-field-grid .account-picker-trigger { width:100%; min-width:0; min-height:42px; font-size:13px; }
+.account-create-field-grid p { font-size:11px; line-height:1.6; color:var(--muted-foreground); }
+.account-create-field-grid input:focus-visible { box-shadow:0 0 0 2px color-mix(in srgb,var(--ring) 20%,transparent); }
+.account-create-password { position:relative; }
+.account-create-password input { padding-right:44px; }
+.account-create-password button { position:absolute; top:0; right:0; display:grid; width:42px; height:100%; place-items:center; border-radius:8px; color:var(--muted-foreground); }
+.account-create-password button:hover { color:var(--foreground); background:var(--muted); }
+.account-create-password button:focus-visible { outline:2px solid var(--ring); outline-offset:-3px; }
+.account-create-password svg { width:16px; height:16px; }
+.account-create-footer { display:flex; flex-shrink:0; align-items:center; justify-content:space-between; gap:16px; border-top:1px solid var(--border); padding:16px 26px; background:var(--card); }
+.account-create-footer > span { max-width:250px; font-size:11px; line-height:1.6; color:var(--muted-foreground); }
+.account-create-footer > div { display:flex; flex-shrink:0; gap:8px; }
+.account-create-footer [data-slot="button"] { min-height:42px; }
+.account-create-body > [role="alert"] { margin-top:16px; }
+@media(max-width:600px) {
+ .account-create-dialog[data-slot="dialog-content"] { max-width:calc(100vw - 24px); max-height:92svh; border-radius:14px; }
+ .account-create-dialog [data-slot="dialog-header"] { padding:20px 48px 18px 20px; }
+ .account-create-dialog [data-slot="dialog-title"] { font-size:19px; }
+ .account-create-body { padding:20px; }
+ .account-create-field-grid { grid-template-columns:minmax(0,1fr); gap:16px; }
+ .account-create-field-grid input { font-size:16px; min-height:44px; }
+ .account-create-footer { padding:14px 20px; gap:10px; flex-wrap:wrap; }
+ .account-create-footer > span { max-width:none; }
+ .account-create-footer > div { width:100%; }
+ .account-create-footer [data-slot="button"] { flex:1; min-height:44px; }
+}

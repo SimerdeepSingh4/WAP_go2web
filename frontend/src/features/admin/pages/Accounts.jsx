@@ -96,8 +96,8 @@ function AccountDetail({ account, onClose, onAction }) {
           <SheetDescription>{account.role} account profile & ledger</SheetDescription>
         </SheetHeader>
 
-        <div className="space-y-5 px-4">
-          <div className="flex items-center justify-between">
+        <div className="detail-sheet-body space-y-5">
+          <div className="detail-sheet-toolbar">
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold border border-primary/20 bg-primary/10 text-primary">
                 {account.role}
@@ -118,11 +118,11 @@ function AccountDetail({ account, onClose, onAction }) {
             </Button>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/15 p-3">
+          <div className="detail-sheet-profile">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <UserAvatar user={{ ...account, dp_img: dpImage }} className="size-14 border border-border" />
               <div className="min-w-0">
-                <p className="text-sm font-medium">Profile DP</p>
+                <p className="text-sm font-medium">Profile photo</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">{dpImage ? "Uploaded image" : "No profile image uploaded"}</p>
               </div>
             </div>
@@ -139,7 +139,7 @@ function AccountDetail({ account, onClose, onAction }) {
             <div className="flex shrink-0 items-center gap-2">
               <Button size="sm" variant="outline" disabled={updateDp.isPending} onClick={() => dpInput.current?.click()}>
                 <Upload className="size-3.5" />
-                {updateDp.isPending ? "Uploading…" : dpImage ? "Change DP" : "Add DP"}
+                {updateDp.isPending ? "Uploading…" : dpImage ? "Change photo" : "Add photo"}
               </Button>
               <Button size="icon" variant="outline" aria-label={downloadingDp ? "Downloading DP" : "Download DP"} title={downloadingDp ? "Downloading DP" : "Download DP"} disabled={!dpImage || downloadingDp || updateDp.isPending} onClick={downloadDp}>
                 <Download className="size-3.5" />
@@ -147,9 +147,11 @@ function AccountDetail({ account, onClose, onAction }) {
             </div>
           </div>
 
-          <dl className="space-y-3.5 text-sm">
+          <dl className="detail-sheet-details">
             {[
               ["Email", account.email],
+              ["Company", account.companyName || "Not provided"],
+              ["Phone", account.phone || "Not provided"],
               ["Rate", `${number(account.ratePerMsg)} credits / recipient`],
               ["Account expiry", account.expiresAt ? `${dateTime(account.expiresAt)}${account.isExpired ? " (Expired)" : ""}` : "No expiry"],
               ["Assigned reseller", account.resellerId?.username || "—"],
@@ -162,9 +164,9 @@ function AccountDetail({ account, onClose, onAction }) {
             ))}
           </dl>
 
-          <div className={`rounded-lg border p-4 space-y-2 ${balance.data?.wallet?.isLocked ? "border-red-300 bg-red-50/60" : "bg-muted/30"}`}>
+          <div data-locked={Boolean(balance.data?.wallet?.isLocked)} className={`detail-sheet-wallet space-y-2 ${balance.data?.wallet?.isLocked ? "border-red-300 bg-red-50/60" : "bg-muted/30"}`}>
             <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-muted-foreground">Current Wallet Balance</p>
+              <p className="text-xs font-medium text-muted-foreground">Available credits</p>
               {balance.data?.wallet?.isLocked && (
                 <span className="inline-flex items-center gap-1 rounded-md bg-red-100 text-red-800 px-2 py-0.5 text-xs font-semibold">
                   <Lock className="size-3 text-red-600" /> Locked & Expired
@@ -185,7 +187,7 @@ function AccountDetail({ account, onClose, onAction }) {
                 </p>
               )}
             </QueryState>
-            <div className="pt-2 flex items-center gap-2 border-t border-muted/50 mt-2">
+            <div className="detail-sheet-wallet-actions">
               <Button
                 size="sm"
                 variant="outline"
@@ -214,7 +216,7 @@ function AccountDetail({ account, onClose, onAction }) {
           </div>
 
           {/* Balance Check Section */}
-          <div className="border-t pt-4 space-y-3">
+          <div className="detail-sheet-check space-y-3">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold">Balance Check</p>

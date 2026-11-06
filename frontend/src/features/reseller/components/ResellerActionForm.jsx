@@ -1,3 +1,4 @@
+import { AccountCreationFields, AccountCreationPassword, accountCreationLabel, accountCreationPlaceholders } from "@/components/dashboard/AccountCreationFields";
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,15 +34,22 @@ export default function ResellerActionForm({ title, description, action, success
     if (message) { toast.add({ title: "Check the form", description: message, type: "error" }); return; }
     setReviewing(true);
   }
-  return <Dialog open onOpenChange={(open) => { if (!open && !mutation.isPending) onClose(); }}><DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-lg" showCloseButton={!mutation.isPending}>
-    <DialogHeader><DialogTitle>{reviewing ? `Review: ${title.toLowerCase()}` : title}</DialogTitle><DialogDescription>{description}</DialogDescription></DialogHeader>
-    <form onSubmit={submit} noValidate className="space-y-4">
-      {reviewing ? <div className="space-y-3 rounded-md border bg-muted/50 p-4 text-sm">{review(values)}</div> : fields.map((field) => <Field key={field.key} id={`reseller-${field.key}`} label={field.label} hint={field.hint}>
-        {field.options ? <FilterSelect id={`reseller-${field.key}`} label={field.label} value={values[field.key]} onChange={(value) => change(field.key, value)} options={field.options} accountSearch={field.key === "resellerId" ? { role: "Reseller" } : ["toUserId", "fromUserId", "userId"].includes(field.key) ? { active: true, purpose: "credits" } : undefined} /> : field.type === "textarea" ? <Textarea id={`reseller-${field.key}`} value={values[field.key]} onChange={(e) => change(field.key, e.target.value)} maxLength={field.maxLength} aria-invalid={Boolean(errors[field.key])} aria-describedby={errors[field.key] ? `error-${field.key}` : undefined} rows={3} /> : <Input id={`reseller-${field.key}`} type={field.type || "text"} min={field.min} step={field.step} value={values[field.key]} onChange={(e) => change(field.key, e.target.value)} autoComplete={field.type === "password" ? "new-password" : "off"} maxLength={field.maxLength} aria-required={field.required} aria-invalid={Boolean(errors[field.key])} aria-describedby={errors[field.key] ? `error-${field.key}` : field.hint ? `reseller-${field.key}-hint` : undefined} />}
+  const isAccountForm = ["createAccount", "updateAccount"].includes(action) && fields.some(field => field.key === "username");
+  function renderField(field) {
+    const Control = isAccountForm && field.type === "password" ? AccountCreationPassword : Input;
+    return <Field key={field.key} id={`reseller-${field.key}`} label={isAccountForm ? accountCreationLabel(field.label) : field.label} hint={field.hint}>
+        {field.options ? <FilterSelect id={`reseller-${field.key}`} label={field.label} value={values[field.key]} onChange={(value) => change(field.key, value)} options={field.options} accountSearch={field.key === "resellerId" ? { role: "Reseller" } : ["toUserId", "fromUserId", "userId"].includes(field.key) ? { active: true, purpose: "credits" } : undefined} /> : field.type === "textarea" ? <Textarea id={`reseller-${field.key}`} value={values[field.key]} onChange={(e) => change(field.key, e.target.value)} maxLength={field.maxLength} aria-invalid={Boolean(errors[field.key])} aria-describedby={errors[field.key] ? `error-${field.key}` : undefined} rows={3} /> : <Control placeholder={isAccountForm ? accountCreationPlaceholders[field.key] : undefined} id={`reseller-${field.key}`} type={field.type || "text"} min={field.min} step={field.step} value={values[field.key]} onChange={(e) => change(field.key, e.target.value)} autoComplete={field.type === "password" ? "new-password" : "off"} maxLength={field.maxLength} aria-required={field.required} aria-invalid={Boolean(errors[field.key])} aria-describedby={errors[field.key] ? `error-${field.key}` : field.hint ? `reseller-${field.key}-hint` : undefined} />}
         {errors[field.key] && <p id={`error-${field.key}`} className="text-xs text-destructive">{errors[field.key]}</p>}
-      </Field>)}
+      </Field>;
+  }
+  return <Dialog open onOpenChange={(open) => { if (!open && !mutation.isPending) onClose(); }}><DialogContent className={isAccountForm ? "account-create-dialog" : "max-h-[90svh] overflow-y-auto sm:max-w-lg"} showCloseButton={!mutation.isPending}>
+    <DialogHeader><DialogTitle>{reviewing ? `Review: ${title.toLowerCase()}` : title}</DialogTitle><DialogDescription>{description}</DialogDescription></DialogHeader>
+    <form onSubmit={submit} noValidate className={isAccountForm ? "account-create-form" : "space-y-4"}>
+      <div className={isAccountForm ? "account-create-body" : "space-y-4"}>
+      {reviewing ? <div className="space-y-3 rounded-md border bg-muted/50 p-4 text-sm">{review(values)}</div> : (isAccountForm ? <AccountCreationFields fields={fields} renderField={renderField} /> : fields.map(renderField))}
       <FormError message={error || mutation.error?.message} />
-      <div className="flex flex-wrap justify-end gap-2 border-t pt-4"><Button type="button" variant="outline" disabled={mutation.isPending} onClick={() => reviewing ? setReviewing(false) : onClose()}>{reviewing ? "Back" : "Cancel"}</Button><Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? "Saving…" : reviewing ? submitLabel : "Review changes"}</Button></div>
+      </div>
+      <div className={isAccountForm ? "account-create-footer" : "flex flex-wrap justify-end gap-2 border-t pt-4"}>{isAccountForm && <span>{action === "createAccount" ? "Review the details before creating the account." : "Review your changes before saving."}</span>}<div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="outline" disabled={mutation.isPending} onClick={() => reviewing ? setReviewing(false) : onClose()}>{reviewing ? "Back" : "Cancel"}</Button><Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? "Saving…" : reviewing ? submitLabel : isAccountForm ? "Review account" : "Review changes"}</Button></div></div>
     </form>
   </DialogContent></Dialog>;
 }

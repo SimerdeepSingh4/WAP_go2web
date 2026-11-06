@@ -1,0 +1,44 @@
+.detail-sheet[data-slot="sheet-content"] { gap:0; overflow:hidden; border:1px solid var(--border); box-shadow:0 16px 64px #0f172a26; }
+.detail-sheet[data-side="right"],.detail-sheet[data-side="left"] { inset-block:12px; width:480px; max-width:calc(100vw - 24px); height:calc(100dvh - 24px); border-radius:18px; }
+.detail-sheet[data-side="right"] { right:12px; }
+.detail-sheet[data-side="left"] { left:12px; }
+.detail-sheet.detail-sheet-wide { width:640px; }
+.detail-sheet > [data-slot="sheet-header"] { flex-shrink:0; gap:7px; padding:26px 60px 22px 24px; border-bottom:1px solid var(--border); background:var(--card); }
+.detail-sheet [data-slot="sheet-title"] { font-size:20px; line-height:1.4; font-weight:650; letter-spacing:-.4px; overflow-wrap:anywhere; }
+.detail-sheet [data-slot="sheet-description"] { font-size:12px; line-height:1.65; }
+.detail-sheet > [data-slot="sheet-close"] { top:18px; right:16px; width:36px; height:36px; border:1px solid var(--border); border-radius:10px; color:var(--muted-foreground); background:var(--card); }
+.detail-sheet > [data-slot="sheet-close"]:hover { background:var(--muted); color:var(--foreground); }
+.detail-sheet-body { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:24px; }
+.detail-sheet-toolbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; }
+.detail-sheet [data-slot="button"] { min-height:38px; font-size:12px; }
+.detail-sheet-profile { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px; padding:16px; border:1px solid var(--border); border-radius:14px; background:color-mix(in srgb,var(--muted) 35%,var(--card)); }
+.detail-sheet-profile [data-slot="avatar"] { flex:0 0 56px; width:56px; height:56px; overflow:hidden; border-radius:16px; }
+.detail-sheet-profile [data-slot="avatar-image"],.detail-sheet-profile [data-slot="avatar-fallback"] { width:100%; height:100%; border-radius:inherit; }
+.detail-sheet-profile p { overflow-wrap:anywhere; }
+.detail-sheet-details { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0; margin:0; border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+.detail-sheet-details > div { min-width:0; margin:0; padding:14px 16px; border:0; border-bottom:1px solid var(--border); }
+.detail-sheet-details > div:first-child { grid-column:1/-1; }
+.detail-sheet-details > div:last-child { border-bottom:0; }
+.detail-sheet-details dt { font-size:11px; color:var(--muted-foreground); }
+.detail-sheet-details dd { margin:6px 0 0; font-size:12px; font-weight:500; line-height:1.6; overflow-wrap:anywhere; }
+.detail-sheet-wallet { padding:20px; border:1px solid var(--border); border-radius:14px; background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 4%,var(--card)),var(--card)); }
+.detail-sheet-wallet > div:first-child { flex-wrap:wrap; gap:10px; }
+.detail-sheet-wallet[data-locked="true"] { border-color:#fecaca; background:#fff7f7; }
+.detail-sheet-wallet > p { font-size:34px; line-height:1.4; letter-spacing:-1px; }
+.detail-sheet-wallet-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; padding-top:16px; border-top:1px solid var(--border); }
+.detail-sheet-check,.detail-sheet-actions { padding:18px; border:1px solid var(--border); border-radius:14px; }
+.detail-sheet-check > div:first-child { flex-wrap:wrap; gap:12px; }
+.detail-sheet-actions > p { margin-bottom:14px; font-size:11px; letter-spacing:.06em; }
+.detail-sheet-body section > h2 { font-size:13px; font-weight:650; }
+.detail-sheet > [data-slot="sheet-footer"] { flex-shrink:0; border-top:1px solid var(--border); padding:16px 24px; background:var(--card); }
+@media(max-width:540px) {
+ .detail-sheet[data-side="right"],.detail-sheet[data-side="left"] { inset:0; width:100%; max-width:100%; height:100dvh; border-radius:0; border:0; }
+ .detail-sheet > [data-slot="sheet-header"] { padding:22px 64px 20px 20px; }
+ .detail-sheet-body { padding:20px; padding-bottom:max(24px,env(safe-area-inset-bottom)); }
+ .detail-sheet [data-slot="button"] { min-height:44px; }
+ .detail-sheet > [data-slot="sheet-close"] { width:40px; height:40px; }
+ .detail-sheet-details > div { padding:12px; }
+ .detail-sheet-wallet-actions > button { flex:1; }
+ .detail-sheet-wallet { padding:16px; }
+}
+@media(max-width:340px) { .detail-sheet-details { grid-template-columns:minmax(0,1fr); } }
