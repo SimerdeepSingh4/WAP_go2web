@@ -9,6 +9,7 @@ export default function CampaignRecipientsInput({
   fileInputRef,
   rawRecipients,
   onRawRecipientsChange,
+  onRecipientsPaste,
   dropActive,
   onDragOver,
   onDragLeave,
@@ -67,7 +68,8 @@ export default function CampaignRecipientsInput({
             id="recipients"
             rows={6}
             value={rawRecipients}
-            onChange={(e) => onRawRecipientsChange(e.target.value)}
+            onChange={(e) => onRawRecipientsChange(e.target.value, e)}
+            onPaste={onRecipientsPaste}
             placeholder={"Enter numbers WITH country code (e.g. 91 for India):\n919876543210\n919876543211\n919876543212\n\nNote: Always include the country code without '+' or spaces."}
             spellCheck={false}
             className={`field-sizing-fixed h-40 min-h-32 max-h-64 overflow-y-auto bg-background text-xs font-mono leading-6 resize-y transition-colors focus-visible:ring-2 focus-visible:ring-ring/20 ${
@@ -75,6 +77,7 @@ export default function CampaignRecipientsInput({
             }`}
             required
           />
+
         </div>
 
 

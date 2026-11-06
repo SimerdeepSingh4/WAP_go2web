@@ -1,3 +1,4 @@
+import useRecipientTracking from "../hooks/useRecipientTracking";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useNavigate, Navigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -55,7 +56,8 @@ export default function CreateCampaignPage() {
   const [campaignTitle, setCampaignTitle] = useState("");
   const [campaignDescription, setCampaignDescription] = useState("");
   const [messageBody, setMessageBody] = useState("");
-  const [rawRecipients, setRawRecipients] = useState("");
+  const recipientTracking = useRecipientTracking();
+  const { rawRecipients, change: setRawRecipients, audit: recipientAudit } = recipientTracking;
   const [scheduleType, setScheduleType] = useState("now"); // "now" | "later"
   const [scheduledTime, setScheduledTime] = useState("");
   const [formError, setFormError] = useState("");
@@ -78,7 +80,7 @@ export default function CreateCampaignPage() {
         setCampaignTitle(draft.campaignTitle || "");
         setCampaignDescription(draft.campaignDescription || "");
         setMessageBody(draft.messageBody || "");
-        setRawRecipients(draft.rawRecipients || "");
+        recipientTracking.restore(draft.rawRecipients || "", draft.recipientTracking);
         setScheduleType(draft.scheduleType || "now");
         setScheduledTime(draft.scheduledTime || "");
         const restoredMedia = { image: null, video: null, pdf: null };
@@ -170,6 +172,7 @@ export default function CreateCampaignPage() {
         campaignDescription,
         messageBody,
         rawRecipients,
+        recipientTracking: recipientTracking.tracking,
         scheduleType,
         scheduledTime,
         media: {
@@ -180,7 +183,7 @@ export default function CreateCampaignPage() {
       }).catch(() => {});
     }, 300);
     return () => window.clearTimeout(draftSaveTimer.current);
-  }, [draftReady, draftKey, isDirty, campaignTitle, campaignDescription, messageBody, rawRecipients, scheduleType, scheduledTime, media]);
+  }, [draftReady, draftKey, isDirty, campaignTitle, campaignDescription, messageBody, rawRecipients, recipientTracking.tracking, scheduleType, scheduledTime, media]);
 
   // Warn before leaving with unsent work
   useEffect(() => {
@@ -248,7 +251,7 @@ export default function CreateCampaignPage() {
     reader.onload = (event) => {
       const content = event.target?.result;
       if (typeof content === "string") {
-        setRawRecipients((prev) => (prev ? `${prev}\n${content}` : content));
+        recipientTracking.appendFile(content);
         toast.add({ title: "Numbers imported", description: file.name, type: "success" });
       }
     };
@@ -306,6 +309,7 @@ export default function CreateCampaignPage() {
     formData.append("campaignDescription", campaignDescription.trim());
     formData.append("messageBody", messageBody.trim());
     formData.append("recipients", JSON.stringify(splitRecipientInput(rawRecipients)));
+    formData.append("recipientInputAudit", JSON.stringify(recipientAudit));
     formData.append("schedule", scheduleType);
     if (scheduleType === "later" && scheduledTime) formData.append("scheduledTime", new Date(scheduledTime).toISOString());
     if (media.image) formData.append("images", media.image.file);
@@ -420,6 +424,7 @@ export default function CreateCampaignPage() {
             fileInputRef={fileInputRef}
             rawRecipients={rawRecipients}
             onRawRecipientsChange={setRawRecipients}
+            onRecipientsPaste={recipientTracking.onPaste}
             dropActive={dropActive}
             onDragOver={(e) => {
               e.preventDefault();

@@ -6,6 +6,7 @@ export function campaignPublicStatus(campaign) {
 
 export function publicCampaignView(campaign) {
     const view = campaign.toObject ? campaign.toObject() : { ...campaign };
+    delete view.recipientInputAudit;
     view.status = campaignPublicStatus(view);
     if (!["completed", "sent", "failed"].includes(view.status)) view.campaignEndDate = null;
     const sheet = view.publishedSpreadsheet;

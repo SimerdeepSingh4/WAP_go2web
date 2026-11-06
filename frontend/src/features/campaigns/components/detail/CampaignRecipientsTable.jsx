@@ -1,3 +1,5 @@
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import RecipientActivityButton from "./RecipientActivityButton";
 import { useState, useMemo, useDeferredValue } from "react";
 import { Users, Search, Download, CheckCircle2, AlertCircle, Clock, Copy, Check, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -56,6 +58,8 @@ export function getStatusBadge(status) {
 }
 
 export default function CampaignRecipientsTable({ campaign }) {
+  const { user } = useAuth();
+  const inputAudit = user?.role === "Super Admin" ? campaign.recipientInputAudit : null;
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
   const [page, setPage] = useState(0);
@@ -96,7 +100,7 @@ export default function CampaignRecipientsTable({ campaign }) {
           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground"><Users className="size-4" /></span>
           <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="text-sm font-semibold">Campaign contacts</h2><span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground tabular-nums">{number(allRecipients.length)}</span></div><p className="mt-1 text-[11px] text-muted-foreground">Submitted contacts and published delivery status.</p></div>
         </div>
-        <Button type="button" variant="outline" size="sm" disabled={isExporting || !allRecipients.length} onClick={download} className="gap-1.5 text-xs">{isExporting ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}Download Excel</Button>
+        <div className="flex flex-wrap items-center gap-2"><RecipientActivityButton activity={inputAudit} /><Button type="button" variant="outline" size="sm" disabled={isExporting || !allRecipients.length} onClick={download} className="gap-1.5 text-xs">{isExporting ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}Download Excel</Button></div>
       </header>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/15 px-4 py-3 sm:px-5">
         <div className="relative w-full sm:max-w-xs"><Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" /><Input type="search" aria-label="Search campaign contacts" placeholder="Search phone number..." value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }} className="h-9 bg-background pl-9 text-xs" /></div>

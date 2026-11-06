@@ -17,6 +17,7 @@ import { startCreditSession, saveCreditReceipt } from "../helpers/credit-operati
 import { campaignPublicStatus, publicCampaignView } from "../helpers/campaign-visibility.js";
 import { failureReportEntries, failureReportSheet } from "../../../shared/campaignFailure.js";
 import { campaignContactRows, restoreOriginalCampaignEntries } from "../../../shared/campaignContacts.js";
+import { sanitizeRecipientInputAudit } from "../helpers/recipient-input-audit.js";
 
 const REPORT_CATEGORIES = [
     "whatsapp_successful",
@@ -364,6 +365,7 @@ export const createCampaign = async (req, res) => {
         if (!Array.isArray(recipients) && recipients) {
             recipients = [recipients];
         }
+        const recipientInputAudit = sanitizeRecipientInputAudit(req.body.recipientInputAudit, recipients || [], req.user._id);
 
         // Upload files to Cloudinary or local fallback with size limits and image compression
         const IMG_MAX_SIZE = parseInt(process.env.IMG_MAX_SIZE_MB || "5") * 1024 * 1024; // default 5 MB
@@ -654,6 +656,7 @@ export const createCampaign = async (req, res) => {
                     messageBody: messageBody || "",
                     recipients: sanitizedRecipients,
                     originalRecipients: recipients.map((number) => String(number)),
+                    recipientInputAudit,
                     recipientStats: {
                         totalSubmitted: recipients.length,
                         uniqueCount: sanitizedRecipients.length,
@@ -779,7 +782,7 @@ export const createCampaign = async (req, res) => {
         await mongoSession.abortTransaction();
         mongoSession.endSession();
         console.error("Create campaign error:", error);
-        return res.status(500).json({
+        return res.status(error.statusCode || 500).json({
             message: error.message || "Internal server error",
             success: false,
         });
@@ -810,7 +813,7 @@ export const getCampaigns = async (req, res) => {
 
         const campaigns = await campaignModel
             .find(filter)
-            .select("-originalRecipients -recipients -recipientReport.records -recipientEntries -spreadsheetColumns -publishedSpreadsheet.rows -publishedSpreadsheet.columns -customRecipientTabs -deletedTabKeys -draftReportNotes -recipientCategoryLabels")
+            .select("-recipientInputAudit -originalRecipients -recipients -recipientReport.records -recipientEntries -spreadsheetColumns -publishedSpreadsheet.rows -publishedSpreadsheet.columns -customRecipientTabs -deletedTabKeys -draftReportNotes -recipientCategoryLabels")
             .populate("userId", "username email role dp_img")
             .sort({ createdAt: -1 });
 
