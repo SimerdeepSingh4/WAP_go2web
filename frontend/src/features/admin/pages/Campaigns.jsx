@@ -196,6 +196,13 @@ export default function Campaigns({ reports = false }) {
               <FileText className="size-4 mr-2" />
               View Report
             </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive cursor-pointer"
+              onClick={() => setCampaignToDelete(c)}
+            >
+              <Trash2 className="size-4 mr-2" />
+              Delete Campaign
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       ),
@@ -240,7 +247,7 @@ export default function Campaigns({ reports = false }) {
       />
 
       {/* Filter Tabs Bar */}
-      <div className="flex flex-wrap items-center gap-1.5 border-b pb-3">
+      <div data-tour="campaign-status" className="flex flex-wrap items-center gap-1.5 border-b pb-3">
         {quickFilterTabs.map((tab) => {
           const isCurrent = status === tab.val;
           return (
@@ -274,7 +281,7 @@ export default function Campaigns({ reports = false }) {
             setCalendarOpen(open);
           }}>
             <Popover.Trigger
-                render={<Button type="button" variant={hasCompleteRange ? "default" : "outline"} size="sm" className="campaign-date-filter-trigger gap-2" />}
+                render={<Button data-tour="campaign-dates" type="button" variant={hasCompleteRange ? "default" : "outline"} size="sm" className="campaign-date-filter-trigger gap-2" />}
             >
               <CalendarDays className="size-4" />
               {hasCompleteRange
@@ -368,6 +375,32 @@ export default function Campaigns({ reports = false }) {
             });
           }}
         />
+      )}
+
+      {campaignToDelete && (
+        <AlertDialog open={Boolean(campaignToDelete)} onOpenChange={(open) => !open && setCampaignToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete campaign "{campaignToDelete.campaignTitle}"?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete this campaign, its recipient records, and associated reports.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                disabled={deleteMutation.isPending}
+                onClick={(e) => {
+                  e.preventDefault();
+                  deleteMutation.mutate(campaignToDelete._id);
+                }}
+              >
+                {deleteMutation.isPending ? "Deleting..." : "Delete Campaign"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </>
   );

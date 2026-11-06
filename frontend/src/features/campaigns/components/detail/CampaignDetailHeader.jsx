@@ -488,6 +488,19 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
               )}
             </>
           )}
+
+          {/* Delete Campaign Button */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setConfirmDeleteOpen(true)}
+            disabled={isUpdating || deleteCampaignMutation.isPending}
+            className="h-8 gap-1.5 text-xs font-medium text-destructive border-red-200 hover:bg-red-50 hover:text-red-700 dark:border-red-900/60 dark:hover:bg-red-950/40"
+          >
+            <Trash2 className="size-3.5" />
+            <span>Delete</span>
+          </Button>
         </div>
       </div>
 
