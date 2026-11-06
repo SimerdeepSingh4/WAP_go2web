@@ -151,7 +151,7 @@ export default function DashboardLayout({ role }) {
           <SidebarInset className="portal-inset">
             <header className="portal-topbar">
               <SidebarTrigger className="md:hidden" aria-label="Toggle navigation" />
-              <div id="tour-topbar-search" className="flex-1 max-w-md">
+              <div id="tour-topbar-search" className="min-w-0 flex-1 max-w-md">
                 <GlobalSearch />
               </div>
               <div className="portal-topbar-actions ml-auto flex items-center gap-2">
@@ -171,8 +171,8 @@ export default function DashboardLayout({ role }) {
                         title="Help and guided tour"
                       >
                         <HelpCircle className="size-3.5 text-slate-600 dark:text-slate-400" />
-                        <span>Help</span>
-                        <ChevronDown className="size-3 opacity-60 ml-0.5" />
+                        <span className="hidden sm:inline">Help</span>
+                        <ChevronDown className="hidden sm:block size-3 opacity-60 ml-0.5" />
                       </Button>
                     }
                   />
@@ -214,10 +214,6 @@ export default function DashboardLayout({ role }) {
                       </span>
                     </div>
                     <DropdownMenuSeparator />
-                    {hasTour && <DropdownMenuItem onClick={() => startTour(true)} className="gap-2 text-xs font-medium cursor-pointer">
-                      <Sparkles aria-hidden="true" className="size-4 text-emerald-600 dark:text-emerald-400" />
-                      Take a tour
-                    </DropdownMenuItem>}
                     <DropdownMenuItem render={<Link to={`${base}/settings`} />}>
                       <Settings aria-hidden="true" className="size-4" />
                       Settings
