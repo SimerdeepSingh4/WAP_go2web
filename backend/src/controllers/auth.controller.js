@@ -471,12 +471,40 @@ export async function changePassword(req, res) {
             });
         }
 
-        user.password = await bcrypt.hash(newPassword, 10);
+        // 1. Assign raw new password — userSchema.pre("save") hook will hash it ONCE with bcrypt
+        user.password = newPassword;
         await user.save();
+
+        // 2. Security: Revoke all other active sessions to prevent compromised/stolen sessions from staying valid
+        const currentSessionId = req.session?._id ? req.session._id.toString() : null;
+        const otherSessions = await sessionModel.find({
+            userId: user._id,
+            ...(currentSessionId ? { _id: { $ne: req.session._id } } : {}),
+        });
+
+        if (otherSessions.length > 0) {
+            const otherIds = otherSessions.map((s) => s._id);
+            await sessionModel.deleteMany({ _id: { $in: otherIds } });
+
+            // Instantly notify evicted devices via their dedicated socket room
+            for (const s of otherSessions) {
+                notifySession(s._id.toString(), "SESSION_EXPIRED", {
+                    reason: "Password was changed. Please log in with your new password.",
+                    forceLogout: true,
+                });
+            }
+
+            notifyUser(user._id.toString(), "SESSIONS_CHANGED", { action: "password_change_revocation" });
+            notifyRole("Super Admin", "SESSIONS_CHANGED", {
+                action: "password_change_revocation",
+                userId: user._id.toString(),
+            });
+        }
 
         return res.status(200).json({
             success: true,
-            message: "Password changed successfully.",
+            message: "Password changed successfully. All other active sessions have been signed out.",
+            revokedSessionsCount: otherSessions.length,
         });
     } catch (error) {
         console.error("Change password error:", error);
