@@ -18,6 +18,7 @@ import helmet from "helmet";
 import notificationRouter from "./routes/notification.routes.js";
 import searchRouter from "./routes/search.routes.js";
 import enterpriseRouter from "./routes/enterprise.routes.js";
+import healthRouter from "./routes/health.routes.js";
 import { auditRequestContext } from "./services/audit.service.js";
 
 const app = express();
@@ -69,6 +70,10 @@ app.use("/api/notifications", notificationRouter);
 app.use("/api/search", searchRouter);
 app.use("/api/enterprise", enterpriseRouter);
 
+// Public Health & Keep-Alive endpoints (No auth required)
+app.use("/health", healthRouter);
+app.use("/api/health", healthRouter);
+
 
 // Resolve frontend production build directory
 const __filename = fileURLToPath(import.meta.url);
@@ -88,7 +93,7 @@ if (frontendDist && fs.existsSync(path.join(frontendDist, "index.html"))) {
 
     // Handle SPA client-side routing: serve index.html for all non-API GET requests
     app.use((req, res, next) => {
-        if (req.method === "GET" && !req.path.startsWith("/api") && !req.path.startsWith("/uploads")) {
+        if (req.method === "GET" && !req.path.startsWith("/api") && !req.path.startsWith("/uploads") && !req.path.startsWith("/health")) {
             return res.sendFile(path.join(frontendDist, "index.html"));
         }
         next();
