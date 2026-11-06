@@ -1,3 +1,4 @@
+import "./campaign-detail-header.css";
 import CampaignReference from "@/components/dashboard/CampaignReference";
 import { Link, useNavigate } from "react-router";
 import { useState, useMemo } from "react";
@@ -302,7 +303,7 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
   const isPendingOrScheduled = ["pending", "scheduled"].includes(campaign.status);
 
   return (
-    <header data-tour="campaign-header" className="space-y-4">
+    <header data-tour="campaign-header" className="campaign-detail-heading">
       {/* Back button */}
       <div>
         <Button
@@ -310,26 +311,25 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
           size="sm"
           nativeButton={false}
           render={<Link to={`${base}/campaigns`} />}
-          className="-ml-2 h-7 gap-1.5 text-xs text-muted-foreground"
+          className="campaign-detail-back gap-1.5 text-xs text-muted-foreground"
         >
           <ArrowLeft className="size-3.5" />
           Back to campaigns
         </Button>
       </div>
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="campaign-detail-heading-layout">
         {/* Title & Metadata */}
-        <div className="min-w-0 flex-1 space-y-1.5">
-          <div className="flex flex-wrap items-center gap-2.5">
-            <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground break-words sm:text-2xl">
+        <div className="campaign-detail-heading-copy">
+            <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
               {campaign.campaignTitle}
-            </h1><CampaignReference campaign={campaign} />
-          </div>
-          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-2"><UserAvatar user={campaign.userId} className="size-7" />{ownerName(campaign.userId)}</span>
-            <span>Submitted {dateTime(campaign.createdAt)}</span>
+            </h1>
+          <div className="campaign-detail-reference"><span>Campaign ID</span><CampaignReference campaign={campaign} /></div>
+          <div className="campaign-detail-metadata text-xs text-muted-foreground">
+            <span className="campaign-detail-owner"><UserAvatar user={campaign.userId} className="size-7" /><span>{ownerName(campaign.userId)}</span></span>
+            <span className="campaign-detail-date"><CalendarDays aria-hidden="true" /><span>Submitted {dateTime(campaign.createdAt)}</span></span>
             {campaign.scheduledTime && (
-              <span className="inline-flex items-center gap-1 font-medium text-purple-700 dark:text-purple-300">
+              <span className="campaign-detail-date font-medium text-purple-700 dark:text-purple-300">
                 <CalendarDays className="size-3.5" />
                 Scheduled for {dateTime(campaign.scheduledTime)}
               </span>

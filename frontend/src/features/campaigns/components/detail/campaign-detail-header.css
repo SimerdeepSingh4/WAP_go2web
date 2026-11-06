@@ -1,0 +1,21 @@
+.campaign-detail-heading { display:grid; min-width:0; gap:20px; }
+.campaign-detail-heading .campaign-detail-back { min-height:32px; height:auto; padding:4px 0; }
+.campaign-detail-heading-layout { display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; gap:20px; }
+.campaign-detail-heading-copy { display:grid; flex:1 1 320px; min-width:0; gap:12px; }
+.campaign-detail-heading-copy h1 { margin:0; overflow-wrap:anywhere; line-height:1.3; }
+.campaign-detail-reference { display:flex; flex-wrap:wrap; align-items:center; gap:8px; color:var(--muted-foreground); }
+.campaign-detail-reference > span { font-size:11px; }
+.campaign-detail-reference > div { width:fit-content; max-width:100%; padding:3px 6px 3px 9px; border:1px solid var(--border); border-radius:7px; background:var(--card); }
+.campaign-detail-reference button { min-width:28px; min-height:28px; }
+.campaign-detail-metadata { display:flex; flex-wrap:wrap; align-items:center; gap:12px 20px; }
+.campaign-detail-owner { display:inline-flex; min-width:0; max-width:100%; align-items:center; gap:8px; }
+.campaign-detail-owner > span:last-child { overflow-wrap:anywhere; }
+.campaign-detail-owner [data-slot="avatar"] { width:28px; height:28px; flex:0 0 28px; }
+.campaign-detail-date { display:inline-flex; min-width:0; align-items:center; gap:7px; line-height:1.6; }
+.campaign-detail-date svg { width:14px; height:14px; flex-shrink:0; }
+@media(max-width:540px) {
+ .campaign-detail-heading { gap:16px; }
+ .campaign-detail-heading-copy { flex-basis:100%; gap:10px; }
+ .campaign-detail-metadata { align-items:flex-start; flex-direction:column; gap:10px; }
+ .campaign-detail-reference button { min-width:36px; min-height:36px; }
+}

@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getMe, login as loginApi, register as registerApi, logout as logoutApi, logoutAll as logoutAllApi } from "./services/auth.api";
 import { clearCurrentSessionToken, setSessionToken } from "@/api/sessionToken";
 import { toast } from "@/components/ui/toast";
+import { isSessionRejection } from "./lib/sessionFailure";
+import AuthConnectionNotice from "./components/AuthConnectionNotice";
 
 export const AuthContext = createContext(null);
 
@@ -14,19 +16,23 @@ export const AuthProvider = ({ children }) => {
         data: authData,
         isLoading,
         isFetching,
+        isPaused,
+        error: authError,
         refetch: checkAuth,
     } = useQuery({
         queryKey: ["authUser"],
         queryFn: async () => {
             try {
                 const response = await getMe();
-                return response.user ?? null;
+                if (!response.user) throw new Error("Session verification returned an incomplete response.");
+                return response.user;
             } catch (err) {
-                // If 401 or not logged in, return null
-                if (err.response?.status === 401 || err.response?.data?.isAccountBlocked) {
+                if (isSessionRejection(err, true)) {
                     clearCurrentSessionToken();
+                    return null;
                 }
-                return null;
+                // React Query retains the last verified user when a refresh fails.
+                throw err;
             }
         },
         retry: false,
@@ -140,6 +146,7 @@ export const AuthProvider = ({ children }) => {
         user,
         isLoading,
         isFetching,
+        authError,
         isAuthenticated: !!user,
         login: loginMutation.mutateAsync,
         isLoggingIn: loginMutation.isPending,
@@ -154,7 +161,11 @@ export const AuthProvider = ({ children }) => {
         checkAuth,
     };
 
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+    const connectionIssue = Boolean(authError || isPaused);
+    return <AuthContext.Provider value={value}>
+        {connectionIssue && !user ? <AuthConnectionNotice fullPage retrying={isFetching && !isPaused} onRetry={() => checkAuth()} /> : children}
+        {connectionIssue && user && <AuthConnectionNotice retrying={isFetching && !isPaused} onRetry={() => checkAuth()} />}
+    </AuthContext.Provider>;
 };
 
 export const useAuthContext = () => {

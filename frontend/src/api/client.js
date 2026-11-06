@@ -1,6 +1,7 @@
 import axios from "axios";
 import { attachCreditRequestKey, settleCreditRequest } from "./creditRequest";
 import { getSessionToken } from "./sessionToken";
+import { isSessionRejection } from "@/features/auth/lib/sessionFailure";
 
 const apiClient = axios.create({
     baseURL: import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://localhost:3000/api" : "/api"),
@@ -40,7 +41,7 @@ apiClient.interceptors.response.use(
 
         // Handle 401 Unauthorized (e.g. session evicted when 4th device logged in)
         const isAuthCheck = /\/auth\/me(?:\?|$)/.test(error.config?.url || "");
-        if (error.response?.data?.isLoggedOut || isAuthCheck || error.response?.data?.isAccountBlocked) {
+        if (isSessionRejection(error, isAuthCheck)) {
             // Optional: notify app or clear local auth state if needed
             window.dispatchEvent(new CustomEvent("auth:unauthorized", {
                 detail: error.response?.data || { message: "Session expired" }
