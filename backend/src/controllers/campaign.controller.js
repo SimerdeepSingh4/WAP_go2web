@@ -2202,37 +2202,49 @@ export const deleteCampaign = async (req, res) => {
             console.warn(`[deleteCampaign] Could not cancel queue job for ${campaign._id}:`, jobErr.message);
         }
 
-        // 2. Refund unrefunded credits and delete campaign atomically inside an ACID session
-        const deducted = Number(campaign.creditsDeducted) || 0;
-        const refunded = Number(campaign.campaignSummary?.creditsRefunded) || 0;
-        const unrefunded = Math.max(0, deducted - refunded);
-
+        // 2. Refund unrefunded credits only if deleted in an active/unfinished status (pending, scheduled, ongoing, paused).
+        // If it is completed/sent, credits were consumed for delivered messages.
+        // If it was marked failed, credits were already refunded at failure time.
         const session = await mongoose.startSession();
         try {
             await session.withTransaction(async () => {
-                if (unrefunded > 0 && ["pending", "scheduled"].includes(campaign.status)) {
-                    const updatedWallet = await walletModel.findOneAndUpdate(
-                        { userId: campaign.userId },
-                        { $inc: { balance: unrefunded } },
-                        { returnDocument: "after", session }
-                    );
-                    await transactionModel.create(
-                        [
-                            {
-                                fromUser: null,
-                                toUser: campaign.userId,
-                                amount: unrefunded,
-                                amountMinor: Math.round(unrefunded * 100),
-                                type: "REFUND",
-                                campaignId: campaign._id,
-                                notes: `Full refund on deletion of campaign "${campaign.campaignTitle}"`,
-                                rateSnapshot: campaign.rateSnapshot || 10,
-                                balanceAfterTo: updatedWallet ? updatedWallet.balance : null,
-                                performedBy: req.user._id,
-                            },
-                        ],
-                        { session }
-                    );
+                const isRefundEligible = ["pending", "scheduled", "ongoing", "paused"].includes(campaign.status);
+
+                if (isRefundEligible) {
+                    // Check actual historical refunds in the ledger to guarantee no double-refund
+                    const [refundRecord] = await transactionModel.aggregate([
+                        { $match: { campaignId: campaign._id, type: "REFUND" } },
+                        { $group: { _id: null, totalRefunded: { $sum: "$amount" } } },
+                    ]).session(session);
+
+                    const alreadyRefunded = Number(refundRecord?.totalRefunded || campaign.campaignSummary?.creditsRefunded || 0);
+                    const deducted = Number(campaign.creditsDeducted) || 0;
+                    const unrefunded = Math.max(0, deducted - alreadyRefunded);
+
+                    if (unrefunded > 0) {
+                        const updatedWallet = await walletModel.findOneAndUpdate(
+                            { userId: campaign.userId },
+                            { $inc: { balance: unrefunded } },
+                            { returnDocument: "after", session }
+                        );
+                        await transactionModel.create(
+                            [
+                                {
+                                    fromUser: null,
+                                    toUser: campaign.userId,
+                                    amount: unrefunded,
+                                    amountMinor: Math.round(unrefunded * 100),
+                                    type: "REFUND",
+                                    campaignId: campaign._id,
+                                    notes: `Full refund on deletion of ${campaign.status} campaign "${campaign.campaignTitle}"`,
+                                    rateSnapshot: campaign.rateSnapshot || 10,
+                                    balanceAfterTo: updatedWallet ? updatedWallet.balance : null,
+                                    performedBy: req.user._id,
+                                },
+                            ],
+                            { session }
+                        );
+                    }
                 }
 
                 // 3. Delete campaign document inside the same transaction
