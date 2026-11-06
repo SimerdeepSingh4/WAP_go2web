@@ -18,6 +18,8 @@
 .campaign-compose-step-arrow { width: 13px; height: 13px; flex-shrink: 0; color: var(--muted-foreground); opacity: .5; }
 .campaign-compose-grid { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 24px; }
 .campaign-compose-fields { display: grid; min-width: 0; gap: 20px; }
+.campaign-message-media-grid { display: grid; min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: 20px; }
+.campaign-message-media-grid > * { min-width: 0; }
 .campaign-compose-summary { min-width: 0; }
 .campaign-compose [id^="create-"] { scroll-margin-top: 90px; }
 .campaign-compose .campaign-form-section { min-width: 0; border-radius: 14px; }
@@ -38,6 +40,7 @@
   .campaign-compose-steps a { min-height: 44px; font-size: 10px; }
   .campaign-compose-step-arrow { display: none; }
   .campaign-compose-fields { gap: 16px; }
+  .campaign-message-media-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .campaign-compose .campaign-form-section [data-slot="card-header"], .campaign-compose .campaign-form-section [data-slot="card-content"] { padding: 16px; }
   .campaign-compose .campaign-form-section :where(input:not([type="file"]), textarea) { font-size: 16px; }
   .campaign-compose .ql-toolbar button { width: 32px; height: 34px; }

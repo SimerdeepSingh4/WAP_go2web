@@ -46,6 +46,7 @@ export function formatFileSize(bytes) {
 function MediaSlot({ kind, value, onSelect, onRemove }) {
   const cfg = MEDIA_KINDS[kind];
   const Icon = cfg.icon;
+  const isPdf = kind === "pdf";
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
 
@@ -66,21 +67,20 @@ function MediaSlot({ kind, value, onSelect, onRemove }) {
         setDragging(false);
         pick(e.dataTransfer.files?.[0]);
       }}
-      className={`rounded-xl border p-3.5 flex flex-col gap-3 transition-colors ${
-        dragging ? "border-primary bg-primary/5" : "bg-card"
+      className={`${isPdf ? "col-span-2 grid grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-center gap-x-4 p-2.5 max-[420px]:col-span-1 max-[420px]:grid-cols-1" : "p-3"} rounded-lg border transition-colors ${
+        dragging ? "border-primary bg-primary/5 ring-2 ring-primary/10" : "bg-card hover:border-border/80"
       }`}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2.5">
-          <div className={`grid size-9 place-items-center rounded-lg ${cfg.tone}`}>
-            <Icon className="size-4" />
-          </div>
-          <div>
+      <div className="flex items-center gap-2.5">
+        <div className={`grid size-9 shrink-0 place-items-center rounded-md ${cfg.tone}`}>
+          <Icon className="size-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
             <p className="text-xs font-semibold text-foreground">{cfg.label}</p>
-            <p className="text-[11px] text-muted-foreground">
-              {cfg.hint} · up to {cfg.max / MB} MB
-            </p>
+            <p className="text-[10px] text-muted-foreground">Up to {cfg.max / MB} MB</p>
           </div>
+          <p className="mt-0.5 truncate text-[10px] text-muted-foreground">{cfg.hint}</p>
         </div>
       </div>
 
@@ -94,43 +94,44 @@ function MediaSlot({ kind, value, onSelect, onRemove }) {
       />
 
       {value ? (
-        <div className="rounded-lg border bg-muted/30 p-2 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className={`${isPdf ? "mt-0" : "mt-2.5"} flex min-w-0 items-center gap-2 rounded-md border bg-muted/30 p-2`}>
+          <div className={`grid ${isPdf ? "size-9" : "size-10"} shrink-0 place-items-center overflow-hidden rounded border bg-background`}>
             {kind === "image" && value.preview ? (
-              <img src={value.preview} alt="" className="size-10 rounded object-cover border shrink-0" />
+              <img src={value.preview} alt={`Selected ${cfg.label.toLowerCase()} preview`} className="size-full object-cover" />
             ) : (
-              <div className={`grid size-10 shrink-0 place-items-center rounded ${cfg.tone}`}>
-                {kind === "pdf" ? <span className="font-bold text-[10px]">PDF</span> : <Icon className="size-4" />}
-              </div>
+              <Icon className={`size-4 ${kind === "pdf" ? "text-red-600" : "text-sky-600"}`} />
             )}
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-foreground truncate" title={value.name}>
-                {value.name}
-              </p>
-              <p className="text-[11px] text-muted-foreground">{formatFileSize(value.size)}</p>
-            </div>
           </div>
-          <button
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-medium text-foreground" title={value.name}>{value.name}</p>
+            <p className="mt-0.5 text-[10px] text-muted-foreground">{formatFileSize(value.size)} · Ready</p>
+          </div>
+          <Button
             type="button"
+            size="icon-sm"
+            variant="ghost"
             onClick={() => onRemove(kind)}
-            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 p-1.5 rounded transition-colors shrink-0 cursor-pointer"
-            title={`Remove ${cfg.label.toLowerCase()}`}
             aria-label={`Remove ${cfg.label.toLowerCase()}`}
+            title={`Remove ${cfg.label.toLowerCase()}`}
+            className="shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
           >
-            <Trash2 className="size-3.5" />
-          </button>
+            <Trash2 className="size-4" />
+          </Button>
         </div>
       ) : (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => inputRef.current?.click()}
-          className="w-full h-9 text-xs gap-1.5 border-dashed"
-        >
-          <Plus className="size-3.5" />
-          Choose or drop file
-        </Button>
+        <div className={`${isPdf ? "mt-0 min-h-10 flex-row items-center" : "mt-2.5 min-h-16 flex-col items-start justify-between"} flex gap-2 rounded-md border border-dashed px-2.5 py-2 ${dragging ? "border-primary" : "border-border"}`}>
+          <p className="text-[10px] leading-4 text-muted-foreground">Drop file here</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => inputRef.current?.click()}
+            className={`h-7 gap-1.5 text-[11px] ${isPdf ? "shrink-0 px-2" : "w-full"}`}
+          >
+            <Plus className="size-3.5" />
+            Choose file
+          </Button>
+        </div>
       )}
     </div>
   );
@@ -160,7 +161,7 @@ export default function CampaignMediaUploader({
         )
       }
     >
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+      <div className="grid grid-cols-2 gap-2.5 max-[420px]:grid-cols-1">
         {Object.keys(MEDIA_KINDS).map((kind) => (
           <MediaSlot
             key={kind}

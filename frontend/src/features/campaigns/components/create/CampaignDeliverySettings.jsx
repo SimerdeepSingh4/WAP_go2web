@@ -15,11 +15,11 @@ export default function CampaignDeliverySettings({
       <CardHeader className="border-b border-border px-4 py-3 sm:px-5">
         <CardTitle className="flex items-center gap-2 text-sm font-semibold">
           <Clock className="size-3.5 text-muted-foreground" />
-          Delivery timing
+          Campaign schedule
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 p-4 sm:p-5">
-        <div role="radiogroup" aria-label="Delivery timing" className="grid grid-cols-2 gap-2.5">
+        <div role="radiogroup" aria-label="Campaign schedule" className="grid grid-cols-2 gap-2.5">
           {[
             { key: "now", icon: Send, title: "Send now", desc: "After admin approval" },
             { key: "later", icon: Calendar, title: "Schedule", desc: "Pick a date and time" },

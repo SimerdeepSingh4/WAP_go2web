@@ -151,7 +151,7 @@ export default function CreateCampaignPage() {
     { ok: Boolean(campaignTitle.trim()), label: "Campaign title" },
     { ok: (Boolean(messageText) || totalMediaCount > 0) && !isOverCharacterLimit, label: "Message or attachment" },
     { ok: validRecipients.length > 0, label: isAdmin ? "At least one valid recipient" : "Recipient numbers added" },
-    { ok: Boolean(scheduleValid), label: scheduleType === "later" ? "Future schedule time" : "Delivery timing" },
+    { ok: Boolean(scheduleValid), label: scheduleType === "later" ? "Future schedule time" : "Campaign schedule" },
     { ok: !hasInsufficientCredits && !isLocked, label: "Enough credits" },
   ];
 
@@ -197,18 +197,6 @@ export default function CreateCampaignPage() {
   useEffect(() => {
     if (formError) errorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [formError]);
-
-  const insertVariable = (tag) => {
-    const editor = quillRef.current?.getEditor();
-    if (editor) {
-      const range = editor.getSelection(true);
-      const position = range ? range.index : editor.getLength() - 1;
-      editor.insertText(position, `{{${tag}}} `);
-      editor.setSelection(position + tag.length + 5);
-    } else {
-      setMessageBody((prev) => `${prev} {{${tag}}} `);
-    }
-  };
 
   /* ---- Media ---- */
   const selectMedia = (kind, file) => {
@@ -398,23 +386,23 @@ export default function CreateCampaignPage() {
             onCampaignDescriptionChange={setCampaignDescription}
           />
 
-          <CampaignMessageEditor
-            quillRef={quillRef}
-            messageBody={messageBody}
-            onMessageBodyChange={setMessageBody}
+          <div className="campaign-message-media-grid">
+            <CampaignMessageEditor
+              quillRef={quillRef}
+              messageBody={messageBody}
+              onMessageBodyChange={setMessageBody}
+              charCount={charCount}
+              isOverCharacterLimit={isOverCharacterLimit}
+              quillModules={quillModules}
+              quillFormats={quillFormats}
+            />
 
-            charCount={charCount}
-            isOverCharacterLimit={isOverCharacterLimit}
-            onInsertVariable={insertVariable}
-            quillModules={quillModules}
-            quillFormats={quillFormats}
-          />
-
-          <CampaignMediaUploader
-            media={media}
-            onSelectMedia={selectMedia}
-            onRemoveMedia={removeMedia}
-          />
+            <CampaignMediaUploader
+              media={media}
+              onSelectMedia={selectMedia}
+              onRemoveMedia={removeMedia}
+            />
+          </div>
 
           <CampaignRecipientsInput
             fileInputRef={fileInputRef}

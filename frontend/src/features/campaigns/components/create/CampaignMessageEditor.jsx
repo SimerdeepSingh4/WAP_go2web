@@ -12,7 +12,6 @@ export default function CampaignMessageEditor({
   onMessageBodyChange,
   charCount,
   isOverCharacterLimit,
-  onInsertVariable,
   quillModules,
   quillFormats,
 }) {
@@ -55,20 +54,6 @@ export default function CampaignMessageEditor({
       }
     >
       <div className="space-y-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-muted-foreground mr-1">Personalise with</span>
-          {["name", "phone"].map((tag) => (
-            <button
-              key={tag}
-              type="button"
-              onClick={() => onInsertVariable(tag)}
-              className="px-2.5 py-1 text-xs rounded-md bg-muted hover:bg-muted/70 text-foreground font-mono transition-colors border border-border/60 hover:border-primary/40 cursor-pointer"
-            >
-              {`{{${tag}}}`}
-            </button>
-          ))}
-        </div>
-
         <div className="quill-editor-container">
           <ReactQuill
             ref={quillRef}
