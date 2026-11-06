@@ -3,6 +3,7 @@ import "react-quill-new/dist/quill.snow.css";
 import { FileText, AlertTriangle } from "lucide-react";
 import { number } from "@/features/admin/lib/format";
 import { SectionCard } from "./CampaignDetailsSection";
+import { AnimatedCollapse } from "@/components/ui/animated-collapse";
 
 export const CHARACTER_LIMIT = 1024;
 
@@ -81,7 +82,7 @@ export default function CampaignMessageEditor({
           />
         </div>
 
-        {isOverCharacterLimit && (
+        <AnimatedCollapse open={isOverCharacterLimit}>
           <div
             role="alert"
             className="flex items-center gap-2 p-2.5 rounded-lg bg-destructive/10 text-destructive text-xs font-medium border border-destructive/20"
@@ -89,7 +90,7 @@ export default function CampaignMessageEditor({
             <AlertTriangle className="size-4 shrink-0" />
             Over the limit by {number(charCount - CHARACTER_LIMIT)} characters. Shorten the message to continue.
           </div>
-        )}
+        </AnimatedCollapse>
 
       </div>
     </SectionCard>

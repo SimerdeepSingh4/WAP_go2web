@@ -1,0 +1,70 @@
+/* Shared motion for every role, including portalled overlays. */
+:root {
+  --motion-fast: 150ms;
+  --motion-panel: 200ms;
+  --motion-ease: ease-in-out;
+}
+
+.ui-motion-popup {
+  opacity: 1;
+  scale: 1;
+  transition: opacity var(--motion-fast) var(--motion-ease),
+    scale var(--motion-fast) var(--motion-ease);
+}
+
+.ui-motion-popup[data-starting-style],
+.ui-motion-popup[data-ending-style] { opacity: 0; scale: 0.98; }
+
+.ui-motion-backdrop {
+  opacity: 1;
+  transition: opacity var(--motion-fast) var(--motion-ease);
+}
+
+.ui-motion-backdrop[data-starting-style],
+.ui-motion-backdrop[data-ending-style] { opacity: 0; }
+
+[data-slot="sheet-content"], [data-sidebar="sidebar"][data-mobile="true"] {
+  transition-property: translate, transform, opacity;
+  transition-duration: var(--motion-panel);
+  transition-timing-function: var(--motion-ease);
+}
+
+[data-slot="sidebar-gap"], [data-slot="sidebar-container"] {
+  transition-duration: var(--motion-panel);
+  transition-timing-function: var(--motion-ease);
+}
+
+/* Preserve native disclosure keyboard behavior and semantics. Older browsers
+   retain normal, instantly accessible disclosures. */
+@supports (interpolate-size: allow-keywords) and (transition-behavior: allow-discrete) {
+  details::details-content {
+    interpolate-size: allow-keywords;
+    block-size: 0;
+    opacity: 0;
+    overflow: clip;
+    transition: block-size var(--motion-panel) var(--motion-ease),
+      opacity var(--motion-fast) var(--motion-ease),
+      content-visibility var(--motion-panel) allow-discrete;
+  }
+
+  details[open]::details-content { block-size: auto; opacity: 1; }
+}
+
+details > summary svg {
+  transition: transform var(--motion-panel) var(--motion-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  @supports selector(details::details-content) {
+    details::details-content { transition-duration: 0.01ms !important; }
+  }
+}

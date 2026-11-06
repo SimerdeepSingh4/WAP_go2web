@@ -2,6 +2,7 @@ import { Clock, Send, Calendar } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import ScheduleDateTimePicker from "./ScheduleDateTimePicker";
+import { AnimatedCollapse } from "@/components/ui/animated-collapse";
 
 export default function CampaignDeliverySettings({
   scheduleType,
@@ -56,7 +57,7 @@ export default function CampaignDeliverySettings({
           })}
         </div>
 
-        {scheduleType === "later" && (
+        <AnimatedCollapse open={scheduleType === "later"}>
           <div className="space-y-1.5 pt-3 border-t">
             <Label htmlFor="scheduledTime" className="text-xs font-medium">
               Date and time <span className="text-destructive">*</span>
@@ -74,7 +75,7 @@ export default function CampaignDeliverySettings({
               </p>
             )}
           </div>
-        )}
+        </AnimatedCollapse>
       </CardContent>
     </Card>
   );

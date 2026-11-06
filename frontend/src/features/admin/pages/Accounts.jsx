@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { AnimatedCollapse } from "@/components/ui/animated-collapse";
 import { Link, useSearchParams } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -174,12 +175,12 @@ function AccountDetail({ account, onClose, onAction }) {
               )}
             </div>
             <QueryState query={balance}>
-              <p className={`text-2xl font-bold tabular-nums ${balance.data?.wallet?.isLocked ? "text-red-700" : "text-foreground"}`}>
+              <p className={`detail-sheet-wallet-balance font-bold tabular-nums ${balance.data?.wallet?.isLocked ? "text-red-700" : "text-foreground"}`}>
                 {number(balance.data?.wallet?.balance)}{" "}
                 <span className="text-xs font-normal text-muted-foreground">credits</span>
               </p>
               {balance.data?.wallet?.expiresAt && (
-                <p className="text-[11px] text-muted-foreground mt-1">
+                <p className="detail-sheet-wallet-expiry text-muted-foreground mt-1">
                   Expires on: <strong>{dateTime(balance.data?.wallet?.expiresAt)}</strong>
                   {balance.data?.wallet?.isExpired && (
                     <span className="text-red-600 ml-1 font-semibold">(Expired)</span>
@@ -234,7 +235,7 @@ function AccountDetail({ account, onClose, onAction }) {
               </Button>
             </div>
 
-            {showAudit && (
+            <AnimatedCollapse open={showAudit}>
               <QueryState query={reconcile}>
                 {reconcile.data && (
                   <div
@@ -279,7 +280,7 @@ function AccountDetail({ account, onClose, onAction }) {
                   </div>
                 )}
               </QueryState>
-            )}
+            </AnimatedCollapse>
           </div>
         </div>
       </SheetContent>

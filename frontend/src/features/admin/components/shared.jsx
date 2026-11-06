@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import { AnimatedCollapse } from "@/components/ui/animated-collapse";
 import MobileTableRows from "@/components/dashboard/MobileTableRows";
 import AccountPicker from "@/components/dashboard/AccountPicker";
 import "@/components/dashboard/responsive-table.css";
@@ -72,7 +73,7 @@ export function Field({ label, id, hint, children }) {
 }
 
 export function FormError({ message }) {
-  return message ? <p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{message}</p> : null;
+  return <AnimatedCollapse open={Boolean(message)}><p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{message}</p></AnimatedCollapse>;
 }
 
 export function Pager({ page, totalPages, total, onChange, disabled }) {

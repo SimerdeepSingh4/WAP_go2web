@@ -24,7 +24,9 @@
 .detail-sheet-wallet { padding:20px; border:1px solid var(--border); border-radius:14px; background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 4%,var(--card)),var(--card)); }
 .detail-sheet-wallet > div:first-child { flex-wrap:wrap; gap:10px; }
 .detail-sheet-wallet[data-locked="true"] { border-color:#fecaca; background:#fff7f7; }
-.detail-sheet-wallet > p { font-size:34px; line-height:1.4; letter-spacing:-1px; }
+.detail-sheet-wallet-balance { font-size:34px; line-height:1.4; letter-spacing:-1px; }
+.detail-sheet-wallet-expiry { font-size:11px; line-height:1.6; letter-spacing:normal; overflow-wrap:anywhere; }
+.detail-sheet-wallet-expiry strong { font-weight:500; }
 .detail-sheet-wallet-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; padding-top:16px; border-top:1px solid var(--border); }
 .detail-sheet-check,.detail-sheet-actions { padding:18px; border:1px solid var(--border); border-radius:14px; }
 .detail-sheet-check > div:first-child { flex-wrap:wrap; gap:12px; }

@@ -23,11 +23,9 @@ export default function CampaignReviewDialog({
   error,
   onSubmit,
 }) {
-  if (!isOpen) return null;
-
   return (
     <Dialog
-      open
+      open={isOpen}
       onOpenChange={(open) => {
         if (!open && !isPending) onClose();
       }}

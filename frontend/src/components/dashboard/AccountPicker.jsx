@@ -38,7 +38,7 @@ export default function AccountPicker({ id, label, value, onChange, options, dis
     <Combobox.Trigger id={id} aria-label={label} className="account-picker-trigger" data-slot="select-trigger">
       <span>{selected?.label || "Select account"}</span><ChevronsUpDown aria-hidden="true" />
     </Combobox.Trigger>
-    <Combobox.Portal><Combobox.Positioner align="start" sideOffset={6} className="account-picker-positioner"><Combobox.Popup className="account-picker-popup">
+    <Combobox.Portal><Combobox.Positioner align="start" sideOffset={6} className="account-picker-positioner"><Combobox.Popup className="ui-motion-popup account-picker-popup">
       <div className="account-picker-search"><Search aria-hidden="true" /><Combobox.Input aria-label={`Search ${label.toLowerCase()}`} placeholder="Name, company, email, phone or ID..." maxLength={120} /></div>
       <Combobox.List className="account-picker-list">{option => <Combobox.Item key={option.value} value={option} className="account-picker-option">
         <span className="account-picker-option-copy"><span className="account-picker-option-title">{option.label}{option.role && <small>{option.role}</small>}</span>{option.description && <span className="account-picker-description">{option.description}</span>}</span>

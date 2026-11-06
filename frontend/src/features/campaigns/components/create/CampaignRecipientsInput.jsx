@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { number } from "@/features/admin/lib/format";
 import { SectionCard } from "./CampaignDetailsSection";
+import { AnimatedCollapse } from "@/components/ui/animated-collapse";
 
 export default function CampaignRecipientsInput({
   fileInputRef,
@@ -83,7 +84,7 @@ export default function CampaignRecipientsInput({
         </div>
 
 
-        {showValidation && <div className="flex items-center gap-2 flex-wrap" aria-live="polite">
+        <AnimatedCollapse open={showValidation}><div className="flex items-center gap-2 flex-wrap" aria-live="polite">
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 text-xs font-medium border border-emerald-200 dark:border-emerald-800">
             <CheckCircle2 className="size-3.5" />
             {number(totalRecipients)} valid
@@ -100,7 +101,7 @@ export default function CampaignRecipientsInput({
               {number(invalidCount)} invalid skipped
             </span>
           )}
-        </div>}
+        </div></AnimatedCollapse>
       </div>
     </SectionCard>
   );
