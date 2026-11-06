@@ -5,6 +5,29 @@ import "./index.css";
 import "./components/dashboard/dashboard.css";
 import App from "./App.jsx";
 
+// Auto-recover from stale deployment chunks (avoids "Failed to fetch dynamically imported module")
+window.addEventListener("vite:preloadError", (event) => {
+    event.preventDefault();
+    const reloadKey = "chunk_preload_reload";
+    const lastReload = Number(sessionStorage.getItem(reloadKey) || 0);
+    if (Date.now() - lastReload > 10000) {
+        sessionStorage.setItem(reloadKey, String(Date.now()));
+        window.location.reload();
+    }
+});
+
+window.addEventListener("error", (event) => {
+    const msg = event?.message || "";
+    if (msg.includes("dynamically imported module") || msg.includes("Failed to fetch dynamically imported")) {
+        const reloadKey = "chunk_preload_reload";
+        const lastReload = Number(sessionStorage.getItem(reloadKey) || 0);
+        if (Date.now() - lastReload > 10000) {
+            sessionStorage.setItem(reloadKey, String(Date.now()));
+            window.location.reload();
+        }
+    }
+});
+
 const queryClient = new QueryClient({
     defaultOptions: {
         queries: {

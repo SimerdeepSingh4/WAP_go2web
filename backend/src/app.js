@@ -89,11 +89,30 @@ const frontendDist = possibleDistPaths.find((p) => fs.existsSync(p));
 
 if (frontendDist && fs.existsSync(path.join(frontendDist, "index.html"))) {
     console.log(`[Static Server] Serving frontend SPA from: ${frontendDist}`);
-    app.use(express.static(frontendDist));
 
-    // Handle SPA client-side routing: serve index.html for all non-API GET requests
+    // 1. Serve hashed asset chunks with long-term caching; return 404 if old chunk no longer exists
+    const assetsDir = path.join(frontendDist, "assets");
+    if (fs.existsSync(assetsDir)) {
+        app.use("/assets", express.static(assetsDir, {
+            maxAge: "1y",
+            immutable: true,
+            fallthrough: false,
+        }));
+    }
+
+    // 2. Serve root static files (favicon, logos, etc.)
+    app.use(express.static(frontendDist, {
+        setHeaders: (res, filePath) => {
+            if (filePath.endsWith("index.html")) {
+                res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+            }
+        },
+    }));
+
+    // 3. Handle SPA client-side routing: never fallback for missing static assets/chunks
     app.use((req, res, next) => {
-        if (req.method === "GET" && !req.path.startsWith("/api") && !req.path.startsWith("/uploads") && !req.path.startsWith("/health")) {
+        if (req.method === "GET" && !req.path.startsWith("/api") && !req.path.startsWith("/uploads") && !req.path.startsWith("/health") && !req.path.startsWith("/assets")) {
+            res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
             return res.sendFile(path.join(frontendDist, "index.html"));
         }
         next();
