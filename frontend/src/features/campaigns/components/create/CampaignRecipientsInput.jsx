@@ -24,7 +24,7 @@ export default function CampaignRecipientsInput({
       dataTour="create-recipients"
       icon={Users}
       title="Recipients"
-      description="Paste numbers with country code, or drop a CSV or TXT file."
+      description="Paste numbers with country code (e.g. 91XXXXXXXXXX), or drop a CSV or TXT file."
       aside={
         <>
           <input
@@ -59,8 +59,8 @@ export default function CampaignRecipientsInput({
             <Label htmlFor="recipients" className="text-xs font-medium">
               Phone numbers <span className="text-destructive">*</span>
             </Label>
-            <span className="text-[11px] text-muted-foreground">
-              One per line, or separated by commas or spaces
+            <span className="text-[11px] font-medium text-amber-700 dark:text-amber-400">
+              Country code required (e.g. 919876543210) &bull; One per line, commas or spaces
             </span>
           </div>
           <Textarea
@@ -68,7 +68,7 @@ export default function CampaignRecipientsInput({
             rows={6}
             value={rawRecipients}
             onChange={(e) => onRawRecipientsChange(e.target.value)}
-            placeholder={"919876543210\n919876543211\n919876543212"}
+            placeholder={"Enter numbers WITH country code (e.g. 91 for India):\n919876543210\n919876543211\n919876543212\n\nNote: Always include the country code without '+' or spaces."}
             spellCheck={false}
             className={`field-sizing-fixed h-40 min-h-32 max-h-64 overflow-y-auto bg-background text-xs font-mono leading-6 resize-y transition-colors focus-visible:ring-2 focus-visible:ring-ring/20 ${
               dropActive ? "border-primary bg-primary/5" : ""
