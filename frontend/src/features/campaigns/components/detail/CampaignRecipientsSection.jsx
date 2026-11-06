@@ -31,6 +31,7 @@ import { assignNumbersToCategory, normalizeSavedRecipientEntry } from "../../lib
 import DraftReportPreview from "../report/DraftReportPreview";
 import { buildPublishedSheet, normalizeColumns } from "@campaign-sheet";
 import CampaignSpreadsheet from "./CampaignSpreadsheet";
+import RecipientActivityButton from "./RecipientActivityButton";
 import FilterRecipientsDialog from "./FilterRecipientsDialog";
 import { filterCampaignRecipients, isExcludedRecipient } from "../../lib/filterRecipients";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -566,6 +567,7 @@ export default function CampaignRecipientsSection({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <RecipientActivityButton activity={campaign.recipientInputAudit} />
             {reviewMode && <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setShowNumberInput(!showNumberInput)}><Plus className="size-3.5" /> Add numbers</Button>}
             {!reviewMode && <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 text-xs" disabled={!entries.length || isSaving} onClick={openOwnerPreview}><Eye className="size-3.5" /> Preview report</Button>}
             {/* Filter numbers button */}
