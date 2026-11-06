@@ -1,0 +1,55 @@
+.mobile-record-list, .mobile-table-sort { display: none; }
+
+@media (max-width: 767px) {
+  .responsive-data-table { border-radius: 14px; }
+  .responsive-table-desktop { display: none; }
+  .mobile-record-list { display: grid; gap: 10px; margin: 0; padding: 12px; list-style: none; background: var(--muted); }
+  .mobile-record { position: relative; min-width: 0; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); color: var(--foreground); }
+  .mobile-record-label { display: block; margin-bottom: 5px; color: var(--muted-foreground); font-size: 10px; font-weight: 550; }
+  .mobile-record-title { min-width: 0; }
+  .mobile-record-heading { display: flex; min-width: 0; align-items: center; gap: 10px; }
+  .mobile-record-avatar { flex-shrink: 0; }
+  .mobile-record-highlights dd > span { max-width: 100%; white-space: normal; }
+  .mobile-record-value { min-width: 0; font-size: 14px; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
+  .mobile-record-secondary { margin-top: 6px; color: var(--muted-foreground); font-size: 11px; line-height: 1.6; }
+  .mobile-record :where(.truncate, .line-clamp-1, .line-clamp-2) { max-width: 100%; overflow: visible; white-space: normal; text-overflow: clip; -webkit-line-clamp: unset; }
+  .mobile-record :where(p, span, a, button, dd) { overflow-wrap: anywhere; }
+  .mobile-record-value :where(a, button) { max-width: 100%; white-space: normal; text-align: left; }
+  .mobile-record-title :where(div, p) { min-width: 0; max-width: 100%; }
+  .mobile-record-highlights { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .mobile-record-highlights > div { min-width: 0; }
+  .mobile-record-highlights dt, .mobile-record-details dt { color: var(--muted-foreground); font-size: 10px; line-height: 1.5; }
+  .mobile-record-highlights dd { margin-top: 5px; font-size: 12px; font-weight: 550; }
+  .mobile-record-details { margin-top: 12px; border-top: 1px solid var(--border); }
+  .mobile-record-details summary { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 12px; list-style: none; color: var(--primary); font-size: 11px; font-weight: 550; cursor: pointer; }
+  .mobile-record-details summary::-webkit-details-marker { display: none; }
+  .mobile-record-details summary svg { width: 15px; height: 15px; flex-shrink: 0; transition: transform .15s; }
+  .mobile-record-details[open] summary svg { transform: rotate(180deg); }
+  .mobile-record-details dl { display: grid; gap: 12px; padding: 2px 0 10px; }
+  .mobile-record-details dd { min-width: 0; max-width: 100%; margin-top: 4px; color: var(--foreground); font-size: 12px; line-height: 1.65; white-space: normal; overflow-wrap: anywhere; }
+  .mobile-record-details dd > * { max-width: 100%; }
+  .mobile-record-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+  .mobile-record-actions > div { max-width: 100%; }
+  .mobile-record-actions > div > div { flex-wrap: wrap; }
+  .mobile-record-actions :where(button, a) { min-height: 44px; min-width: 44px; }
+  .mobile-record:has(.mobile-record-actions [aria-haspopup="menu"]) .mobile-record-title { padding-right: 44px; }
+  .mobile-record-actions:has([aria-haspopup="menu"]) { position: absolute; top: 10px; right: 10px; margin: 0; }
+  .mobile-table-sort { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--card); }
+  .mobile-table-sort label { color: var(--muted-foreground); font-size: 11px; }
+  .mobile-table-sort select { flex: 1; min-width: 0; min-height: 44px; padding: 8px 10px; border: 1px solid var(--input); border-radius: 8px; background: var(--background); color: var(--foreground); font-size: 12px; }
+  .mobile-table-sort button { min-height: 44px; }
+  .responsive-table-pager { gap: 10px; padding: 12px; }
+  .responsive-table-pager nav { flex-wrap: wrap; gap: 8px; }
+  .responsive-table-pager nav button { min-width: 44px; min-height: 44px; }
+}
+
+.recipient-table-scroll { max-width: 100%; overflow: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+.recipient-scroll-hint { display: none; }
+@media (max-width: 767px) {
+  .recipient-scroll-hint { display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--muted); color: var(--muted-foreground); font-size: 11px; }
+  .recipient-comparison { border-collapse: separate; border-spacing: 0; }
+  .recipient-comparison .recipient-phone { position: sticky; left: 0; z-index: 10; min-width: 150px !important; width: 150px !important; max-width: 170px; background: var(--card); box-shadow: 1px 0 0 var(--border); }
+  .recipient-comparison thead .recipient-phone { z-index: 30; background: var(--muted); }
+  .recipient-comparison td, .recipient-comparison th { scroll-margin-left: 170px; }
+  .recipient-comparison .recipient-index { position: static; min-width: 48px; width: 48px; }
+}

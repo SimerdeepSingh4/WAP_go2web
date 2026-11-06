@@ -1,0 +1,64 @@
+[data-slot="card"].campaign-cost-summary { container: cost-summary / inline-size; gap: 0; min-width: 0; padding: 0; border: 1px solid var(--border); border-radius: 16px; background: var(--card); box-shadow: 0 3px 14px #0f172a04; }
+.campaign-cost-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 24px; border-bottom: 1px solid var(--border); }
+.campaign-cost-heading-copy { display: flex; min-width: 0; align-items: center; gap: 12px; }
+.campaign-cost-icon { display: grid; width: 38px; height: 38px; flex-shrink: 0; place-items: center; border: 1px solid var(--border); border-radius: 11px; background: var(--muted); color: var(--primary); }
+.campaign-cost-icon svg { width: 17px; height: 17px; }
+.campaign-cost-heading h2 { margin: 0; color: var(--foreground); font-size: 15px; font-weight: 650; line-height: 1.4; letter-spacing: -.025em; }
+.campaign-cost-heading-copy p { margin: 4px 0 0; color: var(--muted-foreground); font-size: 12px; line-height: 1.6; }
+.campaign-cost-readiness { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; padding: 6px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--muted); color: var(--muted-foreground); font-size: 10px; font-weight: 550; }
+.campaign-cost-readiness[data-ready="true"] { border-color: #bbdfd0; background: #f1faf6; color: #217553; }
+.campaign-cost-readiness svg { width: 13px; height: 13px; }
+.campaign-cost-body { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 32px; padding: 24px; }
+.campaign-cost-breakdown, .campaign-cost-checklist { min-width: 0; }
+.campaign-cost-estimate { padding: 20px; border: 1px solid var(--border); border-radius: 12px; background: color-mix(in srgb, var(--muted) 55%, var(--card)); }
+.campaign-cost-eyebrow { color: var(--muted-foreground); font-size: 11px; font-weight: 550; }
+.campaign-cost-amount { margin: 7px 0 8px; color: var(--primary); font-size: clamp(28px, 3vw, 36px); font-weight: 650; line-height: 1.15; letter-spacing: -.05em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.campaign-cost-amount > span { color: var(--muted-foreground); font-size: 13px; font-weight: 450; letter-spacing: 0; }
+.campaign-cost-calculation { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 0; color: var(--muted-foreground); font-size: 11px; line-height: 1.7; font-variant-numeric: tabular-nums; }
+.campaign-cost-calculation > span { color: var(--muted-foreground); }
+.campaign-cost-estimate[data-insufficient="true"] { border-color: color-mix(in srgb, var(--destructive) 30%, var(--border)); }
+.campaign-cost-estimate[data-insufficient="true"] .campaign-cost-amount { color: var(--destructive); }
+.campaign-cost-wallet { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 18px; }
+.campaign-cost-wallet > div { min-width: 0; }
+.campaign-cost-wallet > div + div { padding-left: 20px; border-left: 1px solid var(--border); }
+.campaign-cost-wallet dt { color: var(--muted-foreground); font-size: 11px; line-height: 1.6; }
+.campaign-cost-wallet dd { margin: 5px 0 0; color: var(--foreground); font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.campaign-cost-wallet dd span { color: var(--muted-foreground); font-size: 10px; font-weight: 450; letter-spacing: 0; }
+.campaign-cost-wallet dd[data-negative="true"] { color: var(--destructive); }
+.campaign-cost-billing-note { display: flex; align-items: flex-start; gap: 6px; margin: 16px 0 0; color: var(--muted-foreground); font-size: 10px; line-height: 1.7; }
+.campaign-cost-billing-note svg { width: 13px; height: 13px; flex-shrink: 0; margin-top: 2px; }
+.campaign-cost-checklist { padding-left: 32px; border-left: 1px solid var(--border); }
+.campaign-cost-checklist-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.campaign-cost-checklist-heading h3 { margin: 0; font-size: 12px; font-weight: 600; }
+.campaign-cost-checklist-heading > span { color: var(--muted-foreground); font-size: 10px; font-variant-numeric: tabular-nums; }
+.campaign-cost-checklist ul { display: grid; margin: 0; padding: 0; list-style: none; }
+.campaign-cost-checklist li { display: flex; min-width: 0; align-items: center; gap: 9px; padding: 10px 0; color: var(--muted-foreground); font-size: 11px; line-height: 1.6; }
+.campaign-cost-checklist li + li { border-top: 1px solid color-mix(in srgb, var(--border) 65%, transparent); }
+.campaign-cost-checklist li > svg { width: 15px; height: 15px; flex-shrink: 0; }
+.campaign-cost-checklist li > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.campaign-cost-checklist li small { flex-shrink: 0; color: var(--muted-foreground); font-size: 9px; }
+.campaign-cost-checklist li[data-complete="true"] { color: var(--foreground); }
+.campaign-cost-checklist li[data-complete="true"] > svg { color: #278264; }
+.campaign-cost-checklist li[data-complete="true"] small { color: #278264; }
+.campaign-cost-alert { margin: 14px 0 0; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--destructive) 20%, var(--border)); border-radius: 8px; background: color-mix(in srgb, var(--destructive) 5%, var(--card)); color: var(--destructive); font-size: 11px; line-height: 1.7; }
+.campaign-cost-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 24px; border-top: 1px solid var(--border); background: color-mix(in srgb, var(--muted) 30%, var(--card)); }
+.campaign-cost-footer > p { display: flex; align-items: center; gap: 7px; margin: 0; color: var(--muted-foreground); font-size: 10px; line-height: 1.7; }
+.campaign-cost-footer > p svg { width: 14px; height: 14px; flex-shrink: 0; }
+.campaign-cost-actions { display: flex; align-items: center; gap: 8px; }
+.campaign-cost-actions [data-slot="button"] { min-height: 42px; padding-inline: 18px; font-size: 12px; }
+.campaign-cost-actions .campaign-cost-review { min-width: 174px; }
+@container cost-summary (max-width: 600px) {
+  .campaign-cost-heading { gap: 12px; padding: 18px 16px; }
+  .campaign-cost-heading-copy { align-items: flex-start; gap: 10px; }
+  .campaign-cost-heading-copy p { font-size: 11px; }
+  .campaign-cost-readiness { margin-left: 48px; }
+  .campaign-cost-body { grid-template-columns: minmax(0, 1fr); gap: 22px; padding: 16px; }
+  .campaign-cost-estimate { padding: 16px; }
+  .campaign-cost-checklist { padding: 18px 0 0; border-top: 1px solid var(--border); border-left: 0; }
+  .campaign-cost-checklist-heading { margin-bottom: 6px; }
+  .campaign-cost-footer { align-items: stretch; gap: 12px; padding: 16px; }
+  .campaign-cost-footer > p { width: 100%; }
+  .campaign-cost-actions { display: grid; width: 100%; grid-template-columns: minmax(0, 1fr) minmax(0, 1.8fr); }
+  .campaign-cost-actions .campaign-cost-review { min-width: 0; padding-inline: 10px; }
+  .campaign-cost-actions [data-slot="button"] { min-height: 44px; font-size: 11px; }
+}

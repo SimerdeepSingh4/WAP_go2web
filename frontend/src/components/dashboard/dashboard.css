@@ -10,7 +10,10 @@
   color-scheme: light;
 }
 html { scrollbar-gutter: stable; }
-body { margin: 0; min-width: 320px; }
+body { margin: 0; min-width: 0; }
+.dashboard-portal { width: 100%; min-width: 0; overflow-x: clip; }
+.portal-shell, .portal-inset, .portal-topbar { min-width: 0; max-width: 100%; }
+#tour-topbar-search { min-width: 0; flex: 1 1 0%; }
 :where(a, button, input, textarea, select, [tabindex]):focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
 .portal-main { max-width: 1600px; display: flex; flex-direction: column; gap: 24px; padding: clamp(20px, 2.5vw, 36px); }
 .portal-main > * { min-width: 0; }
@@ -76,7 +79,10 @@ body { margin: 0; min-width: 320px; }
 @media (max-width: 767px) { .dashboard-stat:last-child:nth-child(odd) { grid-column: 1 / -1; } }
 @media (max-width: 1000px) { .dashboard-two-column { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 767px) {
-  .portal-main { padding: 24px 16px; gap: 22px; }
+  .portal-main { width: 100%; max-width: 100%; padding: 24px 16px; gap: 22px; }
+  .portal-topbar { gap: 6px; }
+  .portal-topbar > [data-slot="sidebar-trigger"] { flex-shrink: 0; }
+  .portal-search-bar { min-width: 0; gap: 6px; padding-inline: 8px; }
   .portal-main :where([data-slot="button"], [data-slot="select-trigger"]) { min-height: 44px; }
   .portal-main :where(input, textarea) { font-size: 16px; }
   .dashboard-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }

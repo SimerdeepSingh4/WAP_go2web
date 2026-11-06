@@ -1,121 +1,60 @@
-import { Coins, Send, Loader2, CheckCircle2, Circle } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { ArrowRight, CheckCircle2, Circle, Clock3, Coins, Info, Loader2 } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { number } from "@/features/admin/lib/format";
-
-export function SummaryRow({ label, children, strong }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <span className={strong ? "font-semibold text-foreground" : "text-muted-foreground"}>{label}</span>
-      <span className="tabular-nums">{children}</span>
-    </div>
-  );
-}
+import "./campaign-cost-summary.css";
 
 export default function CampaignCostSummary({
-  enteredCount,
-  totalRecipients,
-  estimate,
-  estimatedCost,
-  hasInsufficientCredits,
-  isAdmin,
-  currentBalance,
-  remainingBalance,
-  checks,
-  submitDisabled,
-  isPending,
-  onCancel,
+  enteredCount, totalRecipients, estimate, estimatedCost, hasInsufficientCredits,
+  isAdmin, currentBalance, remainingBalance, checks, submitDisabled, isPending, onCancel,
 }) {
-  return (
-    <Card data-tour="create-summary" className="gap-0 rounded-xl border border-border py-0 shadow-none ring-0">
-      <CardHeader className="border-b border-border px-4 py-3 sm:px-5">
-        <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-          <Coins className="size-3.5 text-muted-foreground" />
-          Campaign summary
-        </CardTitle>
-        <CardDescription className="mt-1 text-[11px] leading-5">Each entered number is charged, including repeats.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3 p-4 text-xs sm:p-5">
-        <SummaryRow label="Numbers entered">
-          <span className="font-medium text-foreground">{number(enteredCount ?? totalRecipients)}</span>
-        </SummaryRow>
-        <SummaryRow label="Rate per recipient">
-          <span className="font-medium text-foreground">{number(estimate.rate)} {estimate.rate === 1 ? "credit" : "credits"}</span>
-        </SummaryRow>
-        <div className="rounded-lg bg-muted/40 px-3 py-3">
-          <SummaryRow label="Estimated credits" strong>
-            <span
-              className={`text-lg font-semibold ${
-                hasInsufficientCredits ? "text-destructive" : "text-foreground"
-              }`}
-            >
-              {number(estimatedCost)} credits
-            </span>
-          </SummaryRow>
+  const completed = checks.filter((check) => check.ok).length;
+  const ready = checks.length > 0 && completed === checks.length && !submitDisabled;
+  const count = enteredCount ?? totalRecipients;
+  return <Card id="create-summary" data-tour="create-summary" className="campaign-cost-summary">
+    <header className="campaign-cost-heading">
+      <div className="campaign-cost-heading-copy">
+        <span className="campaign-cost-icon"><Coins aria-hidden="true" /></span>
+        <div><h2>Campaign summary</h2><p>Check the cost and details before you continue.</p></div>
+      </div>
+      <span className="campaign-cost-readiness" data-ready={ready}>
+        {ready && <CheckCircle2 aria-hidden="true" />}
+        {ready ? "Ready to review" : `${completed} of ${checks.length} checks complete`}
+      </span>
+    </header>
+
+    <div className="campaign-cost-body">
+      <section className="campaign-cost-breakdown" aria-label="Campaign credit estimate">
+        <div className="campaign-cost-estimate" data-insufficient={hasInsufficientCredits}>
+          <span className="campaign-cost-eyebrow">Estimated cost</span>
+          <p className="campaign-cost-amount">{number(estimatedCost)} <span>credits</span></p>
+          <p className="campaign-cost-calculation">{number(count)} {count === 1 ? "number" : "numbers"}<span aria-hidden="true">×</span>{number(estimate.rate)} {estimate.rate === 1 ? "credit" : "credits"} each</p>
         </div>
-        <div className="space-y-2 text-xs border-t pt-3">
-          <SummaryRow label="Wallet balance">
-            <span className="font-medium text-foreground">{isAdmin ? "Unlimited" : number(currentBalance)}</span>
-          </SummaryRow>
-          <SummaryRow label="After submission">
-            <span
-              className={`font-medium ${
-                remainingBalance < 0 ? "text-destructive" : "text-foreground"
-              }`}
-            >
-              {isAdmin ? "Unlimited" : number(remainingBalance)}
-            </span>
-          </SummaryRow>
-        </div>
+        <dl className="campaign-cost-wallet">
+          <div><dt>Wallet balance</dt><dd>{isAdmin ? "Unlimited" : number(currentBalance)}{!isAdmin && <span> credits</span>}</dd></div>
+          <div><dt>After submission</dt><dd data-negative={!isAdmin && remainingBalance < 0}>{isAdmin ? "Unlimited" : number(remainingBalance)}{!isAdmin && <span> credits</span>}</dd></div>
+        </dl>
+        <p className="campaign-cost-billing-note"><Info aria-hidden="true" /><span>Every entered number is charged, including repeats.</span></p>
+        {hasInsufficientCredits && <p className="campaign-cost-alert" role="alert">You need <strong>{number(estimatedCost - currentBalance)} more credits</strong> to submit this campaign.</p>}
+      </section>
 
-        {hasInsufficientCredits && (
-          <div
-            role="alert"
-            className="p-3 rounded-lg bg-destructive/10 text-destructive text-xs font-medium border border-destructive/20"
-          >
-            You need {number(estimatedCost - currentBalance)} more credits to submit this campaign.
-          </div>
-        )}
+      <section className="campaign-cost-checklist" aria-labelledby="campaign-checklist-heading">
+        <div className="campaign-cost-checklist-heading"><h3 id="campaign-checklist-heading">Before you continue</h3><span>{completed}/{checks.length}</span></div>
+        <ul aria-label="Submission checklist">{checks.map((check) => <li key={check.label} data-complete={check.ok}>
+          {check.ok ? <CheckCircle2 aria-hidden="true" /> : <Circle aria-hidden="true" />}
+          <span>{check.label}</span><small>{check.ok ? "Complete" : "Needed"}</small>
+        </li>)}</ul>
+      </section>
+    </div>
 
-        <ul className="pt-3 border-t space-y-1.5" aria-label="Submission checklist">
-          {checks.map((c) => (
-            <li
-              key={c.label}
-              className={`flex items-center gap-2 text-xs ${
-                c.ok ? "text-foreground" : "text-muted-foreground"
-              }`}
-            >
-              {c.ok ? (
-                <CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" />
-              ) : (
-                <Circle className="size-3.5 shrink-0" />
-              )}
-              {c.label}
-            </li>
-          ))}
-        </ul>
-      </CardContent>
-
-      <CardFooter className="flex flex-col gap-2 border-t border-border bg-muted/15 p-4 sm:px-5">
-        <Button type="submit" disabled={submitDisabled} className="h-10 w-full gap-2 font-medium">
-          {isPending ? (
-            <Loader2 className="size-4 mr-2 animate-spin" />
-          ) : (
-            <Send className="size-4 mr-2" />
-          )}
-          Review campaign
+    <footer className="campaign-cost-footer">
+      <p><Clock3 aria-hidden="true" /><span>{isAdmin ? "Review all details before confirming." : "Your submission will be reviewed by an admin."}</span></p>
+      <div className="campaign-cost-actions">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isPending}>Cancel</Button>
+        <Button type="submit" disabled={submitDisabled || isPending} className="campaign-cost-review">
+          {isPending ? <><Loader2 className="animate-spin" aria-hidden="true" />Submitting…</> : <>Review campaign<ArrowRight aria-hidden="true" /></>}
         </Button>
-        {!isAdmin && <p className="text-center text-[11px] leading-5 text-muted-foreground">Your campaign starts after admin approval.</p>}
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={onCancel}
-          className="w-full text-xs text-muted-foreground"
-        >
-          Cancel
-        </Button>
-      </CardFooter>
-    </Card>
-  );
+      </div>
+    </footer>
+  </Card>;
 }
-

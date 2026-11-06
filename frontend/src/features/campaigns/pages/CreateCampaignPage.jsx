@@ -17,6 +17,7 @@ import CampaignDeliverySettings from "../components/create/CampaignDeliverySetti
 import CampaignCostSummary from "../components/create/CampaignCostSummary";
 import CampaignReviewDialog from "../components/create/CampaignReviewDialog";
 import { readCampaignDraft, removeCampaignDraft, writeCampaignDraft } from "../lib/draftStorage";
+import "../components/create/create-campaign.css";
 
 function htmlToText(html) {
   return String(html || "")
@@ -329,7 +330,7 @@ export default function CreateCampaignPage() {
     isOverCharacterLimit;
 
   return (
-    <div data-tour-loading={!draftReady} className="campaign-editor mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-5 pb-8">
+    <div data-tour-loading={!draftReady} className="campaign-editor campaign-compose mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-5 pb-8">
       <style>{`
         .quill-editor-container .ql-toolbar.ql-snow { border-top-left-radius:.75rem; border-top-right-radius:.75rem; border-color:var(--border); background-color:var(--muted); padding:.5rem .75rem; }
         .quill-editor-container .ql-container.ql-snow { border-bottom-left-radius:.75rem; border-bottom-right-radius:.75rem; border-color:var(--border); background-color:var(--card); font-family:inherit; font-size:.875rem; min-height:180px; }
@@ -350,6 +351,7 @@ export default function CreateCampaignPage() {
 
       {/* Header */}
       <CreateCampaignHeader
+        checks={checks}
         onNavigateBack={() => navigate(parentCampaignsPath)}
         isPending={createCampaignMutation.isPending}
       />
@@ -386,9 +388,9 @@ export default function CreateCampaignPage() {
         )}
       </div>
 
-      <form onSubmit={handleSubmit} className="flex min-w-0 flex-col gap-4 [&>div]:w-full">
+      <form onSubmit={handleSubmit} className="campaign-compose-grid">
         {/* Campaign fields */}
-        <div className="min-w-0 space-y-4">
+        <div className="campaign-compose-fields">
           <CampaignDetailsSection
             campaignTitle={campaignTitle}
             onCampaignTitleChange={setCampaignTitle}
@@ -445,7 +447,7 @@ export default function CreateCampaignPage() {
         </div>
 
         {/* Final summary and submission */}
-        <div className="min-w-0">
+        <aside className="campaign-compose-summary" aria-label="Campaign summary and review">
 
 
           <CampaignCostSummary
@@ -462,7 +464,7 @@ export default function CreateCampaignPage() {
             isPending={createCampaignMutation.isPending}
             onCancel={() => navigate(parentCampaignsPath)}
           />
-        </div>
+        </aside>
       </form>
 
       <CampaignReviewDialog

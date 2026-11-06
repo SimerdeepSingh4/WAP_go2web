@@ -11,7 +11,7 @@ export default function CampaignDeliverySettings({
   scheduleValid,
 }) {
   return (
-    <Card data-tour="create-timing" className="gap-0 rounded-xl border border-border py-0 shadow-none ring-0">
+    <Card id="create-timing" data-tour="create-timing" className="campaign-form-section gap-0 rounded-xl border border-border py-0 shadow-none ring-0">
       <CardHeader className="border-b border-border px-4 py-3 sm:px-5">
         <CardTitle className="flex items-center gap-2 text-sm font-semibold">
           <Clock className="size-3.5 text-muted-foreground" />

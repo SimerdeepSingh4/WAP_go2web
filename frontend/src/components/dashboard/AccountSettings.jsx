@@ -4,7 +4,7 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { getSessions, logoutSession, changePassword, uploadProfileImage } from "@/features/auth/services/auth.api";
 import { QueryState, FormError } from "@/features/admin/components/shared";
 import { Card } from "@/components/ui/card";
-import { UserRound, LockKeyhole, MonitorSmartphone, Laptop, Smartphone, Tablet, RefreshCw, LogOut, Info, ShieldCheck } from "lucide-react";
+import { UserRound, LockKeyhole, MonitorSmartphone, Laptop, Smartphone, Tablet, RefreshCw, LogOut, Info, ShieldCheck, Camera, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import UserAvatar from "@/components/dashboard/UserAvatar";
@@ -13,8 +13,9 @@ import { dateTime } from "@/features/admin/lib/format";
 import { toast } from "@/components/ui/toast";
 import "./account-settings.css";
 
-function SettingsCard({ title, description, icon: Icon, action, children }) {
-  return <Card className="portal-card portal-settings-card account-settings-card">
+function SettingsCard({ title, description, icon: Icon, action, children, section, active }) {
+  if (!active) return null;
+  return <Card id={`account-${section}`} role="tabpanel" aria-labelledby={`account-tab-${section}`} tabIndex={0} className={`portal-card portal-settings-card account-settings-card account-settings-card-${section}`}>
     <div className="portal-card-heading">
       <span className="portal-settings-card-icon"><Icon aria-hidden="true" /></span>
       <div><h2>{title}</h2><p>{description}</p></div>
@@ -39,6 +40,8 @@ export default function AccountSettings() {
   const [passwords, setPasswords] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
   const [error, setError] = useState("");
   const [disconnect, setDisconnect] = useState(null);
+  const [visiblePasswords, setVisiblePasswords] = useState({});
+  const [activeTab, setActiveTab] = useState("profile");
   const sessions = useQuery({ queryKey: ["accountSessions", user?.id || user?._id], queryFn: getSessions, enabled: !user?.isPreview });
   const password = useMutation({ mutationFn: changePassword, onSuccess: () => { setPasswords({ currentPassword: "", newPassword: "", confirmPassword: "" }); toast.add({ title: "Password changed", type: "success" }); } });
   const profileImage = useMutation({
@@ -70,19 +73,31 @@ export default function AccountSettings() {
   const rows = sessions.data?.sessions || [];
   const otherDevices = rows.filter(session => !(session.isCurrent || session.isCurrentDevice));
   return <div className="account-settings portal-settings">
-    <header className="portal-page-heading">
+    <header className="portal-page-heading account-settings-heading">
       <div className="portal-heading-copy"><h1>Settings</h1><p>Manage your account and keep your workspace secure.</p></div>
       <span className="account-settings-role"><UserRound aria-hidden="true" />{user?.role || "Account"} account</span>
     </header>
+    <div className="account-settings-nav" role="tablist" aria-label="Account settings sections">{[["profile", "Profile", UserRound], ["password", "Password", LockKeyhole], ["devices", "Devices", MonitorSmartphone]].map(([section, label, Icon], index, tabs) => <button key={section} id={`account-tab-${section}`} type="button" role="tab" aria-selected={activeTab === section} aria-controls={`account-${section}`} tabIndex={activeTab === section ? 0 : -1} onClick={() => setActiveTab(section)} onKeyDown={event => {
+      let next;
+      if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
+      if (event.key === "ArrowLeft") next = (index + tabs.length - 1) % tabs.length;
+      if (event.key === "Home") next = 0;
+      if (event.key === "End") next = tabs.length - 1;
+      if (next === undefined) return;
+      event.preventDefault();
+      setActiveTab(tabs[next][0]);
+      document.getElementById(`account-tab-${tabs[next][0]}`)?.focus();
+    }}><Icon aria-hidden="true" />{label}</button>)}</div>
     <div className="account-settings-grid">
       <div className="account-settings-stack">
-        <SettingsCard title="Account profile" description="Your personal details and account information." icon={UserRound}>
+        <SettingsCard section="profile" active={activeTab === "profile"} title="Your profile" description="Your photo and account details." icon={UserRound}>
+          <div className="account-settings-profile-main">
           <div className="account-settings-identity">
-            <UserAvatar user={user} className="size-12 rounded-[14px]" />
+            <UserAvatar user={user} className="size-16 rounded-2xl" />
             <div className="min-w-0 flex-1"><h3>{user?.username || "Your account"}</h3><span>{user?.role || "Account"}</span></div>
           </div>
           <div className="account-settings-profile-image">
-            <input ref={imageInput} type="file" accept="image/jpeg,image/png,image/webp" aria-label="Choose profile DP image" className="sr-only" disabled={user?.isPreview || profileImage.isPending} onChange={(event) => {
+            <input ref={imageInput} type="file" accept="image/jpeg,image/png,image/webp" aria-label="Choose profile photo" className="sr-only" disabled={user?.isPreview || profileImage.isPending} onChange={(event) => {
               const file = event.target.files?.[0] || null;
               if (file && file.size > 5 * 1024 * 1024) {
                 toast.add({ title: "Image is too large", description: "Choose an image up to 5 MB.", type: "error" });
@@ -92,35 +107,38 @@ export default function AccountSettings() {
               if (file) profileImage.mutate(file);
             }} />
             <Button type="button" size="sm" variant="outline" disabled={user?.isPreview || profileImage.isPending} onClick={() => imageInput.current?.click()}>
-              {profileImage.isPending ? "Uploading…" : "Choose & upload DP"}
+              {profileImage.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Camera aria-hidden="true" />}{profileImage.isPending ? "Uploading…" : user?.dp_img ? "Change photo" : "Upload photo"}
             </Button>
             <span>JPG, PNG, or WebP · up to 5 MB</span>
             <FormError message={profileImage.error?.message} />
           </div>
+          </div>
+          <div className="account-settings-profile-fields">
           <dl className="account-settings-details">{[["Email address", user?.email], ["Account name", user?.username]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || "Unavailable"}</dd></div>)}</dl>
           <p className="account-settings-note"><Info aria-hidden="true" /><span>Contact your {user?.role === "User" ? "account manager" : "administrator"} to update these details.</span></p>
+          </div>
         </SettingsCard>
-        <SettingsCard title="Change password" description="Choose a strong password to protect your account." icon={LockKeyhole}>
+        <SettingsCard section="password" active={activeTab === "password"} title="Change password" description="Keep your account protected with a strong password." icon={LockKeyhole}>
           {user?.isPreview ? <p className="account-settings-note"><Info aria-hidden="true" /><span>Exit account preview to manage your password.</span></p> : <form onSubmit={submit} className="account-settings-password">
             <div className="account-settings-password-fields">
               {[["currentPassword", "Current password"], ["newPassword", "New password"], ["confirmPassword", "Confirm new password"]].map(([key, label]) => <div key={key} className={`portal-field ${key === "currentPassword" ? "account-settings-current-password" : ""}`}>
                 <label htmlFor={key}>{label}</label>
-                <Input id={key} type="password" autoComplete={key === "currentPassword" ? "current-password" : "new-password"} minLength={key === "currentPassword" ? undefined : 8} required disabled={password.isPending} aria-describedby={key === "newPassword" ? "new-password-hint" : undefined} value={passwords[key]} onChange={e => { setPasswords(old => ({ ...old, [key]: e.target.value })); setError(""); password.reset(); }} />
+                <div className="account-settings-password-input"><Input id={key} type={visiblePasswords[key] ? "text" : "password"} autoComplete={key === "currentPassword" ? "current-password" : "new-password"} minLength={key === "currentPassword" ? undefined : 8} required disabled={password.isPending} aria-describedby={key === "newPassword" ? "new-password-hint" : undefined} value={passwords[key]} onChange={e => { setPasswords(old => ({ ...old, [key]: e.target.value })); setError(""); password.reset(); }} /><button type="button" disabled={password.isPending} aria-label={`${visiblePasswords[key] ? "Hide" : "Show"} ${label.toLowerCase()}`} aria-pressed={Boolean(visiblePasswords[key])} onClick={() => setVisiblePasswords((current) => ({ ...current, [key]: !current[key] }))}>{visiblePasswords[key] ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}</button></div>
                 {key === "newPassword" && <p id="new-password-hint" className="portal-field-hint">Use at least 8 characters.</p>}
               </div>)}
             </div>
             <FormError message={error || password.error?.message} />
-            <div className="account-settings-form-footer"><span><ShieldCheck aria-hidden="true" />Keep your password private.</span><Button type="submit" disabled={password.isPending}>{password.isPending ? "Saving…" : "Save password"}</Button></div>
+            <div className="account-settings-form-footer"><span><ShieldCheck aria-hidden="true" />Keep your password private.</span><Button type="submit" disabled={password.isPending}>{password.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}{password.isPending ? "Saving…" : "Save password"}</Button></div>
           </form>}
         </SettingsCard>
       </div>
-      <SettingsCard title="Signed-in devices" description="Review and manage access to your account." icon={MonitorSmartphone} action={!user?.isPreview && <Button variant="ghost" size="icon-sm" aria-label="Refresh devices" title="Refresh devices" onClick={() => sessions.refetch()} disabled={sessions.isFetching}><RefreshCw aria-hidden="true" className={sessions.isFetching ? "animate-spin motion-reduce:animate-none" : ""} /></Button>}>
+      <SettingsCard section="devices" active={activeTab === "devices"} title="Signed-in devices" description="See where your account is signed in and manage access." icon={MonitorSmartphone} action={!user?.isPreview && <Button variant="ghost" size="icon-sm" aria-label="Refresh devices" title="Refresh devices" onClick={() => sessions.refetch()} disabled={sessions.isFetching}><RefreshCw aria-hidden="true" className={sessions.isFetching ? "animate-spin motion-reduce:animate-none" : ""} /></Button>}>
         {user?.isPreview ? <p className="account-settings-note"><Info aria-hidden="true" /><span>Exit account preview to manage your devices.</span></p> : <QueryState query={sessions} empty={!rows.length} emptyTitle="No devices found" emptyDescription="Refresh to check your current sessions.">
-          <div className="account-settings-session-summary"><span>{rows.length} signed-in {rows.length === 1 ? "device" : "devices"}</span><span>Sessions</span></div>
+          <div className="account-settings-session-summary"><span>{rows.length} signed-in {rows.length === 1 ? "device" : "devices"}</span><span>{otherDevices.length ? `${otherDevices.length} other ${otherDevices.length === 1 ? "device" : "devices"}` : "No other devices"}</span></div>
           <ul className="account-settings-devices">{rows.map(session => {
             const current = session.isCurrent || session.isCurrentDevice;
             const { label, Icon } = deviceDetails(session.userAgent);
-            return <li key={session.id || session._id}>
+            return <li key={session.id || session._id} data-current={Boolean(current)}>
               <span className="account-settings-device-icon"><Icon aria-hidden="true" /></span>
               <div className="account-settings-device-copy"><h3>{label}</h3><p>{session.ipAddress || session.ip || "IP unavailable"}</p><p>Signed in {dateTime(session.createdAt)}</p>
                 {current ? <span className="account-settings-current-device"><span aria-hidden="true" />This device</span> : <Button size="sm" variant="outline" onClick={() => { revoke.reset(); setDisconnect(session.id || session._id); }}><LogOut aria-hidden="true" />Sign out device</Button>}

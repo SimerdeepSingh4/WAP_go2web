@@ -55,11 +55,11 @@ export function CampaignRecipients({ campaign }) {
       </div>
       {recipients.length ? (
         <div className="max-h-80 overflow-auto rounded-md border">
-          <Table>
+          <Table className="recipient-comparison min-w-[380px]">
             <TableHeader className="sticky top-0 z-10 bg-muted">
               <TableRow>
                 <TableHead className="w-16">S.No</TableHead>
-                <TableHead>Phone number</TableHead>
+                <TableHead className="recipient-phone">Phone number</TableHead>
                 {hasPublishedReport && <TableHead>Status</TableHead>}
               </TableRow>
             </TableHeader>
@@ -69,7 +69,7 @@ export function CampaignRecipients({ campaign }) {
                 return (
                   <TableRow key={`${recipient.phoneNumber}-${index}`}>
                     <TableCell className="tabular-nums text-muted-foreground">{index + 1}</TableCell>
-                    <TableCell className="font-mono text-xs">{recipient.phoneNumber || "—"}</TableCell>
+                    <TableCell className="recipient-phone font-mono text-xs">{recipient.phoneNumber || "—"}</TableCell>
                     <TableCell className="text-xs">{labels[reportStatus] || "—"}</TableCell>
                   </TableRow>
                 );

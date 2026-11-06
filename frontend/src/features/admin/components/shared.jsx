@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useId, useState } from "react";
+import MobileTableRows from "@/components/dashboard/MobileTableRows";
+import "@/components/dashboard/responsive-table.css";
 import { Search, Inbox, RefreshCw, ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -72,19 +74,46 @@ export function FormError({ message }) {
 }
 
 export function Pager({ page, totalPages, total, onChange, disabled }) {
-  return <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 text-xs text-muted-foreground"><span>{total} record{total === 1 ? "" : "s"}</span><nav aria-label="Table pagination" className="flex items-center gap-3"><span>Page {page} of {Math.max(1, totalPages)}</span><Button variant="outline" size="icon-sm" aria-label="Previous page" disabled={disabled || page <= 1} onClick={() => onChange(page - 1)}><ChevronLeft /></Button><Button variant="outline" size="icon-sm" aria-label="Next page" disabled={disabled || page >= totalPages} onClick={() => onChange(page + 1)}><ChevronRight /></Button></nav></div>;
+  return <div className="responsive-table-pager flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 text-xs text-muted-foreground"><span>{total} record{total === 1 ? "" : "s"}</span><nav aria-label="Table pagination" className="flex items-center gap-3"><span>Page {page} of {Math.max(1, totalPages)}</span><Button variant="outline" size="icon-sm" aria-label="Previous page" disabled={disabled || page <= 1} onClick={() => onChange(page - 1)}><ChevronLeft /></Button><Button variant="outline" size="icon-sm" aria-label="Next page" disabled={disabled || page >= totalPages} onClick={() => onChange(page + 1)}><ChevronRight /></Button></nav></div>;
 }
 
 // Lists currently arrive unpaginated from the API; paginate and sort the complete result.
-export function DataTable({ rows, columns, emptyTitle = "No matching records", pageSize = 10, caption, paginated = true }) {
+export function DataTable({ rows, columns, emptyTitle = "No matching records", pageSize = 10, caption, paginated = true, mobile }) {
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState(null);
-  const sorted = sort ? [...rows].sort((a, b) => {
-    const column = columns.find((item) => item.key === sort.key);
-    const left = column.sort(a), right = column.sort(b);
+  const sortId = useId();
+  const sortColumn = columns.find((column) => column.key === sort?.key && column.sort);
+  const sorted = sortColumn ? [...rows].sort((a, b) => {
+    const left = sortColumn.sort(a), right = sortColumn.sort(b);
     return (typeof left === "number" ? left - right : String(left).localeCompare(String(right))) * sort.direction;
   }) : rows;
   const pages = Math.max(1, Math.ceil(rows.length / pageSize));
   const current = Math.min(page, pages);
-  return <div data-tour="records" className="min-w-0 overflow-hidden rounded-lg border bg-card"><div className="max-w-full overflow-x-auto" role="region" aria-label={caption} tabIndex={0}><Table><caption className="sr-only">{caption}</caption><TableHeader><TableRow className="bg-muted/60 hover:bg-muted/60">{columns.map((column) => <TableHead key={column.key} className={column.className} aria-sort={sort?.key === column.key ? sort.direction === 1 ? "ascending" : "descending" : undefined}>{column.sort ? <button className="inline-flex items-center gap-1.5 py-3 text-xs font-medium" onClick={() => { setSort({ key: column.key, direction: sort?.key === column.key ? -sort.direction : 1 }); setPage(1); }}>{column.label}<ArrowUpDown className="size-3" aria-hidden="true" /></button> : column.label}</TableHead>)}</TableRow></TableHeader><TableBody>{(paginated ? sorted.slice((current - 1) * pageSize, current * pageSize) : sorted).map((row) => <TableRow key={row._id}>{columns.map((column) => <TableCell key={column.key} className={`py-3.5 ${column.className || ""}`}>{column.render(row)}</TableCell>)}</TableRow>)}</TableBody></Table></div>{!rows.length && <Empty className="py-10"><EmptyHeader><EmptyTitle>{emptyTitle}</EmptyTitle><EmptyDescription>Try another search or clear the filters.</EmptyDescription></EmptyHeader></Empty>}{paginated && <Pager page={current} totalPages={pages} total={rows.length} onChange={setPage} />}</div>;
+  const visibleRows = paginated ? sorted.slice((current - 1) * pageSize, current * pageSize) : sorted;
+  const sortable = columns.filter((column) => column.sort);
+  function changeSort(key) {
+    setSort(key ? { key, direction: sort?.key === key ? -sort.direction : 1 } : null);
+    setPage(1);
+  }
+  return <div data-tour="records" className="responsive-data-table min-w-0 overflow-hidden rounded-lg border bg-card">
+    {rows.length > 0 && sortable.length > 0 && <div className="mobile-table-sort">
+      <label htmlFor={sortId}>Sort by</label>
+      <select id={sortId} value={sortColumn?.key || ""} onChange={(event) => { setSort(event.target.value ? { key: event.target.value, direction: 1 } : null); setPage(1); }}>
+        <option value="">Original order</option>
+        {sortable.map((column) => <option key={column.key} value={column.key}>{column.mobileLabel || (typeof column.label === "string" ? column.label : column.key)}</option>)}
+      </select>
+      {sortColumn && <Button type="button" variant="outline" size="sm" onClick={() => changeSort(sortColumn.key)} aria-label={`Sort ${sortColumn.mobileLabel || sortColumn.key} ${sort.direction === 1 ? "descending" : "ascending"}`}><ArrowUpDown aria-hidden="true" />{sort.direction === 1 ? "Ascending" : "Descending"}</Button>}
+    </div>}
+    <MobileTableRows rows={visibleRows} columns={columns} caption={caption} mobile={mobile} />
+    <div className="responsive-table-desktop max-w-full overflow-x-auto" role="region" aria-label={caption} tabIndex={0}>
+      <Table><caption className="sr-only">{caption}</caption>
+        <TableHeader><TableRow className="bg-muted/60 hover:bg-muted/60">{columns.map((column) => <TableHead key={column.key} className={column.className} aria-sort={sort?.key === column.key ? sort.direction === 1 ? "ascending" : "descending" : undefined}>
+          {column.sort ? <button className="inline-flex items-center gap-1.5 py-3 text-xs font-medium" onClick={() => changeSort(column.key)}>{column.label}<ArrowUpDown className="size-3" aria-hidden="true" /></button> : column.label}
+        </TableHead>)}</TableRow></TableHeader>
+        <TableBody>{visibleRows.map((row, index) => <TableRow key={row._id || row.id || row.rowNumber || index}>{columns.map((column) => <TableCell key={column.key} className={`py-3.5 ${column.className || ""}`}>{column.render(row)}</TableCell>)}</TableRow>)}</TableBody>
+      </Table>
+    </div>
+    {!rows.length && <Empty className="py-10"><EmptyHeader><EmptyTitle>{emptyTitle}</EmptyTitle><EmptyDescription>Try another search or clear the filters.</EmptyDescription></EmptyHeader></Empty>}
+    {paginated && <Pager page={current} totalPages={pages} total={rows.length} onChange={setPage} />}
+  </div>;
 }
