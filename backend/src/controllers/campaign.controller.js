@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import crypto from "node:crypto";
 import campaignModel from "../models/campaign.model.js";
 import userModel from "../models/user.model.js";
 import walletModel from "../models/wallet.model.js";
@@ -416,7 +417,13 @@ export const createCampaign = async (req, res) => {
                     buffers.map((buf) =>
                         new Promise((resolve, reject) => {
                             const uploadStream = cloudinary.uploader.upload_stream(
-                                { folder: `${field}s` },
+                                {
+                                    folder: `${field}s`,
+                                    resource_type: field === "documents" ? "raw" : field === "images" ? "image" : "video",
+                                    public_id: field === "documents" ? `${crypto.randomUUID()}.pdf` : crypto.randomUUID(),
+                                    use_filename: false,
+                                    overwrite: false,
+                                },
                                 (error, result) => {
                                     if (error) reject(error);
                                     else resolve(result.secure_url);
@@ -433,8 +440,8 @@ export const createCampaign = async (req, res) => {
                 fs.mkdirSync(localDir, { recursive: true });
                 const uploads = await Promise.all(
                     buffers.map((buf, idx) => {
-                        const originalName = fileList[idx].originalname;
-                        const filename = `${Date.now()}_${originalName}`;
+                        const extension = field === "images" ? "webp" : fileList[idx].detectedType.ext;
+                        const filename = `${crypto.randomUUID()}.${extension}`;
                         const filepath = path.join(localDir, filename);
                         fs.writeFileSync(filepath, buf);
                         return `/uploads/${field}s/${filename}`;

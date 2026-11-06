@@ -22,6 +22,7 @@ import { useResellerQuery } from "../hooks/useReseller";
 import { PageHeading, QueryState, FilterSelect, DataTable, Pager } from "@/features/admin/components/shared";
 import ResellerActionForm from "../components/ResellerActionForm";
 import { dateTime, number, ownerName } from "@/features/admin/lib/format";
+import "./reseller-credits.css";
 
 /**
  * Reseller Transaction Display:
@@ -120,6 +121,11 @@ export default function ResellerCredits({ activity = false }) {
   const transactionAccounts = accounts.filter((account) => String(account.createdBy?._id || account.createdBy) === String(ownId));
   const isWalletLocked = Boolean(myBalance.data?.wallet?.isLocked);
   const stats = overviewQuery.data?.stats;
+  const transactions = ledger.data?.transactions || [];
+  const canAllocateRequest = (transaction) => transaction.type === "REQUEST" &&
+    Boolean(transaction.toUser?._id || transaction.toUser) &&
+    String(transaction.toUser?._id || transaction.toUser) !== String(ownId);
+  const hasRequestActions = transactions.some(canAllocateRequest);
 
   function update(key, value) {
     setParams(
@@ -134,24 +140,22 @@ export default function ResellerCredits({ activity = false }) {
   }
 
   const columns = [
-    {key:"actions",label:"Action",render:t => t.type === "REQUEST" && String(t.toUser?._id || t.toUser) !== String(ownId) ? <Button size="sm" variant="outline" nativeButton={false} render={<Link to={`/reseller/credits?allocate=${t.toUser?._id || t.toUser}&amount=${t.amount}`} />}>Allocate credits</Button> : null},
-    { key: "transactionId", label: "Transaction ID", render: transaction => <TransactionReference transaction={transaction} /> },
     {
-      key: "date",
-      label: "Date",
-      render: (t) => (
-        <span className="text-xs text-muted-foreground">{dateTime(t.createdAt)}</span>
-      ),
+      key: "transactionId",
+      label: "Transaction",
+      className: "reseller-ledger-col-reference",
+      render: (transaction) => <div className="reseller-ledger-reference"><TransactionReference transaction={transaction} /><span className="reseller-ledger-date">{dateTime(transaction.createdAt)}</span></div>,
     },
     {
       key: "type",
       label: "Type",
+      className: "reseller-ledger-col-type",
       render: (t) => {
         const info = getTransactionDisplay(t);
         const Icon = info.icon;
         return (
           <span
-            className={`inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-medium border ${info.badgeClass}`}
+            className={`reseller-ledger-badge inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-medium border ${info.badgeClass}`}
           >
             <Icon className="size-3 shrink-0" />
             {info.label}
@@ -162,9 +166,10 @@ export default function ResellerCredits({ activity = false }) {
     {
       key: "from",
       label: "From",
+      className: "reseller-ledger-col-account",
       render: (t) =>
         t.fromUser ? (
-          <span className="text-xs font-medium">{ownerName(t.fromUser)}</span>
+          <span className="reseller-ledger-account text-xs font-medium" title={ownerName(t.fromUser)}>{ownerName(t.fromUser)}</span>
         ) : (
           <span className="text-xs font-medium text-muted-foreground">Super Admin</span>
         ),
@@ -172,12 +177,13 @@ export default function ResellerCredits({ activity = false }) {
     {
       key: "to",
       label: "To",
-      render: (t) => <span className="text-xs font-medium">{ownerName(t.toUser)}</span>,
+      className: "reseller-ledger-col-account",
+      render: (t) => <span className="reseller-ledger-account text-xs font-medium" title={ownerName(t.toUser)}>{ownerName(t.toUser)}</span>,
     },
     {
       key: "amount",
       label: "Credits",
-      className: "text-right",
+      className: "reseller-ledger-col-amount text-right",
       render: (t) => {
         const info = getTransactionDisplay(t);
         return (
@@ -190,19 +196,35 @@ export default function ResellerCredits({ activity = false }) {
     {
       key: "actor",
       label: "By",
+      className: "reseller-ledger-col-actor",
       render: (t) => (
-        <span className="text-xs text-muted-foreground">{ownerName(t.performedBy)}</span>
+        <span className="reseller-ledger-account text-xs text-muted-foreground" title={ownerName(t.performedBy)}>{ownerName(t.performedBy)}</span>
       ),
     },
     {
       key: "note",
       label: "Note",
+      className: "reseller-ledger-col-note",
       render: (t) => (
-        <span className="block max-w-64 whitespace-normal break-words text-xs text-muted-foreground">
+        <span className="reseller-ledger-note text-xs text-muted-foreground" title={t.notes || undefined}>
           {t.notes || "—"}
         </span>
       ),
     },
+    ...(hasRequestActions ? [{
+      key: "actions",
+      label: "Action",
+      className: "reseller-ledger-col-action text-right",
+      render: (transaction) => canAllocateRequest(transaction) ? (
+        <Button size="sm" variant="outline" nativeButton={false}
+          className="reseller-ledger-allocate"
+          disabled={signedInUser?.isPreview || isWalletLocked}
+          aria-label={`Allocate credits to ${ownerName(transaction.toUser)}`}
+          render={<Link to={`/reseller/credits?${new URLSearchParams({ allocate: String(transaction.toUser?._id || transaction.toUser), amount: String(transaction.amount) })}`} />}>
+          <Plus className="size-3.5" aria-hidden="true" />Allocate
+        </Button>
+      ) : <span className="text-muted-foreground/50" aria-label="No action available">—</span>,
+    }] : []),
   ];
 
   return (
@@ -360,9 +382,11 @@ export default function ResellerCredits({ activity = false }) {
       )}
 
       {/* Transaction Filter Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-        <h2 className="text-sm font-semibold text-foreground">Transaction History</h2>
-        <div className="flex flex-wrap items-center gap-2">
+      <section className="reseller-credit-history" aria-labelledby="reseller-transactions-title">
+      <div className="reseller-ledger-toolbar">
+        <div className="reseller-ledger-heading"><h2 id="reseller-transactions-title" className="text-sm font-semibold text-foreground">Transaction history</h2><p>Transfers, credit requests and campaign usage.</p></div>
+        <div className="reseller-ledger-filters">
+          <div className="reseller-ledger-type-filter">
           <FilterSelect
             label="Transaction type"
             value={type}
@@ -376,6 +400,8 @@ export default function ResellerCredits({ activity = false }) {
               { value: "RECLAIM", label: "Reclaimed Credits" },
             ]}
           />
+          </div>
+          <div className="reseller-ledger-account-filter">
           <FilterSelect
             label="Filter by account"
             accountSearch={{ purpose: "credits" }}
@@ -388,6 +414,7 @@ export default function ResellerCredits({ activity = false }) {
               ...transactionAccounts.map((a) => ({ value: a._id, label: a.username })),
             ]}
           />
+          </div>
 
           {(type !== "all" || account !== "all") && (
             <Button
@@ -417,12 +444,13 @@ export default function ResellerCredits({ activity = false }) {
 
       {transactionId && <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm"><span>Showing selected transaction</span><button type="button" className="font-medium text-indigo-700 underline" onClick={() => setParams((previous) => { const next = new URLSearchParams(previous); next.delete("transaction"); next.delete("page"); return next; }, { replace: true })}>View all transactions</button></div>}
       <QueryState query={ledger}>
-        <div>
+        <div className="reseller-ledger" data-request-actions={hasRequestActions}>
           <DataTable
             caption="Credit transaction history"
             paginated={false}
-            rows={ledger.data?.transactions || []}
+            rows={transactions}
             columns={columns}
+            mobile={{ primary: "transactionId", secondary: "to", featured: ["amount", "type"] }}
             emptyTitle="No transactions found"
             emptyDescription="Transactions will appear here when credits are allocated or campaigns are dispatched."
           />
@@ -435,6 +463,7 @@ export default function ResellerCredits({ activity = false }) {
           />
         </div>
       </QueryState>
+      </section>
 
       {!activity && accountsQuery.isSuccess && !accounts.length && (
         <p className="text-sm text-muted-foreground">

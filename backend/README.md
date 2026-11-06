@@ -12,7 +12,7 @@ Welcome to the backend documentation for the **WAP_go2web** platform. This serve
 ## 🚀 How to Run the Backend (Step-by-Step)
 
 ### Prerequisites
-Make sure [Node.js](https://nodejs.org/) (version 18 or newer) is installed on your computer.
+Make sure [Node.js](https://nodejs.org/) (version 22 or newer) is installed on your computer.
 
 ### Steps:
 1. Open your terminal.

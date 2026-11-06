@@ -28,7 +28,7 @@ const campaignRouter = Router();
 
 campaignRouter.use(protect);
 
-campaignRouter.post("/", uploadFiles, blockInPreviewMode("Campaign creation"), creditRequest, createCampaign);
+campaignRouter.post("/", blockInPreviewMode("Campaign creation"), uploadFiles, creditRequest, createCampaign);
 campaignRouter.get("/", getCampaigns);
 campaignRouter.get("/:id/recipient-report", downloadRecipientReport);
 campaignRouter.get("/:id/export-recipients", exportCampaignRecipients);

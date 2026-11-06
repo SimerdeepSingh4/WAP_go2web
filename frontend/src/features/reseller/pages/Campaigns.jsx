@@ -3,16 +3,13 @@ import { useState } from "react";
 import { useSearchParams, Link } from "react-router";
 import {
   MoreHorizontal,
-  Eye,
   FileText,
-  Megaphone,
-  Clock,
-  CheckCircle,
   RefreshCw,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -27,7 +24,7 @@ import {
   DataTable,
   StatusBadge,
 } from "@/features/admin/components/shared";
-import { useResellerQuery } from "../hooks/useReseller";
+import { useResellerQuery, useResellerMutation } from "../hooks/useReseller";
 import {
   number,
   dateTime,
@@ -43,6 +40,8 @@ import UserAvatar from "@/components/dashboard/UserAvatar";
 export default function ResellerCampaigns({ reports = false }) {
   const query = useResellerQuery("campaigns");
   const [params, setParams] = useSearchParams();
+  const [campaignToDelete, setCampaignToDelete] = useState(null);
+  const deleteMutation = useResellerMutation("deleteCampaign", "Campaign deleted successfully", () => setCampaignToDelete(null));
   const search = params.get("search") || "";
   const status = params.get("status") || "all";
   const selected = params.get("campaign");
@@ -60,12 +59,6 @@ export default function ResellerCampaigns({ reports = false }) {
 
   const all = query.data?.data || [];
 
-  // Metrics counts
-  const totalCount = all.length;
-  const pendingCount = all.filter(waiting).length;
-  const ongoingCount = all.filter((c) => c.status === "ongoing").length;
-  const completedCount = all.filter((c) => ["completed", "sent"].includes(c.status)).length;
-
   const rows = all.filter((c) => {
     const matches = `${c.campaignTitle} CMP-${c._id} ${ownerName(c.userId)} ${c.userId?.email || ""}`
       .toLowerCase()
@@ -81,15 +74,6 @@ export default function ResellerCampaigns({ reports = false }) {
         : c.status === status || (status === "completed" && c.status === "sent"));
     return matches && matchesStatus;
   });
-
-  const open = (campaign, report = false) =>
-    setParams((current) => {
-      const next = new URLSearchParams(current);
-      next.set("campaign", campaign._id);
-      if (report) next.set("editReport", "1");
-      else next.delete("editReport");
-      return next;
-    });
 
   const columns = [
     { key: "campaignId", label: "Campaign ID", render: campaign => <CampaignReference campaign={campaign} compact /> },

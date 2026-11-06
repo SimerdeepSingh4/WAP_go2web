@@ -270,6 +270,7 @@ export async function logout(req, res) {
             const session = await sessionModel.findOne({ tokenHash });
             if (session) {
                 await sessionModel.deleteOne({ _id: session._id });
+                notifySession(session._id.toString(), "SESSION_EXPIRED", { reason: "You have signed out." });
                 notifyUser(session.userId.toString(), "SESSIONS_CHANGED", { action: "logout", sessionId: session._id.toString() });
                 notifyRole("Super Admin", "SESSIONS_CHANGED", { action: "logout", sessionId: session._id.toString() });
             }
