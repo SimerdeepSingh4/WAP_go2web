@@ -1,3 +1,4 @@
+import TransactionReference from "@/components/dashboard/TransactionReference";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useSearchParams } from "react-router";
 import { useState } from "react";
@@ -132,6 +133,7 @@ export default function ResellerCredits({ activity = false }) {
   }
 
   const columns = [
+    { key: "transactionId", label: "Transaction ID", render: transaction => <TransactionReference transaction={transaction} /> },
     {
       key: "date",
       label: "Date",

@@ -1,6 +1,7 @@
 import { notificationHooks } from "../helpers/notification-hooks.js";
 import mongoose from "mongoose";
 import { messageTextFromHtml } from "../helpers/message.helper.js";
+import { campaignReference } from "../helpers/campaign-reference.js";
 
 const campaignSchema = new mongoose.Schema(
     {
@@ -381,10 +382,15 @@ const campaignSchema = new mongoose.Schema(
     },
     {
         timestamps: true,
+        toJSON: { virtuals: true },
+        toObject: { virtuals: true },
     }
 );
 
 campaignSchema.index({ userId: 1, createdAt: -1 });
+campaignSchema.virtual("campaignId").get(function () {
+    return campaignReference(this._id);
+});
 
 notificationHooks(campaignSchema, "campaign");
 

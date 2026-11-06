@@ -1,3 +1,4 @@
+import TransactionReference from "@/components/dashboard/TransactionReference";
 // src/features/user/pages/UserActivity.jsx
 import { useSearchParams } from "react-router";
 import { PageHeading, QueryState, DataTable, Pager } from "@/features/admin/components/shared";
@@ -14,6 +15,7 @@ export default function UserActivity() {
   const activity = useUserQuery("activity", { page, limit: 10 });
 
   const columns = [
+    { key: "transactionId", label: "Transaction ID", render: transaction => <TransactionReference transaction={transaction} /> },
     { key: "date", label: "Date", render: (a) => <span className="text-xs">{dateTime(a.createdAt)}</span> },
     { key: "action", label: "Action", render: (a) => a.type || a.action || "Activity" },
     { key: "detail", label: "Detail", render: (a) => a.notes || a.detail || (a.amount ? `${number(a.amount)} credits` : "—") },

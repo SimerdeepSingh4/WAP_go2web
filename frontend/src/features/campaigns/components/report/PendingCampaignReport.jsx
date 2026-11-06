@@ -1,3 +1,4 @@
+import CampaignReference from "@/components/dashboard/CampaignReference";
 ﻿import { Link } from "react-router";
 import { ArrowLeft, Check, Clock, FileBarChart2, RefreshCw, RotateCcw, Users, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ export default function PendingCampaignReport({ campaign, base, onRefresh, isRef
       <header className="space-y-2">
         <p className="text-xs text-muted-foreground">Campaign report</p>
         <div className="flex flex-wrap items-center gap-2.5">
-          <h1 className="min-w-0 break-words text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{campaign.campaignTitle}</h1>
+          <h1 className="min-w-0 break-words text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{campaign.campaignTitle}</h1><CampaignReference campaign={campaign} />
           <StatusBadge status={campaign.status} />
         </div>
         <p className="text-xs text-muted-foreground">Submitted {dateTime(campaign.createdAt)}</p>

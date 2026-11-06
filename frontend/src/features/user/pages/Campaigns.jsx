@@ -1,3 +1,4 @@
+import CampaignReference from "@/components/dashboard/CampaignReference";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { Plus, RefreshCw, MoreHorizontal, Eye, FileText, Trash2 } from "lucide-react";
@@ -24,12 +25,13 @@ export default function Campaigns() {
   const status = params.get("status") || "all";
   function update(key, value) { setParams(old => { const next = new URLSearchParams(old); value ? next.set(key, value) : next.delete(key); return next; }, { replace: true }); }
   const all = query.data?.data || [];
-  const rows = all.filter(c => (c.campaignTitle || "").toLowerCase().includes(search.toLowerCase()) && (status === "all" || c.status === status || (status === "completed" && c.status === "sent")));
+  const rows = all.filter(c => `${c.campaignTitle || ""} CMP-${c._id}`.toLowerCase().includes(search.toLowerCase()) && (status === "all" || c.status === status || (status === "completed" && c.status === "sent")));
   return <>
     <PageHeading title="Campaigns" description="Your submissions and reported results." action={<Button nativeButton={false} render={<Link to="/user/campaigns/create" />}><Plus />Create campaign</Button>} />
     <div className="flex flex-wrap items-center justify-between gap-3"><SearchBox value={search} onChange={v => update("search", v)} label="Search campaigns" /><div className="flex flex-wrap gap-2"><FilterSelect label="Campaign status" value={status} onChange={v => update("status", v)} options={[{ value: "all", label: "All statuses" }, ...["pending", "scheduled", "ongoing", "completed", "stopped", "failed"].map(value => ({ value, label: statusLabels[value] }))]} /><Button variant="outline" disabled={query.isFetching} onClick={() => query.refetch()}><RefreshCw />Refresh</Button></div></div>
     <QueryState query={query} empty={!all.length} emptyTitle="No campaigns yet" emptyDescription="Create a campaign to submit your first message for review.">
       <DataTable key={`${search}-${status}`} caption="Your campaigns" rows={rows} columns={[
+        { key: "campaignId", label: "Campaign ID", render: campaign => <CampaignReference campaign={campaign} compact /> },
         { key: "title", label: "Campaign", sort: c => c.campaignTitle, render: c => <Link to={`/user/campaigns/${c._id}`} className="text-left font-medium hover:underline max-w-72 whitespace-normal break-words block">{c.campaignTitle}</Link> },
         { key: "recipients", label: "Recipients", className: "text-right", sort: c => c.totalRecipients, render: c => number(c.totalRecipients) },
         { key: "status", label: "Status", render: c => <StatusBadge status={c.status} /> },

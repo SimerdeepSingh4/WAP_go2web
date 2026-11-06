@@ -1,3 +1,4 @@
+import CampaignReference from "@/components/dashboard/CampaignReference";
 import { Link, useNavigate } from "react-router";
 import { useState, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -322,7 +323,7 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
           <div className="flex flex-wrap items-center gap-2.5">
             <h1 className="min-w-0 text-xl font-semibold tracking-tight text-foreground break-words sm:text-2xl">
               {campaign.campaignTitle}
-            </h1>
+            </h1><CampaignReference campaign={campaign} />
           </div>
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-2"><UserAvatar user={campaign.userId} className="size-7" />{ownerName(campaign.userId)}</span>

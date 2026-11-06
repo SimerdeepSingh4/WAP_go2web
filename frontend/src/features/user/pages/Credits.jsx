@@ -1,3 +1,4 @@
+import TransactionReference from "@/components/dashboard/TransactionReference";
 import { useSearchParams } from "react-router";
 import { useState } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -26,6 +27,7 @@ export default function UserCredits({ activity = false }) {
   const request = useUserMutation("requestCredits", "Credit request submitted", () => { update("request", ""); setAmount(""); setNote(""); setReview(false); });
   const accountId = user?.id || user?._id;
   const columns = [
+    { key: "transactionId", label: "Transaction ID", render: transaction => <TransactionReference transaction={transaction} /> },
     { key: "date", label: "Date", render: t => dateTime(t.createdAt) },
     { key: "type", label: "Type", render: t => labels[t.type] || t.type },
     { key: "account", label: "Account", render: t => ownerName(t.fromUser || t.toUser) },

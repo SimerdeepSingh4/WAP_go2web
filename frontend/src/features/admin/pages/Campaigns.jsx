@@ -1,3 +1,4 @@
+import CampaignReference from "@/components/dashboard/CampaignReference";
 import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { useSearchParams, Link } from "react-router";
@@ -86,7 +87,7 @@ export default function Campaigns({ reports = false }) {
   const needsReportCount = datedCampaigns.filter(needsReport).length;
 
   const rows = datedCampaigns.filter((c) => {
-    const matches = `${c.campaignTitle} ${ownerName(c.userId)} ${c.userId?.email || ""}`
+    const matches = `${c.campaignTitle} CMP-${c._id} ${ownerName(c.userId)} ${c.userId?.email || ""}`
       .toLowerCase()
       .includes(search.toLowerCase());
     const matchesStatus =
@@ -102,6 +103,7 @@ export default function Campaigns({ reports = false }) {
   });
 
   const columns = [
+    { key: "campaignId", label: "Campaign ID", render: campaign => <CampaignReference campaign={campaign} compact /> },
     {
       key: "title",
       label: "Campaign",

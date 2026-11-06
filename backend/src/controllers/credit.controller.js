@@ -6,6 +6,7 @@ import transactionModel from "../models/transaction.model.js";
 import userModel from "../models/user.model.js";
 import { creditAmount as normalizeCreditAmount, creditsForCount, creditTransactionOptions } from "../helpers/credit-amount.js";
 import { startCreditSession, saveCreditReceipt } from "../helpers/credit-operation.js";
+import { transactionObjectId } from "../helpers/transaction-reference.js";
 
 /**
  * GET /api/credits/balance
@@ -325,7 +326,7 @@ export async function allocateCredits(req, res) {
             { session: mongoSession }
         );
 
-        await saveCreditReceipt(req, mongoSession, 200, { success: true, message: "Credit allocation processed.", transaction: { id: transaction[0]._id, amount: creditAmount, toUser: { id: toUser._id, username: toUser.username, role: toUser.role }, balanceAfterFrom, balanceAfterTo } });
+        await saveCreditReceipt(req, mongoSession, 200, { success: true, message: "Credit allocation processed.", transaction: { id: transaction[0]._id, transactionId: transaction[0].transactionId, amount: creditAmount, toUser: { id: toUser._id, username: toUser.username, role: toUser.role }, balanceAfterFrom, balanceAfterTo } });
         await mongoSession.commitTransaction();
         mongoSession.endSession();
 
@@ -349,7 +350,7 @@ export async function allocateCredits(req, res) {
             success: true,
             message: `Successfully allocated ${creditAmount} credits to ${toUser.username}.`,
             transaction: {
-                id: transaction[0]._id,
+                id: transaction[0]._id, transactionId: transaction[0].transactionId,
                 amount: creditAmount,
                 toUser: {
                     id: toUser._id,
@@ -554,7 +555,7 @@ export async function reclaimCredits(req, res) {
             { session: mongoSession }
         );
 
-        await saveCreditReceipt(req, mongoSession, 200, { success: true, message: "Credit reclaim processed.", transaction: { id: transaction[0]._id, amount: reclaimAmount, fromUser: { id: fromUser._id, username: fromUser.username, role: fromUser.role }, balanceAfterFrom, balanceAfterTo } });
+        await saveCreditReceipt(req, mongoSession, 200, { success: true, message: "Credit reclaim processed.", transaction: { id: transaction[0]._id, transactionId: transaction[0].transactionId, amount: reclaimAmount, fromUser: { id: fromUser._id, username: fromUser.username, role: fromUser.role }, balanceAfterFrom, balanceAfterTo } });
         await mongoSession.commitTransaction();
         mongoSession.endSession();
 
@@ -562,7 +563,7 @@ export async function reclaimCredits(req, res) {
             success: true,
             message: `Successfully reclaimed ${reclaimAmount} credits from ${fromUser.username}.`,
             transaction: {
-                id: transaction[0]._id,
+                id: transaction[0]._id, transactionId: transaction[0].transactionId,
                 amount: reclaimAmount,
                 fromUser: {
                     id: fromUser._id,
@@ -718,7 +719,7 @@ export async function deductCredits(req, res) {
         }
 
         // Audit log
-        await transactionModel.create(
+        const transaction = await transactionModel.create(
             [
                 {
                     fromUser: userId,
@@ -737,7 +738,7 @@ export async function deductCredits(req, res) {
             { session: mongoSession }
         );
 
-        await saveCreditReceipt(req, mongoSession, 200, { success: true, message: "Credit deduction processed.", deduction: { amount: deductionAmount, remainingBalance: wallet.balance, messageCount: count, ratePerMsg: targetUser.ratePerMsg } });
+        await saveCreditReceipt(req, mongoSession, 200, { success: true, message: "Credit deduction processed.", deduction: { transactionId: transaction[0].transactionId, amount: deductionAmount, remainingBalance: wallet.balance, messageCount: count, ratePerMsg: targetUser.ratePerMsg } });
         await mongoSession.commitTransaction();
         mongoSession.endSession();
 
@@ -745,6 +746,7 @@ export async function deductCredits(req, res) {
             success: true,
             message: `Deducted ${deductionAmount} credits${amount !== undefined && amount !== null ? '' : ` for ${count} message(s)`}.`,
             deduction: {
+                transactionId: transaction[0].transactionId,
                 amount: deductionAmount,
                 // If amount directly supplied, messageCount is not applicable
                 messageCount: amount !== undefined && amount !== null ? null : count,
@@ -791,8 +793,9 @@ export async function getTransactions(req, res) {
         const filter = {};
 
         if (req.query.transactionId) {
-            if (!mongoose.isValidObjectId(req.query.transactionId)) return res.status(400).json({ success: false, message: "Invalid transaction reference." });
-            filter._id = req.query.transactionId;
+            const id = transactionObjectId(req.query.transactionId);
+            if (!id) return res.status(400).json({ success: false, message: "Invalid transaction reference." });
+            filter._id = id;
         }
 
         // Type filter

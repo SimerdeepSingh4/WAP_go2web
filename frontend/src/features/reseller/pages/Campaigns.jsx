@@ -1,3 +1,4 @@
+import CampaignReference from "@/components/dashboard/CampaignReference";
 import { useState } from "react";
 import { useSearchParams, Link } from "react-router";
 import {
@@ -66,7 +67,7 @@ export default function ResellerCampaigns({ reports = false }) {
   const completedCount = all.filter((c) => ["completed", "sent"].includes(c.status)).length;
 
   const rows = all.filter((c) => {
-    const matches = `${c.campaignTitle} ${ownerName(c.userId)} ${c.userId?.email || ""}`
+    const matches = `${c.campaignTitle} CMP-${c._id} ${ownerName(c.userId)} ${c.userId?.email || ""}`
       .toLowerCase()
       .includes(search.toLowerCase());
     const matchesStatus =
@@ -91,6 +92,7 @@ export default function ResellerCampaigns({ reports = false }) {
     });
 
   const columns = [
+    { key: "campaignId", label: "Campaign ID", render: campaign => <CampaignReference campaign={campaign} compact /> },
     {
       key: "title",
       label: "Campaign",

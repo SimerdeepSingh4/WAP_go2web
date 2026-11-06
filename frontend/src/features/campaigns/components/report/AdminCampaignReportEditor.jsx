@@ -1,3 +1,4 @@
+import CampaignReference from "@/components/dashboard/CampaignReference";
 ﻿import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -62,7 +63,7 @@ export default function AdminCampaignReportEditor({ campaign, base, onRefresh, i
       <header data-tour="report-review-header" className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 space-y-1.5">
           <p className="text-xs text-muted-foreground">Review report</p>
-          <h1 className="break-words text-xl font-semibold tracking-tight">{campaign.campaignTitle}</h1>
+          <h1 className="break-words text-xl font-semibold tracking-tight">{campaign.campaignTitle}</h1><CampaignReference campaign={campaign} />
           <p className="inline-flex items-center gap-2 text-xs text-muted-foreground"><UserAvatar user={campaign.userId} className="size-7" />{ownerName(campaign.userId)}{publishedAt ? ` | Last published ${dateTime(publishedAt)}` : " | Not published"}</p>
         </div>
         <div className="flex flex-wrap gap-2">

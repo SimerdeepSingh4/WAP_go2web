@@ -1,3 +1,4 @@
+import CampaignReference from "@/components/dashboard/CampaignReference";
 import { useDeferredValue, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, Check, CheckCircle2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, FileSpreadsheet, Filter, Loader2, RotateCcw, Search, ShieldCheck, Users, Wallet, X } from "lucide-react";
@@ -84,7 +85,7 @@ export default function PublishedSpreadsheetReport({ campaign, base, isAdmin, em
         </nav>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0 space-y-2">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2"><h1 className="min-w-0 break-words text-xl font-semibold leading-tight tracking-tight text-foreground sm:text-2xl">{campaign.campaignTitle}</h1><StatusBadge status={campaign.status} /></div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2"><h1 className="min-w-0 break-words text-xl font-semibold leading-tight tracking-tight text-foreground sm:text-2xl">{campaign.campaignTitle}</h1><CampaignReference campaign={campaign} /><StatusBadge status={campaign.status} /></div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground"><span>Published {dateTime(sheet.publishedAt)}</span><span className="hidden h-3 border-l border-border sm:block" aria-hidden="true" /><span>{number(overview.total)} recipients</span></div>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">

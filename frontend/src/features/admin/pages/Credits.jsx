@@ -1,3 +1,4 @@
+import TransactionReference from "@/components/dashboard/TransactionReference";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import {
@@ -157,6 +158,7 @@ export default function Credits({ activity = false }) {
 
   // Columns for the Transaction History Table
   const transactionColumns = [
+    { key: "transactionId", label: "Transaction ID", render: transaction => <TransactionReference transaction={transaction} /> },
     {
       key: "date",
       label: "Date",

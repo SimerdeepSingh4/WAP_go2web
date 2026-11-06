@@ -2,6 +2,8 @@ import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { DataTable, QueryState, StatusBadge } from "@/features/admin/components/shared";
 import { dateTime, number, ownerName } from "@/features/admin/lib/format";
+import TransactionReference from "./TransactionReference";
+import CampaignReference from "./CampaignReference";
 
 export function Summary({ items }) {
   return <dl className="dashboard-summary">{items.map(({ label, value, hint, credit }) => <div className="dashboard-stat" data-credit={credit || undefined} key={label}><dt>{label}</dt><dd>{value}</dd>{hint && <p>{hint}</p>}</div>)}</dl>;
@@ -15,6 +17,7 @@ export function RecentCampaigns({ query, base, pendingOnly = false, showOwner = 
     <div className="dashboard-section-heading"><h2>{title}</h2><Button variant="outline" size="sm" nativeButton={false} render={<Link to={`${base}/campaigns${pendingOnly ? "?status=pending" : ""}`} />}>View all</Button></div>
     <QueryState query={query} empty={!rows.length} emptyTitle={pendingOnly ? "No campaigns awaiting review" : "No campaigns yet"} emptyDescription={pendingOnly ? "New submissions will appear here." : "Submitted campaigns will appear here."}>
       <DataTable caption={title} rows={rows} paginated={false} columns={[
+        { key: "campaignId", label: "Campaign ID", render: campaign => <CampaignReference campaign={campaign} compact /> },
         { key: "name", label: "Campaign", render: c => <div className="min-w-28 max-w-96 whitespace-normal break-words"><Link className="font-medium hover:underline" to={`${base}/campaigns?campaign=${encodeURIComponent(c._id)}`}>{c.campaignTitle}</Link>{showOwner && <p className="mt-1 text-xs text-muted-foreground">{ownerName(c.userId)}</p>}<p className="mt-1 text-xs text-muted-foreground">{dateTime(c.createdAt)} · {number(c.totalRecipients)} recipients</p></div> },
         { key: "status", label: "Status", className: "text-right", render: c => <StatusBadge status={c.status} /> },
       ]} />
@@ -60,6 +63,7 @@ export function RecentTransactions({ query, base }) {
           rows={rows}
           paginated={false}
           columns={[
+            { key: "transactionId", label: "Transaction ID", render: transaction => <TransactionReference transaction={transaction} /> },
             {
               key: "date",
               label: "Date",

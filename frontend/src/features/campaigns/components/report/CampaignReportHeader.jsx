@@ -1,3 +1,4 @@
+import CampaignReference from "@/components/dashboard/CampaignReference";
 import { Link } from "react-router";
 import { ArrowLeft, Download, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,7 +33,7 @@ export default function CampaignReportHeader({
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-semibold tracking-tight text-foreground break-words">
               {campaign.campaignTitle}
-            </h1>
+            </h1><CampaignReference campaign={campaign} />
             <StatusBadge status={campaign.status} />
             {isPublished && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">

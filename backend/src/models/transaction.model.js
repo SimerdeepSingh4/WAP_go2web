@@ -1,6 +1,7 @@
 import { notificationHooks } from "../helpers/notification-hooks.js";
 import mongoose from "mongoose";
 import { ledgerAccountingHooks } from "../helpers/ledger-postings.js";
+import { transactionReference } from "../helpers/transaction-reference.js";
 
 /**
  * Transaction Model (Credit Audit Log)
@@ -82,8 +83,13 @@ const transactionSchema = new mongoose.Schema(
     },
     {
         timestamps: true,
+        toJSON: { virtuals: true },
     }
 );
+
+transactionSchema.virtual("transactionId").get(function () {
+    return transactionReference(this._id);
+});
 
 // Index for fast lookups: transactions involving a specific user
 transactionSchema.index({ fromUser: 1, createdAt: -1 });
