@@ -18,7 +18,6 @@ import helmet from "helmet";
 import notificationRouter from "./routes/notification.routes.js";
 import searchRouter from "./routes/search.routes.js";
 import enterpriseRouter from "./routes/enterprise.routes.js";
-import campaignWebhookRouter from "./routes/campaign-webhook.routes.js";
 import { auditRequestContext } from "./services/audit.service.js";
 
 const app = express();
@@ -51,8 +50,6 @@ app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 app.use(auditRequestContext);
-// Signature verification needs the original bytes, before JSON parsing.
-app.use("/api/webhooks/campaigns", campaignWebhookRouter);
 app.use(express.json({ limit: "50mb" }));
 app.use(morgan("dev"));
 app.use(express.urlencoded({ extended: true }));

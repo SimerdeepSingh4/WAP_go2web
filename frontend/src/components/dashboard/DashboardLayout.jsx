@@ -2,7 +2,7 @@ import NotificationBell from "@/features/notifications/NotificationBell";
 import GlobalSearch from "./GlobalSearch";
 import { useState } from "react";
 import { Link, NavLink, Navigate, Outlet, useLocation } from "react-router";
-import { LayoutDashboard, Megaphone, Users, Building2, Wallet, ReceiptText, Settings, LogOut, ChevronDown, PanelLeftClose, PanelLeftOpen, Bell } from "lucide-react";
+import { LayoutDashboard, Megaphone, Users, Building2, Wallet, ReceiptText, Settings, LogOut, ChevronDown, PanelLeftClose, PanelLeftOpen, Bell, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -24,6 +24,7 @@ const navigation = {
     ["Users", "/users", Users],
     ["Credits", "/credits", Wallet],
     ["Transactions", "/activity", ReceiptText],
+    ["Audit log", "/audit", ShieldCheck],
     ["Notifications", "/notifications", Bell],
     ["Settings", "/settings", Settings],
   ],

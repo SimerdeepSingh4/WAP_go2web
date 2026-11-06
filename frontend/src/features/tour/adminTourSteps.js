@@ -36,6 +36,11 @@ export const adminPageTours = {
     step('#dashboard-main button[aria-label^="Actions"]', "Campaign and report actions", "Open campaign details or its report from the row menu. Available actions depend on the campaign's state."),
   ]),
   resellers: accountsPage(true),
+  audit: page("audit", "Audit log", "Review the history of account, campaign, and credit changes.", [
+    step('[data-tour="audit-filters"]', "Find a change", "Search a name, email, action, or reference. Choose Record changes for saved edits, or Request activity to review access and requests."),
+    table("See when a change happened, who made it, and their IP address. Select View to compare the values before and after the change."),
+    step('.portal-page-heading', "Read-only history", "Audit records cannot be edited or deleted here. Open a record and choose Verify history to check for missing or altered entries."),
+  ]),
   users: accountsPage(false),
   credits: page("credits", "Credits and wallets", "Understand balances and manage credits for reseller and user accounts.", [
     step(target("credit-summary"), "Understand the totals", "The super admin sending pool is unlimited. Total credits given tracks network allocations; circulating balances are credits currently held in account wallets."),

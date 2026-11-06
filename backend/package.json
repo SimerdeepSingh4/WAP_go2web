@@ -31,7 +31,7 @@
     "notifications:setup": "node scripts/setup-notifications.js",
     "test:credits": "node --experimental-vm-modules --test test-credit-integrity.js test-campaign-approval.js test-campaign-refund-adjustments.js test-credit-visibility.js test-campaign-contacts.js",
     "credits:audit": "node scripts/audit-credit-ledger.js",
-    "test:enterprise": "node --test test-enterprise-workflows.js",
+    "test:enterprise": "node --test test-audit-trail.js",
     "audit:verify": "node scripts/verify-audit-trail.js",
     "audit:export": "node scripts/export-audit-trail.js"
   },

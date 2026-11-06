@@ -9,7 +9,7 @@ import { getTourKey, getTourStatus, setTourStatus, isTourDismissed } from "./tou
 test("each supported admin page resolves to its own guide", () => {
   const paths = {
     "/admin": "overview", "/admin/campaigns": "campaigns",
-    "/admin/resellers": "resellers",
+    "/admin/resellers": "resellers", "/admin/audit": "audit",
     "/admin/users": "users", "/admin/credits": "credits", "/admin/activity": "activity",
     "/admin/settings": "settings",
     "/admin/campaigns/123": "campaign-detail",

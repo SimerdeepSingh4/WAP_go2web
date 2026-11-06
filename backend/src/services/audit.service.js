@@ -57,7 +57,7 @@ export async function appendAudit({ stream, action, data, actor }, session = nul
     const record = {
         stream, sequence: (head?.sequence || 0) + 1, previousHash: head?.hash || "GENESIS",
         occurredAt: new Date(), action,
-        actor: actor || (req?.user ? { id: String(req.user._id), role: req.user.role, name: req.user.username, originalAdmin: req.originalAdmin || null, impersonation: Boolean(req.isImpersonation), preview: Boolean(req.isPreview) } : { role: "System" }),
+        actor: redactAudit(actor || (req?.user ? { id: String(req.user._id), role: req.user.role, name: req.user.username, originalAdmin: req.originalAdmin || null, impersonation: Boolean(req.isImpersonation), preview: Boolean(req.isPreview) } : { role: "System" })),
         request: req ? requestMetadata(req) : null, data: redactAudit(data), keyId: process.env.AUDIT_KEY_ID || "v1",
     };
     record.hash = auditHash(record);

@@ -45,6 +45,7 @@ Make sure you have [Node.js](https://nodejs.org/) installed on your computer.
    ```env
    MONGO_URI = mongodb+srv://...
    JWT_SECRET = your_secret_key_here
+   AUDIT_SIGNING_KEY = your_persistent_random_secret_at_least_32_bytes
    CLIENT_URL = http://localhost:5173
    ```
 5. Start the backend server:

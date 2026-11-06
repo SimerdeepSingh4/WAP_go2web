@@ -1065,7 +1065,7 @@ export const updateCampaignStatus = async (req, res) => {
         const session = await mongoose.startSession();
         let campaign;
         let previousStatus;
-        let refundInfo = null;
+        const refundInfo = null;
         try {
             await session.withTransaction(async () => {
                 campaign = await campaignModel.findById(id).session(session);

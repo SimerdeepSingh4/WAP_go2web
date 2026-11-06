@@ -4,7 +4,7 @@ import mongoose from "mongoose";
 // inside the campaign document (MongoDB has a 16 MB document limit).
 const chunkSchema = new mongoose.Schema({
     campaignId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: "Campaign" },
-    kind: { type: String, enum: ["draft", "published", "provider"], required: true },
+    kind: { type: String, enum: ["draft", "published"], required: true },
     chunkIndex: { type: Number, required: true },
     rows: { type: [mongoose.Schema.Types.Mixed], default: [] },
 });

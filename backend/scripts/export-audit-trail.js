@@ -25,7 +25,7 @@ try {
             await output({ type: "event", event });
         }
         if (head.sequence !== sequence || head.hash !== hash) throw new Error("Audit head does not match the stream");
-        const checkpoint = { stream, sequence, hash, exportedAt: new Date(), keyId: process.env.AUDIT_KEY_ID || "v1" };
+        const checkpoint = { stream, sequence, headHash: hash, exportedAt: new Date(), keyId: process.env.AUDIT_KEY_ID || "v1" };
         await output({ type: "checkpoint", checkpoint, signature: auditHash(checkpoint) });
         await session.commitTransaction();
     } finally { if (session.inTransaction()) await session.abortTransaction(); await session.endSession(); }

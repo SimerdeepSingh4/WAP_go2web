@@ -3,7 +3,6 @@ import config from "./config.js";
 import { ensureTransactionRefundIndex } from "./transaction-indexes.js";
 import CreditOperation from "../models/credit-operation.model.js";
 import { AuditEvent, AuditHead } from "../models/audit.model.js";
-import Workflow from "../models/campaign-workflow.model.js";
 import { auditSigningKey } from "../services/audit.service.js";
 
 async function connectToDB(){
@@ -13,7 +12,6 @@ async function connectToDB(){
     await CreditOperation.createIndexes();
     await AuditEvent.createIndexes();
     await AuditHead.createIndexes();
-    await Workflow.createIndexes();
     console.log("Connected to MongoDB")
 }
 

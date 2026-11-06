@@ -29,6 +29,7 @@ const AdminLayout = lazy(() => import("./features/admin/components/AdminLayout.j
 const AdminOverview = lazy(() => import("./features/admin/pages/Overview.jsx"));
 const AdminCampaigns = lazy(() => import("./features/admin/pages/Campaigns.jsx"));
 const Administrators = lazy(() => import("./features/admin/pages/Administrators.jsx"));
+const AdminAuditLog = lazy(() => import("./features/admin/pages/AuditLog.jsx"));
 const AdminAccounts = lazy(() => import("./features/admin/pages/Accounts.jsx"));
 const AdminCredits = lazy(() => import("./features/admin/pages/Credits.jsx"));
 const AdminOperatingRules = lazy(() => import("./features/admin/pages/OperatingRules.jsx"));
@@ -141,6 +142,7 @@ export const router = createBrowserRouter([
       { path: "contacts", element: <Navigate to="/admin" replace /> },
       { path: "reports", element: <Navigate to="/admin/campaigns?status=unreported" replace /> },
       { path: "administrators", element: <Administrators /> },
+      { path: "audit", element: <AdminAuditLog /> },
       { path: "resellers", element: <AdminAccounts key="resellers" role="Reseller" /> },
       { path: "users", element: <AdminAccounts key="users" role="User" /> },
       { path: "credits", element: <AdminCredits key="credits" /> },

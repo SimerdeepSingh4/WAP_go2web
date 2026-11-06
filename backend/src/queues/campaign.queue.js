@@ -8,7 +8,9 @@ import { redisConnection } from "../config/redis.js";
  * offloads dispatch processing from the main HTTP request loop.
  */
 export const campaignQueue = new Queue("campaignQueue", {
-    connection: redisConnection,
+    // Producers fail promptly during Redis outages; the MongoDB outbox retains
+    // work for recovery. Workers keep their required unlimited retry connection.
+    connection: { ...redisConnection, maxRetriesPerRequest: 1, enableOfflineQueue: false, connectTimeout: 5000 },
     defaultJobOptions: {
         attempts: 3,
         backoff: {
@@ -23,6 +25,7 @@ export const campaignQueue = new Queue("campaignQueue", {
         },
     },
 });
+campaignQueue.on?.("error", (error) => console.error("[BullMQ] Campaign queue unavailable:", error.message));
 
 /**
  * Enqueue a campaign for dispatch (either immediately or delayed).

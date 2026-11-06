@@ -4,7 +4,6 @@ import { initSocket } from "./src/services/socket.service.js";
 import { initCampaignWorker, closeCampaignWorker } from "./src/workers/campaign.worker.js";
 import { campaignQueue } from "./src/queues/campaign.queue.js";
 import { startNotificationWorker, closeNotificationWorker } from "./src/workers/notification.worker.js";
-import { startCampaignRecovery, closeCampaignRecovery } from "./src/workers/campaign-recovery.js";
 
 const PORT = process.env.PORT || 3000;
 const server = http.createServer(app);
@@ -15,7 +14,6 @@ await startNotificationWorker();
 
 // 2. Initialize BullMQ Campaign Worker
 initCampaignWorker();
-await startCampaignRecovery();
 
 server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
@@ -25,7 +23,6 @@ server.listen(PORT, () => {
 async function gracefulShutdown(signal) {
     console.log(`Received ${signal}. Shutting down gracefully...`);
     try {
-        await closeCampaignRecovery();
         await closeNotificationWorker();
         await closeCampaignWorker();
         await campaignQueue.close();

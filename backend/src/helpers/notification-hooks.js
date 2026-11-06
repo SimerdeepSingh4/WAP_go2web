@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { NotificationEvent } from "../models/notification.model.js";
 import { campaignPublicStatus } from "./campaign-visibility.js";
 import { auditModelChange } from "../services/audit.service.js";
-import { syncCampaignWorkflow } from "./campaign-workflow-outbox.js";
-import { auditQueryHooks, guardCampaignWorkflow } from "./audit-query-hooks.js";
+import { auditQueryHooks } from "./audit-query-hooks.js";
+import { creditTransactionOptions } from "./credit-amount.js";
 
 let sequenceCounter = Date.now();
 export function getNextNotificationSequence() {
@@ -45,13 +45,12 @@ export function notificationHooks(schema, kind) {
         if (kind === "transaction" ? !isNew : !isNew && !this.isModified()) { this.$locals.notificationEvent = null; return; }
         if (!this.$session()) {
             const session = await this.constructor.db.startSession();
-            session.startTransaction();
+            session.startTransaction(creditTransactionOptions);
             this.$session(session);
             this.$locals.notificationOwnedSession = session;
         }
         let previous;
         const auditBefore = isNew ? null : await this.constructor.findById(this._id).session(this.$session()).lean();
-        if (kind === "campaign" && auditBefore) await guardCampaignWorkflow(this, this.$session());
         if (!isNew && kind === "wallet") previous = await this.constructor.findById(this._id).select("balance expiresAt isLocked").session(this.$session()).lean();
         if (!isNew && kind === "campaign" && changes.includes("publishedSpreadsheet")) {
             const before = await this.constructor.findById(this._id).select("publishedSpreadsheet.publishedAt").session(this.$session()).lean();
@@ -63,7 +62,6 @@ export function notificationHooks(schema, kind) {
         const event = doc.$locals.notificationEvent;
         if (!event) return;
         await auditModelChange(kind, event.auditBefore, doc, doc.$session());
-        if (kind === "campaign") await syncCampaignWorkflow(doc, doc.$session());
         if (event.isNew) {
             await enqueue(doc, kind, null, true, null, doc.$session());
         } else {
@@ -92,7 +90,7 @@ export function notificationHooks(schema, kind) {
     schema.pre("findOneAndUpdate", async function () {
         if (!this.getOptions().session) {
             const session = await this.model.db.startSession();
-            session.startTransaction();
+            session.startTransaction(creditTransactionOptions);
             this.setOptions({ session });
             this.notificationOwnedSession = session;
         }

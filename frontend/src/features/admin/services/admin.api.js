@@ -3,6 +3,8 @@ import api from "@/api/client";
 const get = async (path, params, signal) => (await api.get(path, { params, signal })).data;
 
 export const adminQueries = {
+  audit: (params, signal) => get("/enterprise/audit", params, signal),
+  auditVerify: (params, signal) => get("/enterprise/audit/verify", params, signal),
   overview: (_, signal) => get("/dashboard/stats", undefined, signal),
   campaigns: (_, signal) => get("/campaigns", undefined, signal),
   campaign: ({ id }, signal) => get(`/campaigns/${id}`, undefined, signal),
