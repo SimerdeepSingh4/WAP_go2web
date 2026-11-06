@@ -38,7 +38,7 @@ function makeWorkbookBuffer(rows, sheetName) {
 }
 
 async function findCampaignForReport(req, id) {
-    const campaign = await campaignModel.findById(id).populate("userId", "username email role resellerId");
+    const campaign = await campaignModel.findById(id).populate("userId", "username email role resellerId dp_img");
     if (!campaign) return { error: { status: 404, message: "Campaign not found." } };
 
     const ownsCampaign = String(campaign.userId._id) === String(req.user._id);
@@ -811,7 +811,7 @@ export const getCampaigns = async (req, res) => {
         const campaigns = await campaignModel
             .find(filter)
             .select("-originalRecipients -recipients -recipientReport.records -recipientEntries -spreadsheetColumns -publishedSpreadsheet.rows -publishedSpreadsheet.columns -customRecipientTabs -deletedTabKeys -draftReportNotes -recipientCategoryLabels")
-            .populate("userId", "username email role")
+            .populate("userId", "username email role dp_img")
             .sort({ createdAt: -1 });
 
         return res.status(200).json({
@@ -840,7 +840,7 @@ export const getCampaignById = async (req, res) => {
         const campaign = await campaignModel
             .findById(id)
             .populate("templateId", "title body")
-            .populate("userId", "username email role resellerId");
+            .populate("userId", "username email role resellerId dp_img");
 
         if (!campaign) {
             return res.status(404).json({

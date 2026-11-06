@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAdminMutation } from "../hooks/useAdmin";
 import { exitFullAccessImpersonation, startFullAccessImpersonation } from "@/features/dashboard/services/users.api";
+import UserAvatar from "@/components/dashboard/UserAvatar";
 
 function AccountDetail({ account, onClose, onAction }) {
   const [showAudit, setShowAudit] = useState(false);
@@ -295,6 +296,11 @@ export default function Accounts({ role }) {
   }
 
   const columns = [
+    {
+      key: "dp_img",
+      label: "DP",
+      render: (a) => <UserAvatar user={a} className="size-9" />,
+    },
     {
       key: "name",
       label: "Account",

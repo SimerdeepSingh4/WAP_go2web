@@ -6,6 +6,7 @@ import api from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
+import UserAvatar from "@/components/dashboard/UserAvatar";
 import { dateTime, number, ownerName } from "@/features/admin/lib/format";
 import { buildCampaignReportPreview } from "../../lib/reportPreview";
 import PublishedSpreadsheetReport from "./PublishedSpreadsheetReport";
@@ -62,7 +63,7 @@ export default function AdminCampaignReportEditor({ campaign, base, onRefresh, i
         <div className="min-w-0 space-y-1.5">
           <p className="text-xs text-muted-foreground">Review report</p>
           <h1 className="break-words text-xl font-semibold tracking-tight">{campaign.campaignTitle}</h1>
-          <p className="text-xs text-muted-foreground">{ownerName(campaign.userId)}{publishedAt ? ` | Last published ${dateTime(publishedAt)}` : " | Not published"}</p>
+          <p className="inline-flex items-center gap-2 text-xs text-muted-foreground"><UserAvatar user={campaign.userId} className="size-7" />{ownerName(campaign.userId)}{publishedAt ? ` | Last published ${dateTime(publishedAt)}` : " | Not published"}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="ghost" size="sm" onClick={onRefresh} disabled={isRefreshing || publish.isPending}><RefreshCw className={"size-3.5 " + (isRefreshing ? "animate-spin" : "")} /> Refresh</Button>

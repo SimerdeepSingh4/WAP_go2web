@@ -36,6 +36,7 @@ import {
   waiting,
 } from "@/features/admin/lib/format";
 import CampaignDetail from "@/components/dashboard/ReadOnlyCampaignDetail";
+import UserAvatar from "@/components/dashboard/UserAvatar";
 
 export default function ResellerCampaigns({ reports = false }) {
   const query = useResellerQuery("campaigns");
@@ -107,7 +108,8 @@ export default function ResellerCampaigns({ reports = false }) {
       label: "Account",
       sort: (c) => ownerName(c.userId),
       render: (c) => (
-        <div>
+        <div className="flex items-center gap-2">
+          <UserAvatar user={c.userId} className="size-8" />
           <p className="max-w-40 truncate font-medium text-foreground">{ownerName(c.userId)}</p>
         </div>
       ),

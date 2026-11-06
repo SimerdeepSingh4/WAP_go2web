@@ -36,6 +36,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useResellerMutation } from "../hooks/useReseller";
+import UserAvatar from "@/components/dashboard/UserAvatar";
 
 function UserDetail({ account, onClose, onAction }) {
   const balance = useResellerQuery("balance", { id: account._id });
@@ -190,6 +191,11 @@ export default function ResellerUsers() {
 
   const columns = [
     {
+      key: "dp_img",
+      label: "DP",
+      render: (a) => <UserAvatar user={a} className="size-9" />,
+    },
+    {
       key: "name",
       label: "Account",
       sort: (a) => a.username,
@@ -248,6 +254,10 @@ export default function ResellerUsers() {
             <DropdownMenuItem onClick={() => setDetail(a)}>
               <Eye className="size-4 mr-2" />
               Account details
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "editAccount", account: a })}>
+              <Pencil className="size-4 mr-2" />
+              Edit account details
             </DropdownMenuItem>
             <DropdownMenuItem disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "accountAccess", account: a })}>
               <Lock className="size-4 mr-2" />
@@ -486,6 +496,49 @@ export default function ResellerUsers() {
             </>
           )}
           submitLabel="Update rate"
+        />
+      )}
+
+      {modal?.type === "editAccount" && (
+        <ResellerActionForm
+          title="Edit user account"
+          description="Update the account name, email, password, rate, or expiry date. Leave the password blank to keep it unchanged."
+          action="updateAccount"
+          successMessage="User account updated successfully"
+          onClose={() => setModal(null)}
+          initialValues={{
+            username: modal.account.username || "",
+            email: modal.account.email || "",
+            password: "",
+            ratePerMsg: String(modal.account.ratePerMsg ?? 1),
+            expiresAt: modal.account.expiresAt ? new Date(modal.account.expiresAt).toISOString().slice(0, 10) : "",
+          }}
+          fields={[
+            { key: "username", label: "Username / Company", required: true, maxLength: 100 },
+            { key: "email", label: "Email address", type: "email", required: true },
+            { key: "password", label: "New password (optional)", type: "password", hint: "Leave blank to keep the current password. If set, use at least 8 characters." },
+            { key: "ratePerMsg", label: "Rate (credits / recipient)", type: "number", min: 0.01, step: 0.01, required: true },
+            { key: "expiresAt", label: "Account expiry date (optional)", type: "date", hint: "Leave blank for no expiry." },
+          ]}
+          validate={(values) => values.password && values.password.trim().length < 8 ? "The new password must contain at least 8 characters." : ""}
+          payload={(values) => ({
+            id: modal.account._id,
+            username: values.username.trim(),
+            email: values.email.trim(),
+            ...(values.password ? { password: values.password } : {}),
+            ratePerMsg: Number(values.ratePerMsg),
+            expiresAt: values.expiresAt || null,
+          })}
+          review={(values) => (
+            <>
+              <p className="font-medium text-foreground">{values.username}</p>
+              <p className="text-muted-foreground text-xs">{values.email}</p>
+              <p className="text-xs">Password: {values.password ? "Will be changed" : "Unchanged"}</p>
+              <p className="text-xs">Rate: <strong>{number(Number(values.ratePerMsg))} credits / recipient</strong></p>
+              <p className="text-xs">Expiry: <strong>{values.expiresAt || "No expiry"}</strong></p>
+            </>
+          )}
+          submitLabel="Save account"
         />
       )}
 

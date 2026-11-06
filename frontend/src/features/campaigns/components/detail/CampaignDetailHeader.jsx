@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { dateTime, number, ownerName, statusLabels } from "@/features/admin/lib/format";
 import { toast } from "@/components/ui/toast";
+import UserAvatar from "@/components/dashboard/UserAvatar";
 
 const STATUS_OPTIONS = [
   { value: "ongoing", label: "Ongoing", description: "Currently active & dispatching", dot: "bg-blue-500" },
@@ -119,7 +120,7 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
             </h1>
           </div>
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            <span>{ownerName(campaign.userId)}</span>
+            <span className="inline-flex items-center gap-2"><UserAvatar user={campaign.userId} className="size-7" />{ownerName(campaign.userId)}</span>
             <span>Submitted {dateTime(campaign.createdAt)}</span>
           </div>
         </div>

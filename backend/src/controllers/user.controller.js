@@ -5,6 +5,9 @@ import userModel from "../models/user.model.js";
 import sessionModel from "../models/session.model.js";
 import walletModel from "../models/wallet.model.js";
 import { notifyUser } from "../services/socket.service.js";
+import sharp from "sharp";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
+import path from "node:path";
 
 /**
  * Get all users accessible by current user:
@@ -139,6 +142,47 @@ export async function getCurrentUser(req, res) {
             message: "Failed to fetch current user",
             success: false,
         });
+    }
+}
+
+export async function uploadCurrentUserProfileImage(req, res) {
+    let savedFilePath;
+    try {
+        if (req.isPreview) {
+            return res.status(403).json({ message: "Exit preview mode before changing your profile image.", success: false });
+        }
+        if (!req.file) {
+            return res.status(400).json({ message: "Choose a profile image to upload.", success: false });
+        }
+
+        const imageBuffer = await sharp(req.file.buffer)
+            .rotate()
+            .resize({ width: 512, height: 512, fit: "cover", withoutEnlargement: true })
+            .webp({ quality: 82 })
+            .toBuffer();
+        const uploadDirectory = path.join(process.cwd(), "uploads", "profile-pictures");
+        const filename = `dp_${req.user._id}_${crypto.randomUUID()}.webp`;
+        savedFilePath = path.join(uploadDirectory, filename);
+        await mkdir(uploadDirectory, { recursive: true });
+        await writeFile(savedFilePath, imageBuffer);
+
+        const user = await userModel.findByIdAndUpdate(
+            req.user._id,
+            { $set: { dp_img: `/uploads/profile-pictures/${filename}` } },
+            { new: true }
+        ).select("username email role dp_img");
+
+        if (!user) {
+            await unlink(savedFilePath);
+            savedFilePath = undefined;
+            return res.status(404).json({ message: "User not found.", success: false });
+        }
+
+        return res.status(200).json({ success: true, message: "Profile image updated.", user });
+    } catch (error) {
+        if (savedFilePath) await unlink(savedFilePath).catch(() => {});
+        console.error("Upload profile image error:", error);
+        return res.status(500).json({ message: "Failed to upload profile image.", success: false });
     }
 }
 
@@ -310,6 +354,104 @@ export async function updateUserAccess(req, res) {
     } catch (error) {
         console.error("UpdateUserAccess error:", error);
         return res.status(500).json({ message: "Failed to update account access", success: false });
+    }
+}
+
+export async function updateManagedUserProfile(req, res) {
+    try {
+        const { id } = req.params;
+        const targetUser = await userModel.findById(id);
+
+        if (!targetUser) {
+            return res.status(404).json({ message: "User not found", success: false });
+        }
+
+        const isSuperAdmin = req.user.role === "Super Admin";
+        const ownsUser = req.user.role === "Reseller" &&
+            targetUser.role === "User" &&
+            String(targetUser.resellerId) === String(req.user._id);
+
+        if (!isSuperAdmin && !ownsUser) {
+            return res.status(403).json({ message: "You can only manage your own users.", success: false });
+        }
+        if (targetUser.role === "Super Admin") {
+            return res.status(403).json({ message: "Super Admin accounts cannot be changed here.", success: false });
+        }
+
+        const { username, email, password, ratePerMsg, expiresAt } = req.body;
+        const updates = {};
+
+        if (username !== undefined) {
+            const normalizedUsername = String(username).trim();
+            if (!normalizedUsername || normalizedUsername.length > 100) {
+                return res.status(400).json({ message: "Name must be between 1 and 100 characters.", success: false });
+            }
+            updates.username = normalizedUsername;
+        }
+
+        if (email !== undefined) {
+            const normalizedEmail = String(email).trim().toLowerCase();
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+                return res.status(400).json({ message: "Enter a valid email address.", success: false });
+            }
+            const existing = await userModel.findOne({ email: normalizedEmail, _id: { $ne: targetUser._id } });
+            if (existing) {
+                return res.status(400).json({ message: "Email already in use.", success: false });
+            }
+            updates.email = normalizedEmail;
+        }
+
+        if (password !== undefined && password !== "") {
+            if (typeof password !== "string" || password.trim().length < 8) {
+                return res.status(400).json({ message: "Password must contain at least 8 characters.", success: false });
+            }
+            updates.password = password;
+        }
+
+        if (ratePerMsg !== undefined) {
+            const parsedRate = Number(ratePerMsg);
+            if (!Number.isFinite(parsedRate) || parsedRate < 0.01) {
+                return res.status(400).json({ message: "Rate must be at least 0.01.", success: false });
+            }
+            updates.ratePerMsg = parsedRate;
+        }
+
+        if (Object.hasOwn(req.body, "expiresAt")) {
+            if (expiresAt === null || expiresAt === "") {
+                updates.expiresAt = null;
+            } else {
+                const parsedExpiry = new Date(expiresAt);
+                if (Number.isNaN(parsedExpiry.getTime())) {
+                    return res.status(400).json({ message: "Enter a valid account expiry date.", success: false });
+                }
+                if (typeof expiresAt === "string" && /^\d{4}-\d{2}-\d{2}$/.test(expiresAt)) {
+                    parsedExpiry.setUTCHours(23, 59, 59, 999);
+                }
+                updates.expiresAt = parsedExpiry;
+            }
+        }
+
+        if (!Object.keys(updates).length) {
+            return res.status(400).json({ message: "Provide at least one account field to update.", success: false });
+        }
+
+        Object.assign(targetUser, updates);
+        await targetUser.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "User account updated successfully.",
+            user: {
+                id: targetUser._id,
+                username: targetUser.username,
+                email: targetUser.email,
+                ratePerMsg: targetUser.ratePerMsg,
+                expiresAt: targetUser.expiresAt,
+            },
+        });
+    } catch (error) {
+        console.error("UpdateManagedUserProfile error:", error);
+        return res.status(500).json({ message: "Failed to update user account", success: false });
     }
 }
 

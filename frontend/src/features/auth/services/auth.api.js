@@ -64,3 +64,10 @@ export async function changePassword({ currentPassword, newPassword }) {
     return response.data;
 }
 
+export async function uploadProfileImage(file) {
+    const body = new FormData();
+    body.append("dp_img", file);
+    const response = await apiClient.post("/users/me/dp-image", body);
+    return response.data;
+}
+

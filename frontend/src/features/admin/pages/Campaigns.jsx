@@ -9,6 +9,7 @@ import { PageHeading, SearchBox, QueryState, DataTable, StatusBadge } from "../c
 import { useAdminQuery } from "../hooks/useAdmin";
 import { number, dateTime, ownerName, needsReport, published, waiting } from "../lib/format";
 import CampaignDetail from "../components/CampaignDetail";
+import UserAvatar from "@/components/dashboard/UserAvatar";
 
 const IST_OFFSET = 330 * 60_000;
 
@@ -115,9 +116,12 @@ export default function Campaigns({ reports = false }) {
       label: "Account",
       sort: (c) => ownerName(c.userId),
       render: (c) => (
-        <div>
-          <p className="max-w-40 truncate font-medium text-xs">{ownerName(c.userId)}</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">{c.userId?.role || "—"}</p>
+        <div className="flex items-center gap-2">
+          <UserAvatar user={c.userId} className="size-8" />
+          <div className="min-w-0">
+            <p className="max-w-40 truncate font-medium text-xs">{ownerName(c.userId)}</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">{c.userId?.role || "—"}</p>
+          </div>
         </div>
       ),
     },

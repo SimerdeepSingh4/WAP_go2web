@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Link, NavLink, Navigate, Outlet, useLocation } from "react-router";
 import { LayoutDashboard, Megaphone, Users, Building2, Wallet, ReceiptText, Settings, LogOut, ChevronDown, PanelLeftClose, PanelLeftOpen, Bell } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import UserAvatar from "@/components/dashboard/UserAvatar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
@@ -160,11 +160,7 @@ export default function DashboardLayout({ role }) {
                       />
                     }
                   >
-                    <Avatar className="size-8.5 rounded-lg border border-slate-200 bg-slate-100 shrink-0">
-                      <AvatarFallback className="rounded-lg bg-sky-100 text-[#000080] font-bold text-xs">
-                        {username.slice(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
+                    <UserAvatar user={user} className="size-8.5 rounded-lg border border-slate-200 bg-slate-100 shrink-0" />
                     <ChevronDown className="size-3.5 text-slate-500 transition-transform portal-profile-chevron" aria-hidden="true" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="portal-account-menu w-60 p-2">

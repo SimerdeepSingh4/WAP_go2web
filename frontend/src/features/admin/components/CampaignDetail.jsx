@@ -22,6 +22,7 @@ import ActionForm from "./ActionForm";
 import { CampaignMessage, CampaignMedia, CampaignRecipients } from "@/components/dashboard/CampaignContent";
 import api from "@/api/client";
 import { toast } from "@/components/ui/toast";
+import UserAvatar from "@/components/dashboard/UserAvatar";
 
 export default function CampaignDetail({ id, initialReport, initialStatus, onClose }) {
   const query = useAdminQuery("campaign", { id });
@@ -154,7 +155,7 @@ export default function CampaignDetail({ id, initialReport, initialStatus, onClo
                 <>
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <StatusBadge status={campaign.status} />
-                    <span className="text-xs text-muted-foreground">{ownerName(campaign.userId)}</span>
+                    <span className="inline-flex items-center gap-2 text-xs text-muted-foreground"><UserAvatar user={campaign.userId} className="size-8" />{ownerName(campaign.userId)}</span>
                   </div>
 
                   <dl className="text-sm divide-y">

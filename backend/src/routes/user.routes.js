@@ -8,11 +8,14 @@ import {
     exitFullAccessImpersonation,
     exitPreviewMode,
     getCurrentUser,
+    uploadCurrentUserProfileImage,
     updateUserAccess,
+    updateManagedUserProfile,
     updateUserRole,
     deleteUser,
 } from "../controllers/user.controller.js";
 import { protect, authorizeRoles } from "../middlewares/auth.middleware.js";
+import { uploadProfileImage } from "../middlewares/upload.middleware.js";
 
 const userRouter = Router();
 
@@ -20,6 +23,7 @@ const userRouter = Router();
 userRouter.use(protect);
 // Get current logged‑in user
 userRouter.get("/me", getCurrentUser);
+userRouter.post("/me/dp-image", uploadProfileImage, uploadCurrentUserProfileImage);
 
 // Exit preview mode (any manager currently in preview mode)
 userRouter.post("/exit-preview", exitPreviewMode);
@@ -35,6 +39,7 @@ userRouter.post("/", authorizeRoles("Reseller", "Super Admin"), createUser);
 userRouter.patch("/:id/role", authorizeRoles("Super Admin"), updateUserRole);
 
 // Only Super Admin or the owning Reseller can block/unblock or set expiry.
+userRouter.patch("/:id/profile", authorizeRoles("Reseller", "Super Admin"), updateManagedUserProfile);
 userRouter.patch("/:id/access", authorizeRoles("Reseller", "Super Admin"), updateUserAccess);
 userRouter.delete("/:id", authorizeRoles("Reseller", "Super Admin"), deleteUser);
 

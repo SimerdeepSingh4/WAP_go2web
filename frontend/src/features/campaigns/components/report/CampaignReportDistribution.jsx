@@ -1,5 +1,6 @@
 import { Info } from "lucide-react";
 import { number, ownerName } from "@/features/admin/lib/format";
+import UserAvatar from "@/components/dashboard/UserAvatar";
 
 export const BUCKET_COLORS = [
   "bg-emerald-500",
@@ -85,7 +86,7 @@ export default function CampaignReportDistribution({
               <> (capped at the {number(metrics.initialCharged)} originally charged)</>
             )}
             . Already refunded: {number(metrics.previousRefund)}. Saving credits{" "}
-            <strong className="text-foreground">{ownerName(campaign.userId)}</strong>’s wallet
+            <strong className="inline-flex items-center gap-1.5 text-foreground"><UserAvatar user={campaign.userId} className="size-6" />{ownerName(campaign.userId)}</strong>’s wallet
             with the difference.
           </p>
         </div>

@@ -1,22 +1,34 @@
-import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useRef, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { getSessions, logoutSession, changePassword } from "@/features/auth/services/auth.api";
+import { getSessions, logoutSession, changePassword, uploadProfileImage } from "@/features/auth/services/auth.api";
 import { PageHeading, QueryState, Field, FormError } from "@/features/admin/components/shared";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import UserAvatar from "@/components/dashboard/UserAvatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { dateTime } from "@/features/admin/lib/format";
 import { toast } from "@/components/ui/toast";
 
 export default function AccountSettings() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const imageInput = useRef(null);
   const [passwords, setPasswords] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
   const [error, setError] = useState("");
   const [disconnect, setDisconnect] = useState(null);
   const sessions = useQuery({ queryKey: ["accountSessions", user?.id || user?._id], queryFn: getSessions, enabled: !user?.isPreview });
   const password = useMutation({ mutationFn: changePassword, onSuccess: () => { setPasswords({ currentPassword: "", newPassword: "", confirmPassword: "" }); toast.add({ title: "Password changed", type: "success" }); } });
+  const profileImage = useMutation({
+    mutationFn: uploadProfileImage,
+    onSuccess: (data) => {
+      queryClient.setQueryData(["authUser"], (current) => ({ ...current, ...data.user }));
+      if (imageInput.current) imageInput.current.value = "";
+      toast.add({ title: "Profile image updated", type: "success" });
+    },
+    onError: (uploadError) => toast.add({ title: "Profile image upload failed", description: uploadError.message, type: "error" }),
+  });
   const revoke = useMutation({
     mutationFn: async target => {
       const targets = target === "all" ? (sessions.data?.sessions || []).filter(s => !(s.isCurrent || s.isCurrentDevice)).map(s => s.id || s._id) : [target];
@@ -39,7 +51,31 @@ export default function AccountSettings() {
     <PageHeading title="Settings" description="Your account, password and signed-in devices." />
     <div className="dashboard-two-column">
       <div className="dashboard-section">
-        <Card><CardHeader><CardTitle>Account</CardTitle></CardHeader><CardContent><dl className="dashboard-details">{[["Name", user?.username], ["Email", user?.email], ["Role", user?.role]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || "Unavailable"}</dd></div>)}</dl><p className="mt-4 text-sm text-muted-foreground">Contact your administrator to change account details.</p></CardContent></Card>
+        <Card><CardHeader><CardTitle>Account</CardTitle></CardHeader><CardContent>
+          <div className="mb-5 flex flex-wrap items-center gap-4">
+            <UserAvatar user={user} className="size-16" />
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">Profile DP</p>
+              <p className="mt-1 text-xs text-muted-foreground">JPG, PNG, or WebP, up to 5 MB.</p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <input ref={imageInput} type="file" accept="image/jpeg,image/png,image/webp" aria-label="Choose profile DP image" className="sr-only" disabled={user?.isPreview || profileImage.isPending} onChange={(event) => {
+                  const file = event.target.files?.[0] || null;
+                  if (file && file.size > 5 * 1024 * 1024) {
+                    toast.add({ title: "Image is too large", description: "Choose an image up to 5 MB.", type: "error" });
+                    event.target.value = "";
+                    return;
+                  }
+                  if (file) profileImage.mutate(file);
+                }} />
+                <Button type="button" size="sm" disabled={user?.isPreview || profileImage.isPending} onClick={() => imageInput.current?.click()}>
+                  {profileImage.isPending ? "Uploading…" : "Choose & upload DP"}
+                </Button>
+              </div>
+              <FormError message={profileImage.error?.message} />
+            </div>
+          </div>
+          <dl className="dashboard-details">{[["Name", user?.username], ["Email", user?.email], ["Role", user?.role]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || "Unavailable"}</dd></div>)}</dl><p className="mt-4 text-sm text-muted-foreground">Contact your administrator to change account details.</p>
+        </CardContent></Card>
         <Card><CardHeader><CardTitle>Change password</CardTitle></CardHeader><CardContent>
           {user?.isPreview ? <p className="dashboard-note">Exit account preview to manage your password.</p> : <form onSubmit={submit} className="space-y-4">
             {[["currentPassword", "Current password"], ["newPassword", "New password"], ["confirmPassword", "Confirm new password"]].map(([key, label]) => <Field key={key} id={key} label={label} hint={key === "newPassword" ? "Use at least 8 characters." : undefined}><Input id={key} type="password" autoComplete={key === "currentPassword" ? "current-password" : "new-password"} minLength={key === "currentPassword" ? undefined : 8} required value={passwords[key]} onChange={e => { setPasswords(old => ({ ...old, [key]: e.target.value })); setError(""); password.reset(); }} /></Field>)}

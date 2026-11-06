@@ -19,6 +19,7 @@ export const resellerQueries = {
 
 export const resellerActions = {
   createAccount: async (body) => (await api.post("/users", body)).data,
+  updateAccount: async ({ id, ...body }) => (await api.patch(`/users/${id}/profile`, body)).data,
   accountAccess: async ({ id, ...body }) => (await api.patch(`/users/${id}/access`, body)).data,
   deleteAccount: async (id) => (await api.delete(`/users/${id}`)).data,
   allocate: async (body) => (await api.post("/credits/allocate", body)).data,

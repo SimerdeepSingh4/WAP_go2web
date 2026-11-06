@@ -146,8 +146,8 @@ export default function CampaignMediaUploader({
   return (
     <SectionCard
       icon={Upload}
-      title="Attachments"
-      description="Optional. One image, one video and one PDF at most."
+      title="Campaign media"
+      description="Optional campaign attachments: one image, one video, and one PDF."
       aside={
         totalMediaCount > 0 && (
           <Badge

@@ -8,28 +8,34 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "
 import { QueryState, StatusBadge } from "@/features/admin/components/shared";
 import { dateTime, number, ownerName, published } from "@/features/admin/lib/format";
 import { CampaignMessage, CampaignMedia, CampaignRecipients } from "./CampaignContent";
+import UserAvatar from "@/components/dashboard/UserAvatar";
 
 export default function ReadOnlyCampaignDetail({ id, onClose }) {
   const { user } = useAuth();
   const query = useQuery({ queryKey: [user?.role === "Reseller" ? "reseller" : "user", user?.id || user?._id, "campaign", { id }], queryFn: async ({ signal }) => (await api.get(`/campaigns/${id}`, { signal })).data, enabled: Boolean(id && user) });
   const campaign = query.data?.data;
   async function downloadReport() {
+    let url;
+    let anchor;
     try {
-      const response = await api.get(`/campaixgns/${id}/recipient-report`, { responseType: "blob" });
-      const url = URL.createObjectURL(response.data);
-      const anchor = document.createElement("a");
+      const response = await api.get(`/campaigns/${id}/recipient-report`, { responseType: "blob" });
+      url = URL.createObjectURL(response.data);
+      anchor = document.createElement("a");
       anchor.href = url;
       anchor.download = `${String(campaign?.campaignTitle || "campaign").replace(/[^a-z0-9_-]+/gi, "-")}-report.xlsx`;
+      document.body.appendChild(anchor);
       anchor.click();
-      URL.revokeObjectURL(url);
     } catch (error) {
       toast.add({ title: "Report download failed", description: error.message, type: "error" });
+    } finally {
+      anchor?.remove();
+      if (url) window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
   }
   return <Sheet open onOpenChange={open => { if (!open) onClose(); }}><SheetContent className="w-full overflow-y-auto sm:max-w-xl">
     <SheetHeader><SheetTitle className="break-words">{campaign?.campaignTitle || "Campaign details"}</SheetTitle><SheetDescription>Submission details and published results.</SheetDescription></SheetHeader>
     <div className="space-y-6 p-5"><QueryState query={query}>{campaign && <>
-      <div className="flex flex-wrap justify-between gap-3"><StatusBadge status={campaign.status} /><span className="text-sm text-muted-foreground">{ownerName(campaign.userId)}</span></div>
+      <div className="flex flex-wrap justify-between gap-3"><StatusBadge status={campaign.status} /><span className="inline-flex items-center gap-2 text-sm text-muted-foreground"><UserAvatar user={campaign.userId} className="size-8" />{ownerName(campaign.userId)}</span></div>
       <dl className="dashboard-details">{[["Recipients", number(campaign.totalRecipients)], ["Submitted", dateTime(campaign.createdAt)], ["Requested schedule", campaign.schedule === "later" ? dateTime(campaign.scheduledTime) : "As soon as approved"], ["Description", campaign.campaignDescription || "—"]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
       <section><h2 className="mb-3 font-medium">Message</h2><CampaignMessage content={campaign.messageBody || campaign.templateId?.body} /><CampaignMedia campaign={campaign} /></section>
       <CampaignRecipients campaign={campaign} />

@@ -3,6 +3,7 @@ import { ArrowLeft, Download, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/features/admin/components/shared";
 import { dateTime, ownerName } from "@/features/admin/lib/format";
+import UserAvatar from "@/components/dashboard/UserAvatar";
 
 export default function CampaignReportHeader({
   campaign,
@@ -43,7 +44,7 @@ export default function CampaignReportHeader({
             {isAdmin ? (
               <>
                 Delivery report for{" "}
-                <span className="font-medium text-foreground/80">{ownerName(campaign.userId)}</span>
+                <span className="inline-flex items-center gap-1.5 font-medium text-foreground/80"><UserAvatar user={campaign.userId} className="size-6" />{ownerName(campaign.userId)}</span>
                 {campaign.userId?.role ? ` (${campaign.userId.role})` : ""} · {rate} credits per message · Submitted{" "}
                 {dateTime(campaign.createdAt)}
                 {isPublished && ` · Published ${dateTime(campaign.campaignSummary.reportedAt)}`}
