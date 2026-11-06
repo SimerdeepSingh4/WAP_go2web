@@ -1,0 +1,7 @@
+.recipient-phone[data-input-risk="1"] { background:#fffbeb; color:#92400e; box-shadow:inset 3px 0 #f59e0b; }
+.recipient-phone[data-input-risk="2"] { background:#fff1f2; color:#be123c; box-shadow:inset 3px 0 #ef4444; }
+.recipient-number-marker { display:inline-block; width:fit-content; border-radius:4px; padding:1px 5px; font-family:var(--font-sans),sans-serif; font-size:9px; font-weight:550; line-height:1.6; }
+.recipient-number-marker[data-input-risk="1"] { background:#fef3c7; color:#92400e; }
+.recipient-number-marker[data-input-risk="2"] { background:#ffe4e6; color:#be123c; }
+.dark .recipient-phone[data-input-risk="1"] { background:#302713; color:#fcd34d; }
+.dark .recipient-phone[data-input-risk="2"] { background:#341b28; color:#fda4af; }

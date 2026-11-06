@@ -1,3 +1,4 @@
+import RecipientNumberHighlight, { recipientMarkMap } from "./RecipientNumberHighlight";
 import { useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, GripVertical, Plus, Redo2, Undo2, Sigma } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,8 @@ import { columnLetter, createSheetEvaluator } from "@campaign-sheet";
 const STATUSES = ["queued", "sent", "delivered", "read", "failed"];
 const display = (value) => typeof value === "boolean" ? value ? "Yes" : "No" : String(value ?? "");
 
-export default function CampaignSpreadsheet({ entries, columns, visibleRows, onChange, onColumnsChange, onRowsSelect, tabs, activeTab, scope, rate, revision }) {
+export default function CampaignSpreadsheet({ entries, columns, visibleRows, onChange, onColumnsChange, onRowsSelect, tabs, activeTab, scope, rate, revision, inputAudit }) {
+  const numberMarks = useMemo(() => recipientMarkMap(inputAudit), [inputAudit]);
   const [pageState, setPageState] = useState({ scope, page: 0 });
   const [pageSize, setPageSize] = useState(100);
   const [sort, setSort] = useState(null);
@@ -235,10 +237,11 @@ export default function CampaignSpreadsheet({ entries, columns, visibleRows, onC
                   const isEditing = editing?.row === row.rowNumber && editing?.col === col.id;
                   const value = evaluator.get(row, col);
                   const finish = (input) => { if (!skipBlur.current) saveCell(row.rowNumber, col.id, input); setEditing(null); };
-                  return <td key={col.id} role="gridcell" tabIndex={active ? 0 : -1} data-cell={`${row.rowNumber}-${col.id}`} aria-selected={Boolean(inRange)} className={`${col.field === "phoneNumber" ? "recipient-phone " : ""}relative h-9 max-w-0 border-r border-b p-0 outline-none ${active ? "z-[1] ring-2 ring-inset ring-primary" : ""} ${inRange ? "bg-primary/5" : "bg-background"}`} style={{ width: col.width, minWidth: col.width }} onClick={(event) => { if (!isEditing) { choose(row, col, event.shiftKey); event.currentTarget.focus(); } }} onDoubleClick={() => { choose(row, col); skipBlur.current = false; setEditing({ row: row.rowNumber, col: col.id, value: String(evaluator.raw(row, col)) }); }}>
+                  return <td data-input-risk={col.field === "phoneNumber" ? numberMarks.get(row.rowNumber) : undefined} key={col.id} role="gridcell" tabIndex={active ? 0 : -1} data-cell={`${row.rowNumber}-${col.id}`} aria-selected={Boolean(inRange)} className={`${col.field === "phoneNumber" ? "recipient-phone " : ""}relative h-9 max-w-0 border-r border-b p-0 outline-none ${active ? "z-[1] ring-2 ring-inset ring-primary" : ""} ${inRange ? "bg-primary/5" : "bg-background"}`} style={{ width: col.width, minWidth: col.width }} onClick={(event) => { if (!isEditing) { choose(row, col, event.shiftKey); event.currentTarget.focus(); } }} onDoubleClick={() => { choose(row, col); skipBlur.current = false; setEditing({ row: row.rowNumber, col: col.id, value: String(evaluator.raw(row, col)) }); }}>
                     {isEditing ? (["status", "category", "billingAction"].includes(col.field) ? <select autoFocus className="h-9 w-full bg-background px-2 outline-none" defaultValue={String(evaluator.raw(row, col))} onChange={(event) => { skipBlur.current = true; saveCell(row.rowNumber, col.id, event.target.value); setEditing(null); }} onBlur={() => setEditing(null)} onKeyDown={(event) => { if (event.key === "Escape") setEditing(null); }}>
                       {(col.field === "status" ? STATUSES : col.field === "billingAction" ? ["keep", "deduct", "refund"] : [...new Set([row.category, ...tabs.filter((tab) => tab.key !== "clean").map((tab) => tab.label)])]).map((item) => <option key={item} value={item}>{item}</option>)}
                     </select> : <input autoFocus className="h-9 w-full bg-background px-2 font-mono text-xs outline-none" defaultValue={editing.value} onFocus={(event) => event.target.select()} onBlur={(event) => finish(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); if (event.key === "Escape") { skipBlur.current = true; setEditing(null); } }} />) : <span className={`block truncate px-2 py-2 ${col.field === "phoneNumber" ? "font-mono" : ""} ${String(value).startsWith("#") ? "text-destructive" : col.field === "billingAction" && value === "refund" ? "text-rose-600" : ""}`} title={display(value)}>{col.field === "billingAction" ? value === "refund" ? "Refund credits" : "Keep charged" : display(value)}</span>}
+                    {!isEditing && col.field === "phoneNumber" && numberMarks.has(row.rowNumber) && <div className="px-2 pb-1.5"><RecipientNumberHighlight mark={numberMarks.get(row.rowNumber)} /></div>}
                   </td>;
                 })}
               </tr>;

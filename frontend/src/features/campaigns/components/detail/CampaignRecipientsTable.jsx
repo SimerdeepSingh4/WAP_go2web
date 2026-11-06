@@ -1,3 +1,4 @@
+import RecipientNumberHighlight, { recipientMarkMap } from "./RecipientNumberHighlight";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import RecipientActivityButton from "./RecipientActivityButton";
 import { useState, useMemo, useDeferredValue } from "react";
@@ -60,6 +61,7 @@ export function getStatusBadge(status) {
 export default function CampaignRecipientsTable({ campaign }) {
   const { user } = useAuth();
   const inputAudit = user?.role === "Super Admin" ? campaign.recipientInputAudit : null;
+  const numberMarks = useMemo(() => recipientMarkMap(inputAudit), [inputAudit]);
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
   const [page, setPage] = useState(0);
@@ -108,7 +110,7 @@ export default function CampaignRecipientsTable({ campaign }) {
       </div>
       <p className="recipient-scroll-hint">Swipe sideways to see all contact details and copy actions.</p><Table className="recipient-comparison min-w-[370px] table-fixed [&_th]:px-3! [&_td]:px-3! [&_td]:py-2.5! [&_th]:py-3!">
         <TableHeader className="bg-muted/40"><TableRow className="hover:bg-transparent"><TableHead className="recipient-index w-12 text-center text-[11px]">#</TableHead><TableHead className="recipient-phone text-[11px]">Phone number</TableHead><TableHead className="w-28 text-[11px] sm:w-36">Status</TableHead><TableHead className="w-12 text-center"><span className="sr-only">Copy</span></TableHead></TableRow></TableHeader>
-        <TableBody>{rows.length ? rows.map((row) => <TableRow key={row.rowNumber} className="hover:bg-muted/25"><TableCell className="recipient-index text-center text-[11px] text-muted-foreground tabular-nums">{row.rowNumber}</TableCell><TableCell className="recipient-phone break-all font-mono text-xs font-medium">{row.phoneNumber}</TableCell><TableCell>{getStatusBadge(row.status)}</TableCell><TableCell className="text-center"><Button type="button" size="icon-xs" variant="ghost" aria-label={`Copy phone number ${row.phoneNumber}`} onClick={() => copyNumber(row.phoneNumber)} className="text-muted-foreground hover:text-foreground">{copiedNumber === row.phoneNumber ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}</Button></TableCell></TableRow>) : <TableRow><TableCell colSpan={4} className="py-10! text-center text-xs text-muted-foreground">{search ? "No contacts match your search." : "No contacts available."}</TableCell></TableRow>}</TableBody>
+        <TableBody>{rows.length ? rows.map((row) => <TableRow key={row.rowNumber} className="hover:bg-muted/25"><TableCell className="recipient-index text-center text-[11px] text-muted-foreground tabular-nums">{row.rowNumber}</TableCell><TableCell data-input-risk={numberMarks.get(row.rowNumber)} className="recipient-phone break-all font-mono text-xs font-medium">{row.phoneNumber}{numberMarks.has(row.rowNumber) && <div className="mt-1"><RecipientNumberHighlight mark={numberMarks.get(row.rowNumber)} /></div>}</TableCell><TableCell>{getStatusBadge(row.status)}</TableCell><TableCell className="text-center"><Button type="button" size="icon-xs" variant="ghost" aria-label={`Copy phone number ${row.phoneNumber}`} onClick={() => copyNumber(row.phoneNumber)} className="text-muted-foreground hover:text-foreground">{copiedNumber === row.phoneNumber ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}</Button></TableCell></TableRow>) : <TableRow><TableCell colSpan={4} className="py-10! text-center text-xs text-muted-foreground">{search ? "No contacts match your search." : "No contacts available."}</TableCell></TableRow>}</TableBody>
       </Table>
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-muted/15 px-4 py-3 sm:px-5">
         <p aria-live="polite" className="text-[11px] text-muted-foreground">{filtered.length ? number(start + 1) : 0}&ndash;{number(Math.min(start + pageSize, filtered.length))} of {number(filtered.length)} contacts{search && filtered.length !== allRecipients.length ? ` (${number(allRecipients.length)} total)` : ""}</p>

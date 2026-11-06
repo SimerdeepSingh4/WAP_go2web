@@ -16,3 +16,43 @@ export function restoreRecipientActivity(saved, text) {
     wasModifiedAfterPaste: hasPasted && (saved?.wasModifiedAfterPaste === true || saved?.modificationsDetected === true || saved?.spans?.some(span => span.source === "manual") === true),
     suspiciousOverwrite: hasPasted && saved?.suspiciousOverwrite === true, finalTextLength: text.length };
 }
+
+export function recipientMarkTokens(text) {
+  const rows = [];
+  for (const chunk of text.matchAll(/[^\r\n,;\t]+/g)) {
+    const parts = chunk[0].replace(/\D/g, "").length > 15 ? [...chunk[0].matchAll(/\S+/g)] : [{ 0: chunk[0].trim(), index: chunk[0].search(/\S/) }];
+    for (const part of parts) if (part[0]) rows.push({ value: part[0], start: chunk.index + part.index, end: chunk.index + part.index + part[0].length });
+  }
+  return rows;
+}
+
+// Retain only current row classifications and a compact lookup of previously
+// touched numbers. No past text snapshots or keystroke history are collected.
+export function updateRecipientMarks(before, text, mode = "manual", selection) {
+  let start = 0, end = before.text.length, nextEnd = text.length;
+  const insertedLength = selection && text.length - before.text.length + selection.end - selection.start;
+  if (selection && insertedLength >= 0 && text === before.text.slice(0, selection.start) + text.slice(selection.start, selection.start + insertedLength) + before.text.slice(selection.end)) {
+    start = selection.start; end = selection.end; nextEnd = start + insertedLength;
+  } else {
+    while (start < end && start < nextEnd && before.text[start] === text[start]) start++;
+    while (end > start && nextEnd > start && before.text[end - 1] === text[nextEnd - 1]) { end--; nextEnd--; }
+  }
+  const delta = nextEnd - end;
+  const byStart = new Map(before.rows.map(row => [row.start, row]));
+  const touched = before.rows.filter(row => row.start < end && row.end > start || start === end && row.start <= start && row.end >= start);
+  const known = new Map(before.sourceMemory || []);
+  const rows = recipientMarkTokens(text).map(row => {
+    const oldStart = row.end <= start ? row.start : row.start >= nextEnd ? row.start - delta : null;
+    const same = oldStart !== null && byStart.get(oldStart);
+    let source;
+    if (same && same.value === row.value) source = same.source;
+    else if (mode !== "manual") source = known.get(row.value.replace(/\D/g, "")) || mode;
+    else source = touched.some(old => ["pasted", "imported", "edited"].includes(old.source) && row.start <= start && row.end >= nextEnd) ? "edited" : "manual";
+    const key = row.value.replace(/\D/g, "");
+    if (["manual", "edited"].includes(source) && /^\d{10,15}$/.test(key)) known.set(key, source === "edited" || known.get(key) === "edited" ? "edited" : "manual");
+    return { ...row, source };
+  });
+  return { text, rows, sourceMemory: [...known] };
+}
+
+export const recipientNumberFlags = rows => rows.flatMap((row, index) => row.source === "manual" ? [[index + 1, 1]] : row.source === "edited" ? [[index + 1, 2]] : []);

@@ -796,6 +796,7 @@ export default function CampaignRecipientsSection({
       </div>
 
       <CampaignSpreadsheet
+        inputAudit={user?.role === "Super Admin" ? campaign.recipientInputAudit : undefined}
         entries={entries}
         columns={columns}
         visibleRows={filteredNumbers}

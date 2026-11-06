@@ -425,6 +425,7 @@ export default function CreateCampaignPage() {
             rawRecipients={rawRecipients}
             onRawRecipientsChange={setRawRecipients}
             onRecipientsPaste={recipientTracking.onPaste}
+            onRecipientsBeforeInput={recipientTracking.onBeforeInput}
             dropActive={dropActive}
             onDragOver={(e) => {
               e.preventDefault();

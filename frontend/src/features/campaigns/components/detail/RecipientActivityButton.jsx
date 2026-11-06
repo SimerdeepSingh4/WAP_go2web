@@ -27,6 +27,8 @@ export default function RecipientActivityButton({ activity }) {
           ["Manually modified after paste", legacy ? activity.modificationsDetected ? "Changes recorded" : "Not recorded" : activity.wasModifiedAfterPaste ? "Yes" : "No"],
           ["Suspicious overwrite", legacy ? "Not recorded" : suspicious ? "Yes" : "No"],
           ["Final text length", legacy ? "Not recorded" : `${activity.finalTextLength} characters`],
+          ["Manual numbers highlighted", (activity.numberFlags || []).filter(entry => entry[1] === 1).length],
+          ["Edited numbers highlighted", (activity.numberFlags || []).filter(entry => entry[1] === 2).length],
         ].map(([label, value]) => <div key={label} className="flex flex-wrap justify-between gap-3 py-3"><dt className="text-muted-foreground">{label}</dt><dd className="font-medium">{value}</dd></div>)}</dl>
       </>}
       <div className="flex justify-end"><Button type="button" variant="outline" onClick={() => setOpen(false)}>Close</Button></div>
