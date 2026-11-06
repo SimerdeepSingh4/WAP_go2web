@@ -295,6 +295,7 @@ export default function ResellerUsers() {
               Refresh
             </Button>
             <Button
+              data-tour="reseller-add-user"
               disabled={signedInUser?.isPreview || query.isPending || query.isError}
               onClick={() => setModal({ type: "create" })}
               className="gap-1.5 font-semibold"

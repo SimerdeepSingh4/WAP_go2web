@@ -11,7 +11,7 @@ export default function CampaignMessagePreview({
   const images = campaign.images || [];
 
   return (
-    <section className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
+    <section data-tour="campaign-message" className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
       <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
         <h2 className="text-sm font-semibold text-foreground">Message</h2>
         <button

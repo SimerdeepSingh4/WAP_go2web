@@ -90,7 +90,7 @@ export default function CampaignRecipientsTable({ campaign }) {
     finally { setIsExporting(false); }
   };
   return (
-    <section aria-label="Campaign contacts" className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
+    <section data-tour="campaign-recipients" aria-label="Campaign contacts" className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-4 sm:px-5">
         <div className="flex min-w-0 items-center gap-3">
           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground"><Users className="size-4" /></span>

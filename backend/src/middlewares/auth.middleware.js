@@ -3,6 +3,8 @@ import crypto from "crypto";
 import config from "../config/config.js";
 import sessionModel from "../models/session.model.js";
 import userModel from "../models/user.model.js";
+import { auditAuthenticatedRequest, auditContext } from "../services/audit.service.js";
+import { randomUUID } from "node:crypto";
 
 /**
  * Role hierarchy levels:
@@ -115,7 +117,8 @@ export async function protect(req, res, next) {
         req.isImpersonation = !!decoded.isImpersonation;
         req.originalAdmin = decoded.originalAdmin || null;
 
-        next();
+        req.auditRequestId ||= randomUUID();
+        return auditContext.run({ req }, () => auditAuthenticatedRequest(req, res, next));
     } catch (error) {
         return res.status(500).json({
             message: "Authentication error",

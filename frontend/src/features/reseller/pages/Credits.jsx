@@ -233,6 +233,7 @@ export default function ResellerCredits({ activity = false }) {
             {!activity && (
               <>
                 <Button
+                  data-tour="reseller-allocate"
                   onClick={() => update("allocate", "new")}
                   disabled={signedInUser?.isPreview || !accounts.length || accountsQuery.isError || isWalletLocked}
                   title={isWalletLocked ? "Your credit balance is expired and locked." : undefined}
@@ -242,6 +243,7 @@ export default function ResellerCredits({ activity = false }) {
                   Allocate credits
                 </Button>
                 <Button
+                  data-tour="reseller-reclaim"
                   variant="outline"
                   onClick={() => setReclaimOpen(true)}
                   disabled={signedInUser?.isPreview || !accounts.length || accountsQuery.isError}
@@ -259,7 +261,7 @@ export default function ResellerCredits({ activity = false }) {
       {/* Top 4 KPI Metrics Grid (matching Super Admin Credits page) */}
       {!activity && (
         <QueryState query={myBalance}>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div data-tour="reseller-credit-summary" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Card
               className={`rounded-lg shadow-none ${
                 isWalletLocked ? "border-red-300 bg-red-50/60" : ""

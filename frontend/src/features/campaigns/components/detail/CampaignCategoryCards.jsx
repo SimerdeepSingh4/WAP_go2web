@@ -575,8 +575,8 @@ export default function CampaignCategoryCards({ campaign }) {
   };
 
   return (
-    <form id="campaign-recipient-report" className="space-y-4" onSubmit={(event) => { event.preventDefault(); if (!isSaving && !isStarting) handleSave("draft", true); }}>
-      <section className="overflow-hidden rounded-xl border border-border bg-card" aria-label="Report controls">
+    <form data-tour="report-editor" id="campaign-recipient-report" className="space-y-4" onSubmit={(event) => { event.preventDefault(); if (!isSaving && !isStarting) handleSave("draft", true); }}>
+      <section data-tour="report-editor-actions" className="overflow-hidden rounded-xl border border-border bg-card" aria-label="Report controls">
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div className="space-y-1">
             <h2 className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">Recipient report <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-normal text-muted-foreground">{number(rate)} credits / message</span></h2>
@@ -590,7 +590,7 @@ export default function CampaignCategoryCards({ campaign }) {
             <Button type="button" size="sm" onClick={() => handleSave("draft", true)} disabled={isSaving || isStarting || originalUploadedNumbers.length === 0}><CheckCircle2 className="size-3.5" /> Save &amp; review report</Button>
           </div>
         </div>
-        <dl className="grid grid-cols-3 divide-x divide-border border-t border-border bg-muted/15">
+        <dl data-tour="report-editor-summary" className="grid grid-cols-3 divide-x divide-border border-t border-border bg-muted/15">
           <div className="px-3 py-3 sm:px-4"><dt className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><Users className="hidden size-3 sm:block" />Audience</dt><dd className="mt-1 text-lg font-semibold tracking-tight text-foreground tabular-nums">{number(liveFinancials.totalAudience)}</dd></div>
           <div className="px-3 py-3 sm:px-4"><dt className="text-[11px] text-muted-foreground">Keep charged</dt><dd className="mt-1 flex flex-wrap items-baseline gap-x-2 text-lg font-semibold tracking-tight text-foreground tabular-nums">{number(liveFinancials.chargedAmount)}<span className="text-[11px] font-normal text-muted-foreground">credits</span></dd></div>
           <div className="px-3 py-3 sm:px-4"><dt className="text-[11px] text-muted-foreground">Refund</dt><dd className="mt-1 flex flex-wrap items-baseline gap-x-2 text-lg font-semibold tracking-tight text-foreground tabular-nums">{number(liveFinancials.refundAmount)}<span className="text-[11px] font-normal text-muted-foreground">credits</span></dd></div>
@@ -602,7 +602,7 @@ export default function CampaignCategoryCards({ campaign }) {
         <div className="space-y-2 border-t border-border p-4"><div className="flex items-center justify-between gap-3"><p className="text-[11px] text-muted-foreground">Original upload order</p><Button type="button" variant="ghost" size="xs" onClick={() => handleCopyText("all", allContactsText, "All Contacts")} disabled={!allContactsText}>{copiedCard === "all" ? <Check className="size-3" /> : <Copy className="size-3" />}{copiedCard === "all" ? "Copied" : "Copy list"}</Button></div><textarea aria-label="Original uploaded numbers" readOnly rows={4} value={allContactsText} spellCheck={false} className="block h-28 max-h-48 min-h-20 w-full resize-y overflow-y-auto rounded-lg border border-input bg-muted/20 px-3 py-2 font-mono text-xs leading-6 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30" placeholder="No numbers submitted" /></div>
       </details>
 
-      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+      <div data-tour="report-categories" className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         {allCards.map((card) => {
           const stat = cardStats[card.key] || { count: 0, billing: card.defaultBilling || "keep" };
           const isRefund = stat.billing === "refund";

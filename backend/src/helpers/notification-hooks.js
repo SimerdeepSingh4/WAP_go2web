@@ -1,6 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { NotificationEvent } from "../models/notification.model.js";
 import { campaignPublicStatus } from "./campaign-visibility.js";
+import { auditModelChange } from "../services/audit.service.js";
+import { auditQueryHooks } from "./audit-query-hooks.js";
+import { creditTransactionOptions } from "./credit-amount.js";
 
 let sequenceCounter = Date.now();
 export function getNextNotificationSequence() {
@@ -35,27 +38,30 @@ async function enqueue(doc, kind, changeField, isNew, previous, session) {
 // Outbox writes share the business operation's Mongo session. A rolled-back
 // credit operation cannot leave a deliverable success notification behind.
 export function notificationHooks(schema, kind) {
+    auditQueryHooks(schema, kind);
     schema.pre("save", async function () {
         const isNew = this.isNew;
         const changes = (watched[kind] || []).filter((field) => this.isModified(field));
-        if (kind === "transaction" ? !isNew : !isNew && !changes.length) { this.$locals.notificationEvent = null; return; }
+        if (kind === "transaction" ? !isNew : !isNew && !this.isModified()) { this.$locals.notificationEvent = null; return; }
         if (!this.$session()) {
             const session = await this.constructor.db.startSession();
-            session.startTransaction();
+            session.startTransaction(creditTransactionOptions);
             this.$session(session);
             this.$locals.notificationOwnedSession = session;
         }
         let previous;
+        const auditBefore = isNew ? null : await this.constructor.findById(this._id).session(this.$session()).lean();
         if (!isNew && kind === "wallet") previous = await this.constructor.findById(this._id).select("balance expiresAt isLocked").session(this.$session()).lean();
         if (!isNew && kind === "campaign" && changes.includes("publishedSpreadsheet")) {
             const before = await this.constructor.findById(this._id).select("publishedSpreadsheet.publishedAt").session(this.$session()).lean();
             if (String(before?.publishedSpreadsheet?.publishedAt || "") === String(this.publishedSpreadsheet?.publishedAt || "")) changes.splice(changes.indexOf("publishedSpreadsheet"), 1);
         }
-        this.$locals.notificationEvent = { changes, isNew, previous };
+        this.$locals.notificationEvent = { changes, isNew, previous, auditBefore };
     });
     schema.post("save", async function (doc) {
         const event = doc.$locals.notificationEvent;
         if (!event) return;
+        await auditModelChange(kind, event.auditBefore, doc, doc.$session());
         if (event.isNew) {
             await enqueue(doc, kind, null, true, null, doc.$session());
         } else {
@@ -84,20 +90,22 @@ export function notificationHooks(schema, kind) {
     schema.pre("findOneAndUpdate", async function () {
         if (!this.getOptions().session) {
             const session = await this.model.db.startSession();
-            session.startTransaction();
+            session.startTransaction(creditTransactionOptions);
             this.setOptions({ session });
             this.notificationOwnedSession = session;
         }
         this.notificationPrevious = await this.model.findOne(this.getFilter()).session(this.getOptions().session || null).lean();
     });
     schema.post("findOneAndUpdate", async function (result) {
-        if (!result) {
+        const candidate = result || (this.getOptions().upsert && await this.model.findOne(this.getFilter()).session(this.getOptions().session || null).lean());
+        if (!candidate) {
             if (this.notificationOwnedSession) { await this.notificationOwnedSession.commitTransaction(); await this.notificationOwnedSession.endSession(); this.notificationOwnedSession = null; }
             return;
         }
-        const doc = await this.model.findById(result._id).session(this.getOptions().session || null).lean();
+        const doc = await this.model.findById(candidate._id).session(this.getOptions().session || null).lean();
         if (!doc) return;
         const previous = this.notificationPrevious;
+        await auditModelChange(kind, previous, doc, this.getOptions().session);
         const changes = watched.wallet.filter((key) => String(doc[key] ?? "") !== String(previous?.[key] ?? ""));
         for (const field of changes) {
             await enqueue(doc, kind, field, !previous, previous && { balance: previous.balance, expiresAt: previous.expiresAt, isLocked: previous.isLocked }, this.getOptions().session);

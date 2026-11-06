@@ -2,7 +2,7 @@ import NotificationBell from "@/features/notifications/NotificationBell";
 import GlobalSearch from "./GlobalSearch";
 import { useState } from "react";
 import { Link, NavLink, Navigate, Outlet, useLocation } from "react-router";
-import { LayoutDashboard, Megaphone, Users, Building2, Wallet, ReceiptText, Settings, LogOut, ChevronDown, PanelLeftClose, PanelLeftOpen, Bell } from "lucide-react";
+import { LayoutDashboard, Megaphone, Users, Building2, Wallet, ReceiptText, Settings, LogOut, ChevronDown, PanelLeftClose, PanelLeftOpen, Bell, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import UserAvatar from "@/components/dashboard/UserAvatar";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -24,6 +24,7 @@ const navigation = {
     ["Users", "/users", Users],
     ["Credits", "/credits", Wallet],
     ["Transactions", "/activity", ReceiptText],
+    ["Audit log", "/audit", ShieldCheck],
     ["Notifications", "/notifications", Bell],
     ["Settings", "/settings", Settings],
   ],
@@ -125,7 +126,7 @@ function Navigation({ role, base, items }) {
 
 export default function DashboardLayout({ role }) {
   const { user, logout, isLoggingOut } = useAuth();
-  const { startTour } = useAppTour(role, user?._id || user?.id);
+  const { startTour, hasTour, tourTitle } = useAppTour(role, user?._id || user?.id);
   const [open, setOpen] = useState(true);
   const base = rolePaths[role];
   const items = navigation[role];
@@ -158,7 +159,7 @@ export default function DashboardLayout({ role }) {
                   <NotificationBell base={base} />
                 </div>
                 {/* Help Menu with Take a Tour */}
-                <DropdownMenu>
+                {hasTour && <DropdownMenu>
                   <DropdownMenuTrigger
                     render={
                       <Button
@@ -175,7 +176,12 @@ export default function DashboardLayout({ role }) {
                       </Button>
                     }
                   />
-                  <DropdownMenuContent align="end" className="w-48 p-1.5">
+                  <DropdownMenuContent align="end" className="w-64 p-1.5">
+                    <div className="px-2 py-2">
+                      <p className="text-xs font-semibold">{tourTitle}</p>
+                      <p className="mt-1 text-[11px] text-muted-foreground">A guided walkthrough of this page.</p>
+                    </div>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={() => startTour(true)}
                       className="gap-2 text-xs font-medium cursor-pointer"
@@ -184,7 +190,7 @@ export default function DashboardLayout({ role }) {
                       <span>Take a tour</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
-                </DropdownMenu>
+                </DropdownMenu>}
 
                 <DropdownMenu>
                   <DropdownMenuTrigger
@@ -208,10 +214,10 @@ export default function DashboardLayout({ role }) {
                       </span>
                     </div>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => startTour(true)} className="gap-2 text-xs font-medium cursor-pointer">
+                    {hasTour && <DropdownMenuItem onClick={() => startTour(true)} className="gap-2 text-xs font-medium cursor-pointer">
                       <Sparkles aria-hidden="true" className="size-4 text-emerald-600 dark:text-emerald-400" />
                       Take a tour
-                    </DropdownMenuItem>
+                    </DropdownMenuItem>}
                     <DropdownMenuItem render={<Link to={`${base}/settings`} />}>
                       <Settings aria-hidden="true" className="size-4" />
                       Settings

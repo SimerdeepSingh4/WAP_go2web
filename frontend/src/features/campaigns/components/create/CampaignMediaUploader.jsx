@@ -145,6 +145,7 @@ export default function CampaignMediaUploader({
 
   return (
     <SectionCard
+      dataTour="create-media"
       icon={Upload}
       title="Campaign media"
       description="Optional campaign attachments: one image, one video, and one PDF."

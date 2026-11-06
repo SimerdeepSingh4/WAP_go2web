@@ -59,7 +59,7 @@ export default function AdminCampaignReportEditor({ campaign, base, onRefresh, i
   return (
     <div className="mx-auto w-full min-w-0 max-w-7xl space-y-5 pb-6">
       <Link to={`${base}/campaigns/${campaign._id}`} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft className="size-3.5" /> Back to campaign</Link>
-      <header className="flex flex-wrap items-start justify-between gap-4">
+      <header data-tour="report-review-header" className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 space-y-1.5">
           <p className="text-xs text-muted-foreground">Review report</p>
           <h1 className="break-words text-xl font-semibold tracking-tight">{campaign.campaignTitle}</h1>
@@ -71,12 +71,12 @@ export default function AdminCampaignReportEditor({ campaign, base, onRefresh, i
           <Button type="button" size="sm" onClick={() => setConfirmOpen(true)} disabled={publish.isPending || isRefreshing || !sheet?.rows.length || justPublished || missingFailureReason}>{publish.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}{justPublished ? "Published" : publishedAt ? "Publish updates" : "Publish report"}</Button>
         </div>
       </header>
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-4 py-3 text-xs">
+      <div data-tour="report-credit-preview" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-4 py-3 text-xs">
         <div className="space-y-1"><p className="font-medium">Campaign owner preview</p><p className="text-[11px] text-muted-foreground">Saved campaign changes appear below. The owner sees this report as a read-only table after publication.</p></div>
         <span className="text-[11px] text-muted-foreground">{creditDelta > 0 ? `${number(creditDelta)} credits to refund` : creditDelta < 0 ? `${number(Math.abs(creditDelta))} credits to deduct` : "No credit adjustment"}</span>
       </div>
       {missingFailureReason && <p role="alert" className="text-xs text-destructive">Add a failure reason in Edit report before publishing.</p>}
-      {preview.error ? <div role="alert" className="rounded-lg border border-destructive/30 p-4 text-sm text-destructive">{preview.error} Use Edit report to correct the data.</div> : campaign.status === "failed" ? <FailedCampaignReport campaign={preview.campaign} base={base} embedded /> : <PublishedSpreadsheetReport campaign={preview.campaign} base={base} embedded />}
+      <div data-tour="report-owner-preview">{preview.error ? <div role="alert" className="rounded-lg border border-destructive/30 p-4 text-sm text-destructive">{preview.error} Use Edit report to correct the data.</div> : campaign.status === "failed" ? <FailedCampaignReport campaign={preview.campaign} base={base} embedded /> : <PublishedSpreadsheetReport campaign={preview.campaign} base={base} embedded />}</div>
       <Dialog open={confirmOpen} onOpenChange={(open) => !publish.isPending && setConfirmOpen(open)}>
         <DialogContent className="gap-5 rounded-2xl p-5 sm:max-w-sm">
           <DialogHeader className="gap-1.5 pr-6"><DialogTitle>Publish this report?</DialogTitle><DialogDescription className="text-xs leading-5">{campaign.status === "failed" ? "This report will be visible to its owner. The campaign will stay failed with a full credit refund." : "The campaign will be completed and this report will be visible to its owner."}</DialogDescription></DialogHeader>

@@ -28,6 +28,7 @@ Make sure [Node.js](https://nodejs.org/) (version 18 or newer) is installed on y
    ```env
    MONGO_URI = mongodb+srv://...
    JWT_SECRET = your_jwt_secret_key_here
+   AUDIT_SIGNING_KEY = your_persistent_random_secret_at_least_32_bytes
    CLIENT_URL = http://localhost:5173
    ```
 5. Start the server:
@@ -132,3 +133,7 @@ backend/
 * `POST /api/users/:id/access` - Enters **Preview Mode** for that user account.
 * `POST /api/users/exit-preview` - Exits Preview Mode and restores original manager account.
 
+
+## Audit trail for manual record management
+
+Campaigns remain manual records. Account, campaign, and credit changes are recorded in a signed audit trail. See [audit setup and verification](ENTERPRISE_SECURITY.md). Keep the signing key persistent across restarts.

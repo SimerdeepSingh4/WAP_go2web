@@ -21,6 +21,7 @@ export default function CampaignRecipientsInput({
 }) {
   return (
     <SectionCard
+      dataTour="create-recipients"
       icon={Users}
       title="Recipients"
       description="Paste numbers with country code, or drop a CSV or TXT file."
