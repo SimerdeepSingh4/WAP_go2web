@@ -1,0 +1,54 @@
+.campaign-date-filter-trigger { width: 236px; max-width: 100%; justify-content: flex-start; white-space: nowrap; }
+.campaign-date-clear-slot { display: flex; width: 32px; flex: 0 0 32px; align-items: center; justify-content: center; }
+.campaign-calendar-popup {
+  width: 310px;
+  max-width: calc(100vw - 24px);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 6px;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: 0 16px 48px -16px #15244430, 0 3px 10px #15244408;
+  outline: none;
+  transform-origin: var(--transform-origin);
+  transition: opacity 150ms ease, transform 180ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.campaign-calendar-popup[data-starting-style], .campaign-calendar-popup[data-ending-style] { opacity: 0; transform: translateY(-4px) scale(0.98); }
+.campaign-filter-calendar { width: 100%; padding: 10px; border-radius: 14px; background: transparent; --cell-size: 36px; }
+.campaign-calendar-month { display: flex; width: 100%; min-width: 0; flex-direction: column; gap: 10px; }
+.campaign-calendar-caption { display: flex; height: 32px; align-items: center; justify-content: space-between; gap: 4px; }
+.campaign-calendar-caption-label { display: flex; align-items: center; gap: 3px; }
+.campaign-calendar-caption-label button { border: 0; border-radius: 8px; padding: 5px 7px; background: transparent; font-size: 13px; font-weight: 550; letter-spacing: -0.15px; cursor: pointer; }
+.campaign-calendar-caption-label > span { color: var(--muted-foreground); opacity: 0.35; font-size: 12px; }
+.campaign-calendar-arrow { display: grid; width: 28px; height: 28px; flex-shrink: 0; place-items: center; border: 0; border-radius: 9px; background: transparent; color: var(--muted-foreground); cursor: pointer; }
+.campaign-calendar-arrow svg { width: 16px; height: 16px; stroke-width: 1.9; }
+.campaign-calendar-arrow:hover:not(:disabled), .campaign-calendar-caption-label button:hover { background: var(--muted); color: var(--foreground); }
+.campaign-calendar-arrow:disabled { opacity: 0.25; cursor: not-allowed; }
+.campaign-filter-calendar button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.campaign-calendar-body { position: relative; min-height: 248px; overflow: hidden; }
+.campaign-calendar-body table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.campaign-filter-calendar .rdp-weekdays { display: flex; height: 28px; align-items: center; }
+.campaign-filter-calendar .rdp-weekday { font-size: 11px; font-weight: 500; }
+.campaign-filter-calendar .rdp-week { display: flex; width: 100%; margin-top: 0; padding-block: 2px; }
+.campaign-calendar-day { position: relative; width: calc(100% / 7); height: 32px; padding: 0; text-align: center; }
+.campaign-calendar-day button { position: relative; z-index: 1; display: flex; width: 32px; min-width: 32px; height: 32px; min-height: 32px; align-items: center; justify-content: center; margin: auto; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--foreground); font-size: 13px; font-weight: 400; box-shadow: none; transition: background-color 150ms ease, color 150ms ease; }
+.campaign-calendar-day button:hover:not(:disabled) { background: var(--muted); }
+.campaign-calendar-range-middle, .campaign-calendar-range-start::before, .campaign-calendar-range-end::before { background: color-mix(in srgb, var(--primary) 6%, var(--popover)); }
+.campaign-calendar-range-start::before, .campaign-calendar-range-end::before { position: absolute; inset-block: 0; content: ""; }
+.campaign-calendar-range-start::before { left: 50%; right: 0; }
+.campaign-calendar-range-end::before { left: 0; right: 50%; }
+.campaign-calendar-range-start.campaign-calendar-range-end::before { display: none; }
+.campaign-calendar-day button[data-range-middle="true"] { border-radius: 0; background: transparent; }
+.campaign-calendar-day button:is([data-range-start="true"], [data-range-end="true"], [data-selected-single="true"]) { border-radius: 50%; background: var(--primary); color: var(--primary-foreground); font-weight: 550; }
+.campaign-calendar-day button:is([data-range-start="true"], [data-range-end="true"], [data-selected-single="true"]):hover { background: color-mix(in srgb, var(--primary) 90%, var(--popover)); }
+.campaign-calendar-today:not([data-selected="true"]) button { border: 1px solid var(--border); font-weight: 600; }
+.campaign-calendar-outside button { color: color-mix(in srgb, var(--muted-foreground) 45%, transparent); }
+.campaign-calendar-day button:disabled { opacity: 0.28; cursor: not-allowed; }
+.campaign-calendar-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding-block: 6px; }
+.campaign-calendar-picker button { height: 40px; border: 0; border-radius: 10px; background: transparent; color: var(--foreground); font-size: 13px; cursor: pointer; transition: background-color 150ms ease; }
+.campaign-calendar-picker button:hover:not(:disabled):not([aria-pressed="true"]) { background: var(--muted); }
+.campaign-calendar-picker button[aria-pressed="true"] { background: var(--primary); color: var(--primary-foreground); }
+.campaign-calendar-picker button[aria-pressed="true"]:hover { background: color-mix(in srgb, var(--primary) 90%, var(--popover)); color: var(--primary-foreground); }
+.campaign-calendar-picker button:disabled { opacity: 0.28; cursor: not-allowed; }
+.campaign-calendar-year-pager { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 4px; color: var(--muted-foreground); font-size: 11px; }
+@media (prefers-reduced-motion: reduce) { .campaign-calendar-popup, .campaign-filter-calendar button { transition: none; } }

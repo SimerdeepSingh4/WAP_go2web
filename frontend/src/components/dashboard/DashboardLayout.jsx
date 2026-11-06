@@ -10,6 +10,9 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { toast } from "@/components/ui/toast";
 import PreviewBanner from "@/components/PreviewBanner";
+import { Button } from "@/components/ui/button";
+import { Sparkles, HelpCircle } from "lucide-react";
+import { useAppTour } from "@/features/tour/useAppTour";
 
 const rolePaths = { "Super Admin": "/admin", Reseller: "/reseller", User: "/user" };
 const navigation = {
@@ -122,6 +125,7 @@ function Navigation({ role, base, items }) {
 
 export default function DashboardLayout({ role }) {
   const { user, logout, isLoggingOut } = useAuth();
+  const { startTour } = useAppTour(role, user?._id || user?.id);
   const [open, setOpen] = useState(true);
   const base = rolePaths[role];
   const items = navigation[role];
@@ -146,9 +150,41 @@ export default function DashboardLayout({ role }) {
           <SidebarInset className="portal-inset">
             <header className="portal-topbar">
               <SidebarTrigger className="md:hidden" aria-label="Toggle navigation" />
-              <GlobalSearch />
-              <div className="portal-topbar-actions ml-auto">
-                <NotificationBell base={base} />
+              <div id="tour-topbar-search" className="flex-1 max-w-md">
+                <GlobalSearch />
+              </div>
+              <div className="portal-topbar-actions ml-auto flex items-center gap-2">
+                <div id="tour-notification-bell">
+                  <NotificationBell base={base} />
+                </div>
+                {/* Help Menu with Take a Tour */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        id="tour-help-button"
+                        aria-label="Help menu"
+                        className="h-8 gap-1.5 text-xs font-medium border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800"
+                        title="Help and guided tour"
+                      >
+                        <HelpCircle className="size-3.5 text-slate-600 dark:text-slate-400" />
+                        <span>Help</span>
+                        <ChevronDown className="size-3 opacity-60 ml-0.5" />
+                      </Button>
+                    }
+                  />
+                  <DropdownMenuContent align="end" className="w-48 p-1.5">
+                    <DropdownMenuItem
+                      onClick={() => startTour(true)}
+                      className="gap-2 text-xs font-medium cursor-pointer"
+                    >
+                      <Sparkles className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span>Take a tour</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
                 <DropdownMenu>
                   <DropdownMenuTrigger
@@ -172,6 +208,10 @@ export default function DashboardLayout({ role }) {
                       </span>
                     </div>
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => startTour(true)} className="gap-2 text-xs font-medium cursor-pointer">
+                      <Sparkles aria-hidden="true" className="size-4 text-emerald-600 dark:text-emerald-400" />
+                      Take a tour
+                    </DropdownMenuItem>
                     <DropdownMenuItem render={<Link to={`${base}/settings`} />}>
                       <Settings aria-hidden="true" className="size-4" />
                       Settings

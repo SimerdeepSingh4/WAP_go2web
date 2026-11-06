@@ -27,6 +27,7 @@ export const userActions = {
   campaignStatus: async ({ id, status }) => (await api.patch(`/campaigns/${id}/status`, { status })).data,
   // New: create a campaign owned by the logged‑in user
   createCampaign: async (body) => (await api.post("/campaigns", body)).data,
+  deleteCampaign: async (id) => (await api.delete(`/campaigns/${id}`)).data,
   // New: deduct credits from user wallet
   deductCredits: async (body) => (await api.post("/credits/deduct", body)).data,
 };

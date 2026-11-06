@@ -7,10 +7,6 @@ import {
   Eye,
   Pencil,
   Wallet,
-  Users,
-  CheckCircle2,
-  Ban,
-  Percent,
   RefreshCw,
   Lock,
   ArrowRight,
@@ -18,7 +14,6 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { PageHeading, QueryState, SearchBox, FilterSelect, StatusBadge, DataTable } from "@/features/admin/components/shared";
@@ -181,13 +176,6 @@ export default function ResellerUsers() {
       { replace: true }
     );
   }
-
-  // Calculate 4 KPI Metrics
-  const activeCount = accounts.filter((a) => a.status === "active").length;
-  const blockedCount = accounts.filter((a) => a.status === "blocked").length;
-  const avgRate = accounts.length
-    ? accounts.reduce((acc, a) => acc + (a.ratePerMsg || 0), 0) / accounts.length
-    : 0;
 
   const columns = [
     {
@@ -416,7 +404,7 @@ export default function ResellerUsers() {
           action="createAccount"
           successMessage="User account created successfully"
           onClose={() => setModal(null)}
-          initialValues={{ username: "", email: "", password: "", ratePerMsg: "1" }}
+          initialValues={{ username: "", email: "", password: "", ratePerMsg: "1", expiresAt: "" }}
           fields={[
             { key: "username", label: "Username / Company", required: true, maxLength: 100 },
             { key: "email", label: "Email address", type: "email", required: true },
@@ -436,6 +424,12 @@ export default function ResellerUsers() {
               required: true,
               hint: "Deducted from user's balance per contact message.",
             },
+            {
+              key: "expiresAt",
+              label: "Account expiry date (optional)",
+              type: "date",
+              hint: "The account remains active through this date. Leave blank for no expiry.",
+            },
           ]}
           validate={(v) =>
             v.password.trim().length < 8
@@ -448,6 +442,7 @@ export default function ResellerUsers() {
             password: v.password,
             role: "User",
             ratePerMsg: Number(v.ratePerMsg),
+            expiresAt: v.expiresAt || null,
           })}
           review={(v) => (
             <>
@@ -456,6 +451,9 @@ export default function ResellerUsers() {
               <p className="text-xs mt-1">Role: User</p>
               <p className="text-xs">
                 Rate: <strong>{number(Number(v.ratePerMsg))} credits / recipient</strong>
+              </p>
+              <p className="text-xs">
+                Expiry: <strong>{v.expiresAt || "No expiry"}</strong>
               </p>
             </>
           )}

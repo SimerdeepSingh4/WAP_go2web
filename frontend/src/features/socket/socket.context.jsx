@@ -18,7 +18,7 @@ export const SocketProvider = ({ children }) => {
     useEffect(() => {
         if (!accountId) { void clearPushOwner().catch(() => {}); return; }
         if (!preview) void syncPushAccount(accountId).catch(() => {});
-        const socket = io(import.meta.env.VITE_BACKEND_URL || "http://localhost:3000", {
+        const socket = io(import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? "http://localhost:3000" : (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000")), {
             auth: { token: getSessionToken() }, withCredentials: true,
             transports: ["websocket", "polling"], reconnectionAttempts: Infinity,
             reconnectionDelay: 1000, reconnectionDelayMax: 15000,

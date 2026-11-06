@@ -1,3 +1,5 @@
+import fs from "fs";
+import { fileURLToPath } from "url";
 import express from "express";
 import cors from "cors";
 import path from "path";
@@ -41,6 +43,7 @@ app.use(cors({
     credentials: true,
 }));
 app.use(helmet({
+    contentSecurityPolicy: false,
     crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 app.use(express.json({ limit: "50mb" }));
@@ -60,5 +63,33 @@ app.use("/api/contacts", contactRouter);
 app.use("/api/dashboard", dashboardRouter);
 app.use("/api/notifications", notificationRouter);
 app.use("/api/search", searchRouter);
+
+
+// Resolve frontend production build directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const possibleDistPaths = [
+    path.resolve(__dirname, "../../frontend/dist"),
+    path.resolve(process.cwd(), "frontend/dist"),
+    path.resolve(process.cwd(), "../frontend/dist"),
+    path.resolve(process.cwd(), "dist"),
+];
+const frontendDist = possibleDistPaths.find((p) => fs.existsSync(p));
+
+if (frontendDist && fs.existsSync(path.join(frontendDist, "index.html"))) {
+    console.log(`[Static Server] Serving frontend SPA from: ${frontendDist}`);
+    app.use(express.static(frontendDist));
+
+    // Handle SPA client-side routing: serve index.html for all non-API GET requests
+    app.use((req, res, next) => {
+        if (req.method === "GET" && !req.path.startsWith("/api") && !req.path.startsWith("/uploads")) {
+            return res.sendFile(path.join(frontendDist, "index.html"));
+        }
+        next();
+    });
+} else {
+    console.warn("[Static Server] No frontend build found. Run 'npm run build' inside frontend directory to serve the frontend.");
+}
 
 export default app;

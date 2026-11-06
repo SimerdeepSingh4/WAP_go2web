@@ -133,6 +133,17 @@ export async function register(req, res) {
             }
         }
 
+        let accountExpiry = null;
+        if (req.body.expiresAt) {
+            const parsedExpiry = new Date(req.body.expiresAt);
+            if (!Number.isNaN(parsedExpiry.getTime())) {
+                if (/^\d{4}-\d{2}-\d{2}$/.test(String(req.body.expiresAt))) {
+                    parsedExpiry.setUTCHours(23, 59, 59, 999);
+                }
+                accountExpiry = parsedExpiry;
+            }
+        }
+
         const user = await userModel.create({
             username,
             email,
@@ -140,39 +151,9 @@ export async function register(req, res) {
             role: assignedRole,
             resellerId: assignedReseller,
             ratePerMsg: customRate,
+            expiresAt: accountExpiry,
             createdBy: req.user?._id || null,
         });
-
-        // ------------------------------------------------------------
-        // If the newly created account is a Reseller, automatically
-        // create a placeholder client user that belongs to this reseller.
-        // The client user gets the same password for convenience and a
-        // generated email/username to avoid collisions.
-        // ------------------------------------------------------------
-        if (assignedRole === "Reseller") {
-            const clientUsername = `${username}_client`;
-            const emailParts = email.split("@");
-            const clientEmail = `${emailParts[0]}+client@${emailParts[1]}`;
-            try {
-                await userModel.create({
-                    username: clientUsername,
-                    email: clientEmail,
-                    password,
-                    role: "User",
-                    resellerId: user._id,
-                    ratePerMsg: customRate,
-                    createdBy: req.user?._id || null,
-                });
-                // Optional: auto‑create wallet for the client user
-                await walletModel.create({
-                    userId: (await userModel.findOne({ email: clientEmail }))._id,
-                    balance: 0,
-                    resellerId: user._id,
-                });
-            } catch (clientErr) {
-                console.error("Auto‑client user creation error:", clientErr);
-            }
-        }
 
         // Initialize user wallet
         try {

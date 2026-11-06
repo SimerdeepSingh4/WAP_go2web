@@ -17,6 +17,7 @@
     "multer": "^2.5.0",
     "sharp": "^0.35.5",
     "socket.io": "^4.8.4",
+    "wap-go2web": "file:..",
     "web-push": "^3.6.7",
     "xlsx": "^0.18.5"
   },

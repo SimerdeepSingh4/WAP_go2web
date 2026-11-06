@@ -227,6 +227,17 @@ export async function createUser(req, res) {
             }
         }
 
+        let accountExpiry = null;
+        if (req.body.expiresAt) {
+            const parsedExpiry = new Date(req.body.expiresAt);
+            if (!Number.isNaN(parsedExpiry.getTime())) {
+                if (/^\d{4}-\d{2}-\d{2}$/.test(String(req.body.expiresAt))) {
+                    parsedExpiry.setUTCHours(23, 59, 59, 999);
+                }
+                accountExpiry = parsedExpiry;
+            }
+        }
+
         const newUser = await userModel.create({
             username,
             email,
@@ -234,6 +245,7 @@ export async function createUser(req, res) {
             role: assignedRole,
             resellerId: assignedReseller,
             ratePerMsg: customRate,
+            expiresAt: accountExpiry,
             createdBy: req.user._id,
         });
 
@@ -828,5 +840,138 @@ export async function exitPreviewMode(req, res) {
             message: "Failed to exit preview mode",
             success: false,
         });
+    }
+}
+
+/**
+ * PATCH /api/users/:id
+ * Edit account details (username, email, password, ratePerMsg, status, expiresAt, resellerId)
+ */
+export async function updateUser(req, res) {
+    try {
+        const { id } = req.params;
+        const { username, email, password, ratePerMsg, expiresAt, status, resellerId } = req.body;
+
+        const targetUser = await userModel.findById(id);
+        if (!targetUser) {
+            return res.status(404).json({ message: "User not found", success: false });
+        }
+
+        const isSuperAdmin = req.user.role === "Super Admin";
+        const ownsUser = req.user.role === "Reseller" &&
+            targetUser.role === "User" &&
+            String(targetUser.resellerId) === String(req.user._id);
+
+        if (!isSuperAdmin && !ownsUser) {
+            return res.status(403).json({ message: "You can only edit your own assigned users.", success: false });
+        }
+
+        if (targetUser.role === "Super Admin" && !isSuperAdmin) {
+            return res.status(403).json({ message: "Super Admin accounts cannot be edited here.", success: false });
+        }
+
+        // 1. Update username
+        if (username !== undefined && username !== null) {
+            const trimmed = String(username).trim();
+            if (!trimmed) {
+                return res.status(400).json({ message: "Username cannot be empty", success: false });
+            }
+            targetUser.username = trimmed;
+        }
+
+        // 2. Update email
+        if (email !== undefined && email !== null) {
+            const trimmedEmail = String(email).trim().toLowerCase();
+            if (!trimmedEmail) {
+                return res.status(400).json({ message: "Email cannot be empty", success: false });
+            }
+            if (trimmedEmail !== targetUser.email) {
+                const existing = await userModel.findOne({ email: trimmedEmail, _id: { $ne: targetUser._id } });
+                if (existing) {
+                    return res.status(400).json({ message: "Email is already taken by another account", success: false });
+                }
+                targetUser.email = trimmedEmail;
+            }
+        }
+
+        // 3. Update password (optional)
+        if (password && String(password).trim().length > 0) {
+            if (String(password).trim().length < 8) {
+                return res.status(400).json({ message: "Password must be at least 8 characters", success: false });
+            }
+            targetUser.password = String(password).trim();
+        }
+
+        // 4. Update ratePerMsg
+        if (ratePerMsg !== undefined && ratePerMsg !== null && ratePerMsg !== "") {
+            const parsedRate = Number(ratePerMsg);
+            if (isNaN(parsedRate) || parsedRate < 0) {
+                return res.status(400).json({ message: "Rate per message must be a non-negative number", success: false });
+            }
+            targetUser.ratePerMsg = parsedRate;
+        }
+
+        // 5. Update status
+        if (status !== undefined && status !== null) {
+            if (!["active", "blocked", "expired"].includes(status)) {
+                return res.status(400).json({ message: "Status must be active, blocked, or expired", success: false });
+            }
+            targetUser.status = status;
+            if (status === "blocked") {
+                await sessionModel.deleteMany({ userId: targetUser._id });
+            }
+            if (status === "expired") {
+                targetUser.expiresAt = new Date(Date.now() - 1000);
+            }
+        }
+
+        // 6. Update expiresAt
+        if (Object.hasOwn(req.body, "expiresAt")) {
+            if (!expiresAt) {
+                targetUser.expiresAt = null;
+            } else {
+                const parsedExpiry = new Date(expiresAt);
+                if (Number.isNaN(parsedExpiry.getTime())) {
+                    return res.status(400).json({ message: "Enter a valid account expiry date.", success: false });
+                }
+                if (/^\d{4}-\d{2}-\d{2}$/.test(String(expiresAt))) {
+                    parsedExpiry.setUTCHours(23, 59, 59, 999);
+                }
+                targetUser.expiresAt = parsedExpiry;
+            }
+        }
+
+        // 7. Update resellerId (Super Admin only for User role)
+        if (isSuperAdmin && targetUser.role === "User" && Object.hasOwn(req.body, "resellerId")) {
+            const newResellerId = req.body.resellerId || null;
+            if (newResellerId) {
+                const reseller = await userModel.findOne({ _id: newResellerId, role: "Reseller" });
+                if (!reseller) {
+                    return res.status(400).json({ message: "Selected reseller not found", success: false });
+                }
+            }
+            targetUser.resellerId = newResellerId;
+            await walletModel.updateOne({ userId: targetUser._id }, { $set: { resellerId: newResellerId } });
+        }
+
+        await targetUser.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Account updated successfully",
+            user: {
+                id: targetUser._id,
+                username: targetUser.username,
+                email: targetUser.email,
+                role: targetUser.role,
+                ratePerMsg: targetUser.ratePerMsg,
+                status: targetUser.status,
+                expiresAt: targetUser.expiresAt,
+                resellerId: targetUser.resellerId,
+            },
+        });
+    } catch (error) {
+        console.error("UpdateUser error:", error);
+        return res.status(500).json({ message: "Failed to update account", success: false });
     }
 }

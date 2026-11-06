@@ -39,7 +39,6 @@ userRouter.post("/", authorizeRoles("Reseller", "Super Admin"), createUser);
 userRouter.patch("/:id/role", authorizeRoles("Super Admin"), updateUserRole);
 
 // Only Super Admin or the owning Reseller can block/unblock or set expiry.
-userRouter.patch("/:id/profile", authorizeRoles("Reseller", "Super Admin"), updateManagedUserProfile);
 userRouter.patch("/:id/access", authorizeRoles("Reseller", "Super Admin"), updateUserAccess);
 userRouter.delete("/:id", authorizeRoles("Reseller", "Super Admin"), deleteUser);
 

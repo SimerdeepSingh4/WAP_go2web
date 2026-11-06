@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { FormError } from "@/features/admin/components/shared";
 import { number, dateTime } from "@/features/admin/lib/format";
+import { ClipboardCheck, Info, MessageSquare, Send } from "lucide-react";
+import "./campaign-dialogs.css";
 
 export default function CampaignReviewDialog({
   isOpen,
@@ -30,15 +32,16 @@ export default function CampaignReviewDialog({
         if (!open && !isPending) onClose();
       }}
     >
-      <DialogContent showCloseButton={!isPending}>
-        <DialogHeader>
-          <DialogTitle>Review campaign</DialogTitle>
+      <DialogContent className="campaign-review-dialog" showCloseButton={!isPending}>
+        <DialogHeader className="campaign-dialog-header">
+          <span className="campaign-dialog-icon" aria-hidden="true"><ClipboardCheck /></span>
+          <div><DialogTitle>Review campaign</DialogTitle>
           <DialogDescription>
             Credits are charged when the server accepts your submission. The super admin handles approval and processing.
-          </DialogDescription>
+          </DialogDescription></div>
         </DialogHeader>
 
-        <dl className="divide-y rounded-lg border text-sm">
+        <dl className="campaign-review-details">
           {[
             ["Campaign", campaignTitle],
             ["Numbers entered", number(totalRecipients)],
@@ -48,9 +51,9 @@ export default function CampaignReviewDialog({
             ["Delivery", scheduleType === "later" ? dateTime(scheduledTime) : "As soon as approved"],
             ["Attachments", number(totalMediaCount)],
           ].map(([label, value]) => (
-            <div key={label} className="flex items-center justify-between gap-4 px-3.5 py-2.5">
-              <dt className="text-muted-foreground">{label}</dt>
-              <dd className="font-medium text-foreground text-right tabular-nums truncate max-w-[60%]">
+            <div key={label} data-highlight={label === "Estimated charge" || undefined}>
+              <dt>{label}</dt>
+              <dd>
                 {value}
               </dd>
             </div>
@@ -58,19 +61,17 @@ export default function CampaignReviewDialog({
         </dl>
 
         {previewText && (
-          <p className="text-xs text-muted-foreground line-clamp-3 rounded-lg bg-muted/40 p-3 whitespace-pre-wrap">
-            {previewText}
-          </p>
+          <div className="campaign-review-message"><h3><MessageSquare aria-hidden="true" />Message preview</h3><p>{previewText}</p></div>
         )}
 
-        <p className="text-xs text-muted-foreground">
+        <p className="campaign-review-note"><Info aria-hidden="true" /><span>
           {isAdmin && invalidCount > 0 ? `${number(invalidCount)} entries need review. ` : ""}
           The server confirms the final charge.
-        </p>
+        </span></p>
 
         <FormError message={error?.response?.data?.message || error?.message} />
 
-        <div className="flex justify-end gap-2">
+        <div className="campaign-dialog-footer">
           <Button
             variant="outline"
             disabled={isPending}
@@ -82,6 +83,7 @@ export default function CampaignReviewDialog({
             disabled={isPending}
             onClick={onSubmit}
           >
+            <Send aria-hidden="true" />
             {isPending ? "Submitting…" : "Submit campaign"}
           </Button>
         </div>

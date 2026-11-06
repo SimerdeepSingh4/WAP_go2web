@@ -1,9 +1,12 @@
 import { useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import { useSearchParams, Link } from "react-router";
 import { Popover } from "@base-ui/react/popover";
-import { MoreHorizontal, Eye, FileText, RefreshCw, CalendarDays, X } from "lucide-react";
+import { MoreHorizontal, Eye, FileText, RefreshCw, CalendarDays, X, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useAdminMutation } from "../hooks/useAdmin";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import CampaignFilterCalendar from "../components/CampaignFilterCalendar";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { PageHeading, SearchBox, QueryState, DataTable, StatusBadge } from "../components/shared";
 import { useAdminQuery } from "../hooks/useAdmin";
@@ -38,6 +41,9 @@ export default function Campaigns({ reports = false }) {
   const [params, setParams] = useSearchParams();
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [draftRange, setDraftRange] = useState({ from: undefined, to: undefined });
+  const [campaignToDelete, setCampaignToDelete] = useState(null);
+  const deleteMutation = useAdminMutation("deleteCampaign", "Campaign deleted successfully", () => setCampaignToDelete(null));
+  const today = dateFromKey(campaignDay(new Date()));
   const search = params.get("search") || "";
   const status = params.get("status") || "all";
   const selectedDateKey = params.get("date") || "";
@@ -48,6 +54,9 @@ export default function Campaigns({ reports = false }) {
     to: dateFromKey(rangeToKey),
   };
   const hasCompleteRange = Boolean(selectedRange.from && selectedRange.to);
+  const hasDateFilter = Boolean(selectedDateKey || params.has("from") || params.has("to"));
+  const hasFilters = Boolean(search || status !== "all" || hasDateFilter);
+  const reducedMotion = useReducedMotion();
   const selected = params.get("campaign");
 
   function update(key, value) {
@@ -191,6 +200,13 @@ export default function Campaigns({ reports = false }) {
               <FileText className="size-4 mr-2" />
               View Report
             </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive cursor-pointer"
+              onClick={() => setCampaignToDelete(c)}
+            >
+              <Trash2 className="size-4 mr-2" />
+              Delete Campaign
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       ),
@@ -235,7 +251,7 @@ export default function Campaigns({ reports = false }) {
       />
 
       {/* Filter Tabs Bar */}
-      <div className="flex flex-wrap items-center gap-1.5 border-b pb-3">
+      <div data-tour="campaign-status" className="flex flex-wrap items-center gap-1.5 border-b pb-3">
         {quickFilterTabs.map((tab) => {
           const isCurrent = status === tab.val;
           return (
@@ -269,7 +285,7 @@ export default function Campaigns({ reports = false }) {
             setCalendarOpen(open);
           }}>
             <Popover.Trigger
-                render={<Button type="button" variant={hasCompleteRange ? "default" : "outline"} size="sm" className="gap-2" />}
+                render={<Button data-tour="campaign-dates" type="button" variant={hasCompleteRange ? "default" : "outline"} size="sm" className="campaign-date-filter-trigger gap-2" />}
             >
               <CalendarDays className="size-4" />
               {hasCompleteRange
@@ -280,9 +296,9 @@ export default function Campaigns({ reports = false }) {
             </Popover.Trigger>
             <Popover.Portal>
               <Popover.Positioner align="end" sideOffset={8} className="z-50">
-                <Popover.Popup className="rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-lg outline-none">
-                  <Calendar
-                    mode="range"
+                <Popover.Popup className="campaign-calendar-popup">
+                  <CampaignFilterCalendar
+                    latestDate={today}
                     selected={draftRange}
                     defaultMonth={draftRange.from || selectedRange.from || new Date()}
                     onSelect={(range) => setDraftRange(range || { from: undefined, to: undefined })}
@@ -294,7 +310,7 @@ export default function Campaigns({ reports = false }) {
                     <Button type="button" size="sm" variant="ghost" onClick={() => setDraftRange({ from: undefined, to: undefined })}>Clear</Button>
                     <div className="flex gap-2">
                       <Button type="button" size="sm" variant="outline" onClick={() => setCalendarOpen(false)}>Cancel</Button>
-                      <Button type="button" size="sm" disabled={!draftRange.from || !draftRange.to} onClick={() => {
+                      <Button type="button" size="sm" disabled={!draftRange.from || !draftRange.to || draftRange.from > today || draftRange.to > today} onClick={() => {
                         const start = dateKey(draftRange.from);
                         const end = dateKey(draftRange.to);
                         setParams((current) => {
@@ -312,8 +328,8 @@ export default function Campaigns({ reports = false }) {
               </Popover.Positioner>
             </Popover.Portal>
           </Popover.Root>
-          {(selectedDateKey || params.has("from") || params.has("to")) && (
-            <Button variant="ghost" size="icon-sm" aria-label="Clear date filter" title="Clear date filter" onClick={() => {
+          <motion.div className="campaign-date-clear-slot" initial={false} animate={{ opacity: hasDateFilter ? 1 : 0, scale: hasDateFilter ? 1 : 0.85 }} transition={{ duration: reducedMotion ? 0 : 0.16 }} style={{ pointerEvents: hasDateFilter ? "auto" : "none" }} aria-hidden={!hasDateFilter}>
+            <Button variant="ghost" size="icon-sm" disabled={!hasDateFilter} tabIndex={hasDateFilter ? 0 : -1} aria-label="Clear date filter" title="Clear date filter" onClick={() => {
               setParams((current) => {
                 const next = new URLSearchParams(current);
                 next.delete("date");
@@ -324,12 +340,12 @@ export default function Campaigns({ reports = false }) {
             }}>
               <X className="size-4" />
             </Button>
-          )}
-          {(search || status !== "all" || selectedDateKey || params.has("from") || params.has("to")) && (
-            <Button variant="ghost" size="sm" onClick={() => setParams({})}>
+          </motion.div>
+          <motion.div initial={false} animate={{ opacity: hasFilters ? 1 : 0 }} transition={{ duration: reducedMotion ? 0 : 0.16 }} style={{ pointerEvents: hasFilters ? "auto" : "none" }} aria-hidden={!hasFilters}>
+            <Button variant="ghost" size="sm" disabled={!hasFilters} tabIndex={hasFilters ? 0 : -1} onClick={() => setParams({})}>
               Clear all filters
             </Button>
-          )}
+          </motion.div>
         </div>
       </div>
 
@@ -363,6 +379,32 @@ export default function Campaigns({ reports = false }) {
             });
           }}
         />
+      )}
+
+      {campaignToDelete && (
+        <AlertDialog open={Boolean(campaignToDelete)} onOpenChange={(open) => !open && setCampaignToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete campaign "{campaignToDelete.campaignTitle}"?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete this campaign, its recipient records, and associated reports.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                disabled={deleteMutation.isPending}
+                onClick={(e) => {
+                  e.preventDefault();
+                  deleteMutation.mutate(campaignToDelete._id);
+                }}
+              >
+                {deleteMutation.isPending ? "Deleting..." : "Delete Campaign"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </>
   );

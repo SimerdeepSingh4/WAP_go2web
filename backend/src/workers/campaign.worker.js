@@ -5,7 +5,7 @@ import campaignModel from "../models/campaign.model.js";
 import userModel from "../models/user.model.js";
 import walletModel from "../models/wallet.model.js";
 import transactionModel from "../models/transaction.model.js";
-import { notifyUser, notifyRole } from "../services/socket.service.js";
+import { notifyUser, notifyRole, notifyReseller } from "../services/socket.service.js";
 import { creditAmount, creditDifference, creditsForCount, creditTransactionOptions } from "../helpers/credit-amount.js";
 import { campaignPublicStatus } from "../helpers/campaign-visibility.js";
 
@@ -76,9 +76,44 @@ export async function finalizeCampaignDelivery(campaignId) {
     return result;
 }
 
+export async function processCampaignJob(campaignId) {
+    let campaign = await campaignModel.findById(campaignId);
+    if (!campaign) return { success: false, reason: "Campaign not found" };
+
+    // If campaign was in "scheduled" status, the scheduled time has arrived! Auto-transition to "ongoing"
+    if (campaign.status === "scheduled") {
+        campaign.status = "ongoing";
+        campaign.campaignStartDate = new Date();
+        await campaign.save();
+
+        const updateData = {
+            campaignId: campaign._id,
+            campaignTitle: campaign.campaignTitle,
+            status: "ongoing",
+            startDate: campaign.campaignStartDate,
+        };
+        notifyUser(campaign.userId, "CAMPAIGN_UPDATED", updateData);
+        notifyRole("Super Admin", "CAMPAIGN_UPDATED", updateData);
+        if (campaign.userId?.resellerId) {
+            notifyReseller(campaign.userId.resellerId, "CAMPAIGN_UPDATED", updateData);
+        }
+        console.log(`[Worker] Scheduled campaign "${campaign.campaignTitle}" (${campaign._id}) is now ONGOING.`);
+    }
+
+    if (campaign.status === "ongoing") {
+        return await finalizeCampaignDelivery(campaignId);
+    }
+
+    return { success: true, status: campaign.status };
+}
+
 export function initCampaignWorker() {
     if (campaignWorker) return campaignWorker;
-    campaignWorker = new Worker("campaignQueue", async (job) => finalizeCampaignDelivery(job.data.campaignId), { connection: redisConnection, concurrency: 5 });
+    campaignWorker = new Worker(
+        "campaignQueue",
+        async (job) => processCampaignJob(job.data.campaignId),
+        { connection: redisConnection, concurrency: 5 }
+    );
     campaignWorker.on("failed", (job, error) => console.error(`[Worker] Campaign job ${job?.id} failed:`, error.message));
     return campaignWorker;
 }

@@ -1,5 +1,8 @@
+import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import { Plus, RefreshCw, MoreHorizontal, Eye, FileText } from "lucide-react";
+import { Plus, RefreshCw, MoreHorizontal, Eye, FileText, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useUserMutation } from "../hooks/useUser";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,6 +16,8 @@ import { dateTime, number, statusLabels, published } from "@/features/admin/lib/
 import ReadOnlyCampaignDetail from "@/components/dashboard/ReadOnlyCampaignDetail";
 
 export default function Campaigns() {
+  const [campaignToDelete, setCampaignToDelete] = useState(null);
+  const deleteMutation = useUserMutation("deleteCampaign", "Campaign deleted successfully", () => setCampaignToDelete(null));
   const query = useUserQuery("campaigns");
   const [params, setParams] = useSearchParams();
   const search = params.get("search") || "";
@@ -35,19 +40,62 @@ export default function Campaigns() {
           key: "actions",
           label: <span className="sr-only">Actions</span>,
           render: (c) => (
-            <Button
-              variant="outline"
-              size="sm"
-              nativeButton={false} render={<Link to={`/user/campaigns/${c._id}/report`} />}
-              className="h-8 gap-1.5 text-xs font-medium border-border hover:bg-muted"
-            >
-              <FileText className="size-3.5" />
-              View Report
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={<Button variant="ghost" size="icon" aria-label={`Actions for ${c.campaignTitle}`} />}
+              >
+                <MoreHorizontal />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-44">
+                <DropdownMenuItem render={<Link to={`/user/campaigns/${c._id}`} />}>
+                  <Eye className="size-4 mr-2" />
+                  View Campaign
+                </DropdownMenuItem>
+                <DropdownMenuItem render={<Link to={`/user/campaigns/${c._id}/report`} />}>
+                  <FileText className="size-4 mr-2" />
+                  View Report
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => setCampaignToDelete(c)}
+                >
+                  <Trash2 className="size-4 mr-2" />
+                  Delete Campaign
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ),
         },
       ]} />
     </QueryState>
     {params.get("campaign") && <ReadOnlyCampaignDetail id={params.get("campaign")} onClose={() => update("campaign", "")} />}
+    {campaignToDelete && (
+      <AlertDialog open onOpenChange={(open) => { if (!open && !deleteMutation.isPending) setCampaignToDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete campaign "{campaignToDelete.campaignTitle}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this campaign? This action cannot be undone. All recipient lists and report data will be permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteMutation.error && (
+            <p className="text-sm text-destructive">{deleteMutation.error.message}</p>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleteMutation.isPending}
+              className="border border-destructive bg-white text-destructive hover:bg-red-50 dark:bg-destructive/10 dark:hover:bg-destructive/20"
+              onClick={(e) => {
+                e.preventDefault();
+                deleteMutation.mutate(campaignToDelete._id);
+              }}
+            >
+              {deleteMutation.isPending ? "Deleting…" : "Delete Campaign"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    )}
   </>;
 }
