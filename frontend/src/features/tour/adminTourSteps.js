@@ -88,7 +88,7 @@ export const adminTourSteps = [
     element: "#tour-help-button",
     popover: {
       title: "Need Help Later? ✨",
-      description: "You can click this 'Tour' button anytime if you want to see this walkthrough again. You're ready to get started!",
+      description: "You can open this Help menu anytime and click 'Take a tour' to see this walkthrough again. You're all set to get started!",
       side: "bottom",
       align: "end",
     },

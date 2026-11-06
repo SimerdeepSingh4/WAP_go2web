@@ -148,3 +148,30 @@
 .driver-popover .driver-popover-footer-btn.driver-popover-done-btn:active {
   transform: translateY(0) !important;
 }
+
+/* Clean skip button in the popover footer */
+.driver-popover .driver-popover-skip-btn {
+  all: unset !important;
+  box-sizing: border-box !important;
+  cursor: pointer !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: #64748b !important;
+  padding: 4px 8px !important;
+  border-radius: 6px !important;
+  transition: all 0.15s ease !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px !important;
+}
+
+.driver-popover .driver-popover-skip-btn:hover {
+  color: #0f172a !important;
+}
+
+.dark .driver-popover .driver-popover-skip-btn {
+  color: #94a3b8 !important;
+}
+
+.dark .driver-popover .driver-popover-skip-btn:hover {
+  color: #f8fafc !important;
+}
