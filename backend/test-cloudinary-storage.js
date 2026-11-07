@@ -120,3 +120,4 @@ test("Cloudinary upload_stream receives verified WebP buffer with format: webp",
         cloudinary.uploader.upload_stream = originalUploadStream;
     }
 });
+

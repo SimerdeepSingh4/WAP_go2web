@@ -248,6 +248,46 @@ export async function uploadCurrentUserProfileImage(req, res) {
     return saveUserProfileImage(req, res, req.user._id);
 }
 
+export async function removeCurrentUserProfileImage(req, res) {
+    if (req.isPreview) {
+        return res.status(403).json({ message: "Exit preview mode before removing your profile photo.", success: false });
+    }
+    try {
+        // Return the previous photo atomically, so cleanup cannot target a
+        // replacement uploaded by another session after this update.
+        const previous = await userModel.findByIdAndUpdate(
+            req.user._id,
+            { $set: { dp_img: "" } },
+            { new: false }
+        ).select("username email role dp_img");
+        if (!previous) return res.status(404).json({ message: "User not found.", success: false });
+
+        const previousPath = previous.dp_img || "";
+        try {
+            const filename = path.basename(previousPath);
+            const ownedPhoto = new RegExp(`^dp_${req.user._id}_[a-f0-9-]+\\.webp$`, "i");
+            if (previousPath === `/uploads/profile-pictures/${filename}` && ownedPhoto.test(filename)) {
+                await unlink(path.join(process.cwd(), "uploads", "profile-pictures", filename));
+            } else if (isCloudinaryConfigured() && previousPath.startsWith(`https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/`)) {
+                const imagePath = new URL(previousPath).pathname;
+                const cloudFilename = imagePath.split("/profile-pictures/")[1];
+                if (cloudFilename && ownedPhoto.test(cloudFilename)) {
+                    await cloudinary.uploader.destroy(`profile-pictures/${cloudFilename.slice(0, -5)}`, { resource_type: "image", invalidate: true });
+                }
+            }
+        } catch (cleanupError) {
+            // Removing the account photo succeeds even if old-file cleanup
+            // is temporarily unavailable.
+            if (cleanupError.code !== "ENOENT") console.warn("Profile photo cleanup failed:", cleanupError.message);
+        }
+
+        return res.status(200).json({ success: true, message: "Profile photo removed.", user: { ...previous.toObject(), dp_img: "" } });
+    } catch (error) {
+        console.error("Remove profile photo error:", error);
+        return res.status(500).json({ message: "Failed to remove profile photo. Please try again.", success: false });
+    }
+}
+
 export async function uploadManagedUserProfileImage(req, res) {
     if (req.user.role !== "Super Admin") {
         return res.status(403).json({ message: "Only Super Admin can change another user's profile image.", success: false });

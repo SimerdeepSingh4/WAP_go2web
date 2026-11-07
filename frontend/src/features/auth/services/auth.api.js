@@ -64,10 +64,20 @@ export async function changePassword({ currentPassword, newPassword }) {
     return response.data;
 }
 
-export async function uploadProfileImage(file) {
+export async function uploadProfileImage(file, { signal, onProgress } = {}) {
     const body = new FormData();
     body.append("dp_img", file);
-    const response = await apiClient.post("/users/me/dp-image", body);
+    const response = await apiClient.post("/users/me/dp-image", body, {
+        signal,
+        onUploadProgress: onProgress ? (event) => {
+            if (event.total) onProgress(Math.min(99, Math.round(event.loaded * 100 / event.total)));
+        } : undefined,
+    });
+    return response.data;
+}
+
+export async function removeProfileImage() {
+    const response = await apiClient.delete("/users/me/dp-image");
     return response.data;
 }
 

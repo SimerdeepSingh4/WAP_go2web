@@ -1,13 +1,14 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { getSessions, logoutSession, changePassword, uploadProfileImage } from "@/features/auth/services/auth.api";
+import { getSessions, logoutSession, changePassword, uploadProfileImage, removeProfileImage } from "@/features/auth/services/auth.api";
 import { QueryState, FormError } from "@/features/admin/components/shared";
 import { Card } from "@/components/ui/card";
-import { UserRound, LockKeyhole, MonitorSmartphone, Laptop, Smartphone, Tablet, RefreshCw, LogOut, Info, ShieldCheck, Camera, Eye, EyeOff, Loader2 } from "lucide-react";
+import { UserRound, LockKeyhole, MonitorSmartphone, Laptop, Smartphone, Tablet, RefreshCw, LogOut, Info, ShieldCheck, Eye, EyeOff, Loader2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import UserAvatar from "@/components/dashboard/UserAvatar";
+import ProfilePhotoUpload from "./ProfilePhotoUpload";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { dateTime } from "@/features/admin/lib/format";
 import { toast } from "@/components/ui/toast";
@@ -36,22 +37,36 @@ function deviceDetails(userAgent = "") {
 export default function AccountSettings() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const imageInput = useRef(null);
   const [passwords, setPasswords] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
   const [error, setError] = useState("");
   const [disconnect, setDisconnect] = useState(null);
   const [visiblePasswords, setVisiblePasswords] = useState({});
   const [activeTab, setActiveTab] = useState("profile");
+  const [photoUploadVersion, setPhotoUploadVersion] = useState(0);
   const sessions = useQuery({ queryKey: ["accountSessions", user?.id || user?._id], queryFn: getSessions, enabled: !user?.isPreview });
   const password = useMutation({ mutationFn: changePassword, onSuccess: () => { setPasswords({ currentPassword: "", newPassword: "", confirmPassword: "" }); toast.add({ title: "Password changed", type: "success" }); } });
   const profileImage = useMutation({
-    mutationFn: uploadProfileImage,
+    mutationFn: ({ file, helpers }) => uploadProfileImage(file, helpers),
     onSuccess: (data) => {
       queryClient.setQueryData(["authUser"], (current) => ({ ...current, ...data.user }));
-      if (imageInput.current) imageInput.current.value = "";
       toast.add({ title: "Profile image updated", type: "success" });
     },
-    onError: (uploadError) => toast.add({ title: "Profile image upload failed", description: uploadError.message, type: "error" }),
+    onError: (uploadError) => {
+      if (uploadError.code === "ERR_CANCELED") {
+        queryClient.invalidateQueries({ queryKey: ["authUser"] });
+        return;
+      }
+      toast.add({ title: "Profile image upload failed", description: uploadError.message, type: "error" });
+    },
+  });
+  const removePhoto = useMutation({
+    mutationFn: removeProfileImage,
+    onSuccess: (data) => {
+      queryClient.setQueryData(["authUser"], (current) => ({ ...current, ...data.user }));
+      setPhotoUploadVersion((version) => version + 1);
+      toast.add({ title: "Profile photo removed", type: "success" });
+    },
+    onError: (removeError) => toast.add({ title: "Couldn't remove photo", description: removeError.message, type: "error" }),
   });
   const revoke = useMutation({
     mutationFn: async target => {
@@ -97,20 +112,24 @@ export default function AccountSettings() {
             <div className="min-w-0 flex-1"><h3>{user?.username || "Your account"}</h3><span>{user?.role || "Account"}</span></div>
           </div>
           <div className="account-settings-profile-image">
-            <input ref={imageInput} type="file" accept="image/jpeg,image/png,image/webp" aria-label="Choose profile photo" className="sr-only" disabled={user?.isPreview || profileImage.isPending} onChange={(event) => {
-              const file = event.target.files?.[0] || null;
-              if (file && file.size > 5 * 1024 * 1024) {
-                toast.add({ title: "Image is too large", description: "Choose an image up to 5 MB.", type: "error" });
-                event.target.value = "";
-                return;
-              }
-              if (file) profileImage.mutate(file);
-            }} />
-            <Button type="button" size="sm" variant="outline" disabled={user?.isPreview || profileImage.isPending} onClick={() => imageInput.current?.click()}>
-              {profileImage.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Camera aria-hidden="true" />}{profileImage.isPending ? "Uploading…" : user?.dp_img ? "Change photo" : "Upload photo"}
-            </Button>
-            <span>JPG, PNG, or WebP · up to 5 MB</span>
-            <FormError message={profileImage.error?.message} />
+            <ProfilePhotoUpload
+              key={String(user?.id || user?._id) + ":" + Boolean(user?.isPreview) + ":" + photoUploadVersion}
+              disabled={Boolean(user?.isPreview) || removePhoto.isPending}
+              onUpload={(file, helpers) => profileImage.mutateAsync({ file, helpers })}
+              className="max-w-none"
+            />
+            {user?.dp_img && <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="mt-2 text-destructive hover:text-destructive"
+              disabled={user?.isPreview || profileImage.isPending || removePhoto.isPending}
+              onClick={() => removePhoto.mutate()}
+            >
+              {removePhoto.isPending ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : <Trash2 className="size-3.5" aria-hidden="true" />}
+              {removePhoto.isPending ? "Removing..." : "Remove photo"}
+            </Button>}
+            {user?.isPreview && <p className="account-settings-note mt-2">Exit account preview to change the profile photo.</p>}
           </div>
           </div>
           <div className="account-settings-profile-fields">
