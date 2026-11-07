@@ -9,16 +9,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import CampaignDeleteDialog from "@/features/campaigns/components/CampaignDeleteDialog";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -295,34 +286,7 @@ export default function ResellerCampaigns({ reports = false }) {
           }}
         />
       )}
-      {campaignToDelete && (
-        <AlertDialog open onOpenChange={(open) => { if (!open && !deleteMutation.isPending) setCampaignToDelete(null); }}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete campaign "{campaignToDelete.campaignTitle}"?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete this campaign? This action cannot be undone. All recipient lists and report data will be permanently removed.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            {deleteMutation.error && (
-              <p className="text-sm text-destructive">{deleteMutation.error.message}</p>
-            )}
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                disabled={deleteMutation.isPending}
-                className="border border-destructive bg-white text-destructive hover:bg-red-50 dark:bg-destructive/10 dark:hover:bg-destructive/20"
-                onClick={(e) => {
-                  e.preventDefault();
-                  deleteMutation.mutate(campaignToDelete._id);
-                }}
-              >
-                {deleteMutation.isPending ? "Deleting…" : "Delete Campaign"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
+      {campaignToDelete && <CampaignDeleteDialog campaign={campaignToDelete} mutation={deleteMutation} onClose={() => setCampaignToDelete(null)} />}
     </>
   );
 }

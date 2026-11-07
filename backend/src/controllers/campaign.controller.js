@@ -2182,97 +2182,39 @@ export default {
  * - Owning User or Reseller
  */
 export const deleteCampaign = async (req, res) => {
+    const session = await mongoose.startSession();
+    let campaign;
     try {
-        const { id } = req.params;
-        const campaign = await campaignModel.findById(id);
-        if (!campaign) {
-            return res.status(404).json({ message: "Campaign not found", success: false });
-        }
-
-        const isSuperAdmin = req.user.role === "Super Admin";
-        const isOwner = String(campaign.userId) === String(req.user._id);
-        let isAssignedReseller = false;
-
-        if (req.user.role === "Reseller") {
-            const owner = await userModel.findById(campaign.userId);
-            isAssignedReseller = owner?.resellerId && String(owner.resellerId) === String(req.user._id);
-        }
-
-        if (!isSuperAdmin && !isOwner && !isAssignedReseller) {
-            return res.status(403).json({
-                message: "You are not authorized to delete this campaign.",
-                success: false,
-            });
-        }
-
-        // 1. Cancel queued BullMQ job if present
-        try {
-            await cancelCampaignJob(campaign._id);
-        } catch (jobErr) {
-            console.warn(`[deleteCampaign] Could not cancel queue job for ${campaign._id}:`, jobErr.message);
-        }
-
-        // 2. Refund unrefunded credits only if deleted in an active/unfinished status (pending, scheduled, ongoing, paused).
-        // If it is completed/sent, credits were consumed for delivered messages.
-        // If it was marked failed, credits were already refunded at failure time.
-        const session = await mongoose.startSession();
-        try {
-            await session.withTransaction(async () => {
-                const isRefundEligible = ["pending", "scheduled", "ongoing", "paused"].includes(campaign.status);
-
-                if (isRefundEligible) {
-                    // Check actual historical refunds in the ledger to guarantee no double-refund
-                    const [refundRecord] = await transactionModel.aggregate([
-                        { $match: { campaignId: campaign._id, type: "REFUND" } },
-                        { $group: { _id: null, totalRefunded: { $sum: "$amount" } } },
-                    ]).session(session);
-
-                    const alreadyRefunded = Number(refundRecord?.totalRefunded || campaign.campaignSummary?.creditsRefunded || 0);
-                    const deducted = Number(campaign.creditsDeducted) || 0;
-                    const unrefunded = Math.max(0, deducted - alreadyRefunded);
-
-                    if (unrefunded > 0) {
-                        const updatedWallet = await walletModel.findOneAndUpdate(
-                            { userId: campaign.userId },
-                            { $inc: { balance: unrefunded } },
-                            { returnDocument: "after", session }
-                        );
-                        await transactionModel.create(
-                            [
-                                {
-                                    fromUser: null,
-                                    toUser: campaign.userId,
-                                    amount: unrefunded,
-                                    amountMinor: Math.round(unrefunded * 100),
-                                    type: "REFUND",
-                                    campaignId: campaign._id,
-                                    notes: `Full refund on deletion of ${campaign.status} campaign "${campaign.campaignTitle}"`,
-                                    rateSnapshot: campaign.rateSnapshot || 10,
-                                    balanceAfterTo: updatedWallet ? updatedWallet.balance : null,
-                                    performedBy: req.user._id,
-                                },
-                            ],
-                            { session }
-                        );
-                    }
-                }
-
-                // 3. Delete campaign document inside the same transaction
-                await campaignModel.deleteOne({ _id: campaign._id }).session(session);
-            }, creditTransactionOptions);
-        } finally {
-            await session.endSession();
-        }
-
-        return res.status(200).json({
-            success: true,
-            message: `Campaign "${campaign.campaignTitle}" deleted successfully.`,
-        });
+        await session.withTransaction(async () => {
+            // Re-read on every transaction retry so authorization and report
+            // checks use the same snapshot as the deletion.
+            campaign = await campaignModel.findById(req.params.id).session(session);
+            if (!campaign) throw Object.assign(new Error("Campaign not found"), { statusCode: 404 });
+            const isSuperAdmin = req.user.role === "Super Admin";
+            const isOwner = String(campaign.userId) === String(req.user._id);
+            let isAssignedReseller = false;
+            if (req.user.role === "Reseller") {
+                const owner = await userModel.findById(campaign.userId).session(session);
+                isAssignedReseller = owner?.resellerId && String(owner.resellerId) === String(req.user._id);
+            }
+            if (!isSuperAdmin && !isOwner && !isAssignedReseller) {
+                throw Object.assign(new Error("You are not authorized to delete this campaign."), { statusCode: 403 });
+            }
+            if (!campaign.publishedSpreadsheet?.publishedAt) {
+                throw Object.assign(new Error("This campaign has no published report. A Super Admin must create and publish its report before it can be deleted."), { statusCode: 409, code: "CAMPAIGN_REPORT_REQUIRED" });
+            }
+            // Publishing settles credits. Deleting a reported campaign must
+            // preserve its final charges, refunds, and immutable ledger.
+            await campaignModel.deleteOne({ _id: campaign._id }).session(session);
+        }, creditTransactionOptions);
+        // External queue work happens only after the database commits.
+        try { await cancelCampaignJob(campaign._id); }
+        catch (error) { console.warn("[deleteCampaign] Could not cancel queue job:", error.message); }
+        return res.status(200).json({ success: true, message: "Campaign deleted successfully. Credit transactions have been kept." });
     } catch (error) {
         console.error("Delete campaign error:", error);
-        return res.status(500).json({
-            message: "Failed to delete campaign",
-            success: false,
-        });
+        return res.status(error.statusCode || 500).json({ success: false, message: error.statusCode ? error.message : "Failed to delete campaign", ...(error.code === "CAMPAIGN_REPORT_REQUIRED" ? { code: error.code } : {}) });
+    } finally {
+        await session.endSession();
     }
 };

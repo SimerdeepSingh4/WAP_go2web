@@ -28,7 +28,6 @@ export const SocketProvider = ({ children }) => {
             for (const key of ["admin", "reseller", "user", "myWalletBalance", "myBalance", "creditTransactions", "managedUsers", "clientUsers", "dashboardStats"]) queryClient.invalidateQueries({ queryKey: [key] });
         };
         const visibility = () => socket.emit("NOTIFICATION_VISIBILITY", { visible: document.visibilityState === "visible" });
-        const seen = new Set();
         socket.on("connect", () => { setConnectedSocket(socket); refreshNotifications(); refreshAccounts(); visibility(); });
         socket.on("disconnect", () => setConnectedSocket(null));
         socket.on("NOTIFICATIONS_CHANGED", refreshNotifications);
@@ -84,7 +83,14 @@ export const SocketProvider = ({ children }) => {
         });
         socket.on("SESSION_EXPIRED", (data) => {
             void clearPushOwner().catch(() => {});
-            toast.add({ title: "Session ended", description: data?.reason || "Please sign in again.", type: "error" });
+            const signedOut = data?.reason === "You have signed out.";
+            toast.add({
+                title: signedOut ? "Signed out successfully" : "Please sign in again",
+                description: signedOut
+                    ? "Sign in again to access your account."
+                    : data?.reason || "Your sign-in has expired. Sign in again to continue.",
+                type: "info",
+            });
             clearCurrentSessionToken();
             queryClient.setQueryData(["authUser"], null);
             queryClient.removeQueries({ queryKey: ["notifications"] });

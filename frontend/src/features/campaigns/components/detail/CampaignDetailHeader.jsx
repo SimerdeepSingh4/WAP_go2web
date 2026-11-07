@@ -28,16 +28,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import CampaignDeleteDialog from "../CampaignDeleteDialog";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -589,31 +580,7 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
       </Dialog>
 
       {/* Confirm Delete Warning Dialog */}
-      <AlertDialog open={canManageCampaign && confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete campaign "{campaign.campaignTitle}"?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this campaign? This action cannot be undone. All recipient contacts, media, and campaign logs will be permanently deleted.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteCampaignMutation.isPending}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              disabled={deleteCampaignMutation.isPending}
-              className="border border-destructive bg-white text-destructive hover:bg-red-50 dark:bg-destructive/10 dark:hover:bg-destructive/20"
-              onClick={(e) => {
-                e.preventDefault();
-                deleteCampaignMutation.mutate();
-              }}
-            >
-              {deleteCampaignMutation.isPending ? "Deleting…" : "Delete Campaign"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <CampaignDeleteDialog campaign={campaign} mutation={deleteCampaignMutation} open={canManageCampaign && confirmDeleteOpen} onClose={() => setConfirmDeleteOpen(false)} />
 
       {/* Edit Schedule Dialog */}
       <Dialog open={canManageCampaign && editScheduleOpen} onOpenChange={setEditScheduleOpen}>

@@ -4,7 +4,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { useSearchParams, Link } from "react-router";
 import { Popover } from "@base-ui/react/popover";
 import { MoreHorizontal, Eye, FileText, RefreshCw, CalendarDays, X, Trash2 } from "lucide-react";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import CampaignDeleteDialog from "@/features/campaigns/components/CampaignDeleteDialog";
 import { useAdminMutation } from "../hooks/useAdmin";
 import { Button } from "@/components/ui/button";
 import CampaignFilterCalendar from "../components/CampaignFilterCalendar";
@@ -383,31 +383,7 @@ export default function Campaigns({ reports = false }) {
         />
       )}
 
-      {campaignToDelete && (
-        <AlertDialog open={Boolean(campaignToDelete)} onOpenChange={(open) => !open && setCampaignToDelete(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete campaign "{campaignToDelete.campaignTitle}"?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete this campaign, its recipient records, and associated reports.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                variant="destructive"
-                disabled={deleteMutation.isPending}
-                onClick={(e) => {
-                  e.preventDefault();
-                  deleteMutation.mutate(campaignToDelete._id);
-                }}
-              >
-                {deleteMutation.isPending ? "Deleting..." : "Delete Campaign"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
+      {campaignToDelete && <CampaignDeleteDialog campaign={campaignToDelete} mutation={deleteMutation} onClose={() => setCampaignToDelete(null)} />}
     </>
   );
 }

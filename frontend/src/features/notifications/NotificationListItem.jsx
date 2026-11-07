@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowUpRight, Bell, Check, Info, MailOpen, Megaphone, Undo2, UserRound, Wallet, X } from "lucide-react";
+import { ArrowUpRight, Bell, Check, Info, Loader2, MailOpen, Megaphone, Undo2, UserRound, Wallet, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { getNotificationSubject } from "./notification.utils";
@@ -52,9 +52,10 @@ export default function NotificationListItem({ item, base, action, isPreview, on
   // Animate details present in the notification without inventing delivery progress.
   const amount = item.category === "credits" ? item.body?.match(/\b([\d,]+(?:\.\d+)?)\s+credits\b/i)?.[1] : null;
   const status = item.category === "campaigns" ? item.title?.match(/^Campaign (ongoing|completed|pending|paused|scheduled|stopped|failed|sent)\b/i)?.[1] : null;
-  const disabled = action.isPending || isPreview;
+  const disabled = action.isPendingFor(item._id) || isPreview;
+  const readPending = action.isReadPendingFor(item._id);
   const href = item.href?.startsWith(base + "/") ? item.href : base + "/notifications";
-  const open = () => { if (!item.readAt && !isPreview) action.mutate({ id: item._id, read: true }); onOpen?.(); };
+  const open = () => { if (!item.readAt && !disabled) action.mutate({ id: item._id, read: true }); onOpen?.(); };
   const archive = () => {
     if (disabled) return;
     onArchive?.();
@@ -86,7 +87,7 @@ export default function NotificationListItem({ item, base, action, isPreview, on
                 {status && <motion.span initial={reduced ? false : { opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: reduced ? 0 : 0.26 }} className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium capitalize ${category.tone}`} style={{ background: tint }}>{["completed", "sent"].includes(status.toLowerCase()) ? <Check className="size-3" /> : <span className="size-1.5 rounded-full bg-current" />}{status}</motion.span>}
               </div>}
               <div className="relative z-10 flex shrink-0 items-center gap-2">
-              <Button type="button" variant={item.readAt ? "outline" : "default"} size="xs" disabled={disabled} onClick={() => action.mutate({ id: item._id, read: !item.readAt })} className="rounded-full px-3 text-[11px]">{item.readAt ? <MailOpen /> : <Check />}{item.readAt ? "Mark unread" : "Mark read"}</Button>
+              <Button type="button" variant={item.readAt ? "outline" : "default"} size="xs" disabled={disabled} aria-busy={readPending} onClick={() => action.mutate({ id: item._id, read: !item.readAt })} className="rounded-full px-3 text-[11px]">{readPending ? <Loader2 className="animate-spin" /> : item.readAt ? <MailOpen /> : <Check />}{item.readAt ? "Mark unread" : "Mark read"}</Button>
               <Link to={href} onClick={open} className="inline-flex h-6 items-center gap-1 rounded-full border border-border bg-background px-3 text-[11px] font-medium outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">View<ArrowUpRight className="size-3" /></Link>
               </div>
             </div>

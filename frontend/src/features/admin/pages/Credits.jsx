@@ -1,4 +1,5 @@
 import TransactionReference from "@/components/dashboard/TransactionReference";
+import "./admin-transactions.css";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import {
@@ -160,7 +161,6 @@ export default function Credits({ activity = false }) {
 
   // Columns for the Transaction History Table
   const transactionColumns = [
-    {key:"actions",label:"Action",render:t => t.type === "REQUEST" ? <Button size="sm" variant="outline" nativeButton={false} render={<Link to={`/admin/credits?allocate=${t.toUser?._id || t.toUser}&amount=${t.amount}`} />}>Allocate credits</Button> : null},
     { key: "transactionId", label: "Transaction ID", render: transaction => <TransactionReference transaction={transaction} /> },
     {
       key: "date",
@@ -217,6 +217,23 @@ export default function Credits({ activity = false }) {
           {t.notes || "—"}
         </span>
       ),
+    },
+    {
+      key: "actions",
+      label: "Action",
+      className: "transaction-action-cell",
+      render: (t) => t.type === "REQUEST" ? (
+        <Button
+          size="sm"
+          variant="outline"
+          nativeButton={false}
+          className="transaction-allocate-button"
+          render={<Link to={`/admin/credits?allocate=${t.toUser?._id || t.toUser}&amount=${t.amount}`} />}
+        >
+          <Plus aria-hidden="true" className="size-3.5" />
+          Allocate credits
+        </Button>
+      ) : <span className="text-muted-foreground" aria-label="No action available">&mdash;</span>,
     },
   ];
 
@@ -590,6 +607,7 @@ export default function Credits({ activity = false }) {
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
+              nativeButton={false}
               render={<Link to="/admin/credits" />}
               className="gap-1.5 text-xs"
             >
@@ -609,9 +627,10 @@ export default function Credits({ activity = false }) {
       />
 
       {/* Transaction Filter Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+      <div className="transaction-ledger-toolbar">
         <h2 className="text-sm font-semibold">Transaction Audit Ledger</h2>
-        <div className="flex flex-wrap gap-2">
+        <div className="transaction-ledger-filters">
+          <div className="transaction-type-filter">
           <FilterSelect
             label="Transaction type"
             value={type}
@@ -621,6 +640,8 @@ export default function Credits({ activity = false }) {
               ...Object.entries(transactionLabels).map(([value, label]) => ({ value, label })),
             ]}
           />
+          </div>
+          <div className="transaction-account-filter">
           <FilterSelect
             label="Filter by account"
             accountSearch={{}}
@@ -632,12 +653,13 @@ export default function Credits({ activity = false }) {
               ...accounts.map((a) => ({ value: a._id, label: `${a.username} (${a.role})` })),
             ]}
           />
+          </div>
         </div>
       </div>
 
       {transactionId && <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm"><span>Showing selected transaction</span><button type="button" className="font-medium text-indigo-700 underline" onClick={() => setParams((previous) => { const next = new URLSearchParams(previous); next.delete("transaction"); next.delete("page"); return next; }, { replace: true })}>View all transactions</button></div>}
       <QueryState query={ledger}>
-        <div>
+        <div className="transaction-ledger-table">
           <DataTable
             caption="Credit transaction history"
             paginated={false}

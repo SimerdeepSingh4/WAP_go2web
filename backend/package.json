@@ -37,6 +37,7 @@
     "credits:audit": "node scripts/audit-credit-ledger.js",
     "test:enterprise": "node --test test-audit-trail.js",
     "test:uploads": "node --test test-upload-security.js",
+    "test:campaign-deletion": "node --experimental-vm-modules --test test-campaign-deletion.js",
     "test:spreadsheets": "node --experimental-vm-modules --test test-spreadsheet-security.js",
     "test:sockets": "node --experimental-vm-modules --test test-socket-security.js",
     "audit:verify": "node scripts/verify-audit-trail.js",

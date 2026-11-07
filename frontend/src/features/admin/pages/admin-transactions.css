@@ -1,0 +1,63 @@
+.transaction-ledger-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 8px;
+}
+
+.transaction-ledger-filters {
+  display: grid;
+  grid-template-columns: 180px minmax(220px, 300px);
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+}
+
+.transaction-ledger-filters > div { min-width: 0; }
+
+.transaction-ledger-filters [data-slot="select-trigger"] {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  min-height: 40px;
+  border-radius: 9px;
+  background: var(--card);
+  font-size: 13px;
+}
+
+.transaction-ledger-table .transaction-action-cell {
+  width: 164px;
+  min-width: 164px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.transaction-ledger-table .transaction-allocate-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 34px;
+  height: 34px;
+  padding: 0 12px;
+  border-color: var(--border);
+  color: var(--primary);
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .transaction-ledger-filters {
+    width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .transaction-ledger-filters [data-slot="select-trigger"],
+  .transaction-ledger-table .transaction-allocate-button {
+    min-height: 44px;
+    height: 44px;
+  }
+}
