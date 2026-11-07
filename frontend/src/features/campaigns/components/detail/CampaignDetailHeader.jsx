@@ -78,6 +78,8 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const isAdmin = user?.role === "Super Admin";
+  const isReseller = user?.role === "Reseller";
+  const canManageCampaign = isAdmin || user?.role === "User";
 
   const [confirmFailure, setConfirmFailure] = useState(false);
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
@@ -340,7 +342,7 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
         {/* Right Actions */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Creator / Admin Action: Launch Now */}
-          {((campaign.status === "scheduled") || (isAdmin && isApprovalPending)) && (
+          {canManageCampaign && ((campaign.status === "scheduled") || (isAdmin && isApprovalPending)) && (
             <Button
               type="button"
               variant="outline"
@@ -359,7 +361,7 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
           )}
 
           {/* Creator / Admin Action: Edit Schedule */}
-          {isScheduledCampaign && isPendingOrScheduled && (
+          {canManageCampaign && isScheduledCampaign && isPendingOrScheduled && (
             <Button
               type="button"
               variant="outline"
@@ -374,7 +376,7 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
           )}
 
           {/* Creator / Admin Action: Cancel Campaign with 100% Refund */}
-          {isPendingOrScheduled && (
+          {canManageCampaign && isPendingOrScheduled && (
             <Button
               type="button"
               variant="outline"
@@ -492,6 +494,7 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
           )}
 
           {/* Delete Campaign Button */}
+          {canManageCampaign && (
           <Button
             type="button"
             variant="outline"
@@ -503,11 +506,12 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
             <Trash2 className="size-3.5" />
             <span>Delete</span>
           </Button>
+          )}
         </div>
       </div>
 
       {/* Super Admin Mark as Failed / Reject Dialog */}
-      <Dialog open={confirmFailure} onOpenChange={(open) => !isUpdating && setConfirmFailure(open)}>
+      <Dialog open={isAdmin && confirmFailure} onOpenChange={(open) => !isUpdating && setConfirmFailure(open)}>
         <DialogContent className="gap-5 rounded-2xl p-5 sm:max-w-sm">
           <DialogHeader className="gap-1.5 pr-6">
             <DialogTitle>Mark campaign as failed?</DialogTitle>
@@ -552,7 +556,7 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
       </Dialog>
 
       {/* Creator Cancel Scheduled Campaign Dialog */}
-      <Dialog open={confirmCancelOpen} onOpenChange={(open) => !isUpdating && setConfirmCancelOpen(open)}>
+      <Dialog open={canManageCampaign && confirmCancelOpen} onOpenChange={(open) => !isUpdating && setConfirmCancelOpen(open)}>
         <DialogContent className="gap-5 rounded-2xl p-5 sm:max-w-sm">
           <DialogHeader className="gap-1.5 pr-6">
             <DialogTitle>Cancel scheduled campaign?</DialogTitle>
@@ -585,7 +589,7 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
       </Dialog>
 
       {/* Confirm Delete Warning Dialog */}
-      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+      <AlertDialog open={canManageCampaign && confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete campaign "{campaign.campaignTitle}"?</AlertDialogTitle>
@@ -612,7 +616,7 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
       </AlertDialog>
 
       {/* Edit Schedule Dialog */}
-      <Dialog open={editScheduleOpen} onOpenChange={setEditScheduleOpen}>
+      <Dialog open={canManageCampaign && editScheduleOpen} onOpenChange={setEditScheduleOpen}>
         <DialogContent className="gap-5 rounded-2xl p-5 sm:max-w-sm">
           <DialogHeader className="gap-1.5 pr-6">
             <DialogTitle>Edit scheduled dispatch time</DialogTitle>
