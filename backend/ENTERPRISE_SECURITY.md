@@ -68,7 +68,19 @@ Generated media and profile images retain inline previews. This prevents uploade
 documents from becoming executable application-origin pages; it does not provide
 malware scanning or change attachment access permissions.
 
-`npm run test:uploads` runs isolated multipart-upload and static-download regression
+### Upload memory and DoS protections
+
+Campaign multipart uploads enforce parser-level limits before buffering into RAM:
+- Maximum 16 MB per file, up to 15 files per campaign request.
+- Maximum 4 MB per non-file text/JSON field, up to 50 fields.
+- 35 MB total aggregate upload budget:
+  - Header inspection: Declared `Content-Length > 35 MB` is rejected with 413 immediately.
+  - Stream inspection: Chunked or missing `Content-Length` requests count incoming stream bytes continuously. Exceeding 35 MB triggers an immediate 413, unpipes the parser, drains the remaining TCP stream to prevent pipe stall, and halts memory buffering.
+  - Bounded memory storage: Custom `BoundedMemoryStorage` enforces the aggregate 35 MB budget across all parsed file chunks.
+- Process-local concurrency limiter: Up to 5 concurrent multipart uploads per process; excess requests receive 429 `CONCURRENT_UPLOAD_LIMIT`. Slots are reliably freed upon completion, errors, or client aborts.
+- Ingress alignment: Production edge reverse proxies (e.g. Nginx `client_max_body_size 35M` or matching Cloudflare/Render ingress limits) should be kept aligned with the application-layer 35 MB limit.
+
+`npm run test:uploads` runs isolated multipart-upload, memory budget, concurrency, and static-download regression
 tests without connecting to the application database or external storage.
 
 ## Validation

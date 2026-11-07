@@ -4,9 +4,15 @@ import { mkdtemp, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import http from "node:http";
 import express from "express";
 import sharp from "sharp";
-import { uploadFiles } from "./src/middlewares/upload.middleware.js";
+import {
+    uploadFiles,
+    getActiveMediaUploads,
+    MAX_CONCURRENT_UPLOADS,
+    MAX_TOTAL_UPLOAD_BYTES,
+} from "./src/middlewares/upload.middleware.js";
 import { uploadsStatic } from "./src/middlewares/uploads-static.middleware.js";
 
 let server, directory, origin, png;
@@ -127,4 +133,188 @@ test("unknown files cannot inherit inline privileges by using an image extension
     const response = await fetch(`${origin}/uploads/old-image.webp`);
     assert.equal(response.headers.get("content-type"), "application/octet-stream");
     assert.equal(response.headers.get("content-disposition"), "attachment");
+});
+
+test("chunked upload without Content-Length exceeding 35 MB is rejected with 413 LIMIT_TOTAL_UPLOAD_SIZE", async () => {
+    const boundary = "----WebKitFormBoundaryTestChunked";
+    const port = new URL(origin).port;
+
+    const res = await new Promise((resolve) => {
+        const req = http.request(
+            {
+                hostname: "127.0.0.1",
+                port,
+                path: "/campaigns",
+                method: "POST",
+                headers: {
+                    "content-type": `multipart/form-data; boundary=${boundary}`,
+                    "transfer-encoding": "chunked",
+                },
+            },
+            (res) => {
+                let body = "";
+                res.on("data", (c) => (body += c));
+                res.on("end", () => {
+                    try {
+                        resolve({ status: res.statusCode, body: JSON.parse(body) });
+                    } catch {
+                        resolve({ status: res.statusCode, body });
+                    }
+                });
+            }
+        );
+
+        req.on("error", (err) => {
+            resolve({ error: err });
+        });
+
+        const partHeader = `--${boundary}\r\nContent-Disposition: form-data; name="documents"; filename="large.pdf"\r\nContent-Type: application/pdf\r\n\r\n%PDF-1.4\n`;
+        req.write(partHeader);
+
+        const chunk = Buffer.alloc(1024 * 1024); // 1 MB chunk
+        for (let i = 0; i < 36; i++) {
+            if (req.destroyed) break;
+            req.write(chunk);
+        }
+        if (!req.destroyed) {
+            req.write(`\r\n--${boundary}--\r\n`);
+            req.end();
+        }
+    });
+
+    if (res.status) {
+        assert.equal(res.status, 413);
+        assert.equal(res.body.code, "LIMIT_TOTAL_UPLOAD_SIZE");
+    }
+    assert.equal(getActiveMediaUploads(), 0);
+});
+
+test("chunked upload under 35 MB is accepted normally", async () => {
+    const boundary = "----WebKitFormBoundaryValidChunked";
+    const port = new URL(origin).port;
+
+    const res = await new Promise((resolve, reject) => {
+        const req = http.request(
+            {
+                hostname: "127.0.0.1",
+                port,
+                path: "/campaigns",
+                method: "POST",
+                headers: {
+                    "content-type": `multipart/form-data; boundary=${boundary}`,
+                    "transfer-encoding": "chunked",
+                },
+            },
+            (res) => {
+                let body = "";
+                res.on("data", (c) => (body += c));
+                res.on("end", () => resolve({ status: res.statusCode, body: JSON.parse(body) }));
+            }
+        );
+
+        req.on("error", reject);
+
+        const partHeader = `--${boundary}\r\nContent-Disposition: form-data; name="documents"; filename="valid.pdf"\r\nContent-Type: application/pdf\r\n\r\n`;
+        req.write(partHeader);
+        req.write(pdf);
+        req.write(`\r\n--${boundary}--\r\n`);
+        req.end();
+    });
+
+    assert.equal(res.status, 200);
+    assert.equal(res.body.types[0].ext, "pdf");
+    assert.equal(getActiveMediaUploads(), 0);
+});
+
+test("aggregate file size exceeding 35 MB across multiple files is rejected with 413 LIMIT_TOTAL_UPLOAD_SIZE", async () => {
+    // 3 PDF files of 13 MB each = 39 MB. Each file is < 16 MB limit, but sum > 35 MB.
+    const file13mb = Buffer.concat([pdf, Buffer.alloc(13 * 1024 * 1024 - pdf.length)]);
+    const response = await upload([
+        ["documents", "doc1.pdf", "application/pdf", file13mb],
+        ["documents", "doc2.pdf", "application/pdf", file13mb],
+        ["documents", "doc3.pdf", "application/pdf", file13mb],
+    ]);
+    assert.equal(response.status, 413);
+    const body = await response.json();
+    assert.equal(body.code, "LIMIT_TOTAL_UPLOAD_SIZE");
+    assert.equal(getActiveMediaUploads(), 0);
+});
+
+test("client-aborted upload cleans up the active concurrency slot immediately", async () => {
+    const boundary = "----WebKitFormBoundaryAbortCleanup";
+    const port = new URL(origin).port;
+
+    const initialActive = getActiveMediaUploads();
+
+    await new Promise((resolve) => {
+        const req = http.request({
+            hostname: "127.0.0.1",
+            port,
+            path: "/campaigns",
+            method: "POST",
+            headers: {
+                "content-type": `multipart/form-data; boundary=${boundary}`,
+                "transfer-encoding": "chunked",
+            },
+        });
+
+        req.on("error", () => {}); // ignore client-side abort error
+
+        req.write(`--${boundary}\r\nContent-Disposition: form-data; name="documents"; filename="abort.pdf"\r\nContent-Type: application/pdf\r\n\r\n`);
+
+        setTimeout(() => {
+            req.destroy();
+            setTimeout(() => {
+                assert.equal(getActiveMediaUploads(), initialActive);
+                resolve();
+            }, 50);
+        }, 50);
+    });
+});
+
+test("concurrent upload limiter rejects requests beyond MAX_CONCURRENT_UPLOADS with 429", async () => {
+    const boundary = "----WebKitFormBoundaryConcurrency";
+    const port = new URL(origin).port;
+    const clientRequests = [];
+
+    // Open 5 concurrent uploads and hold them open
+    for (let i = 0; i < MAX_CONCURRENT_UPLOADS; i++) {
+        const req = http.request({
+            hostname: "127.0.0.1",
+            port,
+            path: "/campaigns",
+            method: "POST",
+            headers: {
+                "content-type": `multipart/form-data; boundary=${boundary}`,
+                "transfer-encoding": "chunked",
+            },
+        });
+        req.on("error", () => {});
+        req.write(`--${boundary}\r\nContent-Disposition: form-data; name="documents"; filename="doc${i}.pdf"\r\nContent-Type: application/pdf\r\n\r\n`);
+        clientRequests.push(req);
+    }
+
+    // Wait for the 5 requests to be registered
+    await new Promise((r) => setTimeout(r, 60));
+    assert.equal(getActiveMediaUploads(), MAX_CONCURRENT_UPLOADS);
+
+    // The 6th request should be immediately rejected with 429
+    const overflowResponse = await upload([["documents", "overflow.pdf", "application/pdf", pdf]]);
+    assert.equal(overflowResponse.status, 429);
+    const body = await overflowResponse.json();
+    assert.equal(body.code, "CONCURRENT_UPLOAD_LIMIT");
+
+    // Close and destroy the 5 holding requests
+    for (const req of clientRequests) {
+        req.destroy();
+    }
+
+    // Wait for slot cleanups
+    await new Promise((r) => setTimeout(r, 100));
+    assert.equal(getActiveMediaUploads(), 0);
+
+    // After cleanup, a normal upload should succeed cleanly
+    const normalResponse = await upload([["documents", "after-cleanup.pdf", "application/pdf", pdf]]);
+    assert.equal(normalResponse.status, 200);
+    assert.equal(getActiveMediaUploads(), 0);
 });

@@ -6,19 +6,80 @@ import { checkCampaignMediaName, validateCampaignMedia } from "../helpers/campai
 const storage = multer.memoryStorage();
 
 // Memory & DoS Protection Limits for Campaign Media Uploads
-const MAX_SINGLE_MEDIA_SIZE = 16 * 1024 * 1024; // 16 MB per file
-const MAX_TOTAL_UPLOAD_BYTES = 35 * 1024 * 1024; // 35 MB total multipart payload
-const MAX_MEDIA_FILES = 15; // Max 15 files per campaign request
-const MAX_FIELD_SIZE = 4 * 1024 * 1024; // 4 MB for non-file text/JSON fields
-const MAX_FIELDS = 50;
-const MAX_CONCURRENT_UPLOADS = 5;
+export const MAX_SINGLE_MEDIA_SIZE = 16 * 1024 * 1024; // 16 MB per file
+export const MAX_TOTAL_UPLOAD_BYTES = 35 * 1024 * 1024; // 35 MB total multipart payload
+export const MAX_MEDIA_FILES = 15; // Max 15 files per campaign request
+export const MAX_FIELD_SIZE = 4 * 1024 * 1024; // 4 MB for non-file text/JSON fields
+export const MAX_FIELDS = 50;
+export const MAX_CONCURRENT_UPLOADS = 5;
 
 let activeMediaUploads = 0;
+
+export function getActiveMediaUploads() {
+    return activeMediaUploads;
+}
+
+export function resetActiveMediaUploads() {
+    activeMediaUploads = 0;
+}
+
+// Bounded in-memory storage engine that enforces aggregate file size budget before buffering into RAM
+class BoundedMemoryStorage {
+    constructor(maxTotalBytes) {
+        this.maxTotalBytes = maxTotalBytes;
+    }
+
+    _handleFile(req, file, cb) {
+        req._aggregateUploadBytes = req._aggregateUploadBytes || 0;
+        const chunks = [];
+        let fileSize = 0;
+        let aborted = false;
+
+        const onData = (chunk) => {
+            fileSize += chunk.length;
+            req._aggregateUploadBytes += chunk.length;
+
+            if (req._aggregateUploadBytes > this.maxTotalBytes && !aborted) {
+                aborted = true;
+                file.stream.removeListener("data", onData);
+                file.stream.destroy();
+                const err = new multer.MulterError("LIMIT_TOTAL_UPLOAD_SIZE");
+                err.message = `Total upload size exceeds the ${(this.maxTotalBytes / 1024 / 1024).toFixed(0)}MB maximum allowable limit.`;
+                err.code = "LIMIT_TOTAL_UPLOAD_SIZE";
+                return cb(err);
+            }
+            chunks.push(chunk);
+        };
+
+        file.stream.on("data", onData);
+        file.stream.on("end", () => {
+            if (!aborted) {
+                cb(null, {
+                    buffer: Buffer.concat(chunks, fileSize),
+                    size: fileSize,
+                });
+            }
+        });
+        file.stream.on("error", (err) => {
+            if (!aborted) {
+                aborted = true;
+                cb(err);
+            }
+        });
+    }
+
+    _removeFile(req, file, cb) {
+        delete file.buffer;
+        cb(null);
+    }
+}
+
+const mediaStorage = new BoundedMemoryStorage(MAX_TOTAL_UPLOAD_BYTES);
 
 // 1. Campaign Media Upload (Images, Audio, Video, Documents)
 // Enforces parser-level file size, field size, and file count limits before memory buffering
 const mediaUpload = multer({
-    storage,
+    storage: mediaStorage,
     limits: {
         fileSize: MAX_SINGLE_MEDIA_SIZE,
         files: MAX_MEDIA_FILES,
@@ -47,11 +108,11 @@ const parseMedia = mediaUpload.fields([
 
 export function uploadFiles(req, res, next) {
     // 1. Pre-buffering total request size guard (Content-Length check)
-    const contentLength = Number(req.headers["content-length"]);
-    if (contentLength && contentLength > MAX_TOTAL_UPLOAD_BYTES) {
+    const declaredLength = Number(req.headers["content-length"]);
+    if (Number.isFinite(declaredLength) && declaredLength > MAX_TOTAL_UPLOAD_BYTES) {
         return res.status(413).json({
             success: false,
-            message: `Total upload size (${(contentLength / 1024 / 1024).toFixed(1)}MB) exceeds the 35MB maximum allowable limit.`,
+            message: `Total upload size (${(declaredLength / 1024 / 1024).toFixed(1)}MB) exceeds the 35MB maximum allowable limit.`,
             code: "LIMIT_TOTAL_UPLOAD_SIZE",
         });
     }
@@ -75,11 +136,50 @@ export function uploadFiles(req, res, next) {
     };
     res.on("finish", release);
     res.on("close", release);
+    req.on("close", release);
+    req.on("error", release);
+    req.on("aborted", release);
+
+    // 3. Streaming byte budget enforcement: tracks incoming bytes in real time for chunked or missing Content-Length requests
+    let totalBytesReceived = 0;
+    let limitExceeded = false;
+
+    const onData = (chunk) => {
+        totalBytesReceived += chunk.length;
+        if (totalBytesReceived > MAX_TOTAL_UPLOAD_BYTES && !limitExceeded) {
+            limitExceeded = true;
+            req.removeListener("data", onData);
+            req.unpipe();
+            req.resume(); // drain and discard remaining stream chunks to avoid stalling TCP
+            release();
+            if (!res.headersSent) {
+                return res.status(413).set("Connection", "close").json({
+                    success: false,
+                    message: "Total upload size exceeds the 35MB maximum allowable limit.",
+                    code: "LIMIT_TOTAL_UPLOAD_SIZE",
+                });
+            }
+        }
+    };
+
+    req.on("data", onData);
 
     parseMedia(req, res, async (error) => {
+        req.removeListener("data", onData);
+        if (limitExceeded || res.headersSent) {
+            return;
+        }
+
         if (error) {
             release();
-            if (error instanceof multer.MulterError) {
+            if (error instanceof multer.MulterError || error.code === "LIMIT_TOTAL_UPLOAD_SIZE") {
+                if (error.code === "LIMIT_TOTAL_UPLOAD_SIZE") {
+                    return res.status(413).json({
+                        success: false,
+                        message: "Total upload size exceeds the 35MB maximum allowable limit.",
+                        code: error.code,
+                    });
+                }
                 if (error.code === "LIMIT_FILE_SIZE") {
                     return res.status(413).json({
                         success: false,
@@ -160,4 +260,12 @@ export default {
     uploadFiles,
     uploadDocument,
     uploadProfileImage,
+    getActiveMediaUploads,
+    resetActiveMediaUploads,
+    MAX_SINGLE_MEDIA_SIZE,
+    MAX_TOTAL_UPLOAD_BYTES,
+    MAX_MEDIA_FILES,
+    MAX_FIELD_SIZE,
+    MAX_FIELDS,
+    MAX_CONCURRENT_UPLOADS,
 };
