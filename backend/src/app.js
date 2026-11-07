@@ -20,6 +20,7 @@ import searchRouter from "./routes/search.routes.js";
 import enterpriseRouter from "./routes/enterprise.routes.js";
 import healthRouter from "./routes/health.routes.js";
 import { auditRequestContext } from "./services/audit.service.js";
+import { uploadsStatic } from "./middlewares/uploads-static.middleware.js";
 
 const app = express();
 if (process.env.TRUST_PROXY) app.set("trust proxy", process.env.TRUST_PROXY.split(",").map((entry) => entry.trim()).filter(Boolean));
@@ -56,7 +57,7 @@ app.use(morgan("dev"));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+app.use("/uploads", uploadsStatic(path.join(process.cwd(), "uploads")));
 
 app.use("/api/auth", authRouter);
 app.use("/api/users", userRouter);

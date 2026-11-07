@@ -5,7 +5,7 @@ import config from "../config/config.js";
 import userModel from "../models/user.model.js";
 import sessionModel from "../models/session.model.js";
 import walletModel from "../models/wallet.model.js";
-import { notifyUser } from "../services/socket.service.js";
+import { notifyUser, notifySession } from "../services/socket.service.js";
 import sharp from "sharp";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -379,8 +379,12 @@ export async function updateUserAccess(req, res) {
 
         Object.assign(targetUser, updates);
         await targetUser.save();
-        if (updates.status === "blocked") {
+        if (targetUser.status !== "active" || (targetUser.expiresAt && new Date(targetUser.expiresAt) <= new Date())) {
             await sessionModel.deleteMany({ userId: targetUser._id });
+            notifyUser(targetUser._id, "SESSION_EXPIRED", { reason: "Your account access has ended." });
+        } else {
+            // Re-check connected sessions and reschedule timers for a future expiry change.
+            await notifyUser(targetUser._id, "ACCOUNT_ACCESS_CHANGED", {});
         }
 
         return res.status(200).json({
@@ -482,6 +486,13 @@ export async function updateManagedUserProfile(req, res) {
 
         Object.assign(targetUser, updates);
         await targetUser.save();
+
+        if (targetUser.status !== "active" || (targetUser.expiresAt && new Date(targetUser.expiresAt) <= new Date())) {
+            await sessionModel.deleteMany({ userId: targetUser._id });
+            notifyUser(targetUser._id, "SESSION_EXPIRED", { reason: "Your account access has ended." });
+        } else {
+            await notifyUser(targetUser._id, "ACCOUNT_ACCESS_CHANGED", {});
+        }
 
         return res.status(200).json({
             success: true,
@@ -642,6 +653,7 @@ export async function deleteUser(req, res) {
         }
 
         await sessionModel.deleteMany({ userId: targetUser._id });
+        notifyUser(targetUser._id, "SESSION_EXPIRED", { reason: "Your account has been deleted." });
         await walletModel.deleteOne({ userId: targetUser._id });
         await targetUser.deleteOne();
 
@@ -825,6 +837,7 @@ export async function exitFullAccessImpersonation(req, res) {
 
         const tokenHash = crypto.createHash("sha256").update(req.token).digest("hex");
         await sessionModel.deleteOne({ tokenHash, userId: req.user._id });
+        notifySession(req.session._id, "SESSION_CLOSED");
 
         return res.status(200).json({ success: true, message: "Full access session ended." });
     } catch (error) {
@@ -851,6 +864,7 @@ export async function exitPreviewMode(req, res) {
         // Clean up temporary preview session
         const currentTokenHash = crypto.createHash("sha256").update(req.token).digest("hex");
         await sessionModel.deleteOne({ tokenHash: currentTokenHash });
+        notifySession(req.session._id, "SESSION_CLOSED");
 
         res.cookie("token", originalToken, {
             httpOnly: true,
@@ -993,6 +1007,12 @@ export async function updateUser(req, res) {
         }
 
         await targetUser.save();
+        if (targetUser.status !== "active" || (targetUser.expiresAt && new Date(targetUser.expiresAt) <= new Date())) {
+            await sessionModel.deleteMany({ userId: targetUser._id });
+            notifyUser(targetUser._id, "SESSION_EXPIRED", { reason: "Your account access has ended." });
+        } else {
+            await notifyUser(targetUser._id, "ACCOUNT_ACCESS_CHANGED", {});
+        }
 
         return res.status(200).json({
             success: true,

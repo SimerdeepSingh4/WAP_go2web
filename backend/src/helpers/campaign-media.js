@@ -1,4 +1,4 @@
-﻿import path from "node:path";
+import path from "node:path";
 import { fileTypeFromBuffer } from "file-type";
 
 const formats = {

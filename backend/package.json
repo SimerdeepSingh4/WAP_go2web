@@ -9,7 +9,7 @@
     "cors": "^2.8.6",
     "dotenv": "^18.0.9",
     "express": "^5.3.0",
-    "file-type": "^22.3.0",
+    "file-type": "22.3.0",
     "frontend": "file:../frontend",
     "helmet": "^8.3.0",
     "init": "^0.1.2",
@@ -23,7 +23,7 @@
     "socket.io": "^4.8.4",
     "wap-go2web": "file:..",
     "web-push": "^3.6.7",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "name": "backend",
   "version": "1.0.1",
@@ -36,6 +36,9 @@
     "test:credits": "node --experimental-vm-modules --test test-credit-integrity.js test-campaign-approval.js test-campaign-refund-adjustments.js test-credit-visibility.js test-campaign-contacts.js",
     "credits:audit": "node scripts/audit-credit-ledger.js",
     "test:enterprise": "node --test test-audit-trail.js",
+    "test:uploads": "node --test test-upload-security.js",
+    "test:spreadsheets": "node --experimental-vm-modules --test test-spreadsheet-security.js",
+    "test:sockets": "node --experimental-vm-modules --test test-socket-security.js",
     "audit:verify": "node scripts/verify-audit-trail.js",
     "audit:export": "node scripts/export-audit-trail.js"
   },
@@ -43,6 +46,9 @@
   "author": "",
   "license": "ISC",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "devDependencies": {
     "mongodb-memory-server": "^11.3.0",
     "socket.io-client": "^4.8.4"

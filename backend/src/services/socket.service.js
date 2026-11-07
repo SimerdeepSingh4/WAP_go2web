@@ -6,6 +6,87 @@ import sessionModel from "../models/session.model.js";
 import userModel from "../models/user.model.js";
 
 let io = null;
+const REVALIDATE_MS = 30_000;
+const VALIDATION_TIMEOUT_MS = 5_000;
+const expiryTimers = new WeakMap();
+
+function endSocket(socket, reason = "Session access ended. Please sign in again.") {
+    if (!socket.connected) return;
+    socket.emit("SESSION_EXPIRED", { reason, forceLogout: true });
+    socket.disconnect(true);
+}
+
+function armExpiry(socket, deadline) {
+    clearTimeout(expiryTimers.get(socket));
+    const timer = setTimeout(() => {
+        if (Date.now() >= deadline) endSocket(socket, "Your session or account has expired.");
+        else armExpiry(socket, deadline);
+    }, Math.max(0, Math.min(deadline - Date.now(), 2_147_483_647)));
+    timer.unref();
+    expiryTimers.set(socket, timer);
+}
+
+async function loadAccess(auth) {
+    if (!Number.isFinite(auth.tokenExpiresAt) || auth.tokenExpiresAt <= Date.now()) throw new Error("Session expired.");
+    const filter = { tokenHash: auth.tokenHash, expiresAt: { $gt: new Date() } };
+    if (auth.sessionId) filter._id = auth.sessionId;
+    if (auth.userId) filter.userId = auth.userId;
+    const session = await sessionModel.findOne(filter);
+    if (!session) throw new Error("Session was revoked or expired.");
+    const user = await userModel.findById(session.userId).select("_id role resellerId status expiresAt");
+    if (!user || user.status !== "active" || (user.expiresAt && new Date(user.expiresAt).getTime() <= Date.now())) {
+        throw new Error("Account is unavailable, blocked or expired.");
+    }
+    if (auth.role !== undefined && (user.role !== auth.role || String(user.resellerId || "") !== auth.resellerId)) {
+        throw new Error("Account permissions changed. Please sign in again.");
+    }
+    const deadline = Math.min(auth.tokenExpiresAt, new Date(session.expiresAt).getTime(), user.expiresAt ? new Date(user.expiresAt).getTime() : Infinity);
+    if (!Number.isFinite(deadline) || deadline <= Date.now()) throw new Error("Session expired.");
+    return { user, session, deadline };
+}
+
+async function boundedAccess(auth) {
+    let timer;
+    try {
+        return await Promise.race([
+            loadAccess(auth),
+            new Promise((_, reject) => {
+                timer = setTimeout(() => reject(new Error("Session verification unavailable.")), VALIDATION_TIMEOUT_MS);
+                timer.unref();
+            }),
+        ]);
+    } finally { clearTimeout(timer); }
+}
+
+async function checkConnectedSocket(socket) {
+    try {
+        const access = await boundedAccess(socket.data.auth);
+        if (!socket.connected) return false;
+        socket.user = access.user;
+        armExpiry(socket, access.deadline);
+        return true;
+    } catch {
+        endSocket(socket);
+        return false;
+    }
+}
+
+async function emitAuthorized(room, event, payload) {
+    if (!io) return;
+    // All application notifications pass through this guard. Socket.IO incoming
+    // middleware alone cannot stop an already connected client receiving events.
+    const sockets = [...io.sockets.sockets.values()].filter((socket) => !room || socket.rooms.has(room));
+    await Promise.all(sockets.map(async (socket) => {
+        if (await checkConnectedSocket(socket)) socket.emit(event, payload);
+    }));
+}
+
+function endRoom(room, payload = {}, silent = false) {
+    if (!io) return;
+    if (!silent) io.to(room).emit("SESSION_EXPIRED", { reason: "Session access ended. Please sign in again.", ...payload, forceLogout: true });
+    // The server closes the transport; ignoring the frontend event cannot retain access.
+    io.in(room).disconnectSockets(true);
+}
 
 function parseCookie(cookieStr, name) {
     if (!cookieStr) return null;
@@ -70,25 +151,14 @@ export function initSocket(httpServer) {
                 return next(new Error("Authentication error: Invalid or expired token."));
             }
 
-            // Verify active session against DB (enforces single-device / 3-device limits)
             const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-            const session = await sessionModel.findOne({
-                tokenHash,
-                expiresAt: { $gt: new Date() },
-            });
-
-            if (!session) {
-                return next(new Error("Authentication error: Session expired or evicted."));
-            }
-
-            const targetUserId = decoded.userId || decoded.id || session.userId;
-            const user = await userModel.findById(targetUserId).select("-password");
-            if (!user) {
-                return next(new Error("Authentication error: User not found."));
-            }
-
+            const auth = { tokenHash, userId: decoded.userId || decoded.id, tokenExpiresAt: decoded.exp * 1000 };
+            const { user, session, deadline } = await boundedAccess(auth);
             socket.user = user;
             socket.sessionId = session._id.toString();
+            socket.data.auth = { ...auth, userId: String(user._id), sessionId: socket.sessionId, role: user.role, resellerId: String(user.resellerId || "") };
+            socket.data.sessionId = socket.sessionId;
+            socket.data.accessDeadline = deadline;
             return next();
         } catch (error) {
             console.error("Socket authentication error:", error);
@@ -115,14 +185,29 @@ export function initSocket(httpServer) {
         // 4. Session Room: for targeted eviction of a specific device
         socket.join(`session:${socket.sessionId}`);
         socket.data.sessionId = socket.sessionId;
+        armExpiry(socket, socket.data.accessDeadline);
+        // Close the race between the initial DB check and joining notification rooms.
+        void checkConnectedSocket(socket);
+        socket.use(async (packet, next) => {
+            if (await checkConnectedSocket(socket)) next();
+        });
         socket.on("NOTIFICATION_VISIBILITY", (data) => {
             socket.data.notificationVisible = data?.visible === true;
         });
 
         socket.on("disconnect", () => {
-            // Cleanup happens automatically in Socket.IO
+            clearTimeout(expiryTimers.get(socket));
+            expiryTimers.delete(socket);
         });
     });
+
+    // Idle connections must also lose access when records change outside HTTP handlers.
+    const serverIO = io;
+    const validationTimer = setInterval(() => {
+        for (const socket of serverIO.sockets.sockets.values()) void checkConnectedSocket(socket);
+    }, REVALIDATE_MS);
+    validationTimer.unref();
+    httpServer.once("close", () => clearInterval(validationTimer));
 
     console.log("Socket.IO initialized successfully with JWT & Room security.");
     return io;
@@ -146,7 +231,10 @@ export function getIO() {
  */
 export function notifyUser(userId, event, payload) {
     if (!io || !userId) return;
-    io.to(`user:${userId.toString()}`).emit(event, payload);
+    const room = `user:${userId.toString()}`;
+    if (event === "SESSION_EXPIRED") return endRoom(room, payload);
+    if (event === "ROLE_CHANGED") return endRoom(room, { reason: payload?.message || "Your account permissions changed." });
+    return emitAuthorized(room, event, payload);
 }
 
 /**
@@ -157,7 +245,7 @@ export function notifyUser(userId, event, payload) {
  */
 export function notifyRole(role, event, payload) {
     if (!io || !role) return;
-    io.to(`role:${role}`).emit(event, payload);
+    return emitAuthorized(`role:${role}`, event, payload);
 }
 
 /**
@@ -168,7 +256,7 @@ export function notifyRole(role, event, payload) {
  */
 export function notifyReseller(resellerId, event, payload) {
     if (!io || !resellerId) return;
-    io.to(`user:${resellerId.toString()}`).emit(event, payload);
+    return emitAuthorized(`user:${resellerId.toString()}`, event, payload);
 }
 
 /**
@@ -180,19 +268,9 @@ export function notifyReseller(resellerId, event, payload) {
 export function notifySession(sessionId, event, payload) {
     if (!io || !sessionId) return;
     const room = `session:${sessionId.toString()}`;
-    io.to(room).emit(event, payload);
-    if (event === "SESSION_EXPIRED") {
-        setTimeout(async () => {
-            try {
-                const sockets = await io.in(room).fetchSockets();
-                for (const s of sockets) {
-                    s.disconnect(true);
-                }
-            } catch (err) {
-                console.error("Error disconnecting socket session:", err);
-            }
-        }, 500);
-    }
+    if (event === "SESSION_EXPIRED") return endRoom(room, payload);
+    if (event === "SESSION_CLOSED") return endRoom(room, {}, true);
+    return emitAuthorized(room, event, payload);
 }
 
 /**
@@ -202,7 +280,7 @@ export function notifySession(sessionId, event, payload) {
  */
 export function broadcastAll(event, payload) {
     if (!io) return;
-    io.emit(event, payload);
+    return emitAuthorized(null, event, payload);
 }
 
 export default {
