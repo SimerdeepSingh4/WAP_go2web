@@ -12,6 +12,7 @@ dist
 dist-ssr
 .qa
 *.local
+/vulnerabilities.md
 
 # Editor directories and files
 .vscode/*
