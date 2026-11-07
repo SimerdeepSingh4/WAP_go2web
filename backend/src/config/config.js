@@ -29,7 +29,11 @@ const config = {
     JWT_SECRET: process.env.JWT_SECRET,
     REDIS_HOST: process.env.REDIS_HOST,
     REDIS_PORT: process.env.REDIS_PORT,
-    REDIS_PASSWORD: process.env.REDIS_PASSWORD
+    REDIS_PASSWORD: process.env.REDIS_PASSWORD,
+    USE_CLOUDINARY: process.env.USE_CLOUDINARY,
+    CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
+    CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
+    CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
 }
 
 export default config;

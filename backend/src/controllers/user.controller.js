@@ -9,6 +9,7 @@ import { notifyUser, notifySession } from "../services/socket.service.js";
 import sharp from "sharp";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
+import cloudinary, { isCloudinaryConfigured } from "../config/cloudinary.config.js";
 
 /**
  * Get all users accessible by current user:
@@ -165,28 +166,72 @@ async function saveUserProfileImage(req, res, userId) {
             .resize({ width: 512, height: 512, fit: "cover", withoutEnlargement: true })
             .webp({ quality: 82 })
             .toBuffer();
-        const uploadDirectory = path.join(process.cwd(), "uploads", "profile-pictures");
-        const filename = `dp_${userId}_${crypto.randomUUID()}.webp`;
-        savedFilePath = path.join(uploadDirectory, filename);
-        await mkdir(uploadDirectory, { recursive: true });
-        await writeFile(savedFilePath, imageBuffer);
+
+        const isCloudinaryActive = isCloudinaryConfigured();
+        const useCloudinary = process.env.USE_CLOUDINARY === "true" || (isCloudinaryActive && process.env.USE_CLOUDINARY !== "false");
+
+        let dpUrl;
+        let uploadedCloudinaryPublicId = null;
+
+        if (useCloudinary) {
+            if (!isCloudinaryActive) {
+                return res.status(500).json({
+                    message: "Cloudinary configuration is missing for profile image storage.",
+                    success: false,
+                });
+            }
+
+            const publicId = `dp_${userId}_${crypto.randomUUID()}`;
+            dpUrl = await new Promise((resolve, reject) => {
+                const uploadStream = cloudinary.uploader.upload_stream(
+                    {
+                        folder: "profile-pictures",
+                        resource_type: "image",
+                        format: "webp",
+                        public_id: publicId,
+                        use_filename: false,
+                        overwrite: false,
+                    },
+                    (error, result) => {
+                        if (error) {
+                            console.error("Cloudinary profile upload error:", error);
+                            reject(error);
+                        } else {
+                            uploadedCloudinaryPublicId = result.public_id || publicId;
+                            resolve(result.secure_url);
+                        }
+                    }
+                );
+                uploadStream.end(imageBuffer);
+            });
+        } else {
+            const uploadDirectory = path.join(process.cwd(), "uploads", "profile-pictures");
+            const filename = `dp_${userId}_${crypto.randomUUID()}.webp`;
+            savedFilePath = path.join(uploadDirectory, filename);
+            await mkdir(uploadDirectory, { recursive: true });
+            await writeFile(savedFilePath, imageBuffer);
+            dpUrl = `/uploads/profile-pictures/${filename}`;
+        }
 
         const user = await userModel.findByIdAndUpdate(
             userId,
-            { $set: { dp_img: `/uploads/profile-pictures/${filename}` } },
+            { $set: { dp_img: dpUrl } },
             { new: true }
         ).select("username email role dp_img");
 
         if (!user) {
-            await unlink(savedFilePath);
-            savedFilePath = undefined;
+            if (savedFilePath) await unlink(savedFilePath).catch(() => {});
+            if (uploadedCloudinaryPublicId && isCloudinaryActive) {
+                cloudinary.uploader.destroy(uploadedCloudinaryPublicId, { resource_type: "image" }).catch(() => {});
+            }
             return res.status(404).json({ message: "User not found.", success: false });
         }
 
+        const uploadDirectory = path.join(process.cwd(), "uploads", "profile-pictures");
         const previousPath = targetUser.dp_img;
         if (previousPath?.startsWith("/uploads/profile-pictures/")) {
             const previousFile = path.basename(previousPath);
-            if (previousFile && previousFile !== filename) {
+            if (previousFile && previousFile !== path.basename(dpUrl)) {
                 await unlink(path.join(uploadDirectory, previousFile)).catch(() => {});
             }
         }

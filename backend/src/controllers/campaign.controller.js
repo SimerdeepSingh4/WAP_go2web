@@ -7,7 +7,7 @@ import transactionModel from "../models/transaction.model.js";
 import sharp from "sharp";
 import fs from "fs";
 import path from "path";
-import cloudinary from "../config/cloudinary.config.js";
+import cloudinary, { isCloudinaryConfigured } from "../config/cloudinary.config.js";
 import { notifyUser, notifyRole, notifyReseller } from "../services/socket.service.js";
 import { scheduleCampaignJob, cancelCampaignJob } from "../queues/campaign.queue.js";
 import xlsx from "xlsx";
@@ -368,20 +368,63 @@ export const createCampaign = async (req, res) => {
         }
         const recipientInputAudit = sanitizeRecipientInputAudit(req.body.recipientInputAudit, recipients || [], req.user._id);
 
-        // Upload files to Cloudinary or local fallback with size limits and image compression
+        // 1. Validate required fields before processing or uploading media
+        const missingFields = [];
+        if (!campaignTitle) missingFields.push("campaignTitle");
+
+        const hasUploadedMedia = Boolean(
+            (req.files?.images && req.files.images.length > 0) ||
+            (req.files?.image && req.files.image.length > 0) ||
+            (req.files?.video && req.files.video.length > 0) ||
+            (req.files?.audio && req.files.audio.length > 0) ||
+            (req.files?.documents && req.files.documents.length > 0) ||
+            (req.files?.document && req.files.document.length > 0) ||
+            (req.files?.pdf && req.files.pdf.length > 0)
+        );
+
+        const hasContent =
+            messageBody ||
+            templateId ||
+            hasUploadedMedia ||
+            (attachments && Array.isArray(attachments) && attachments.length > 0);
+
+        if (!hasContent) {
+            missingFields.push("messageBody, templateId, or media (images, audio, video, documents, attachments)");
+        }
+
+        if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
+            missingFields.push("recipients (non-empty array)");
+        }
+
+        if (missingFields.length > 0) {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
+            return res.status(400).json({
+                message: `${missingFields.join(", ")} ${missingFields.length === 1 ? "is" : "are"} required`,
+                missingFields,
+                success: false,
+            });
+        }
+
+        // 2. Upload media files to Cloudinary (or local fallback) with sharp WebP compression
         const IMG_MAX_SIZE = parseInt(process.env.IMG_MAX_SIZE_MB || "5") * 1024 * 1024; // default 5 MB
         const AUDIO_MAX_SIZE = parseInt(process.env.AUDIO_MAX_SIZE_MB || "7") * 1024 * 1024; // default 7 MB
         const VIDEO_MAX_SIZE = parseInt(process.env.VIDEO_MAX_SIZE_MB || "7") * 1024 * 1024; // default 7 MB
         const DOC_MAX_SIZE = parseInt(process.env.DOC_MAX_SIZE_MB || "3") * 1024 * 1024; // default 3 MB
 
+        const isCloudinaryActive = isCloudinaryConfigured();
+        const useCloudinary = process.env.USE_CLOUDINARY === "true" || (isCloudinaryActive && process.env.USE_CLOUDINARY !== "false");
+        const uploadedMediaTrackers = [];
+
         const uploadField = async (field) => {
-            const fileList =
-                req.files?.[field] ||
-                (field === "images" ? req.files?.image : null) ||
-                (field === "documents" ? (req.files?.pdf || req.files?.document) : null) ||
-                [];
+            const rawFiles = [
+                ...(req.files?.[field] || []),
+                ...(field === "images" ? (req.files?.image || []) : []),
+                ...(field === "documents" ? [...(req.files?.pdf || []), ...(req.files?.document || [])] : []),
+            ];
+            const fileList = Array.from(new Set(rawFiles));
             if (!fileList || fileList.length === 0) return [];
-            const useCloudinary = process.env.USE_CLOUDINARY === "true";
+
             const limitMap = {
                 images: IMG_MAX_SIZE,
                 audio: AUDIO_MAX_SIZE,
@@ -396,40 +439,76 @@ export const createCampaign = async (req, res) => {
                 throw new Error(`${field} file ${oversized.originalname} exceeds size limit of ${fieldLimit / (1024 * 1024)} MB`);
             }
 
-            // Prepare buffers (compress images)
-            const buffers = await Promise.all(
+            // Prepare buffers (compress every image into WebP format using sharp before storage)
+            const processedFiles = await Promise.all(
                 fileList.map(async (file) => {
-                    if (field === "images") {
-                        // Compress image to WebP using sharp
-                        return await sharp(file.buffer)
+                    const isImage = field === "images" || ["jpg", "jpeg", "png", "webp"].includes(file.detectedType?.ext);
+                    if (isImage) {
+                        // Sharp: auto-orient EXIF, constraint max dimensions, encode to WebP with optimal compression
+                        const webpBuffer = await sharp(file.buffer)
                             .rotate()
                             .resize({ width: 1920, withoutEnlargement: true })
-                            .webp({ quality: 80 })
+                            .webp({ quality: 80, effort: 4 })
                             .toBuffer();
+
+                        return {
+                            buffer: webpBuffer,
+                            isImage: true,
+                            ext: "webp",
+                            mimetype: "image/webp",
+                            size: webpBuffer.length,
+                            originalname: file.originalname,
+                        };
                     }
-                    return file.buffer;
+                    return {
+                        buffer: file.buffer,
+                        isImage: false,
+                        ext: file.detectedType?.ext || path.extname(file.originalname || "").replace(".", ""),
+                        mimetype: file.mimetype,
+                        size: file.size,
+                        originalname: file.originalname,
+                    };
                 })
             );
 
             if (useCloudinary) {
-                // Upload to Cloudinary
+                if (!isCloudinaryActive) {
+                    throw new Error("Cloudinary media storage is enabled, but CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, or CLOUDINARY_API_SECRET is missing.");
+                }
+
+                // Upload to Cloudinary with explicit webp formatting for images
                 const uploads = await Promise.all(
-                    buffers.map((buf) =>
+                    processedFiles.map((item) =>
                         new Promise((resolve, reject) => {
+                            const resourceType = field === "documents" ? "raw" : item.isImage ? "image" : "video";
+                            const publicId = field === "documents"
+                                ? `${crypto.randomUUID()}.${item.ext || "pdf"}`
+                                : crypto.randomUUID();
+
                             const uploadStream = cloudinary.uploader.upload_stream(
                                 {
                                     folder: `${field}s`,
-                                    resource_type: field === "documents" ? "raw" : field === "images" ? "image" : "video",
-                                    public_id: field === "documents" ? `${crypto.randomUUID()}.pdf` : crypto.randomUUID(),
+                                    resource_type: resourceType,
+                                    format: item.isImage ? "webp" : undefined,
+                                    public_id: publicId,
                                     use_filename: false,
                                     overwrite: false,
                                 },
                                 (error, result) => {
-                                    if (error) reject(error);
-                                    else resolve(result.secure_url);
+                                    if (error) {
+                                        console.error(`Cloudinary upload failed for ${field}:`, error);
+                                        reject(error);
+                                    } else {
+                                        uploadedMediaTrackers.push({
+                                            url: result.secure_url,
+                                            publicId: result.public_id || publicId,
+                                            resourceType,
+                                        });
+                                        resolve(result.secure_url);
+                                    }
                                 }
                             );
-                            uploadStream.end(buf);
+                            uploadStream.end(item.buffer);
                         })
                     )
                 );
@@ -439,12 +518,13 @@ export const createCampaign = async (req, res) => {
                 const localDir = path.join(process.cwd(), "uploads", `${field}s`);
                 fs.mkdirSync(localDir, { recursive: true });
                 const uploads = await Promise.all(
-                    buffers.map((buf, idx) => {
-                        const extension = field === "images" ? "webp" : fileList[idx].detectedType.ext;
-                        const filename = `${crypto.randomUUID()}.${extension}`;
+                    processedFiles.map((item) => {
+                        const filename = `${crypto.randomUUID()}.${item.ext}`;
                         const filepath = path.join(localDir, filename);
-                        fs.writeFileSync(filepath, buf);
-                        return `/uploads/${field}s/${filename}`;
+                        fs.writeFileSync(filepath, item.buffer);
+                        const fileUrl = `/uploads/${field}s/${filename}`;
+                        uploadedMediaTrackers.push({ url: fileUrl, localPath: filepath });
+                        return fileUrl;
                     })
                 );
                 return uploads;
@@ -465,40 +545,16 @@ export const createCampaign = async (req, res) => {
             ]);
         } catch (uploadErr) {
             console.error("Media upload error:", uploadErr);
+            for (const item of uploadedMediaTrackers) {
+                if (item.publicId && isCloudinaryActive) {
+                    cloudinary.uploader.destroy(item.publicId, { resource_type: item.resourceType }).catch(() => {});
+                } else if (item.localPath) {
+                    try { fs.unlinkSync(item.localPath); } catch {}
+                }
+            }
             await mongoSession.abortTransaction();
             mongoSession.endSession();
             return res.status(500).json({ message: "Failed to upload media files", error: uploadErr.message });
-        }
-
-        // Check required fields (userId is securely taken from authenticated req.user._id)
-        const missingFields = [];
-        if (!campaignTitle) missingFields.push("campaignTitle");
-        
-        const hasContent =
-            messageBody ||
-            templateId ||
-            (images && Array.isArray(images) && images.length > 0) ||
-            (video && Array.isArray(video) && video.length > 0) ||
-            (audio && Array.isArray(audio) && audio.length > 0) ||
-            (documents && Array.isArray(documents) && documents.length > 0) ||
-            (attachments && Array.isArray(attachments) && attachments.length > 0);
-
-        if (!hasContent) {
-            missingFields.push("messageBody, templateId, or media (images, audio, video, documents, attachments)");
-        }
-
-        if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
-            missingFields.push("recipients (non-empty array)");
-        }
-
-        if (missingFields.length > 0) {
-            await mongoSession.abortTransaction();
-            mongoSession.endSession();
-            return res.status(400).json({
-                message: `${missingFields.join(", ")} ${missingFields.length === 1 ? "is" : "are"} required`,
-                missingFields,
-                success: false,
-            });
         }
 
         // ── Single-Campaign Duplicate Detection & Phone Sanitization ──
@@ -786,6 +842,15 @@ export const createCampaign = async (req, res) => {
             },
         });
     } catch (error) {
+        if (typeof uploadedMediaTrackers !== "undefined" && uploadedMediaTrackers.length > 0) {
+            for (const item of uploadedMediaTrackers) {
+                if (item.publicId && isCloudinaryConfigured()) {
+                    cloudinary.uploader.destroy(item.publicId, { resource_type: item.resourceType }).catch(() => {});
+                } else if (item.localPath) {
+                    try { fs.unlinkSync(item.localPath); } catch {}
+                }
+            }
+        }
         await mongoSession.abortTransaction();
         mongoSession.endSession();
         console.error("Create campaign error:", error);
