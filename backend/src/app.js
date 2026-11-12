@@ -20,6 +20,7 @@ import searchRouter from "./routes/search.routes.js";
 import enterpriseRouter from "./routes/enterprise.routes.js";
 import healthRouter from "./routes/health.routes.js";
 import brandingRouter from "./routes/branding.routes.js";
+import supportRouter from "./routes/support.routes.js";
 import { auditRequestContext } from "./services/audit.service.js";
 import { uploadsStatic } from "./middlewares/uploads-static.middleware.js";
 
@@ -72,6 +73,7 @@ app.use("/api/notifications", notificationRouter);
 app.use("/api/search", searchRouter);
 app.use("/api/enterprise", enterpriseRouter);
 app.use("/api/branding", brandingRouter);
+app.use("/api/support", supportRouter);
 
 // Public Health & Keep-Alive endpoints (No auth required)
 app.use("/health", healthRouter);

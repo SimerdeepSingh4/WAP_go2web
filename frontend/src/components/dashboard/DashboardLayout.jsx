@@ -13,7 +13,7 @@ import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarGroup, 
 import { toast } from "@/components/ui/toast";
 import PreviewBanner from "@/components/PreviewBanner";
 import { Button } from "@/components/ui/button";
-import { Sparkles, HelpCircle, MessageCircle } from "lucide-react";
+import { HelpCircle, MessageCircle } from "lucide-react";
 import { useAppTour } from "@/features/tour/useAppTour";
 
 const rolePaths = { "Super Admin": "/admin", Reseller: "/reseller", User: "/user" };
@@ -132,7 +132,7 @@ function Navigation({ role, base, items }) {
 
 export default function DashboardLayout({ role }) {
   const { user, logout, isLoggingOut } = useAuth();
-  const { startTour, hasTour, tourTitle } = useAppTour(role, user?._id || user?.id);
+  const { startTour, hasTour } = useAppTour(role, user?._id || user?.id);
   const [open, setOpen] = useState(true);
   const base = rolePaths[role];
   const items = navigation[role];
@@ -165,53 +165,31 @@ export default function DashboardLayout({ role }) {
                   <NotificationBell base={base} />
                 </div>
                 <ThemeToggle />
-                {/* Help Menu with Take a Tour */}
-                {hasTour && <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        id="tour-help-button"
-                        aria-label="Help menu"
-                        className="h-8 gap-1.5 text-xs font-medium"
-                        title="Help and guided tour"
-                      >
-                        <HelpCircle className="size-3.5 text-muted-foreground" />
-                        <span className="hidden sm:inline">Help</span>
-                        <ChevronDown className="hidden sm:block size-3 opacity-60 ml-0.5" />
-                      </Button>
-                    }
-                  />
-                  <DropdownMenuContent align="end" className="w-64 p-1.5">
-                    <div className="px-2 py-2">
-                      <p className="text-xs font-semibold">Help & support</p>
-                      <p className="mt-1 text-[11px] text-muted-foreground">Get help with your workspace.</p>
-                    </div>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      render={<Link to={`${base}/support`} />}
-                      className="gap-2 text-xs font-medium cursor-pointer"
-                    >
-                      <MessageCircle className="size-3.5 text-sky-600 dark:text-sky-400" />
-                      <span>Chat support</span>
-                    </DropdownMenuItem>
-                    {hasTour && <>
-                      <DropdownMenuSeparator />
-                      <div className="px-2 py-2">
-                        <p className="text-xs font-semibold">{tourTitle}</p>
-                        <p className="mt-1 text-[11px] text-muted-foreground">A guided walkthrough of this page.</p>
-                      </div>
-                      <DropdownMenuItem
-                        onClick={() => startTour(true)}
-                        className="gap-2 text-xs font-medium cursor-pointer"
-                      >
-                        <Sparkles className="size-3.5 text-emerald-600 dark:text-emerald-400" />
-                        <span>Take a tour</span>
-                      </DropdownMenuItem>
-                    </>}
-                  </DropdownMenuContent>
-                </DropdownMenu>}
+                <Button
+                  nativeButton={false}
+                  render={<Link to={`${base}/support`} />}
+                  variant="outline"
+                  size="sm"
+                  aria-label="Chat support"
+                  title="Chat support"
+                  className="h-8 gap-1.5 text-xs font-medium"
+                >
+                  <MessageCircle className="size-3.5 text-muted-foreground" aria-hidden="true" />
+                  <span className="hidden sm:inline">Support</span>
+                </Button>
+                {hasTour && <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  id="tour-help-button"
+                  aria-label="Take a tour of this page"
+                  title="Take a tour of this page"
+                  onClick={() => startTour(true)}
+                  className="h-8 gap-1.5 text-xs font-medium"
+                >
+                  <HelpCircle className="size-3.5 text-muted-foreground" aria-hidden="true" />
+                  <span className="hidden sm:inline">Take a tour</span>
+                </Button>}
 
                 <DropdownMenu>
                   <DropdownMenuTrigger

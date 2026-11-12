@@ -80,9 +80,6 @@ Campaign multipart uploads enforce parser-level limits before buffering into RAM
 - Process-local concurrency limiter: Up to 5 concurrent multipart uploads per process; excess requests receive 429 `CONCURRENT_UPLOAD_LIMIT`. Slots are reliably freed upon completion, errors, or client aborts.
 - Ingress alignment: Production edge reverse proxies (e.g. Nginx `client_max_body_size 35M` or matching Cloudflare/Render ingress limits) should be kept aligned with the application-layer 35 MB limit.
 
-`npm run test:uploads` runs isolated multipart-upload, memory budget, concurrency, and static-download regression
-tests without connecting to the application database or external storage.
-
 ## Validation
 
 Socket connections validate the active database session and current account status
@@ -99,18 +96,8 @@ notifications still require a fresh access check during that interval. Database
 verification errors or timeouts fail closed. Send application events through the
 socket service notification helpers so outgoing authorization is always applied.
 
-`npm run test:sockets` uses real local Socket.IO connections with in-memory account
-and session doubles. It does not read production configuration or connect to the
-application database.
-
 The `xlsx` dependency is pinned to SheetJS CE 0.20.3 from the vendor's official
 CDN, with an integrity hash in `package-lock.json`. This replaces the unmaintained
 npm-registry release 0.18.5 and includes the fixes for CVE-2023-30533 and
 CVE-2024-22363. Keep the official distribution URL when updating; installing
 `xlsx@latest` from the npm registry would restore the vulnerable release.
-
-`npm run test:spreadsheets` checks the installed/locked version and exercises CSV,
-XLSX and XLS contact import/export and campaign report workflows using in-memory
-model doubles, without accessing the application database.
-
-`npm run test:enterprise` runs audit integration tests against a disposable MongoDB replica set, never the configured application database. Existing credit-integrity tests cover concurrent requests, idempotent retries, manual publication, refunds, and rollback.

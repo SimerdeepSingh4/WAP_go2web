@@ -1,4 +1,4 @@
-import { createContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthContext } from "@/features/auth/auth.context";
@@ -111,3 +111,6 @@ export const SocketProvider = ({ children }) => {
 
     return <SocketContext.Provider value={{ socket: connectedSocket }}>{children}</SocketContext.Provider>;
 };
+
+export const useSocket = () => useContext(SocketContext);
+export { SocketContext };

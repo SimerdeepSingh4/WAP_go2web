@@ -10,6 +10,7 @@ import sharp from "sharp";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import cloudinary, { isCloudinaryConfigured } from "../config/cloudinary.config.js";
+import { syncResellerReassignment } from "../helpers/support-reassignment.helper.js";
 
 /**
  * Get all users accessible by current user:
@@ -1159,19 +1160,29 @@ export async function updateUser(req, res) {
         }
 
         // 7. Update resellerId (Super Admin only for User role)
+        let didChangeReseller = false;
+        let oldResellerId = targetUser.resellerId;
+        let newResellerId = oldResellerId;
         if (isSuperAdmin && targetUser.role === "User" && Object.hasOwn(req.body, "resellerId")) {
-            const newResellerId = req.body.resellerId || null;
+            newResellerId = req.body.resellerId || null;
             if (newResellerId) {
                 const reseller = await userModel.findOne({ _id: newResellerId, role: "Reseller" });
                 if (!reseller) {
                     return res.status(400).json({ message: "Selected reseller not found", success: false });
                 }
             }
+            if (String(oldResellerId || "") !== String(newResellerId || "")) {
+                didChangeReseller = true;
+            }
             targetUser.resellerId = newResellerId;
             await walletModel.updateOne({ userId: targetUser._id }, { $set: { resellerId: newResellerId } });
         }
 
         await targetUser.save();
+
+        if (didChangeReseller) {
+            await syncResellerReassignment(targetUser._id, oldResellerId, newResellerId, req.user._id);
+        }
         if (targetUser.status !== "active" || (targetUser.expiresAt && new Date(targetUser.expiresAt) <= new Date())) {
             await sessionModel.deleteMany({ userId: targetUser._id });
             notifyUser(targetUser._id, "SESSION_EXPIRED", { reason: "Your account access has ended." });

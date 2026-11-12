@@ -4,6 +4,9 @@ import crypto from "crypto";
 import config from "../config/config.js";
 import sessionModel from "../models/session.model.js";
 import userModel from "../models/user.model.js";
+import supportConversationModel from "../models/supportConversation.model.js";
+import supportMessageModel from "../models/supportMessage.model.js";
+import { sanitizeMessage } from "../helpers/support-identity.helper.js";
 
 let io = null;
 const REVALIDATE_MS = 30_000;
@@ -193,6 +196,98 @@ export function initSocket(httpServer) {
         });
         socket.on("NOTIFICATION_VISIBILITY", (data) => {
             socket.data.notificationVisible = data?.visible === true;
+        });
+
+        // 5. Support Conversation Room Management & Synchronization
+        socket.on("JOIN_SUPPORT_CONVERSATION", async (data, ack) => {
+            try {
+                const conversationId = data?.conversationId;
+                if (!conversationId) {
+                    if (typeof ack === "function") ack({ success: false, message: "Missing conversationId" });
+                    return;
+                }
+
+                const conv = await supportConversationModel.findById(conversationId);
+                if (!conv) {
+                    if (typeof ack === "function") ack({ success: false, message: "Conversation not found" });
+                    return;
+                }
+
+                const user = socket.user;
+                const hasAccess =
+                    user.role === "Super Admin" ||
+                    (user.role === "Reseller" && String(conv.reseller) === String(user._id)) ||
+                    (user.role === "User" && String(conv.user) === String(user._id));
+
+                if (!hasAccess) {
+                    if (typeof ack === "function") ack({ success: false, message: "Access denied" });
+                    return;
+                }
+
+                const targetRoom = user.role === "User"
+                    ? `support:conv:${conversationId}:user`
+                    : `support:conv:${conversationId}:staff`;
+
+                socket.join(targetRoom);
+                socket.join(`support:conv:${conversationId}`);
+
+                if (typeof ack === "function") ack({ success: true, room: targetRoom });
+            } catch (err) {
+                console.error("JOIN_SUPPORT_CONVERSATION error:", err);
+                if (typeof ack === "function") ack({ success: false, error: err.message });
+            }
+        });
+
+        socket.on("LEAVE_SUPPORT_CONVERSATION", (data, ack) => {
+            const conversationId = data?.conversationId;
+            if (conversationId) {
+                socket.leave(`support:conv:${conversationId}:user`);
+                socket.leave(`support:conv:${conversationId}:staff`);
+                socket.leave(`support:conv:${conversationId}`);
+            }
+            if (typeof ack === "function") ack({ success: true });
+        });
+
+        socket.on("SUPPORT_SYNC_MESSAGES", async (data, ack) => {
+            try {
+                const { conversationId, lastSequence } = data || {};
+                if (!conversationId) {
+                    if (typeof ack === "function") ack({ success: false, message: "Missing conversationId" });
+                    return;
+                }
+
+                const conv = await supportConversationModel.findById(conversationId);
+                if (!conv) {
+                    if (typeof ack === "function") ack({ success: false, message: "Conversation not found" });
+                    return;
+                }
+
+                const user = socket.user;
+                const hasAccess =
+                    user.role === "Super Admin" ||
+                    (user.role === "Reseller" && String(conv.reseller) === String(user._id)) ||
+                    (user.role === "User" && String(conv.user) === String(user._id));
+
+                if (!hasAccess) {
+                    if (typeof ack === "function") ack({ success: false, message: "Access denied" });
+                    return;
+                }
+
+                const messages = await supportMessageModel.find({
+                    conversationId: conv._id,
+                    sequenceNumber: { $gt: Number(lastSequence) || 0 },
+                })
+                    .sort({ sequenceNumber: 1 })
+                    .limit(100)
+                    .populate("sender", "username email dp_img")
+                    .populate("attachments");
+
+                const sanitized = messages.map((m) => sanitizeMessage(m, user.role));
+                if (typeof ack === "function") ack({ success: true, messages: sanitized });
+            } catch (err) {
+                console.error("SUPPORT_SYNC_MESSAGES error:", err);
+                if (typeof ack === "function") ack({ success: false, error: err.message });
+            }
         });
 
         socket.on("disconnect", () => {
