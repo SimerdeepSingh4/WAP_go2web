@@ -72,6 +72,7 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
   const isAdmin = user?.role === "Super Admin";
   const isReseller = user?.role === "Reseller";
   const canManageCampaign = isAdmin || user?.role === "User";
+  const canCancelCampaign = user?.role === "User";
 
   const [confirmFailure, setConfirmFailure] = useState(false);
   const [confirmCancelOpen, setConfirmCancelOpen] = useState(false);
@@ -367,8 +368,8 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
             </Button>
           )}
 
-          {/* Creator / Admin Action: Cancel Campaign with 100% Refund */}
-          {canManageCampaign && isPendingOrScheduled && (
+          {/* Creator action: cancel before dispatch. */}
+          {canCancelCampaign && isPendingOrScheduled && (
             <Button
               type="button"
               variant="outline"
@@ -548,7 +549,7 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
       </Dialog>
 
       {/* Creator Cancel Scheduled Campaign Dialog */}
-      <Dialog open={canManageCampaign && confirmCancelOpen} onOpenChange={(open) => !isUpdating && setConfirmCancelOpen(open)}>
+      <Dialog open={canCancelCampaign && confirmCancelOpen} onOpenChange={(open) => !isUpdating && setConfirmCancelOpen(open)}>
         <DialogContent className="gap-5 rounded-2xl p-5 sm:max-w-sm">
           <DialogHeader className="gap-1.5 pr-6">
             <DialogTitle>Cancel campaign?</DialogTitle>
