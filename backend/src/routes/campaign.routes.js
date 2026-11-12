@@ -48,6 +48,12 @@ campaignRouter.post(
 );
 campaignRouter.get("/:id", getCampaignById);
 
+campaignRouter.post(
+    "/:id/cancel",
+    blockInPreviewMode("Campaign cancellation"),
+    cancelScheduledCampaign
+);
+
 // STRICTLY Super Admin ONLY: Recipient management, permanent row numbers, filter & custom tabs
 campaignRouter.put(
     "/:id/recipients-management",

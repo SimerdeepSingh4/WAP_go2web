@@ -8,6 +8,7 @@
 .credit-ledger-filters :is([data-slot="select-trigger"], .account-picker-trigger) { width: 100%; min-width: 0; height: 38px; min-height: 38px; border-radius: 8px; font-size: 12px; }
 .credit-ledger .responsive-data-table { border: 0; border-radius: 0; }
 .credit-history .credit-ledger [data-slot="table"] { min-width: 1030px; table-layout: fixed; }
+.credit-history .credit-ledger[data-compact="true"] [data-slot="table"] { min-width: 820px; }
 .credit-history .credit-ledger[data-request-actions="true"] [data-slot="table"] { min-width: 1140px; }
 .credit-history .credit-ledger :is([data-slot="table-head"], [data-slot="table-cell"]) { padding: 12px 14px; vertical-align: middle; }
 .credit-history .credit-ledger [data-slot="table-head"] { height: 42px; padding-block: 10px; font-size: 11px; font-weight: 500; }

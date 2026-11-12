@@ -160,7 +160,7 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
       toast.add({
         title: "Campaign cancelled",
         description: data.refundInfo
-          ? `${number(data.refundInfo.amount)} credits returned to your wallet.`
+          ? `${number(data.refundInfo.amount)} credits returned to ${isAdmin ? "the creator's" : "your"} wallet.`
           : data.message,
         type: "success",
       });
@@ -551,15 +551,15 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
       <Dialog open={canManageCampaign && confirmCancelOpen} onOpenChange={(open) => !isUpdating && setConfirmCancelOpen(open)}>
         <DialogContent className="gap-5 rounded-2xl p-5 sm:max-w-sm">
           <DialogHeader className="gap-1.5 pr-6">
-            <DialogTitle>Cancel scheduled campaign?</DialogTitle>
+            <DialogTitle>Cancel campaign?</DialogTitle>
             <DialogDescription className="text-xs leading-5">
-              Cancelling will abort this campaign before dispatch. All {number(campaign.creditsDeducted || 0)} reserved credits will be returned to your wallet immediately.
+              Cancelling will abort this campaign before dispatch. The remaining {number(remainingRefund)} reserved credits will be returned to {isAdmin ? "the creator's" : "your"} wallet immediately.
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-100">
             <div className="flex justify-between items-center tabular-nums">
               <span className="font-medium">Credits to be refunded:</span>
-              <span className="text-sm font-semibold">{number(campaign.creditsDeducted || 0)} credits</span>
+              <span className="text-sm font-semibold">{number(remainingRefund)} credits</span>
             </div>
           </div>
           <DialogFooter className="m-0 flex-row justify-end rounded-none border-0 bg-transparent p-0">

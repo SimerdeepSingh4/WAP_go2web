@@ -5,8 +5,9 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useUserQuery, useUserMutation } from "../hooks/useUser";
 import { PageHeading, QueryState, FilterSelect, DataTable, Pager, Field, FormError } from "@/features/admin/components/shared";
 import OverviewMetricCards from "@/components/dashboard/OverviewMetricCards";
-import { Wallet, Lock, Coins, History } from "lucide-react";
+import { Wallet, Lock, Coins, History, MoreHorizontal, FileText } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,6 +23,7 @@ export default function UserCredits({ activity = false }) {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [review, setReview] = useState(false);
+  const [noteTransaction, setNoteTransaction] = useState(null);
   const page = Math.max(1, Number(params.get("page")) || 1);
   const type = params.get("type") || "all";
   const transactionId = params.get("transaction");
@@ -43,8 +45,19 @@ export default function UserCredits({ activity = false }) {
       return <span className={`tabular-nums text-sm ${info.amountClass}`}>{info.sign}{number(transaction.amount)}</span>;
     } },
     { key: "balance", label: "Your balance after", className: "credit-ledger-col-balance text-right", render: t => <span className="text-sm tabular-nums">{number(t.type === "REQUEST" ? null : String(t.fromUser?._id || t.fromUser) === String(accountId) ? t.balanceAfterFrom : t.balanceAfterTo)}</span> },
-    { key: "notes", label: "Note", className: "credit-ledger-col-note", render: t => <span className="credit-ledger-note text-xs text-muted-foreground" title={t.notes || undefined}>{t.notes || "—"}</span> },
-    { key: "actions", label: "Help", className: "credit-ledger-col-help text-right", render: transaction => <SupportHelpButton transaction={transaction} area="this transaction" /> },
+    { key: "actions", label: "Actions", className: "credit-ledger-col-action text-right", render: transaction => (
+      <DropdownMenu>
+        <DropdownMenuTrigger render={<Button type="button" variant="ghost" size="icon-sm" aria-label="Transaction actions" />}>
+          <MoreHorizontal className="size-4" aria-hidden="true" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuItem onClick={() => setNoteTransaction(transaction)}>
+            <FileText className="size-4" aria-hidden="true" />View note
+          </DropdownMenuItem>
+          <SupportHelpButton transaction={transaction} area="this transaction" menuItem label="Get help" />
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ) },
   ];
   return <>
     <PageHeading title={activity ? "Transactions" : "Credits"} description={activity ? "Your credit allocations, charges and requests." : "Your available balance and credit history."} action={<div className="flex flex-wrap items-center gap-2"><SupportHelpButton area={activity ? "my transactions" : "my credits"} />{!activity && <Button data-tour="request-credits" disabled={user?.isPreview} onClick={() => { request.reset(); setReview(false); update("request", "new"); }}>Request credits</Button>}</div>} />
@@ -92,8 +105,25 @@ export default function UserCredits({ activity = false }) {
         <div className="credit-ledger-filters"><div className="credit-ledger-type-filter"><FilterSelect label="Transaction type" value={type} onChange={v => update("type", v)} options={[{ value: "all", label: "All transaction types" }, ...Object.entries(labels).map(([value, label]) => ({ value, label }))]} /></div></div>
       </div>
     {transactionId && <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm"><span>Showing selected transaction</span><button type="button" className="font-medium text-indigo-700 underline" onClick={() => setParams((previous) => { const next = new URLSearchParams(previous); next.delete("transaction"); next.delete("page"); return next; }, { replace: true })}>View all transactions</button></div>}
-      <QueryState query={ledger}><div className="credit-ledger"><DataTable caption="Credit transactions" rows={ledger.data?.transactions || []} columns={columns} mobile={{ primary: "transactionId", secondary: "account", featured: ["amount", "type"] }} paginated={false} emptyTitle="No transactions found" /><Pager page={page} totalPages={ledger.data?.pagination?.totalPages || 1} total={ledger.data?.pagination?.total || 0} onChange={p => update("page", String(p))} disabled={ledger.isFetching} /></div></QueryState>
+      <QueryState query={ledger}><div className="credit-ledger" data-compact="true"><DataTable caption="Credit transactions" rows={ledger.data?.transactions || []} columns={columns} mobile={{ primary: "transactionId", secondary: "account", featured: ["amount", "type"] }} paginated={false} emptyTitle="No transactions found" /><Pager page={page} totalPages={ledger.data?.pagination?.totalPages || 1} total={ledger.data?.pagination?.total || 0} onChange={p => update("page", String(p))} disabled={ledger.isFetching} /></div></QueryState>
     </section>
+    <Dialog open={Boolean(noteTransaction)} onOpenChange={open => { if (!open) setNoteTransaction(null); }}>
+      <DialogContent>
+        <DialogHeader className="pr-6">
+          <DialogTitle>Transaction note</DialogTitle>
+          <DialogDescription>Additional information recorded for this transaction.</DialogDescription>
+        </DialogHeader>
+        {noteTransaction && <>
+          <div className="credit-ledger-reference">
+            <TransactionReference transaction={noteTransaction} />
+            <span className="credit-ledger-date">{dateTime(noteTransaction.createdAt)}</span>
+          </div>
+          <p className="max-h-64 overflow-y-auto whitespace-pre-wrap break-words rounded-lg bg-muted/40 p-4 text-sm leading-relaxed">
+            {noteTransaction.notes || "No note was added for this transaction."}
+          </p>
+        </>}
+      </DialogContent>
+    </Dialog>
     {params.get("request") && !user?.isPreview && <Dialog open onOpenChange={open => { if (!open && !request.isPending) update("request", ""); }}><DialogContent showCloseButton={!request.isPending}><DialogHeader><DialogTitle>{review ? "Review credit request" : "Request credits"}</DialogTitle><DialogDescription>A request does not change your balance. Your account manager allocates credits separately.</DialogDescription></DialogHeader>
       <form className="space-y-4" onSubmit={e => { e.preventDefault(); if (request.isPending) return; if (review) request.mutate({ amount: Number(amount), note: note.trim() }); else setReview(true); }}>
         {review ? <div className="dashboard-note space-y-2"><p>Account: <strong>{user?.username}</strong></p><p>Requested credits: <strong>{number(Number(amount))}</strong></p>{note && <p className="whitespace-pre-wrap break-words">{note}</p>}</div> : <><Field id="request-amount" label="Credits requested"><Input id="request-amount" type="number" min="0.01" step="0.01" required value={amount} onChange={e => setAmount(e.target.value)} /></Field><Field id="request-note" label="Note (optional)"><Textarea id="request-note" rows={3} maxLength={500} value={note} onChange={e => setNote(e.target.value)} /></Field></>}

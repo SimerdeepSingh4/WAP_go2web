@@ -2084,6 +2084,12 @@ export const cancelScheduledCampaign = async (req, res) => {
         try {
             await session.withTransaction(async () => {
                 const liveCampaign = await campaignModel.findById(id).session(session);
+                if (!liveCampaign) {
+                    throw Object.assign(new Error("Campaign not found"), { statusCode: 404 });
+                }
+                if (!["pending", "scheduled"].includes(liveCampaign.status)) {
+                    throw Object.assign(new Error(`Only pending or scheduled campaigns can be cancelled. Current status is "${liveCampaign.status}".`), { statusCode: 409 });
+                }
                 liveCampaign.status = "stopped";
                 liveCampaign.publicStatus = "stopped";
                 liveCampaign.campaignEndDate = new Date();
@@ -2130,7 +2136,8 @@ export const cancelScheduledCampaign = async (req, res) => {
             await session.endSession();
         }
 
-        await cancelCampaignJob(id);
+        try { await cancelCampaignJob(id); }
+        catch (error) { console.error("[BullMQ] Campaign cancelled, but queue cleanup failed:", error.message); }
 
         if (refundInfo) {
             notifyUser(campaign.userId, "WALLET_UPDATED", {
@@ -2157,7 +2164,7 @@ export const cancelScheduledCampaign = async (req, res) => {
         });
     } catch (error) {
         console.error("Cancel scheduled campaign error:", error);
-        return res.status(500).json({ success: false, message: error.message || "Failed to cancel campaign." });
+        return res.status(error.statusCode || 500).json({ success: false, message: error.message || "Failed to cancel campaign." });
     }
 };
 
