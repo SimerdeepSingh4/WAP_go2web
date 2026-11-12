@@ -20,6 +20,7 @@ import { failureReportEntries, failureReportSheet } from "../../../shared/campai
 import { campaignContactRows, restoreOriginalCampaignEntries } from "../../../shared/campaignContacts.js";
 import { sanitizeRecipientInputAudit } from "../helpers/recipient-input-audit.js";
 import { normalizeAccountPhone } from "../helpers/account-phone.js";
+import { campaignMediaCategory } from "../helpers/campaign-media.js";
 
 const REPORT_CATEGORIES = [
     "whatsapp_successful",
@@ -54,6 +55,62 @@ async function findCampaignForReport(req, id) {
     }
     return { campaign };
 }
+
+export const downloadCampaignDocument = async (req, res) => {
+    try {
+        const { id, documentId } = req.params;
+        if (!mongoose.isValidObjectId(id) || !mongoose.isValidObjectId(documentId)) {
+            return res.status(400).json({ success: false, message: "Invalid campaign document reference." });
+        }
+        const campaign = await campaignModel.findById(id).select("userId documents").populate("userId", "resellerId");
+        if (!campaign) return res.status(404).json({ success: false, message: "Campaign not found." });
+        const ownsCampaign = String(campaign.userId?._id || campaign.userId) === String(req.user._id);
+        const assignedReseller = req.user.role === "Reseller" && String(campaign.userId?.resellerId || "") === String(req.user._id);
+        if (req.user.role !== "Super Admin" && !ownsCampaign && !assignedReseller) {
+            return res.status(403).json({ success: false, message: "You cannot access this campaign document." });
+        }
+        const document = campaign.documents.id(documentId);
+        if (!document) return res.status(404).json({ success: false, message: "Document not found." });
+        if (!isCloudinaryConfigured()) {
+            return res.status(503).json({ success: false, message: "Document storage is temporarily unavailable." });
+        }
+        const asset = new URL(document.url);
+        const parts = asset.pathname.split("/").filter(Boolean).map(decodeURIComponent);
+        // Sign only stored assets belonging to this Cloudinary account.
+        if (asset.protocol !== "https:" || asset.hostname !== "res.cloudinary.com" || parts[0] !== process.env.CLOUDINARY_CLOUD_NAME ||
+            !["raw", "image"].includes(parts[1]) || !["upload", "private", "authenticated"].includes(parts[2])) {
+            return res.status(400).json({ success: false, message: "This document does not have a supported Cloudinary URL." });
+        }
+        const resourceType = parts[1];
+        const assetParts = parts.slice(3);
+        if (/^v\d+$/.test(assetParts[0])) assetParts.shift();
+        let publicId = assetParts.join("/");
+        if (!publicId || !/\.pdf$/i.test(publicId)) {
+            return res.status(400).json({ success: false, message: "This attachment is not a PDF document." });
+        }
+        if (resourceType === "image") publicId = publicId.replace(/\.pdf$/i, "");
+        const signedUrl = cloudinary.utils.private_download_url(publicId, resourceType === "image" ? "pdf" : undefined, {
+            resource_type: resourceType, type: parts[2], expires_at: Math.floor(Date.now() / 1000) + 60,
+        });
+        const upstream = await fetch(signedUrl, { signal: AbortSignal.timeout(30000), redirect: "error" });
+        if (!upstream.ok) {
+            console.error("Cloudinary document download failed:", upstream.status);
+            return res.status(upstream.status === 404 ? 404 : 502).json({ success: false, message: "The PDF could not be retrieved from storage. Please try again." });
+        }
+        const file = Buffer.from(await upstream.arrayBuffer());
+        if (file.subarray(0, 5).toString("ascii") !== "%PDF-") {
+            return res.status(502).json({ success: false, message: "Storage did not return a valid PDF document." });
+        }
+        const filename = path.basename(document.filename || "document.pdf").replace(/[\r\n]/g, "");
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", "inline; filename*=UTF-8''" + encodeURIComponent(filename));
+        res.setHeader("Cache-Control", "private, no-store");
+        return res.send(file);
+    } catch (error) {
+        console.error("Campaign PDF retrieval failed:", error.name);
+        return res.status(502).json({ success: false, message: "Unable to open this PDF right now. Please try again." });
+    }
+};
 
 export const downloadRecipientReportTemplate = async (req, res) => {
     try {
@@ -457,12 +514,26 @@ export const createCampaign = async (req, res) => {
             });
         }
 
-        // 2. Upload media files to Cloudinary (or local fallback) with sharp WebP compression
+        // 2. Validate the complete batch before uploading any media to Cloudinary.
         const IMG_MAX_SIZE = parseInt(process.env.IMG_MAX_SIZE_MB || "5") * 1024 * 1024; // default 5 MB
         const AUDIO_MAX_SIZE = parseInt(process.env.AUDIO_MAX_SIZE_MB || "7") * 1024 * 1024; // default 7 MB
         const userVideoLimitMB = Number(req.user?.maxVideoSizeMB) || parseInt(process.env.VIDEO_MAX_SIZE_MB || "9");
         const VIDEO_MAX_SIZE = userVideoLimitMB * 1024 * 1024; // default 9 MB or per-user limit configured by Super Admin
-        const DOC_MAX_SIZE = parseInt(process.env.DOC_MAX_SIZE_MB || "3") * 1024 * 1024; // default 3 MB
+        const DOC_MAX_SIZE = parseInt(process.env.DOC_MAX_SIZE_MB || "5") * 1024 * 1024; // default 5 MB, matching the campaign form
+        const fieldLimits = { images: IMG_MAX_SIZE, audio: AUDIO_MAX_SIZE, video: VIDEO_MAX_SIZE, documents: DOC_MAX_SIZE };
+        for (const [field, files] of Object.entries(req.files || {})) {
+            const category = campaignMediaCategory(field);
+            const limit = fieldLimits[category];
+            const oversized = files.find(file => file.size > limit);
+            if (oversized) {
+                await mongoSession.abortTransaction();
+                mongoSession.endSession();
+                return res.status(400).json({
+                    success: false,
+                    message: `${oversized.originalname} exceeds the ${limit / (1024 * 1024)} MB limit for ${category}.`,
+                });
+            }
+        }
 
         const isCloudinaryActive = isCloudinaryConfigured();
         const useCloudinary = process.env.USE_CLOUDINARY === "true" || (isCloudinaryActive && process.env.USE_CLOUDINARY !== "false");
@@ -476,19 +547,8 @@ export const createCampaign = async (req, res) => {
             ];
             const fileList = Array.from(new Set(rawFiles));
             if (!fileList || fileList.length === 0) return [];
-
-            const limitMap = {
-                images: IMG_MAX_SIZE,
-                audio: AUDIO_MAX_SIZE,
-                video: VIDEO_MAX_SIZE,
-                documents: DOC_MAX_SIZE,
-            };
-            const fieldLimit = limitMap[field] || IMG_MAX_SIZE;
-
-            // Validate size limits
-            const oversized = fileList.find((file) => file.size > fieldLimit);
-            if (oversized) {
-                throw new Error(`${field} file ${oversized.originalname} exceeds size limit of ${fieldLimit / (1024 * 1024)} MB`);
+            if (!useCloudinary || !isCloudinaryActive) {
+                throw new Error("Campaign attachments require Cloudinary. Configure CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET, and set USE_CLOUDINARY=true on the backend.");
             }
 
             // Prepare buffers (compress every image into WebP format using sharp before storage)
@@ -523,64 +583,44 @@ export const createCampaign = async (req, res) => {
                 })
             );
 
-            if (useCloudinary) {
-                if (!isCloudinaryActive) {
-                    throw new Error("Cloudinary media storage is enabled, but CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, or CLOUDINARY_API_SECRET is missing.");
-                }
+            // Upload to Cloudinary with explicit webp formatting for images
+            const uploads = await Promise.all(
+                processedFiles.map((item) =>
+                    new Promise((resolve, reject) => {
+                        const resourceType = field === "documents" ? "raw" : item.isImage ? "image" : "video";
+                        const publicId = field === "documents"
+                            ? `${crypto.randomUUID()}.${item.ext || "pdf"}`
+                            : crypto.randomUUID();
 
-                // Upload to Cloudinary with explicit webp formatting for images
-                const uploads = await Promise.all(
-                    processedFiles.map((item) =>
-                        new Promise((resolve, reject) => {
-                            const resourceType = field === "documents" ? "raw" : item.isImage ? "image" : "video";
-                            const publicId = field === "documents"
-                                ? `${crypto.randomUUID()}.${item.ext || "pdf"}`
-                                : crypto.randomUUID();
-
-                            const uploadStream = cloudinary.uploader.upload_stream(
-                                {
-                                    folder: `${field}s`,
-                                    resource_type: resourceType,
-                                    format: item.isImage ? "webp" : undefined,
-                                    public_id: publicId,
-                                    use_filename: false,
-                                    overwrite: false,
-                                },
-                                (error, result) => {
-                                    if (error) {
-                                        console.error(`Cloudinary upload failed for ${field}:`, error);
-                                        reject(error);
-                                    } else {
-                                        uploadedMediaTrackers.push({
-                                            url: result.secure_url,
-                                            publicId: result.public_id || publicId,
-                                            resourceType,
-                                        });
-                                        resolve(result.secure_url);
-                                    }
+                        const uploadStream = cloudinary.uploader.upload_stream(
+                            {
+                                folder: `campaigns/${field}`,
+                                resource_type: resourceType,
+                                type: "upload",
+                                format: item.isImage ? "webp" : undefined,
+                                public_id: publicId,
+                                use_filename: false,
+                                overwrite: false,
+                            },
+                            (error, result) => {
+                                if (error) {
+                                    console.error(`Cloudinary upload failed for ${field}:`, error);
+                                    reject(error);
+                                } else {
+                                    uploadedMediaTrackers.push({
+                                        url: result.secure_url,
+                                        publicId: result.public_id || publicId,
+                                        resourceType,
+                                    });
+                                    resolve({ url: result.secure_url, filename: item.originalname, mimetype: item.mimetype, size: item.size });
                                 }
-                            );
-                            uploadStream.end(item.buffer);
-                        })
-                    )
-                );
-                return uploads;
-            } else {
-                // Local storage fallback
-                const localDir = path.join(process.cwd(), "uploads", `${field}s`);
-                fs.mkdirSync(localDir, { recursive: true });
-                const uploads = await Promise.all(
-                    processedFiles.map((item) => {
-                        const filename = `${crypto.randomUUID()}.${item.ext}`;
-                        const filepath = path.join(localDir, filename);
-                        fs.writeFileSync(filepath, item.buffer);
-                        const fileUrl = `/uploads/${field}s/${filename}`;
-                        uploadedMediaTrackers.push({ url: fileUrl, localPath: filepath });
-                        return fileUrl;
+                            }
+                        );
+                        uploadStream.end(item.buffer);
                     })
-                );
-                return uploads;
-            }
+                )
+            );
+            return uploads;
         };
 
         // Upload all media fields concurrently with error handling

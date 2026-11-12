@@ -147,6 +147,7 @@ export default function CampaignMediaUploader({
   userProfileDp,
 }) {
   const isDpSharingAvailable = Boolean(canShareProfileDp);
+  const profileDpUrl = resolveUserImageUrl(userProfileDp);
   const totalMediaCount = Object.values(media).filter(Boolean).length + (isDpSharingAvailable && shareProfileDp ? 1 : 0);
   const mediaKinds = Object.keys(MEDIA_KINDS);
 
@@ -183,11 +184,11 @@ export default function CampaignMediaUploader({
       {isDpSharingAvailable && (
         <div className="mt-4 pt-3.5 border-t flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-lg border bg-muted/20 p-3">
           <div className="flex items-center gap-3 min-w-0">
-            <img
-              src={resolveUserImageUrl(userProfileDp)}
+            {profileDpUrl ? <img
+              src={profileDpUrl}
               alt="Profile DP"
               className="size-10 rounded-full object-cover border shrink-0"
-            />
+            /> : <span className="grid size-10 shrink-0 place-items-center rounded-full border bg-muted text-muted-foreground" aria-hidden="true"><ImageIcon className="size-4" /></span>}
             <div className="min-w-0">
               <p className="text-xs font-semibold text-foreground">Share Settings Profile DP</p>
               <p className="text-[11px] text-muted-foreground truncate">

@@ -139,7 +139,7 @@ export default function CreateCampaignPage() {
     }),
     []
   );
-  const quillFormats = ["bold", "italic", "underline", "strike", "list", "bullet", "blockquote", "code-block"];
+  const quillFormats = ["bold", "italic", "underline", "strike", "list", "blockquote", "code-block"];
 
   const messageText = useMemo(() => htmlToText(messageBody), [messageBody]);
   const charCount = messageText.length;

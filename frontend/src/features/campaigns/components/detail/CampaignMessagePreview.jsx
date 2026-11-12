@@ -3,13 +3,14 @@ import { number, dateTime } from "@/features/admin/lib/format";
 import { CampaignMessage } from "@/components/dashboard/CampaignContent";
 import CampaignActionLinks from "@/components/dashboard/CampaignActionLinks";
 import { messageTextFromHtml } from "../../lib/messageText";
+import { normalizeCampaignMedia } from "../../lib/mediaUrl";
 
 export default function CampaignMessagePreview({
   campaign,
   copiedText,
   onCopyMessage,
 }) {
-  const images = campaign.images || [];
+  const images = normalizeCampaignMedia(campaign.images);
 
   return (
     <section data-tour="campaign-message" className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">

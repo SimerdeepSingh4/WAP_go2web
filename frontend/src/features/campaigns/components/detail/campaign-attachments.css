@@ -1,0 +1,39 @@
+.campaign-attachments {
+  container: campaign-attachments / inline-size;
+}
+
+.campaign-attachments-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
+  padding: 16px;
+}
+
+.campaign-attachment-group-wide {
+  grid-column: 1 / -1;
+}
+
+.campaign-attachment-preview {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  background: var(--muted);
+}
+
+.campaign-attachment-preview > :is(img, video) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.campaign-attachment-preview > video {
+  background: #000;
+}
+
+@container campaign-attachments (min-width: 440px) {
+  .campaign-attachments-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

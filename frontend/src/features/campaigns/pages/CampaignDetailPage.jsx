@@ -57,6 +57,7 @@ export default function CampaignDetailPage() {
   const downloadMedia = async (url, filename) => {
     try {
       const res = await fetch(url);
+      if (!res.ok) throw new Error("The attachment could not be downloaded.");
       const blob = await res.blob();
       const objUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -65,7 +66,7 @@ export default function CampaignDetailPage() {
       a.click();
       URL.revokeObjectURL(objUrl);
     } catch {
-      window.open(url, "_blank");
+      toast.add({ title: "Download failed", description: "The attachment could not be downloaded. Please try again.", type: "error" });
     }
   };
 

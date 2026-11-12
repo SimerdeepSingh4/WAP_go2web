@@ -9,6 +9,7 @@ import {
     saveCampaignReport,
     updateCampaignRecipientsManagement,
     downloadRecipientReportTemplate,
+    downloadCampaignDocument,
     uploadRecipientReport,
     downloadRecipientReport,
     exportCampaignRecipients,
@@ -32,6 +33,7 @@ campaignRouter.post("/", blockInPreviewMode("Campaign creation"), uploadFiles, c
 campaignRouter.get("/", getCampaigns);
 campaignRouter.get("/:id/recipient-report", downloadRecipientReport);
 campaignRouter.get("/:id/export-recipients", exportCampaignRecipients);
+campaignRouter.get("/:id/documents/:documentId", downloadCampaignDocument);
 campaignRouter.post("/:id/recipient-report/export", authorizeRoles("Super Admin"), exportRecipientDraft);
 campaignRouter.get(
     "/:id/recipient-report/template",

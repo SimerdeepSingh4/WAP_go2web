@@ -17,5 +17,5 @@ export function normalizeCampaignMedia(items) {
   return (Array.isArray(items) ? items : []).map((media) => ({
     ...(media && typeof media === "object" ? media : {}),
     url: campaignMediaUrl(media),
-  }));
+  })).filter(media => media.url);
 }
