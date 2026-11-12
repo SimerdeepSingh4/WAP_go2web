@@ -397,6 +397,13 @@ export const createCampaign = async (req, res) => {
             }
         }
 
+        const shareProfileDp = req.body.shareProfileDp === true || req.body.shareProfileDp === "true";
+        if (shareProfileDp && req.user.role !== "Super Admin" && req.user.featureAccess?.campaignDp !== true) {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
+            return res.status(403).json({ success: false, message: "Campaign profile DP sharing is not enabled for this account." });
+        }
+
         // Safely parse recipients whether sent as JSON array or via multipart/form-data
         let recipients = rawInputRecipients;
         if (typeof recipients === "string") {
@@ -429,6 +436,7 @@ export const createCampaign = async (req, res) => {
             messageBody ||
             templateId ||
             hasUploadedMedia ||
+            (shareProfileDp && req.user.dp_img) ||
             (attachments && Array.isArray(attachments) && attachments.length > 0);
 
         if (!hasContent) {
@@ -760,6 +768,8 @@ export const createCampaign = async (req, res) => {
                     campaignDescription: campaignDescription || "",
                     campaignNumber: normalizedCampaignNumber,
                     campaignLink: normalizedCampaignLink,
+                    shareProfileDp: Boolean(shareProfileDp),
+                    profileDp: shareProfileDp && req.user.dp_img ? req.user.dp_img : "",
                     templateId: templateId || null,
                     messageBody: messageBody || "",
                     recipients: sanitizedRecipients,

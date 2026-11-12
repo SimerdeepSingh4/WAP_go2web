@@ -466,11 +466,10 @@ export async function updateUserAccess(req, res) {
                 return res.status(400).json({ message: "Feature access must contain boolean DP, phone, or campaign link settings.", success: false });
             }
             updates.featureAccess = {
-                campaignDp: true,
+                campaignDp: targetUser.featureAccess?.campaignDp === true,
                 campaignNumber: targetUser.featureAccess?.campaignNumber === true,
                 campaignLink: targetUser.featureAccess?.campaignLink === true,
                 ...featureAccess,
-                campaignDp: true,
             };
         }
 
