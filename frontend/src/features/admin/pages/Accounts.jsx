@@ -751,6 +751,7 @@ export default function Accounts({ role }) {
               <p className="text-xs">Rate: <strong>{number(Number(v.ratePerMsg))} credits / recipient</strong></p>
               <p className="text-xs">Status: <strong>{v.status}</strong></p>
               <p className="text-xs">Expiry: <strong>{v.expiresAt || "No expiry"}</strong></p>
+              {v.password?.trim() && <p className="text-xs">Password: <strong>Will be updated</strong></p>}
               {role === "User" && <p className="text-xs">Reseller: <strong>{resellers.find((a) => a._id === v.resellerId)?.username || "Direct (None)"}</strong></p>}
             </>
           )}

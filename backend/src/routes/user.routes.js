@@ -14,10 +14,11 @@ import {
     updateUserAccess,
     updateWhiteLabelAccess,
     updateManagedUserProfile,
+    updateUser,
     updateUserRole,
     deleteUser,
 } from "../controllers/user.controller.js";
-import { protect, authorizeRoles } from "../middlewares/auth.middleware.js";
+import { protect, authorizeRoles, blockInPreviewMode } from "../middlewares/auth.middleware.js";
 import { uploadProfileImage } from "../middlewares/upload.middleware.js";
 import { searchAccountOptions } from "../controllers/account-picker.controller.js";
 
@@ -50,6 +51,9 @@ userRouter.patch("/:id/white-label-access", authorizeRoles("Super Admin"), updat
 
 // Only Super Admin or the owning Reseller can block/unblock or set expiry.
 userRouter.patch("/:id/access", authorizeRoles("Reseller", "Super Admin"), updateUserAccess);
+
+// Admin account edits, including optional password resets.
+userRouter.patch("/:id", authorizeRoles("Super Admin"), blockInPreviewMode("Account updates"), updateUser);
 userRouter.delete("/:id", authorizeRoles("Reseller", "Super Admin"), deleteUser);
 
 // Access a single user's details
