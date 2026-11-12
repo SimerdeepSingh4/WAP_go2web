@@ -146,7 +146,7 @@ export default function CampaignMediaUploader({
   onToggleShareProfileDp,
   userProfileDp,
 }) {
-  const isDpSharingAvailable = Boolean(canShareProfileDp && userProfileDp);
+  const isDpSharingAvailable = Boolean(canShareProfileDp);
   const totalMediaCount = Object.values(media).filter(Boolean).length + (isDpSharingAvailable && shareProfileDp ? 1 : 0);
   const mediaKinds = Object.keys(MEDIA_KINDS);
 

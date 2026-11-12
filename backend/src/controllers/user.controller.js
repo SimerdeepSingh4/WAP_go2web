@@ -457,8 +457,8 @@ export async function updateUserAccess(req, res) {
         }
 
         if (Object.hasOwn(req.body, "featureAccess")) {
-            if (!isSuperAdmin || targetUser.role !== "User") {
-                return res.status(403).json({ message: "Only Super Admin can manage feature access for user accounts.", success: false });
+            if (!isSuperAdmin || !["User", "Reseller"].includes(targetUser.role)) {
+                return res.status(403).json({ message: "Only Super Admin can manage feature access for user and reseller accounts.", success: false });
             }
             const featureAccess = req.body.featureAccess;
             const allowedFeatures = ["campaignDp", "campaignNumber", "campaignLink"];

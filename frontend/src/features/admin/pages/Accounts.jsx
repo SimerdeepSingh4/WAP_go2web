@@ -844,26 +844,26 @@ export default function Accounts({ role }) {
           fields={[
             { key: "status", label: "Account status", options: [{ value: "active", label: "Active" }, { value: "blocked", label: "Blocked" }, { value: "expired", label: "Expired" }] },
             { key: "expiresAt", label: "Account expiry date (optional)", type: "date", hint: "The account remains active through this date. Leave blank for no expiry." },
-            ...(role === "User" ? [
-              { key: "allowCampaignDp", label: "Share profile DP in campaigns", type: "checkbox", hint: "Allow this user's profile DP (from settings) to be shared in campaigns." },
-              { key: "allowCampaignNumber", label: "Campaign number", type: "checkbox", hint: "Allow this user to add an optional contact number to a campaign." },
-              { key: "allowCampaignLink", label: "Campaign link", type: "checkbox", hint: "Show an optional link field when this user creates a campaign." },
+            ...(role === "User" || role === "Reseller" ? [
+              { key: "allowCampaignDp", label: "Share profile DP in campaigns", type: "checkbox", hint: "Allow this account's profile DP (from settings) to be shared in campaigns." },
+              { key: "allowCampaignNumber", label: "Campaign number", type: "checkbox", hint: "Allow this account to add an optional contact number to a campaign." },
+              { key: "allowCampaignLink", label: "Campaign link", type: "checkbox", hint: "Show an optional link field when this account creates a campaign." },
             ] : []),
           ]}
           payload={(values) => ({
             id: modal.account._id,
             status: values.status,
             expiresAt: values.expiresAt || null,
-            ...(role === "User" ? { featureAccess: { campaignDp: values.allowCampaignDp, campaignNumber: values.allowCampaignNumber, campaignLink: values.allowCampaignLink } } : {}),
+            ...((role === "User" || role === "Reseller") ? { featureAccess: { campaignDp: values.allowCampaignDp, campaignNumber: values.allowCampaignNumber, campaignLink: values.allowCampaignLink } } : {}),
           })}
           review={(values) => (
             <>
               <p className="font-medium">{modal.account.username}</p>
               <p>Status: <strong>{values.status}</strong></p>
               <p>Expiry: <strong>{values.expiresAt || "No expiry"}</strong></p>
-              {role === "User" && <p>Share profile DP in campaigns: <strong>{values.allowCampaignDp ? "Allowed" : "Not allowed"}</strong></p>}
-              {role === "User" && <p>Campaign number: <strong>{values.allowCampaignNumber ? "Allowed" : "Not allowed"}</strong></p>}
-              {role === "User" && <p>Campaign link: <strong>{values.allowCampaignLink ? "Allowed" : "Not allowed"}</strong></p>}
+              {(role === "User" || role === "Reseller") && <p>Share profile DP in campaigns: <strong>{values.allowCampaignDp ? "Allowed" : "Not allowed"}</strong></p>}
+              {(role === "User" || role === "Reseller") && <p>Campaign number: <strong>{values.allowCampaignNumber ? "Allowed" : "Not allowed"}</strong></p>}
+              {(role === "User" || role === "Reseller") && <p>Campaign link: <strong>{values.allowCampaignLink ? "Allowed" : "Not allowed"}</strong></p>}
             </>
           )}
           submitLabel="Save account access"
