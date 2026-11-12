@@ -52,7 +52,7 @@ export default function CreateCampaignPage() {
   const isAdmin = user?.role === "Super Admin";
   const canAddCampaignNumber = isAdmin || user?.featureAccess?.campaignNumber === true;
   const canAddCampaignLink = isAdmin || user?.featureAccess?.campaignLink === true;
-  const canShareProfileDp = isAdmin || user?.featureAccess?.campaignDp === true;
+  const canShareProfileDp = Boolean((isAdmin || user?.featureAccess?.campaignDp === true) && user?.dp_img);
   const accountId = user?.id || user?._id;
   const draftKey = accountId ? `campaign-create:${user?.role}:${accountId}` : null;
 

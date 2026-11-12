@@ -146,7 +146,8 @@ export default function CampaignMediaUploader({
   onToggleShareProfileDp,
   userProfileDp,
 }) {
-  const totalMediaCount = Object.values(media).filter(Boolean).length + (canShareProfileDp && shareProfileDp ? 1 : 0);
+  const isDpSharingAvailable = Boolean(canShareProfileDp && userProfileDp);
+  const totalMediaCount = Object.values(media).filter(Boolean).length + (isDpSharingAvailable && shareProfileDp ? 1 : 0);
   const mediaKinds = Object.keys(MEDIA_KINDS);
 
   return (
@@ -179,31 +180,18 @@ export default function CampaignMediaUploader({
         ))}
       </div>
 
-      {canShareProfileDp && (
+      {isDpSharingAvailable && (
         <div className="mt-4 pt-3.5 border-t flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-lg border bg-muted/20 p-3">
           <div className="flex items-center gap-3 min-w-0">
-            {userProfileDp ? (
-              <img
-                src={resolveUserImageUrl(userProfileDp)}
-                alt="Profile DP"
-                className="size-10 rounded-full object-cover border shrink-0"
-              />
-            ) : (
-              <div className="size-10 rounded-full bg-muted border flex items-center justify-center text-xs font-semibold text-muted-foreground shrink-0">
-                DP
-              </div>
-            )}
+            <img
+              src={resolveUserImageUrl(userProfileDp)}
+              alt="Profile DP"
+              className="size-10 rounded-full object-cover border shrink-0"
+            />
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <p className="text-xs font-semibold text-foreground">Share Settings Profile DP</p>
-                <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 py-0">
-                  Allowed
-                </Badge>
-              </div>
+              <p className="text-xs font-semibold text-foreground">Share Settings Profile DP</p>
               <p className="text-[11px] text-muted-foreground truncate">
-                {userProfileDp
-                  ? "Share your profile DP from Settings with this campaign."
-                  : "No DP uploaded yet in Settings (upload in Account Settings)."}
+                Share your profile DP from Settings with this campaign.
               </p>
             </div>
           </div>

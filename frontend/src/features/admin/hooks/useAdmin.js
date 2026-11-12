@@ -31,6 +31,7 @@ export function useAdminMutation(action, successMessage, onSuccess) {
     onSuccess: async (data) => {
       toast.add({ title: successMessage, type: "success" });
       await client.invalidateQueries({ queryKey: ["admin"] });
+      await client.invalidateQueries({ queryKey: ["authUser"] });
       // Keep the original portal views consistent with administrative edits.
       for (const key of ["dashboardStats", "managedUsers", "clientUsers", "campaignsList", "myBalance", "creditTransactions"]) {
         client.invalidateQueries({ queryKey: [key] });
