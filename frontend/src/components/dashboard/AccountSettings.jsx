@@ -156,23 +156,6 @@ export default function AccountSettings() {
               {removePhoto.isPending ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : <Trash2 className="size-3.5" aria-hidden="true" />}
               {removePhoto.isPending ? "Removing..." : "Remove photo"}
             </Button>}
-            {user?.role === "User" ? (
-              <p className="account-settings-note mt-2 text-xs flex items-center gap-1.5">
-                {user?.featureAccess?.campaignDp ? (
-                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                    ✓ Profile DP sharing in campaigns is enabled by admin
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">
-                    Profile DP sharing in campaigns: Disabled by admin
-                  </span>
-                )}
-              </p>
-            ) : (
-              <p className="account-settings-note mt-2 text-xs text-muted-foreground">
-                ✓ Profile DP can be shared across campaigns
-              </p>
-            )}
             {user?.isPreview && <p className="account-settings-note mt-2">Exit account preview to change the profile photo.</p>}
           </div>}
           </div>
