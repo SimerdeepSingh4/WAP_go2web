@@ -1,10 +1,10 @@
-import { useDeferredValue, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ArrowDown, ArrowLeft, ArrowUpRight, Check, CheckCheck, ChevronLeft, ChevronRight, Eye, Hash, Headset, Inbox, Loader2, MessageCircle, Paperclip, Plus, RefreshCw, Search, Send, ShieldCheck, X } from "lucide-react";
+import { AlertCircle, ArrowDown, ArrowLeft, ArrowUpRight, Check, CheckCheck, ChevronLeft, ChevronRight, Eye, Hash, Headset, Inbox, Loader2, MessageCircle, Paperclip, Plus, RefreshCw, Search, Send, ShieldCheck, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useSocket } from "@/features/socket/socket.context";
@@ -20,7 +20,7 @@ import "../support.css";
 const ACCEPT = "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,audio/wav,audio/x-wav,application/pdf,text/plain,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.pdf,.txt,.csv,.docx,.xlsx";
 const FILE_EXTENSION = /\.(jpe?g|png|webp|gif|mp4|mov|wav|pdf|txt|csv|docx|xlsx)$/i;
 
-function ChatPanel({ conversationId, user, onChanged, onBack, onStart }) {
+function ChatPanel({ conversationId, user, onChanged, onBack, onStart, onDeleted }) {
   const chat = useSupportChat(conversationId, user);
   const location = useLocation();
   const navigate = useNavigate();
@@ -32,6 +32,7 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart }) {
   const [sendError, setSendError] = useState("");
   const [reason, setReason] = useState("");
   const [escalating, setEscalating] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [showLatest, setShowLatest] = useState(false);
   const draftInput = useRef(null);
   const historyScroll = useRef(null);
@@ -81,10 +82,22 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart }) {
   }, [chat.markRead, chat.loading]);
   const status = useMutation({ mutationFn: next => supportApi.updateStatus(conversationId, next), onSuccess: () => { void chat.refresh(); onChanged(); }, onError: error => toast.add({ title: error.message, type: "error" }) });
   const escalation = useMutation({ mutationFn: () => supportApi.requestEscalation(conversationId, reason.trim()), onSuccess: () => { setEscalating(false); setReason(""); void chat.refresh(); onChanged(); toast.add({ title: "Super Admin assistance requested", type: "success" }); }, onError: error => toast.add({ title: error.message, type: "error" }) });
+  const deletion = useMutation({
+    mutationFn: () => supportApi.deleteConversation(conversationId),
+    onSuccess: response => {
+      setDeleting(false);
+      onDeleted(conversationId);
+      toast.add({ title: "Conversation deleted for everyone", description: response.cleanupPending ? "Some uploaded files could not be removed from storage." : undefined, type: response.cleanupPending ? "warning" : "success" });
+    },
+    onError: error => toast.add({ title: "Could not delete conversation", description: error.message, type: "error" }),
+  });
+  useEffect(() => {
+    if (conversationId && chat.error?.response?.status === 404) onDeleted(conversationId);
+  }, [conversationId, chat.error, onDeleted]);
 
   async function upload(event) {
     const files = [...(event.target.files || [])]; event.target.value = "";
-    if (blocked || uploadLock.current || chat.sending) return;
+    if (blocked || deletion.isPending || uploadLock.current || chat.sending) return;
     if (attachments.length + files.length > 5) { toast.add({ title: "Attach up to five files per message", type: "error" }); return; }
     uploadLock.current = true; setUploading(true); setSendError("");
     for (const file of files) {
@@ -101,7 +114,7 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart }) {
   }
   async function send(event) {
     event.preventDefault();
-    if (blocked || chat.sending || uploading || submissionLock.current || (!messageText && !attachments.length)) return;
+    if (blocked || deletion.isPending || chat.sending || uploading || submissionLock.current || (!messageText && !attachments.length)) return;
     if (messageText.length > SUPPORT_TEXT_LIMIT) { setSendError("Keep your message and references within 4,000 characters."); return; }
     submissionLock.current = true; setSendError("");
     const body = { text: messageText, attachmentIds: attachments.map(item => item._id) };
@@ -161,7 +174,7 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart }) {
   const participantLabel = user.role === "User" ? `${participant?.username || "Your Admin"} · ${participant?.displayRole || "Admin"}` : `${participant?.username || "User"} · ${conversation?.reseller?.username || "Admin"}`;
   const resolved = conversation?.status === "resolved";
   const needsAdmin = conversation?.escalation?.isEscalated && !conversation.escalation.resolvedAt;
-  const unavailable = blocked || chat.sending || chat.loading || Boolean(chat.error);
+  const unavailable = blocked || deletion.isPending || chat.sending || chat.loading || Boolean(chat.error);
   return <div className="support-chat" aria-label="Selected conversation">
     <header className="support-chat-header">
       <Button type="button" variant="ghost" size="icon-sm" className="support-mobile-back" aria-label="Back to conversations" onClick={onBack}><ArrowLeft /></Button>
@@ -169,7 +182,8 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart }) {
       <div className="support-chat-heading"><div className="support-chat-title"><h2>{conversation?.subject || "Loading conversation…"}</h2><span className="support-status" data-resolved={resolved || undefined}>{resolved ? <CheckCheck /> : <span />}{resolved ? "Resolved" : "Open"}</span></div><p>{participantLabel}</p></div>
       {user.role !== "User" && <div className="support-chat-actions">
         {user.role === "Reseller" && <Button size="sm" variant="outline" disabled={blocked || escalation.isPending || chat.loading || !conversation || needsAdmin} onClick={() => setEscalating(true)}><ShieldCheck />{needsAdmin ? "Requested" : "Request Super Admin"}</Button>}
-        <Button size="sm" variant="outline" disabled={blocked || status.isPending || chat.loading || !conversation} onClick={() => status.mutate(resolved ? "reopened" : "resolved")}>{status.isPending ? <Loader2 className="animate-spin" /> : resolved ? <RefreshCw /> : <Check />}{resolved ? "Reopen" : "Resolve"}</Button>
+        <Button size="sm" variant="outline" disabled={blocked || deletion.isPending || status.isPending || chat.loading || !conversation} onClick={() => status.mutate(resolved ? "reopened" : "resolved")}>{status.isPending ? <Loader2 className="animate-spin" /> : resolved ? <RefreshCw /> : <Check />}{resolved ? "Reopen" : "Resolve"}</Button>
+        {user.role === "Super Admin" && <Button type="button" size="sm" variant="destructive" disabled={unavailable || uploading || status.isPending || !conversation} onClick={() => { deletion.reset(); setDeleting(true); }}><Trash2 />Delete chat</Button>}
       </div>}
     </header>
     {needsAdmin && <div className="support-assistance-banner" role="status"><ShieldCheck /><div><strong>{user.role === "Super Admin" ? "Your assistance is needed" : user.role === "User" ? "A little extra help is on the way" : "Super Admin assistance requested"}</strong><p>{user.role === "Super Admin" ? conversation.escalation.reason : user.role === "User" ? "Your Admin has requested extra assistance. You can keep chatting here." : "The team has been notified. Keep the conversation going here."}</p></div>{user.role === "Super Admin" && <span className="support-important">Important</span>}</div>}
@@ -200,6 +214,20 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart }) {
       </div>
       <div className="support-composer-hint justify-end"><span><kbd>Enter</kbd> to send<span className="support-shift-hint"> · <kbd>Shift + Enter</kbd> for a new line</span></span></div>
     </form>
+    <Dialog open={deleting && user.role === "Super Admin"} onOpenChange={open => { if (!deletion.isPending) setDeleting(open); }}>
+      <DialogContent showCloseButton={!deletion.isPending} className="gap-5 rounded-2xl p-5 sm:max-w-sm">
+        <DialogHeader className="pr-6">
+          <DialogTitle>Delete this support chat?</DialogTitle>
+          <DialogDescription>This permanently removes the conversation, all messages and attachments for the user, reseller and Super Admin. This cannot be undone.</DialogDescription>
+        </DialogHeader>
+        <p className="break-words rounded-lg border border-border bg-muted/30 p-3 text-sm font-medium">{conversation?.subject}</p>
+        {deletion.isError && <p role="alert" className="text-sm text-destructive">{deletion.error.message}</p>}
+        <DialogFooter className="m-0 flex-row justify-end rounded-none border-0 bg-transparent p-0">
+          <Button type="button" variant="outline" disabled={deletion.isPending} onClick={() => setDeleting(false)}>Keep chat</Button>
+          <Button type="button" variant="destructive" disabled={blocked || deletion.isPending} onClick={() => deletion.mutate()}>{deletion.isPending ? <Loader2 className="animate-spin" /> : <Trash2 />}{deletion.isPending ? "Deleting…" : "Delete for everyone"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     <Dialog open={escalating} onOpenChange={open => { if (!escalation.isPending) setEscalating(open); }}><DialogContent className="support-dialog"><span className="support-dialog-icon"><ShieldCheck /></span><DialogHeader><DialogTitle>Bring in a little extra help</DialogTitle><DialogDescription>Request Super Admin assistance in this conversation. They’ll receive an important notification with your reason.</DialogDescription></DialogHeader><form onSubmit={event => { event.preventDefault(); escalation.mutate(); }} className="space-y-5"><label className="block space-y-2 text-xs font-medium"><span>What do you need help with?</span><textarea className="support-reason-input" placeholder="Share the issue and what you’ve tried so far…" value={reason} onChange={event => setReason(event.target.value)} maxLength={2000} required disabled={escalation.isPending} /></label><div className="support-dialog-actions"><Button type="button" variant="outline" disabled={escalation.isPending} onClick={() => setEscalating(false)}>Cancel</Button><Button disabled={!reason.trim() || escalation.isPending} type="submit">{escalation.isPending ? <Loader2 className="animate-spin" /> : <ShieldCheck />}{escalation.isPending ? "Requesting…" : "Request assistance"}</Button></div></form></DialogContent></Dialog>
   </div>;
 }
@@ -229,6 +257,22 @@ export default function SupportChatPage() {
   });
   const hasEscalated = Boolean(escalatedQuery.data?.total > 0);
   const refresh = () => void client.invalidateQueries({ queryKey: ["support", accountId] });
+  const removeConversation = useCallback(id => {
+    const deletedId = String(id);
+    client.setQueriesData({ queryKey: ["support", accountId, "inbox"] }, previous => {
+      if (!previous?.data?.some(item => String(item._id) === deletedId)) return previous;
+      return { ...previous, data: previous.data.filter(item => String(item._id) !== deletedId), total: Math.max(0, previous.total - 1) };
+    });
+    client.removeQueries({ queryKey: ["support", accountId, "conversation", deletedId] });
+    setParams(previous => {
+      if (previous.get("conversation") !== deletedId) return previous;
+      const next = new URLSearchParams(previous);
+      next.delete("conversation");
+      return next;
+    }, { replace: true });
+    setPage(1);
+    void client.invalidateQueries({ queryKey: ["support", accountId] });
+  }, [client, accountId, setParams]);
   const select = id => setParams(previous => { const next = new URLSearchParams(previous); next.set("conversation", id); return next; }, { replace: true });
   const backToInbox = () => setParams(previous => { const next = new URLSearchParams(previous); next.delete("conversation"); return next; }, { replace: true });
   const start = useMutation({ mutationFn: () => supportApi.getOrCreateConversation(subject.trim()), onSuccess: response => { setCreating(false); setSubject(""); setFilter("ongoing"); setPage(1); select(response.data._id); refresh(); }, onError: error => toast.add({ title: error.message, type: "error" }) });
@@ -239,10 +283,11 @@ export default function SupportChatPage() {
     if (!socket) return;
     const refreshInbox = () => void client.invalidateQueries({ queryKey: ["support", accountId] });
     const revoked = data => { refreshInbox(); client.removeQueries({ queryKey: ["support", accountId, "conversation", data.conversationId] }); if (conversationId === String(data.conversationId)) setParams(previous => { const next = new URLSearchParams(previous); next.delete("conversation"); return next; }, { replace: true }); };
+    const deleted = data => removeConversation(data.conversationId);
     const events = ["SUPPORT_CONVERSATION_CREATED", "SUPPORT_CONVERSATION_UPDATED", "SUPPORT_CONVERSATION_ASSIGNED", "SUPPORT_ESCALATION_ALERT", "SUPPORT_STATUS_CHANGED"];
-    events.forEach(event => socket.on(event, refreshInbox)); socket.on("SUPPORT_CONVERSATION_REVOKED", revoked); socket.on("connect", refreshInbox);
-    return () => { events.forEach(event => socket.off(event, refreshInbox)); socket.off("SUPPORT_CONVERSATION_REVOKED", revoked); socket.off("connect", refreshInbox); };
-  }, [socket, accountId, client, conversationId, setParams]);
+    events.forEach(event => socket.on(event, refreshInbox)); socket.on("SUPPORT_CONVERSATION_REVOKED", revoked); socket.on("SUPPORT_CONVERSATION_DELETED", deleted); socket.on("connect", refreshInbox);
+    return () => { events.forEach(event => socket.off(event, refreshInbox)); socket.off("SUPPORT_CONVERSATION_REVOKED", revoked); socket.off("SUPPORT_CONVERSATION_DELETED", deleted); socket.off("connect", refreshInbox); };
+  }, [socket, accountId, client, conversationId, setParams, removeConversation]);
   const blocked = Boolean(user.isPreview || user.isExpired);
   const filters = [["ongoing", "Open"], ...(user.role !== "User" ? [["escalated", user.role === "Super Admin" ? "Needs you" : "Escalated"]] : []), ["resolved", "Resolved"], ["all", "All"]];
   return <div className="support-page">
@@ -262,7 +307,7 @@ export default function SupportChatPage() {
         </div>
         <footer className="support-inbox-footer"><span>{list.data ? `${list.data.total} conversation${list.data.total === 1 ? "" : "s"}` : "Your conversations"}</span>{(list.data?.total > 20 || page > 1) && <div className="flex items-center gap-2"><Button type="button" size="icon-xs" variant="ghost" disabled={page <= 1 || list.isFetching} aria-label="Previous conversations" onClick={() => setPage(value => value - 1)}><ChevronLeft /></Button><span>{page} / {Math.max(1, Math.ceil((list.data?.total || 0) / 20))}</span><Button type="button" size="icon-xs" variant="ghost" disabled={list.isFetching || !list.data || page * 20 >= list.data.total} aria-label="Next conversations" onClick={() => setPage(value => value + 1)}><ChevronRight /></Button></div>}<span className="support-inbox-footer-icon"><MessageCircle /></span></footer>
       </aside>
-      <ChatPanel key={`${accountId}:${conversationId}`} conversationId={conversationId} user={user} onChanged={refresh} onBack={backToInbox} onStart={() => setCreating(true)} />
+      <ChatPanel key={`${accountId}:${conversationId}`} conversationId={conversationId} user={user} onChanged={refresh} onBack={backToInbox} onStart={() => setCreating(true)} onDeleted={removeConversation} />
     </section>
     <Dialog open={creating} onOpenChange={open => { if (!start.isPending) setCreating(open); }}>
       <DialogContent className="support-dialog support-start-dialog">

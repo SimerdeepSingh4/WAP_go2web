@@ -34,7 +34,7 @@ export default function CampaignCostSummary({
           <div><dt>Wallet balance</dt><dd>{isAdmin ? "Unlimited" : number(currentBalance)}{!isAdmin && <span> credits</span>}</dd></div>
           <div><dt>After submission</dt><dd data-negative={!isAdmin && remainingBalance < 0}>{isAdmin ? "Unlimited" : number(remainingBalance)}{!isAdmin && <span> credits</span>}</dd></div>
         </dl>
-        <p className="campaign-cost-billing-note"><Info aria-hidden="true" /><span>Every entered number is charged, including repeats.</span></p>
+        {isAdmin && <p className="campaign-cost-billing-note"><Info aria-hidden="true" /><span>Every entered number is charged, including repeats.</span></p>}
         {hasInsufficientCredits && <p className="campaign-cost-alert" role="alert">You need <strong>{number(estimatedCost - currentBalance)} more credits</strong> to submit this campaign.</p>}
       </section>
 

@@ -1,3 +1,5 @@
+import { publicAccountIdentity } from "./account-identity.js";
+
 export function campaignPublicStatus(campaign) {
     if (campaign.publicStatus) return campaign.publicStatus;
     if (["completed", "sent", "failed"].includes(campaign.status) && !campaign.publishedSpreadsheet?.publishedAt) return campaign.campaignStartDate ? "ongoing" : "pending";
@@ -6,6 +8,7 @@ export function campaignPublicStatus(campaign) {
 
 export function publicCampaignView(campaign) {
     const view = campaign.toObject ? campaign.toObject() : { ...campaign };
+    view.userId = publicAccountIdentity(view.userId);
     delete view.recipientInputAudit;
     view.status = campaignPublicStatus(view);
     if (!["completed", "sent", "failed"].includes(view.status)) view.campaignEndDate = null;

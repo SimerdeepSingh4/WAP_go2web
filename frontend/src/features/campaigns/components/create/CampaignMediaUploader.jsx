@@ -3,6 +3,7 @@ import { Upload, Image as ImageIcon, Video as VideoIcon, FileText, Trash2, Plus 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SectionCard } from "./CampaignDetailsSection";
+import { resolveUserImageUrl } from "@/components/dashboard/profileImage";
 
 export const MB = 1024 * 1024;
 
@@ -140,49 +141,73 @@ export default function CampaignMediaUploader({
   media,
   onSelectMedia,
   onRemoveMedia,
-  canUploadImage = false,
-  videoLimitMB = 9,
+  canShareProfileDp,
+  shareProfileDp,
+  onToggleShareProfileDp,
+  userProfileDp,
 }) {
-  const totalMediaCount = Object.values(media).filter(Boolean).length;
-  const mediaKinds = Object.keys(MEDIA_KINDS).filter((kind) => kind !== "image" || canUploadImage);
+  const isDpSharingAvailable = Boolean(canShareProfileDp);
+  const totalMediaCount = Object.values(media).filter(Boolean).length + (isDpSharingAvailable && shareProfileDp ? 1 : 0);
+  const mediaKinds = Object.keys(MEDIA_KINDS);
 
   return (
     <SectionCard
       dataTour="create-media"
       icon={Upload}
       title="Campaign media"
-      description="Optional campaign DP/image, video, and PDF attachments."
+      description="Optional campaign image, video, and PDF attachments."
       aside={
         totalMediaCount > 0 && (
           <Badge
             variant="outline"
             className="text-xs bg-primary/5 text-primary border-primary/20 tabular-nums"
           >
-            {totalMediaCount} of 3 attached
+            {totalMediaCount} attached
           </Badge>
         )
       }
     >
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-        {mediaKinds.map((kind) => {
-          let cfg = MEDIA_KINDS[kind];
-          if (kind === "image") {
-            cfg = { ...cfg, label: "DP / Image" };
-          } else if (kind === "video") {
-            cfg = { ...cfg, max: (videoLimitMB || 9) * MB };
-          }
-          return (
-            <MediaSlot
-              key={kind}
-              kind={kind}
-              config={cfg}
-              value={media[kind]}
-              onSelect={onSelectMedia}
-              onRemove={onRemoveMedia}
-            />
-          );
-        })}
+        {mediaKinds.map((kind) => (
+          <MediaSlot
+            key={kind}
+            kind={kind}
+            config={MEDIA_KINDS[kind]}
+            value={media[kind]}
+            onSelect={onSelectMedia}
+            onRemove={onRemoveMedia}
+          />
+        ))}
       </div>
+
+      {isDpSharingAvailable && (
+        <div className="mt-4 pt-3.5 border-t flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-lg border bg-muted/20 p-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <img
+              src={resolveUserImageUrl(userProfileDp)}
+              alt="Profile DP"
+              className="size-10 rounded-full object-cover border shrink-0"
+            />
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-foreground">Share Settings Profile DP</p>
+              <p className="text-[11px] text-muted-foreground truncate">
+                Share your profile DP from Settings with this campaign.
+              </p>
+            </div>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer self-end sm:self-center shrink-0">
+            <input
+              type="checkbox"
+              checked={Boolean(shareProfileDp)}
+              onChange={(e) => onToggleShareProfileDp && onToggleShareProfileDp(e.target.checked)}
+              className="size-4 rounded border-input text-primary focus:ring-primary cursor-pointer"
+            />
+            <span className="text-xs font-medium text-foreground select-none">
+              Share DP
+            </span>
+          </label>
+        </div>
+      )}
     </SectionCard>
   );
 }

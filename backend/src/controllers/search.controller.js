@@ -4,8 +4,9 @@ import Campaign from "../models/campaign.model.js";
 import Transaction from "../models/transaction.model.js";
 import { transactionObjectId, transactionReference } from "../helpers/transaction-reference.js";
 import { campaignObjectId, campaignReference } from "../helpers/campaign-reference.js";
+import { publicAccountIdentity } from "../helpers/account-identity.js";
 
-const lookup = (from, localField, as) => ({ $lookup: { from, localField, foreignField: "_id", as, pipeline: [{ $project: { username: 1, email: 1, campaignTitle: 1 } }] } });
+const lookup = (from, localField, as) => ({ $lookup: { from, localField, foreignField: "_id", as, pipeline: [{ $project: { username: 1, email: 1, role: 1, campaignTitle: 1 } }] } });
 const matches = (fields, regex) => fields.map((field) => ({ [field]: regex }));
 
 export async function searchRecords(req, res) {
@@ -31,21 +32,21 @@ export async function searchRecords(req, res) {
                 { $match: campaignScope }, lookup(User.collection.name, "userId", "creator"),
                 { $match: { $or: [...matches(["campaignTitle", "creator.username", "creator.email"], regex), ...ref] } },
                 { $sort: { createdAt: -1, _id: -1 } }, { $limit: 5 },
-                { $project: { campaignTitle: 1, "creator.username": 1 } },
+                { $project: { campaignTitle: 1, "creator.username": 1, "creator.role": 1 } },
             ]),
             role === "User" ? [] : User.find({ role: role === "Super Admin" ? { $in: ["User", "Reseller"] } : "User", ...(role === "Reseller" ? { resellerId: ownId } : {}), $or: matches(["username", "email"], regex) }).select("username email role").sort({ username: 1, _id: 1 }).limit(5).lean(),
             Transaction.aggregate([
                 { $match: transactionScope }, lookup(User.collection.name, "fromUser", "sender"), lookup(User.collection.name, "toUser", "recipient"), lookup(Campaign.collection.name, "campaignId", "campaign"),
                 { $match: { $or: [...matches(["notes", "campaign.campaignTitle", "sender.username", "sender.email", "recipient.username", "recipient.email"], regex), ...transactionRef] } },
                 { $sort: { createdAt: -1, _id: -1 } }, { $limit: 5 },
-                { $project: { type: 1, amount: 1, createdAt: 1, "campaign.campaignTitle": 1, "recipient.username": 1, "sender.username": 1 } },
+                { $project: { type: 1, amount: 1, createdAt: 1, "campaign.campaignTitle": 1, "recipient.username": 1, "recipient.role": 1, "sender.username": 1 } },
             ]),
         ]);
         const labels = { DEDUCT: "Campaign charge", ALLOCATE: "Allocation", REFUND: "Refund", RECLAIM: "Reclaim", REQUEST: "Credit request" };
         return res.json({ groups: [
-            { label: "Campaigns", items: campaigns.map((c) => ({ id: String(c._id), reference: campaignReference(c._id), title: c.campaignTitle, subtitle: c.creator[0]?.username || "Campaign", href: `${base}/campaigns/${c._id}` })) },
+            { label: "Campaigns", items: campaigns.map((c) => ({ id: String(c._id), reference: campaignReference(c._id), title: c.campaignTitle, subtitle: publicAccountIdentity(c.creator[0], role)?.username || "Campaign", href: `${base}/campaigns/${c._id}` })) },
             { label: "Accounts", items: accounts.map((a) => ({ id: String(a._id), title: a.username, subtitle: `${a.role} · ${a.email}`, href: `${base}/${a.role === "Reseller" ? "resellers" : "users"}?account=${a._id}` })) },
-            { label: "Credit transactions", items: transactions.map((t) => ({ id: String(t._id), reference: transactionReference(t._id), title: `${labels[t.type] || t.type} · ${t.amount} credits`, subtitle: [t.campaign[0]?.campaignTitle, t.recipient[0]?.username, new Date(t.createdAt).toLocaleDateString("en-GB", { timeZone: "Asia/Kolkata" })].filter(Boolean).join(" · "), href: `${base}/${role === "Super Admin" ? "activity" : "credits"}?transaction=${transactionReference(t._id)}` })) },
+            { label: "Credit transactions", items: transactions.map((t) => ({ id: String(t._id), reference: transactionReference(t._id), title: `${labels[t.type] || t.type} · ${t.amount} credits`, subtitle: [t.campaign[0]?.campaignTitle, publicAccountIdentity(t.recipient[0], role)?.username, new Date(t.createdAt).toLocaleDateString("en-GB", { timeZone: "Asia/Kolkata" })].filter(Boolean).join(" · "), href: `${base}/${role === "Super Admin" ? "activity" : "credits"}?transaction=${transactionReference(t._id)}` })) },
         ].filter((g) => g.items.length) });
     } catch (error) {
         console.error("Search error:", error);

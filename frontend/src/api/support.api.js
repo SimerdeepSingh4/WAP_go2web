@@ -5,6 +5,7 @@ export const supportApi = {
   listConversations: (params, signal) => get("/conversations", params, signal),
   getAdminInbox: (params, signal) => get("/admin/inbox", params, signal),
   getConversationById: (id, signal) => get(`/conversations/${id}`, undefined, signal),
+  deleteConversation: async id => (await api.delete(`/support/conversations/${id}`, { timeout: 30000 })).data,
   getMessages: (id, params = {}, signal) => get(`/conversations/${id}/messages`, { limit: 50, ...params }, signal),
   sendMessage: async (id, message) => (await api.post(`/support/conversations/${id}/messages`, message, { timeout: 30000 })).data,
   markAsRead: async (id, sequenceNumber) => (await api.post(`/support/conversations/${id}/read`, { sequenceNumber }, { timeout: 30000 })).data,

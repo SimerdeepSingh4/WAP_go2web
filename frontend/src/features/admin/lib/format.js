@@ -2,7 +2,9 @@ export const number = (value) => value == null ? "—" : new Intl.NumberFormat("
 export const dateTime = (value) => value && !Number.isNaN(new Date(value).getTime())
   ? new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value))
   : "—";
-export const ownerName = (owner) => owner?.username || owner?.email || "Unavailable account";
+export const ownerName = (owner) => owner?.role === "Super Admin" || owner?.displayRole === "Super Admin"
+  ? "Super Admin"
+  : owner?.username || owner?.email || "Unavailable account";
 export const statusLabels = {
   draft: "Draft",
   pending: "Pending",

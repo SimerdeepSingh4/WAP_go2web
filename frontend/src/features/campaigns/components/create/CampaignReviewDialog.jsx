@@ -12,6 +12,7 @@ export default function CampaignReviewDialog({
   campaignTitle,
   campaignLink,
   campaignNumber,
+  shareProfileDp,
   totalRecipients,
   estimate,
   estimatedCost,
@@ -37,7 +38,9 @@ export default function CampaignReviewDialog({
           <span className="campaign-dialog-icon" aria-hidden="true"><ClipboardCheck /></span>
           <div><DialogTitle>Review campaign</DialogTitle>
           <DialogDescription>
-            Credits are charged when the server accepts your submission. The super admin handles approval and processing.
+            {isAdmin
+              ? "Credits are charged when the server accepts your submission. The super admin handles approval and processing."
+              : "Review your campaign details before submitting."}
           </DialogDescription></div>
         </DialogHeader>
 
@@ -46,6 +49,7 @@ export default function CampaignReviewDialog({
             ["Campaign", campaignTitle],
             ...(campaignNumber ? [["Campaign number", campaignNumber]] : []),
             ...(campaignLink ? [["Campaign link", campaignLink]] : []),
+            ...(shareProfileDp ? [["Profile DP", "Shared from settings"]] : []),
             ["Numbers entered", number(totalRecipients)],
             ["Rate per recipient", `${number(estimate.rate)} ${estimate.rate === 1 ? "credit" : "credits"}`],
             ["Estimated charge", `${number(estimatedCost)} credits`],
@@ -66,10 +70,10 @@ export default function CampaignReviewDialog({
           <div className="campaign-review-message"><h3><MessageSquare aria-hidden="true" />Message preview</h3><p>{previewText}</p></div>
         )}
 
-        <p className="campaign-review-note"><Info aria-hidden="true" /><span>
+        {isAdmin && <p className="campaign-review-note"><Info aria-hidden="true" /><span>
           {isAdmin && invalidCount > 0 ? `${number(invalidCount)} entries need review. ` : ""}
           The server confirms the final charge.
-        </span></p>
+        </span></p>}
 
         <FormError message={error?.response?.data?.message || error?.message} />
 

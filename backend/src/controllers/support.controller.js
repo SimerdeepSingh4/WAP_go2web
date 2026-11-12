@@ -15,6 +15,7 @@ import {
 } from "../helpers/support-identity.helper.js";
 import {
     processAndSaveSupportMedia,
+    removeSupportMedia,
     SUPPORT_STORAGE_DIR,
 } from "../services/support-media.service.js";
 import { notifyUser, notifyRole, emitSupportEvent } from "../services/socket.service.js";
@@ -167,6 +168,47 @@ export async function listConversations(req, res) {
         console.error("listConversations error:", error);
         return res.status(500).json({ success: false, message: "Failed to fetch conversations." });
     }
+}
+
+/**
+ * DELETE /api/support/conversations/:id
+ * Super Admin cleanup: permanently remove a chat for all participants.
+ */
+export async function deleteConversation(req, res) {
+    if (req.user.role !== "Super Admin") {
+        return res.status(403).json({ success: false, message: "Only Super Admin can delete support conversations." });
+    }
+    let session;
+    try {
+        session = await mongoose.startSession();
+        let conversation;
+        let attachments = [];
+        await session.withTransaction(async () => {
+            conversation = await supportConversationModel.findOneAndDelete({ _id: req.params.id }, { session });
+            attachments = await supportAttachmentModel.find({ conversationId: req.params.id }).select("storageReference").session(session).lean();
+            await supportMessageModel.deleteMany({ conversationId: req.params.id }, { session });
+            await supportAttachmentModel.deleteMany({ conversationId: req.params.id }, { session });
+        });
+        const cleanup = await Promise.allSettled(attachments.map(attachment => removeSupportMedia(attachment.storageReference)));
+        const cleanupPending = cleanup.some(result => result.status === "rejected");
+        for (const result of cleanup) {
+            if (result.status === "rejected") console.error("Support attachment cleanup:", result.reason.message);
+        }
+        if (conversation) {
+            try {
+                const payload = { conversationId: String(conversation._id) };
+                await Promise.all([
+                    notifyUser(conversation.user, "SUPPORT_CONVERSATION_DELETED", payload),
+                    notifyUser(conversation.reseller, "SUPPORT_CONVERSATION_DELETED", payload),
+                    notifyRole("Super Admin", "SUPPORT_CONVERSATION_DELETED", payload),
+                ]);
+            } catch (error) { console.error("Support deletion notification:", error.message); }
+        }
+        return res.json({ success: true, message: "Support conversation deleted for everyone.", cleanupPending });
+    } catch (error) {
+        console.error("deleteConversation error:", error);
+        return res.status(500).json({ success: false, message: "Could not delete this conversation. Please try again." });
+    } finally { if (session) await session.endSession(); }
 }
 
 /**
@@ -532,6 +574,9 @@ export async function getAdminInbox(req, res) {
  * Upload a private attachment for a conversation.
  */
 export async function uploadAttachment(req, res) {
+    let session;
+    let mediaInfo;
+    let attachmentSaved = false;
     try {
         const { id } = req.params;
         const file = req.file;
@@ -547,33 +592,48 @@ export async function uploadAttachment(req, res) {
         }
 
         const { clientDuration } = req.body;
-        const mediaInfo = await processAndSaveSupportMedia(
+        mediaInfo = await processAndSaveSupportMedia(
             file.buffer,
             file.originalname,
             clientDuration
         );
 
-        const attachment = await supportAttachmentModel.create({
-            conversationId: conversation._id,
-            uploader: user._id,
-            uploaderRole: user.role,
-            originalName: mediaInfo.originalName,
-            storageReference: mediaInfo.storageReference,
-            mimeType: mediaInfo.mimeType,
-            mediaType: mediaInfo.mediaType,
-            sizeBytes: mediaInfo.sizeBytes,
-            durationSeconds: mediaInfo.durationSeconds,
-            isProcessed: true,
+        let attachment;
+        session = await mongoose.startSession();
+        await session.withTransaction(async () => {
+            // Serialize upload registration with deletion so an in-flight upload
+            // cannot leave an attachment behind after its chat is removed.
+            const current = await supportConversationModel.findOneAndUpdate(
+                { _id: id }, { $inc: { __v: 1 } }, { session, new: true, timestamps: false }
+            );
+            if (!hasConversationAccess(current, user)) throw new Error("This conversation is no longer available.");
+            [attachment] = await supportAttachmentModel.create([{
+                conversationId: current._id,
+                uploader: user._id,
+                uploaderRole: user.role,
+                originalName: mediaInfo.originalName,
+                storageReference: mediaInfo.storageReference,
+                mimeType: mediaInfo.mimeType,
+                mediaType: mediaInfo.mediaType,
+                sizeBytes: mediaInfo.sizeBytes,
+                durationSeconds: mediaInfo.durationSeconds,
+                isProcessed: true,
+            }], { session });
         });
+        attachmentSaved = true;
 
         return res.status(201).json({
             success: true,
             data: sanitizeAttachment(attachment, user.role),
         });
     } catch (error) {
+        if (mediaInfo && !attachmentSaved) {
+            try { await removeSupportMedia(mediaInfo.storageReference); }
+            catch (cleanupError) { console.error("Support upload cleanup:", cleanupError.message); }
+        }
         console.error("uploadAttachment error:", error);
         return res.status(400).json({ success: false, message: error.message });
-    }
+    } finally { if (session) await session.endSession(); }
 }
 
 /**

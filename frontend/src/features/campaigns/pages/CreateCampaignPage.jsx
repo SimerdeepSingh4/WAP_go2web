@@ -50,10 +50,9 @@ export default function CreateCampaignPage() {
   const base = user?.role === "Super Admin" ? "/admin" : user?.role === "Reseller" ? "/reseller" : "/user";
   const parentCampaignsPath = `${base}/campaigns`;
   const isAdmin = user?.role === "Super Admin";
-  const canAddCampaignDp = isAdmin || user?.featureAccess?.campaignDp === true;
   const canAddCampaignNumber = isAdmin || user?.featureAccess?.campaignNumber === true;
   const canAddCampaignLink = isAdmin || user?.featureAccess?.campaignLink === true;
-  const videoLimitMB = Number(user?.maxVideoSizeMB) || 9;
+  const canShareProfileDp = isAdmin || user?.featureAccess?.campaignDp === true;
   const accountId = user?.id || user?._id;
   const draftKey = accountId ? `campaign-create:${user?.role}:${accountId}` : null;
 
@@ -61,6 +60,7 @@ export default function CreateCampaignPage() {
   const [campaignDescription, setCampaignDescription] = useState("");
   const [campaignLink, setCampaignLink] = useState("");
   const [campaignNumber, setCampaignNumber] = useState("");
+  const [shareProfileDp, setShareProfileDp] = useState(false);
   const [messageBody, setMessageBody] = useState("");
   const recipientTracking = useRecipientTracking();
   const { rawRecipients, change: setRawRecipients, audit: recipientAudit } = recipientTracking;
@@ -87,13 +87,13 @@ export default function CreateCampaignPage() {
         setCampaignDescription(draft.campaignDescription || "");
         setCampaignLink(draft.campaignLink || "");
         setCampaignNumber(draft.campaignNumber || "");
+        setShareProfileDp(draft.shareProfileDp === true);
         setMessageBody(draft.messageBody || "");
         recipientTracking.restore(draft.rawRecipients || "", draft.recipientTracking);
         setScheduleType(draft.scheduleType || "now");
         setScheduledTime(draft.scheduledTime || "");
         const restoredMedia = { image: null, video: null, pdf: null };
         for (const kind of Object.keys(restoredMedia)) {
-          if (kind === "image" && !canAddCampaignDp) continue;
           const file = draft.media?.[kind];
           if (file) {
             restoredMedia[kind] = {
@@ -113,7 +113,7 @@ export default function CreateCampaignPage() {
     });
 
     return () => { active = false; };
-  }, [draftKey, canAddCampaignDp]);
+  }, [draftKey]);
 
   // Revoke object URLs when replaced or on unmount
   useEffect(() => () => { if (media.image?.preview) URL.revokeObjectURL(media.image.preview); }, [media.image]);
@@ -151,7 +151,7 @@ export default function CreateCampaignPage() {
   const estimatedCost = estimate.cost;
   const remainingBalance = estimate.remaining;
   const hasInsufficientCredits = estimate.insufficient;
-  const totalMediaCount = Object.values(media).filter(Boolean).length;
+  const totalMediaCount = Object.values(media).filter(Boolean).length + (canShareProfileDp && shareProfileDp ? 1 : 0);
 
   const scheduleValid =
     scheduleType === "now" ||
@@ -166,7 +166,7 @@ export default function CreateCampaignPage() {
     { ok: !hasInsufficientCredits && !isLocked, label: "Enough credits" },
   ];
 
-  const isDirty = Boolean(campaignTitle || campaignDescription || campaignLink || campaignNumber || messageText || rawRecipients.trim() || totalMediaCount || scheduleType !== "now" || scheduledTime);
+  const isDirty = Boolean(campaignTitle || campaignDescription || campaignLink || campaignNumber || shareProfileDp || messageText || rawRecipients.trim() || totalMediaCount || scheduleType !== "now" || scheduledTime);
 
   useEffect(() => {
     if (!draftReady || !draftKey) return undefined;
@@ -181,6 +181,7 @@ export default function CreateCampaignPage() {
         campaignDescription,
         campaignLink,
         campaignNumber,
+        shareProfileDp,
         messageBody,
         rawRecipients,
         recipientTracking: recipientTracking.tracking,
@@ -194,7 +195,7 @@ export default function CreateCampaignPage() {
       }).catch(() => {});
     }, 300);
     return () => window.clearTimeout(draftSaveTimer.current);
-  }, [draftReady, draftKey, isDirty, campaignTitle, campaignDescription, campaignLink, campaignNumber, messageBody, rawRecipients, recipientTracking.tracking, scheduleType, scheduledTime, media]);
+  }, [draftReady, draftKey, isDirty, campaignTitle, campaignDescription, campaignLink, campaignNumber, shareProfileDp, messageBody, rawRecipients, recipientTracking.tracking, scheduleType, scheduledTime, media]);
 
   // Warn before leaving with unsent work
   useEffect(() => {
@@ -214,13 +215,7 @@ export default function CreateCampaignPage() {
 
   /* ---- Media ---- */
   const selectMedia = (kind, file) => {
-    if (kind === "image" && !canAddCampaignDp) {
-      toast.add({ title: "Campaign DP/image access is not enabled for this account", type: "error" });
-      return;
-    }
-    const baseCfg = MEDIA_KINDS[kind];
-    const maxBytes = kind === "video" ? videoLimitMB * MB : baseCfg.max;
-    const cfg = { ...baseCfg, max: maxBytes };
+    const cfg = MEDIA_KINDS[kind];
     if (!cfg.types.includes(file.type) && !(kind === "pdf" && /\.pdf$/i.test(file.name))) {
       toast.add({ title: `Unsupported ${cfg.label.toLowerCase()} type`, description: `Allowed: ${cfg.hint}.`, type: "error" });
       return;
@@ -329,6 +324,7 @@ export default function CreateCampaignPage() {
     formData.append("campaignDescription", campaignDescription.trim());
     if (canAddCampaignLink && campaignLink.trim()) formData.append("campaignLink", campaignLink.trim());
     if (canAddCampaignNumber && campaignNumber.trim()) formData.append("campaignNumber", campaignNumber.trim());
+    if (canShareProfileDp && shareProfileDp) formData.append("shareProfileDp", "true");
     formData.append("messageBody", messageBody.trim());
     formData.append("recipients", JSON.stringify(splitRecipientInput(rawRecipients)));
     formData.append("recipientInputAudit", JSON.stringify(recipientAudit));
@@ -441,8 +437,10 @@ export default function CreateCampaignPage() {
             media={media}
             onSelectMedia={selectMedia}
             onRemoveMedia={removeMedia}
-            canUploadImage={canAddCampaignDp}
-            videoLimitMB={videoLimitMB}
+            canShareProfileDp={canShareProfileDp}
+            shareProfileDp={shareProfileDp}
+            onToggleShareProfileDp={setShareProfileDp}
+            userProfileDp={user?.dp_img}
           />
 
           <CampaignRecipientsInput
@@ -507,6 +505,7 @@ export default function CreateCampaignPage() {
         campaignTitle={campaignTitle}
         campaignLink={canAddCampaignLink ? campaignLink : ""}
         campaignNumber={canAddCampaignNumber ? campaignNumber : ""}
+        shareProfileDp={canShareProfileDp ? shareProfileDp : false}
         totalRecipients={totalRecipients}
         estimate={estimate}
         estimatedCost={estimatedCost}
