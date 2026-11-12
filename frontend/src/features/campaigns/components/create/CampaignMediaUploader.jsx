@@ -21,7 +21,7 @@ export const MEDIA_KINDS = {
     hint: "MP4, MOV, WebM",
     accept: "video/mp4,video/quicktime,video/webm",
     types: ["video/mp4", "video/quicktime", "video/webm"],
-    max: 7 * MB,
+    max: 9 * MB,
     icon: VideoIcon,
     tone: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
   },
@@ -141,6 +141,7 @@ export default function CampaignMediaUploader({
   onSelectMedia,
   onRemoveMedia,
   canUploadImage = false,
+  videoLimitMB = 9,
 }) {
   const totalMediaCount = Object.values(media).filter(Boolean).length;
   const mediaKinds = Object.keys(MEDIA_KINDS).filter((kind) => kind !== "image" || canUploadImage);
@@ -163,16 +164,24 @@ export default function CampaignMediaUploader({
       }
     >
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-        {mediaKinds.map((kind) => (
-          <MediaSlot
-            key={kind}
-            kind={kind}
-            config={kind === "image" ? { ...MEDIA_KINDS.image, label: "DP / Image" } : MEDIA_KINDS[kind]}
-            value={media[kind]}
-            onSelect={onSelectMedia}
-            onRemove={onRemoveMedia}
-          />
-        ))}
+        {mediaKinds.map((kind) => {
+          let cfg = MEDIA_KINDS[kind];
+          if (kind === "image") {
+            cfg = { ...cfg, label: "DP / Image" };
+          } else if (kind === "video") {
+            cfg = { ...cfg, max: (videoLimitMB || 9) * MB };
+          }
+          return (
+            <MediaSlot
+              key={kind}
+              kind={kind}
+              config={cfg}
+              value={media[kind]}
+              onSelect={onSelectMedia}
+              onRemove={onRemoveMedia}
+            />
+          );
+        })}
       </div>
     </SectionCard>
   );

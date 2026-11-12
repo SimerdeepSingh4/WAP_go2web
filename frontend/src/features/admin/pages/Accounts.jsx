@@ -157,6 +157,7 @@ function AccountDetail({ account, onClose, onAction }) {
               ["Company", account.companyName || "Not provided"],
               ["Phone", account.phone || "Not provided"],
               ["Rate", `${number(account.ratePerMsg)} credits / recipient`],
+              ["Max video size", `${account.maxVideoSizeMB ?? 9} MB`],
               ["Account expiry", account.expiresAt ? `${dateTime(account.expiresAt)}${account.isExpired ? " (Expired)" : ""}` : "No expiry"],
               ["Assigned reseller", account.resellerId?.username || "—"],
               ["Created", dateTime(account.createdAt)],
@@ -450,6 +451,12 @@ export default function Accounts({ role }) {
       render: (a) => <span className="tabular-nums font-semibold">{number(a.ratePerMsg)}</span>,
     },
     {
+      key: "maxVideoSize",
+      label: "Max video",
+      sort: (a) => a.maxVideoSizeMB ?? 9,
+      render: (a) => <span className="tabular-nums font-semibold text-xs">{a.maxVideoSizeMB ?? 9} MB</span>,
+    },
+    {
       key: "accountExpiry",
       label: "Account expiry",
       render: (a) => (
@@ -631,7 +638,7 @@ export default function Accounts({ role }) {
           action="createAccount"
           successMessage={`${role} account created`}
           onClose={() => setModal(null)}
-          initialValues={{ username: "", email: "", phone: "", companyName: "", password: "", ratePerMsg: "", resellerId: "", expiresAt: "" }}
+          initialValues={{ username: "", email: "", phone: "", companyName: "", password: "", ratePerMsg: "", maxVideoSizeMB: "9", resellerId: "", expiresAt: "" }}
           fields={[
             { key: "username", label: "Account name", required: true, maxLength: 100 },
             { key: "email", label: "Email", type: "email", required: true },
@@ -639,6 +646,7 @@ export default function Accounts({ role }) {
             { key: "phone", label: "Phone number (optional)", type: "tel", maxLength: 40, hint: "Include the country code, e.g. +919876543210." },
             { key: "password", label: "Initial password", type: "password", required: true, hint: "Use at least 8 characters." },
             { key: "ratePerMsg", label: "Rate (credits / recipient)", type: "number", min: 0.01, step: 0.01, required: true },
+            { key: "maxVideoSizeMB", label: "Max video size (MB)", type: "number", min: 1, step: 1, hint: "Default is 9 MB." },
             {
               key: "expiresAt",
               label: "Account expiry date (optional)",
@@ -664,6 +672,7 @@ export default function Accounts({ role }) {
             password: v.password,
             role,
             ratePerMsg: Number(v.ratePerMsg),
+            maxVideoSizeMB: Number(v.maxVideoSizeMB) || 9,
             expiresAt: v.expiresAt || null,
             ...(role === "User" && v.resellerId ? { resellerId: v.resellerId } : {}),
           })}
@@ -673,6 +682,7 @@ export default function Accounts({ role }) {
               <p>{v.email}</p>{v.companyName && <p>Company: {v.companyName}</p>}{v.phone && <p>Phone: {v.phone}</p>}
               <p>Role: {role}</p>
               <p>Rate: {number(Number(v.ratePerMsg))} credits / recipient</p>
+              <p>Max video size: {v.maxVideoSizeMB || 9} MB</p>
               <p>Expiry: {v.expiresAt || "No expiry"}</p>
               {role === "User" && <p>Reseller: {resellers.find((a) => a._id === v.resellerId)?.username || "Direct (None)"}</p>}
             </>
@@ -695,6 +705,7 @@ export default function Accounts({ role }) {
             companyName: modal.account.companyName || "",
             password: "",
             ratePerMsg: String(modal.account.ratePerMsg ?? 12),
+            maxVideoSizeMB: String(modal.account.maxVideoSizeMB ?? 9),
             status: modal.account.status === "expired" || (modal.account.isExpired && modal.account.status === "active") ? "expired" : modal.account.status || "active",
             expiresAt: modal.account.expiresAt ? new Date(modal.account.expiresAt).toISOString().slice(0, 10) : "",
             resellerId: modal.account.resellerId?._id || modal.account.resellerId || "",
@@ -706,6 +717,7 @@ export default function Accounts({ role }) {
             { key: "phone", label: "Phone number (optional)", type: "tel", maxLength: 40, hint: "Include the country code, e.g. +919876543210." },
             { key: "password", label: "New password (optional)", type: "password", hint: "Leave blank to keep existing password. If setting new, min 8 characters." },
             { key: "ratePerMsg", label: "Rate (credits / recipient)", type: "number", min: 0.01, step: 0.01, required: true },
+            { key: "maxVideoSizeMB", label: "Max video size (MB)", type: "number", min: 1, step: 1, hint: "Default is 9 MB." },
             {
               key: "status",
               label: "Account status",
@@ -740,6 +752,7 @@ export default function Accounts({ role }) {
             companyName: (v.companyName || "").trim(),
             ...(v.password && v.password.trim() ? { password: v.password.trim() } : {}),
             ratePerMsg: Number(v.ratePerMsg),
+            maxVideoSizeMB: Number(v.maxVideoSizeMB) || 9,
             status: v.status,
             expiresAt: v.expiresAt || null,
             ...(role === "User" ? { resellerId: v.resellerId || null } : {}),
@@ -749,6 +762,7 @@ export default function Accounts({ role }) {
               <p className="font-medium text-foreground">{v.username}</p>
               <p className="text-xs text-muted-foreground">{v.email}</p>{v.companyName && <p className="text-xs">Company: {v.companyName}</p>}{v.phone && <p className="text-xs">Phone: {v.phone}</p>}
               <p className="text-xs">Rate: <strong>{number(Number(v.ratePerMsg))} credits / recipient</strong></p>
+              <p className="text-xs">Max video size: <strong>{v.maxVideoSizeMB || 9} MB</strong></p>
               <p className="text-xs">Status: <strong>{v.status}</strong></p>
               <p className="text-xs">Expiry: <strong>{v.expiresAt || "No expiry"}</strong></p>
               {role === "User" && <p className="text-xs">Reseller: <strong>{resellers.find((a) => a._id === v.resellerId)?.username || "Direct (None)"}</strong></p>}
@@ -837,6 +851,7 @@ export default function Accounts({ role }) {
           initialValues={{
             status: modal.account.status === "expired" || (modal.account.isExpired && modal.account.status === "active") ? "expired" : modal.account.status || "active",
             expiresAt: modal.account.expiresAt ? new Date(modal.account.expiresAt).toISOString().slice(0, 10) : "",
+            maxVideoSizeMB: String(modal.account.maxVideoSizeMB ?? 9),
             allowCampaignDp: modal.account.featureAccess?.campaignDp === true,
             allowCampaignNumber: modal.account.featureAccess?.campaignNumber === true,
             allowCampaignLink: modal.account.featureAccess?.campaignLink === true,
@@ -844,6 +859,7 @@ export default function Accounts({ role }) {
           fields={[
             { key: "status", label: "Account status", options: [{ value: "active", label: "Active" }, { value: "blocked", label: "Blocked" }, { value: "expired", label: "Expired" }] },
             { key: "expiresAt", label: "Account expiry date (optional)", type: "date", hint: "The account remains active through this date. Leave blank for no expiry." },
+            { key: "maxVideoSizeMB", label: "Max video size (MB)", type: "number", min: 1, step: 1, hint: "Default is 9 MB. Superadmin can set custom video size limit in MB for this account." },
             ...(role === "User" ? [
               { key: "allowCampaignDp", label: "Campaign DP / image", type: "checkbox", hint: "Allow this user to attach a DP/image to a campaign." },
               { key: "allowCampaignNumber", label: "Campaign number", type: "checkbox", hint: "Allow this user to add an optional contact number to a campaign." },
@@ -854,6 +870,7 @@ export default function Accounts({ role }) {
             id: modal.account._id,
             status: values.status,
             expiresAt: values.expiresAt || null,
+            maxVideoSizeMB: Number(values.maxVideoSizeMB) || 9,
             ...(role === "User" ? { featureAccess: { campaignDp: values.allowCampaignDp, campaignNumber: values.allowCampaignNumber, campaignLink: values.allowCampaignLink } } : {}),
           })}
           review={(values) => (
@@ -861,6 +878,7 @@ export default function Accounts({ role }) {
               <p className="font-medium">{modal.account.username}</p>
               <p>Status: <strong>{values.status}</strong></p>
               <p>Expiry: <strong>{values.expiresAt || "No expiry"}</strong></p>
+              <p>Max video size: <strong>{values.maxVideoSizeMB || 9} MB</strong></p>
               {role === "User" && <p>Campaign DP/image: <strong>{values.allowCampaignDp ? "Allowed" : "Not allowed"}</strong></p>}
               {role === "User" && <p>Campaign number: <strong>{values.allowCampaignNumber ? "Allowed" : "Not allowed"}</strong></p>}
               {role === "User" && <p>Campaign link: <strong>{values.allowCampaignLink ? "Allowed" : "Not allowed"}</strong></p>}

@@ -64,6 +64,11 @@ const userSchema = new mongoose.Schema(
             default: 12, // default 12 paise per message
             min: [0, "Rate per message cannot be negative"],
         },
+        maxVideoSizeMB: {
+            type: Number,
+            default: 9,
+            min: [1, "Max video size must be at least 1 MB"],
+        },
         featureAccess: {
             campaignDp: { type: Boolean, default: false },
             campaignNumber: { type: Boolean, default: false },

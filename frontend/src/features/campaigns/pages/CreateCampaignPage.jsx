@@ -53,6 +53,7 @@ export default function CreateCampaignPage() {
   const canAddCampaignDp = isAdmin || user?.featureAccess?.campaignDp === true;
   const canAddCampaignNumber = isAdmin || user?.featureAccess?.campaignNumber === true;
   const canAddCampaignLink = isAdmin || user?.featureAccess?.campaignLink === true;
+  const videoLimitMB = Number(user?.maxVideoSizeMB) || 9;
   const accountId = user?.id || user?._id;
   const draftKey = accountId ? `campaign-create:${user?.role}:${accountId}` : null;
 
@@ -217,7 +218,9 @@ export default function CreateCampaignPage() {
       toast.add({ title: "Campaign DP/image access is not enabled for this account", type: "error" });
       return;
     }
-    const cfg = MEDIA_KINDS[kind];
+    const baseCfg = MEDIA_KINDS[kind];
+    const maxBytes = kind === "video" ? videoLimitMB * MB : baseCfg.max;
+    const cfg = { ...baseCfg, max: maxBytes };
     if (!cfg.types.includes(file.type) && !(kind === "pdf" && /\.pdf$/i.test(file.name))) {
       toast.add({ title: `Unsupported ${cfg.label.toLowerCase()} type`, description: `Allowed: ${cfg.hint}.`, type: "error" });
       return;
@@ -439,6 +442,7 @@ export default function CreateCampaignPage() {
             onSelectMedia={selectMedia}
             onRemoveMedia={removeMedia}
             canUploadImage={canAddCampaignDp}
+            videoLimitMB={videoLimitMB}
           />
 
           <CampaignRecipientsInput
