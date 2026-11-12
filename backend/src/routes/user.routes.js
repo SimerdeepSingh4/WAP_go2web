@@ -12,6 +12,7 @@ import {
     removeCurrentUserProfileImage,
     uploadManagedUserProfileImage,
     updateUserAccess,
+    updateWhiteLabelAccess,
     updateManagedUserProfile,
     updateUserRole,
     deleteUser,
@@ -43,6 +44,9 @@ userRouter.post("/", authorizeRoles("Reseller", "Super Admin"), createUser);
 
 // Only Super Admin can change account role (strictly between Reseller and User)
 userRouter.patch("/:id/role", authorizeRoles("Super Admin"), updateUserRole);
+
+// Only Super Admin can grant, revoke, or set expiry for white-label access on Resellers
+userRouter.patch("/:id/white-label-access", authorizeRoles("Super Admin"), updateWhiteLabelAccess);
 
 // Only Super Admin or the owning Reseller can block/unblock or set expiry.
 userRouter.patch("/:id/access", authorizeRoles("Reseller", "Super Admin"), updateUserAccess);

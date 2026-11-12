@@ -77,13 +77,8 @@ export function RecentTransactions({ query, base }) {
                 const isAllocate = t.type === "ALLOCATE";
                 return (
                   <span
-                    className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium border ${
-                      isReclaim
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                        : isAllocate
-                        ? "border-blue-200 bg-blue-50 text-blue-800"
-                        : "border-border bg-muted text-muted-foreground"
-                    }`}
+                    className="portal-status inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium border"
+                    data-tone={isReclaim || isAllocate ? "success" : "neutral"}
                   >
                     {isReclaim ? "Credit Deducted" : isAllocate ? "Credit Added" : t.type}
                   </span>
@@ -110,9 +105,7 @@ export function RecentTransactions({ query, base }) {
                 const isReclaim = t.type === "RECLAIM";
                 return (
                   <span
-                    className={`tabular-nums text-xs font-semibold ${
-                      isReclaim ? "text-emerald-700" : "text-blue-700"
-                    }`}
+                    className="tabular-nums text-xs font-semibold text-[var(--chart-positive)]"
                   >
                     {isReclaim ? "+" : "-"}{number(t.amount)}
                   </span>

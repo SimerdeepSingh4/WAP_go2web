@@ -913,7 +913,7 @@ export default function CampaignRecipientsSection({
             <Button variant="outline" size="sm" onClick={() => setAddTabModalOpen(false)}>
               Cancel
             </Button>
-            <Button size="sm" onClick={handleCreateCustomTab} disabled={!newTabName.trim()} className="bg-[#000080] text-white">
+            <Button size="sm" onClick={handleCreateCustomTab} disabled={!newTabName.trim()} className="bg-[var(--primary)] text-white">
               Create Tab
             </Button>
           </DialogFooter>
@@ -987,7 +987,7 @@ export default function CampaignRecipientsSection({
               size="sm"
               onClick={() => handleSaveRecipients("publish")}
               disabled={isSaving}
-              className="bg-[#000080] text-white"
+              className="bg-[var(--primary)] text-white"
             >
               {isSaving ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
               Confirm & Publish

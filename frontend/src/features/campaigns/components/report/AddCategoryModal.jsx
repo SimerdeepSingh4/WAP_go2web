@@ -39,7 +39,7 @@ export default function AddCategoryModal({
       >
         <div className="flex items-center justify-between">
           <h3 id="add-cat-title" className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <FolderPlus className="size-4 text-[#000080]" />
+            <FolderPlus className="size-4 text-[var(--primary)]" />
             Add a status bucket
           </h3>
           <button
@@ -119,7 +119,7 @@ export default function AddCategoryModal({
           <Button
             type="submit"
             size="sm"
-            className="text-xs bg-[#000080] hover:bg-[#000080]/90 text-white font-medium"
+            className="text-xs bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white font-medium"
           >
             Add bucket
           </Button>

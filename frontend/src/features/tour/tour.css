@@ -1,12 +1,12 @@
 @import "driver.js/dist/driver.css";
 
 .driver-popover.app-tour {
-  --tour-surface: #fff;
-  --tour-text: #172033;
-  --tour-muted: #58667d;
-  --tour-border: #e5eaf2;
-  --tour-accent: #000080;
-  --tour-tint: #f3f5ff;
+  --tour-surface: var(--card);
+  --tour-text: var(--foreground);
+  --tour-muted: var(--muted-foreground);
+  --tour-border: var(--muted);
+  --tour-accent: var(--primary);
+  --tour-tint: var(--accent);
   box-sizing: border-box;
   width: min(380px, calc(100vw - 24px));
   min-width: 0;
@@ -16,16 +16,16 @@
   border-radius: 20px;
   background: var(--tour-surface);
   color: var(--tour-text);
-  box-shadow: 0 24px 80px -20px #0f172a66, 0 4px 16px #0f172a0d;
+  box-shadow: 0 24px 80px -20px color-mix(in srgb, var(--foreground) 40%, transparent), 0 4px 16px color-mix(in srgb, var(--foreground) 5.1%, transparent);
   font-family: inherit;
 }
 .dark .driver-popover.app-tour {
-  --tour-surface: #141c2d;
-  --tour-text: #f1f5f9;
-  --tour-muted: #b0bdd2;
-  --tour-border: #2c3850;
-  --tour-accent: #aab5ff;
-  --tour-tint: #252e47;
+  --tour-surface: var(--popover);
+  --tour-text: var(--foreground);
+  --tour-muted: var(--muted-foreground);
+  --tour-border: var(--border);
+  --tour-accent: var(--primary);
+  --tour-tint: var(--accent);
 }
 .app-tour .app-tour-label {
   margin: 0 24px 16px 0;
@@ -86,14 +86,14 @@
   transition: background .15s, box-shadow .15s;
 }
 .app-tour .driver-popover-footer .driver-popover-next-btn {
-  border-color: #000080;
-  background: #000080;
-  color: #fff;
-  box-shadow: 0 2px 4px #00008026;
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: 0 2px 4px color-mix(in srgb, var(--primary) 14.9%, transparent);
 }
-.dark .app-tour .driver-popover-footer .driver-popover-next-btn { border-color: #6676ee; background: #6676ee; }
+.dark .app-tour .driver-popover-footer .driver-popover-next-btn { border-color: var(--primary); background: var(--primary); }
 .app-tour .driver-popover-footer button:hover { background: var(--tour-tint); }
-.app-tour .driver-popover-footer .driver-popover-next-btn:hover { background: #2222a2; color: #fff; }
+.app-tour .driver-popover-footer .driver-popover-next-btn:hover { background: var(--primary); color: var(--primary-foreground); }
 .app-tour .driver-popover-footer button:disabled { opacity: .4; cursor: default; }
 .app-tour .app-tour-skip {
   margin: 12px 0 0;

@@ -101,7 +101,7 @@ export default function RoleRoute({ allowedRoles = [], children }) {
               <button
                 onClick={() => exitMutation.mutate()}
                 disabled={exitMutation.isPending}
-                className="w-full inline-flex items-center justify-center px-4 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold rounded-lg transition-colors cursor-pointer"
+                className="w-full inline-flex items-center justify-center px-4 py-2.5 bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-bold rounded-lg transition-colors cursor-pointer"
               >
                 {exitMutation.isPending ? "Restoring Account..." : "Exit Preview & Return to Admin Panel ✕"}
               </button>
@@ -109,7 +109,7 @@ export default function RoleRoute({ allowedRoles = [], children }) {
 
             <Link
               to="/"
-              className="inline-flex items-center justify-center px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary/90 transition-colors"
+              className="inline-flex items-center justify-center px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-lg hover:bg-primary-hover transition-colors"
             >
               ← Return to Dashboard
             </Link>

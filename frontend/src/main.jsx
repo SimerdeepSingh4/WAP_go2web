@@ -4,6 +4,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "./index.css";
 import "./components/dashboard/dashboard.css";
 import App from "./App.jsx";
+import { initializeTheme } from "./features/branding/ThemeProvider";
+
+initializeTheme();
 
 // Auto-recover from stale deployment chunks (avoids "Failed to fetch dynamically imported module")
 window.addEventListener("vite:preloadError", (event) => {

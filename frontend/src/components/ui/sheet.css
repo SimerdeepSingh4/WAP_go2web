@@ -1,4 +1,4 @@
-.detail-sheet[data-slot="sheet-content"] { gap:0; overflow:hidden; border:1px solid var(--border); box-shadow:0 16px 64px #0f172a26; }
+.detail-sheet[data-slot="sheet-content"] { gap:0; overflow:hidden; border:1px solid var(--border); box-shadow:0 16px 64px color-mix(in srgb, var(--foreground) 14.9%, transparent); }
 .detail-sheet[data-side="right"],.detail-sheet[data-side="left"] { inset-block:12px; width:480px; max-width:calc(100vw - 24px); height:calc(100dvh - 24px); border-radius:18px; }
 .detail-sheet[data-side="right"] { right:12px; }
 .detail-sheet[data-side="left"] { left:12px; }
@@ -23,7 +23,7 @@
 .detail-sheet-details dd { margin:6px 0 0; font-size:12px; font-weight:500; line-height:1.6; overflow-wrap:anywhere; }
 .detail-sheet-wallet { padding:20px; border:1px solid var(--border); border-radius:14px; background:linear-gradient(135deg,color-mix(in srgb,var(--primary) 4%,var(--card)),var(--card)); }
 .detail-sheet-wallet > div:first-child { flex-wrap:wrap; gap:10px; }
-.detail-sheet-wallet[data-locked="true"] { border-color:#fecaca; background:#fff7f7; }
+.detail-sheet-wallet[data-locked="true"] { border-color:var(--muted); background:var(--background); }
 .detail-sheet-wallet-balance { font-size:34px; line-height:1.4; letter-spacing:-1px; }
 .detail-sheet-wallet-expiry { font-size:11px; line-height:1.6; letter-spacing:normal; overflow-wrap:anywhere; }
 .detail-sheet-wallet-expiry strong { font-weight:500; }

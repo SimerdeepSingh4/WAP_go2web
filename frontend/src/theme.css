@@ -1,0 +1,295 @@
+/* CRM-inspired neutral surfaces and emerald accents, shared by every role. */
+:root {
+  color-scheme: light;
+  --palette-teal: #00bc7d;
+  --palette-mint: #a4f4cf;
+  --palette-gray: #a3a3a3;
+  --palette-light-gray: #e5e5e5;
+  --palette-ink: #1f1a1a;
+
+  --background: #ffffff;
+  --foreground: var(--palette-ink);
+  --card: #ffffff;
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --primary: #00875a;
+  --primary-hover: #007a50;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f5;
+  --secondary-hover: #ebebeb;
+  --secondary-foreground: var(--foreground);
+  --accent: #ecfdf5;
+  --accent-hover: #d1fae5;
+  --accent-foreground: var(--foreground);
+  --muted: #f5f5f5;
+  --muted-hover: #efefef;
+  --muted-foreground: #737373;
+  --surface-subtle: #fafafa;
+  --border: var(--palette-light-gray);
+  --input: #e5e5e5;
+  --ring: #009966;
+  --destructive: #dc2626;
+  --accent-brown: #737373;
+  --accent-brown-foreground: #ffffff;
+  --radius: 0.75rem;
+
+  --sidebar: #fafafa;
+  --sidebar-hover: #f0f0f0;
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: #e6f6ee;
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+  --portal-brown: var(--muted-foreground);
+  --portal-brown-soft: var(--secondary);
+  --overview-featured-background: var(--card);
+  --overview-featured-deep: var(--card);
+  --overview-featured-text: var(--foreground);
+  --overview-featured-muted: var(--muted-foreground);
+  --status-success-bg: #ecfdf5;
+  --status-success-text: #006b49;
+  --status-success-border: #a4f4cf;
+  --status-warning-bg: #fffbeb;
+  --status-warning-text: #92400e;
+  --status-warning-border: #fde68a;
+  --status-danger-bg: #fef2f2;
+  --status-danger-text: #b91c1c;
+  --status-danger-border: #fecaca;
+  --status-info-bg: #eff6ff;
+  --status-info-text: #1d4ed8;
+  --status-info-border: #bfdbfe;
+
+  /* Existing palette names remain aliases, so older screens stay in theme. */
+  --palette-slate-gray: var(--muted-foreground);
+  --palette-icy-blue: var(--palette-teal);
+  --palette-snow-white: var(--background);
+  --palette-navy-blue: var(--primary);
+  --palette-black: var(--foreground);
+  --palette-taupe: var(--muted-foreground);
+  --palette-dark-taupe: var(--foreground);
+  --palette-cool-gray: var(--palette-gray);
+  --palette-off-white: var(--background);
+  --palette-deep-green: var(--primary);
+  --palette-rich-brown: var(--muted-foreground);
+
+  --chart-1: #009966;
+  --chart-2: #00b982;
+  --chart-3: #00cc99;
+  --chart-4: #54e4b3;
+  --chart-5: #a4f4cf;
+  --chart-positive: #00875a;
+  --chart-negative: #dc2626;
+  --chart-background: var(--card);
+  --chart-foreground: var(--foreground);
+  --chart-foreground-muted: var(--muted-foreground);
+  --chart-line-primary: var(--chart-1);
+  --chart-line-secondary: var(--chart-2);
+  --chart-crosshair: var(--muted-foreground);
+  --chart-grid: var(--border);
+  --chart-brush-border: var(--input);
+  --chart-tooltip-background: var(--popover);
+  --chart-tooltip-foreground: var(--foreground);
+  --chart-tooltip-muted: var(--muted-foreground);
+  --chart-marker-background: var(--secondary);
+  --chart-marker-border: var(--primary);
+  --chart-marker-foreground: var(--foreground);
+  --chart-label: var(--muted-foreground);
+  --chart-scale-mix: var(--card);
+  --chart-scale-01: var(--muted);
+  --chart-scale-02: color-mix(in srgb, var(--chart-1) 25%, var(--card));
+  --chart-scale-03: color-mix(in srgb, var(--chart-1) 45%, var(--card));
+  --chart-scale-04: color-mix(in srgb, var(--chart-1) 70%, var(--card));
+  --chart-scale-05: var(--chart-1);
+  --chart-scale-pattern-color: var(--card);
+  --chart-indicator-color: var(--primary);
+  --chart-indicator-secondary-color: var(--palette-mint);
+  --chart-marker-badge-background: var(--primary);
+  --chart-marker-badge-foreground: var(--primary-foreground);
+  --chart-segment-background: color-mix(in srgb, var(--palette-teal) 20%, transparent);
+  --chart-segment-line: var(--input);
+
+  --toast-info-surface: var(--card);
+  --toast-info-border: var(--border);
+  --toast-info-icon: var(--primary);
+  --toast-success-surface: var(--status-success-bg);
+  --toast-success-border: var(--status-success-border);
+  --toast-success-icon: var(--status-success-text);
+  --toast-warning-surface: var(--status-warning-bg);
+  --toast-warning-border: var(--status-warning-border);
+  --toast-warning-icon: var(--status-warning-text);
+  --toast-error-surface: var(--status-danger-bg);
+  --toast-error-border: var(--status-danger-border);
+  --toast-error-icon: var(--status-danger-text);
+}
+
+.dark {
+  color-scheme: dark;
+  --background: #0a0a0a;
+  --foreground: #e5e5e5;
+  --card: #171717;
+  --popover: #1c1c1c;
+  --primary: #00875a;
+  --primary-hover: #007a50;
+  --primary-foreground: #ffffff;
+  --secondary: #262626;
+  --secondary-hover: #303030;
+  --secondary-foreground: var(--foreground);
+  --accent: #122c22;
+  --accent-hover: #193b2e;
+  --accent-foreground: var(--foreground);
+  --muted: #222222;
+  --muted-hover: #292929;
+  --muted-foreground: #a3a3a3;
+  --surface-subtle: #141414;
+  --border: #292929;
+  --input: #363636;
+  --ring: #34d399;
+  --destructive: #f87171;
+  --accent-brown: #a3a3a3;
+  --sidebar: #0f0f0f;
+  --sidebar-hover: #202020;
+  --sidebar-accent: #122c22;
+  --sidebar-accent-foreground: var(--foreground);
+  --palette-gray: #525252;
+  --palette-light-gray: #292929;
+  --palette-ink: #e5e5e5;
+  --chart-positive: #34d399;
+  --chart-negative: #f87171;
+  --status-success-bg: #122c22;
+  --status-success-text: #6ee7b7;
+  --status-success-border: #21523e;
+  --status-warning-bg: #33260e;
+  --status-warning-text: #fcd34d;
+  --status-warning-border: #624a1d;
+  --status-danger-bg: #351b1b;
+  --status-danger-text: #fca5a5;
+  --status-danger-border: #643030;
+  --status-info-bg: #17253b;
+  --status-info-text: #93c5fd;
+  --status-info-border: #28486e;
+}
+
+/* Brand inputs drive the entire accent system, including portalled UI. */
+html[data-branded="true"] {
+  --primary: var(--brand-primary);
+  --primary-hover: color-mix(in srgb, var(--brand-primary) 88%, #000);
+  --primary-foreground: var(--brand-button-text);
+  --brand-highlight: color-mix(in srgb, var(--brand-primary) 80%, #000);
+  --ring: var(--brand-highlight);
+  --secondary: color-mix(in srgb, var(--brand-secondary) 16%, var(--card));
+  --secondary-hover: color-mix(in srgb, var(--brand-secondary) 25%, var(--card));
+  --secondary-foreground: var(--foreground);
+  --accent: color-mix(in srgb, var(--brand-accent) 12%, var(--card));
+  --accent-hover: color-mix(in srgb, var(--brand-accent) 20%, var(--card));
+  --accent-foreground: var(--foreground);
+  --muted-hover: color-mix(in srgb, var(--brand-primary) 9%, var(--card));
+  --border: color-mix(in srgb, var(--brand-primary) 12%, var(--palette-light-gray));
+  --input: color-mix(in srgb, var(--brand-primary) 22%, var(--palette-light-gray));
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-hover: color-mix(in srgb, var(--brand-primary) 9%, var(--sidebar));
+  --sidebar-accent: color-mix(in srgb, var(--brand-primary) 15%, var(--sidebar));
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-ring: var(--ring);
+  --palette-teal: var(--brand-primary);
+  --palette-mint: color-mix(in srgb, var(--brand-primary) 30%, var(--card));
+  --chart-1: var(--brand-highlight);
+  --chart-2: color-mix(in srgb, var(--brand-primary) 75%, var(--foreground));
+  --chart-3: color-mix(in srgb, var(--brand-primary) 60%, var(--card));
+  --chart-4: color-mix(in srgb, var(--brand-primary) 40%, var(--card));
+  --chart-5: color-mix(in srgb, var(--brand-primary) 22%, var(--card));
+  --chart-positive: var(--brand-highlight);
+  --status-success-bg: var(--accent);
+  --status-success-text: var(--foreground);
+  --status-success-border: color-mix(in srgb, var(--brand-primary) 30%, var(--card));
+  --status-info-bg: var(--accent);
+  --status-info-text: var(--foreground);
+  --status-info-border: var(--status-success-border);
+  --toast-info-surface: var(--accent);
+  --toast-info-border: var(--status-success-border);
+  --toast-info-icon: var(--brand-highlight);
+  --toast-success-surface: var(--accent);
+  --toast-success-border: var(--status-success-border);
+  --toast-success-icon: var(--brand-highlight);
+  --toast-warning-surface: var(--accent);
+  --toast-warning-border: var(--status-success-border);
+  --toast-error-surface: var(--accent);
+  --toast-error-border: var(--status-success-border);
+}
+
+html.dark[data-branded="true"] {
+  --brand-highlight: color-mix(in srgb, var(--brand-primary) 65%, #fff);
+}
+
+@layer base {
+  body { background: var(--background); color: var(--foreground); }
+  ::selection { background: var(--accent-hover); color: var(--accent-foreground); }
+}
+
+/* Recolor the existing brand mark without introducing another image asset. */
+img[src*="Navy_Blue_Bird_Chat_Logo"] { filter: brightness(0) saturate(100%) invert(30%) sepia(18%) saturate(1300%) hue-rotate(123deg) brightness(94%) contrast(90%); }
+.dark img[src*="Navy_Blue_Bird_Chat_Logo"] { filter: brightness(0) saturate(100%) invert(80%) sepia(27%) saturate(698%) hue-rotate(98deg) brightness(97%) contrast(88%); }
+
+/* Toasts render outside the dashboard, so they use document-level tokens. */
+[data-slot="toast"] {
+  --toast-surface: var(--toast-info-surface);
+  --toast-border: var(--toast-info-border);
+  --toast-icon: var(--toast-info-icon);
+  background: var(--toast-surface);
+  border-color: var(--toast-border);
+  color: var(--foreground);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--foreground) 12%, transparent);
+}
+[data-slot="toast"][data-tone="success"] { --toast-surface: var(--toast-success-surface); --toast-border: var(--toast-success-border); --toast-icon: var(--toast-success-icon); }
+[data-slot="toast"][data-tone="warning"] { --toast-surface: var(--toast-warning-surface); --toast-border: var(--toast-warning-border); --toast-icon: var(--toast-warning-icon); }
+[data-slot="toast"][data-tone="error"] { --toast-surface: var(--toast-error-surface); --toast-border: var(--toast-error-border); --toast-icon: var(--toast-error-icon); }
+[data-slot="toast-icon"] { display: grid; width: 32px; height: 32px; place-items: center; border-radius: 10px; background: color-mix(in srgb, var(--toast-icon) 10%, transparent); color: var(--toast-icon); }
+[data-slot="toast-icon"] svg { color: inherit; }
+
+.portal-notification-btn { overflow: visible; margin-right: 18px; }
+.portal-notification-count {
+  position: absolute;
+  top: -7px;
+  left: calc(50% + 10px);
+  right: auto;
+  z-index: 1;
+  display: grid;
+  min-width: 23px;
+  height: 23px;
+  padding: 0 5px;
+  place-items: center;
+  border: 2px solid var(--card);
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--foreground) 15%, transparent);
+}
+.portal-notification-count[data-attention="true"] { background: var(--destructive); color: #ffffff; }
+
+.portal-status { border-radius: 999px; background: var(--muted); color: var(--muted-foreground); border-color: var(--border); }
+.portal-status[data-tone="success"] { background: var(--status-success-bg); color: var(--status-success-text); border-color: var(--status-success-border); }
+.portal-status[data-tone="warning"] { background: var(--status-warning-bg); color: var(--status-warning-text); border-color: var(--status-warning-border); }
+.portal-status[data-tone="danger"] { background: var(--status-danger-bg); color: var(--status-danger-text); border-color: var(--status-danger-border); }
+.portal-status[data-tone="info"] { background: var(--status-info-bg); color: var(--status-info-text); border-color: var(--status-info-border); }
+
+/* Keep older slate utilities neutral; semantic status colors retain their meaning. */
+@theme {
+  --color-slate-50: var(--color-neutral-50);
+  --color-slate-100: var(--color-neutral-100);
+  --color-slate-200: var(--color-neutral-200);
+  --color-slate-300: var(--color-neutral-300);
+  --color-slate-400: var(--color-neutral-400);
+  --color-slate-500: var(--color-neutral-500);
+  --color-slate-600: var(--color-neutral-600);
+  --color-slate-700: var(--color-neutral-700);
+  --color-slate-800: var(--color-neutral-800);
+  --color-slate-900: var(--color-neutral-900);
+  --color-slate-950: var(--color-neutral-950);
+}

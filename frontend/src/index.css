@@ -3,22 +3,23 @@
 @import "@fontsource-variable/geist";
 @import "./features/admin/components/admin-dashboard.css";
 @import "./motion.css";
+@import "./theme.css";
 
 @custom-variant dark (&:is(.dark *));
 
 /* Shared by document scrolling, tables, dialogs and portalled menus. */
 :root {
-  --scrollbar-track: #f1f5f9;
-  --scrollbar-thumb: #a3b2c5;
-  --scrollbar-thumb-hover: #657a96;
-  --scrollbar-thumb-active: #353580;
+  --scrollbar-track: var(--muted);
+  --scrollbar-thumb: var(--palette-gray);
+  --scrollbar-thumb-hover: var(--muted-foreground);
+  --scrollbar-thumb-active: var(--primary);
 }
 
 .dark {
-  --scrollbar-track: #182230;
-  --scrollbar-thumb: #52647c;
-  --scrollbar-thumb-hover: #7d90aa;
-  --scrollbar-thumb-active: #a5b4fc;
+  --scrollbar-track: var(--muted);
+  --scrollbar-thumb: var(--palette-gray);
+  --scrollbar-thumb-hover: var(--muted-foreground);
+  --scrollbar-thumb-active: var(--primary);
 }
 
 *::-webkit-scrollbar {
@@ -64,7 +65,7 @@
 @theme inline {
   --font-sans: "Geist Variable", sans-serif;
 
-  /* Centralized Master Palette Tokens: Combination 85 (Frozen lake) */
+  /* Shared palette aliases */
   --color-slate-gray: var(--palette-slate-gray);
   --color-icy-blue: var(--palette-icy-blue);
   --color-snow-white: var(--palette-snow-white);
@@ -74,7 +75,7 @@
   --color-gothic-black: var(--palette-navy-blue);
   --color-gothic-light-gray: var(--palette-icy-blue);
   --color-gothic-taupe: var(--palette-slate-gray);
-  --color-gothic-dark-taupe: #354b60;
+  --color-gothic-dark-taupe: var(--foreground);
   --color-cool-gray: var(--palette-slate-gray);
   --color-off-white: var(--palette-snow-white);
   --color-deep-green: var(--palette-navy-blue);
@@ -87,21 +88,26 @@
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
   --color-primary-foreground: var(--primary-foreground);
   --color-secondary: var(--secondary);
+  --color-secondary-hover: var(--secondary-hover);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
+  --color-muted-hover: var(--muted-hover);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent-brown: var(--accent-brown);
   --color-accent-brown-foreground: var(--accent-brown-foreground);
-  --color-destructive: #b42318;
+  --color-destructive: var(--destructive);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
 
   --color-sidebar: var(--sidebar);
+  --color-sidebar-hover: var(--sidebar-hover);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
@@ -132,24 +138,24 @@
   --color-chart-indicator-secondary-color: var(--chart-indicator-secondary-color);
   --color-chart-indicator-color: var(--chart-indicator-color);
   --color-chart-scale-pattern-color: var(--chart-scale-pattern-color);
-  --chart-scale-05: var(--chart-scale-05);
-  --chart-scale-04: var(--chart-scale-04);
-  --chart-scale-03: var(--chart-scale-03);
-  --chart-scale-02: var(--chart-scale-02);
+
+
+
+
   --color-chart-scale-01: var(--chart-scale-01);
   --color-chart-scale-mix: var(--chart-scale-mix);
   --color-chart-label: var(--chart-label);
   --color-chart-marker-foreground: var(--chart-marker-foreground);
   --color-chart-marker-border: var(--chart-marker-border);
   --color-chart-marker-background: var(--chart-marker-background);
-  --chart-tooltip-muted: var(--chart-tooltip-muted);
-  --chart-tooltip-foreground: var(--chart-tooltip-foreground);
-  --chart-tooltip-background: var(--chart-tooltip-background);
-  --chart-brush-border: var(--chart-brush-border);
+
+
+
+
   --color-chart-grid: var(--chart-grid);
   --color-chart-crosshair: var(--chart-crosshair);
-  --chart-line-secondary: var(--chart-line-secondary);
-  --chart-line-primary: var(--chart-line-primary);
+
+
   --color-chart-foreground-muted: var(--chart-foreground-muted);
   --color-chart-foreground: var(--chart-foreground);
   --color-chart-background: var(--chart-background);
@@ -160,107 +166,6 @@
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
-}
-
-:root {
-  /* ==========================================================================
-     Centralized Palette: Combination 85 (Frozen lake)
-     Edit these 4 core values to instantly update the entire website theme:
-     ========================================================================== */
-  --palette-slate-gray: #6D8196;   /* Slate gray: secondary accents, icons, muted data */
-  --palette-icy-blue: #ADD8E6;     /* Icy blue: subtle badges, active chips, light tints */
-  --palette-snow-white: #FFFAFA;   /* Snow white: primary surface background */
-  --palette-navy-blue: #000080;    /* Deep navy: brand actions, primary buttons, bold type */
-
-  /* Backwards-compatibility aliases */
-  --palette-black: var(--palette-navy-blue);
-  --palette-light-gray: #d4e0eb;
-  --palette-taupe: var(--palette-slate-gray);
-  --palette-dark-taupe: #2e4459;
-  --palette-cool-gray: var(--palette-slate-gray);
-  --palette-off-white: var(--palette-snow-white);
-  --palette-deep-green: var(--palette-navy-blue);
-  --palette-rich-brown: var(--palette-slate-gray);
-
-  /* Surface & Base Layout - using snow white for clean canvas */
-  --background: #FFFAFA;
-  --foreground: #0c1624;
-  --card: #ffffff;
-  --card-foreground: #0c1624;
-  --popover: #ffffff;
-  --popover-foreground: #0c1624;
-
-  /* Primary Brand - Deep Navy (#000080) */
-  --primary: var(--palette-navy-blue);
-  --primary-foreground: #ffffff;
-
-  /* Secondary & Accents - Slate Gray & Icy Blue */
-  --secondary: #edf4f8;
-  --secondary-foreground: var(--palette-navy-blue);
-  --accent: #e2eff6;
-  --accent-foreground: var(--palette-navy-blue);
-  --accent-brown: var(--palette-slate-gray);
-  --accent-brown-foreground: #ffffff;
-
-  /* Neutrals, Muted & Borders */
-  --muted: #f0f6fa;
-  --muted-foreground: #5a7185;
-  --border: #d4e1eb;
-  --input: #cad9e6;
-  --ring: var(--palette-navy-blue);
-  --radius: 0.5rem;
-
-  /* Sidebar Design Tokens */
-  --sidebar: #f3f8fb;
-  --sidebar-foreground: #0c1624;
-  --sidebar-primary: var(--palette-navy-blue);
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e0eef7;
-  --sidebar-accent-foreground: var(--palette-navy-blue);
-  --sidebar-border: #d4e1eb;
-
-  /* Charts & Data Visualization */
-  --chart-1: var(--palette-navy-blue);
-  --chart-2: var(--palette-slate-gray);
-  --chart-3: var(--palette-icy-blue);
-  --chart-4: #2b455c;
-  --chart-5: #89a9c2;
-  --chart-positive: #2e6930;
-  --chart-negative: #b42318;
-  --chart-background: #ffffff;
-  --chart-foreground: #0c1624;
-  --chart-foreground-muted: #5a7185;
-  --chart-line-primary: var(--palette-navy-blue);
-  --chart-line-secondary: var(--palette-slate-gray);
-  --chart-crosshair: var(--palette-slate-gray);
-  --chart-grid: #dce7f0;
-  --chart-brush-border: #cad9e6;
-  --chart-tooltip-background: #ffffff;
-  --chart-tooltip-foreground: #0c1624;
-  --chart-tooltip-muted: #5a7185;
-  --chart-marker-background: var(--palette-light-gray);
-  --chart-marker-border: var(--palette-dark-taupe);
-  --chart-marker-foreground: #111111;
-  --chart-label: var(--palette-dark-taupe);
-  --chart-scale-mix: #ffffff;
-  --chart-scale-01: #eeecec;
-  --chart-scale-02: color-mix(in oklab, var(--chart-1) 35%, var(--chart-scale-mix));
-  --chart-scale-03: color-mix(in oklab, var(--chart-1) 55%, var(--chart-scale-mix));
-  --chart-scale-04: color-mix(in oklab, var(--chart-1) 78%, var(--chart-scale-mix));
-  --chart-scale-05: var(--chart-1);
-  --chart-scale-pattern-color: #ffffff;
-  --chart-indicator-color: var(--palette-black);
-  --chart-indicator-secondary-color: var(--palette-light-gray);
-  --chart-marker-badge-background: var(--palette-black);
-  --chart-marker-badge-foreground: #ffffff;
-  --chart-segment-background: oklch(0.756 0 0 / 0.06);
-  --chart-segment-line: oklch(0.5 0 0 / 0.25);
-  --chart-indicator-color: var(--palette-deep-green);
-  --chart-indicator-secondary-color: var(--palette-cool-gray);
-  --chart-marker-badge-background: var(--palette-deep-green);
-  --chart-marker-badge-foreground: #ffffff;
-  --chart-segment-background: oklch(0.756 0 0 / 0.06);
-  --chart-segment-line: oklch(0.5 0 0 / 0.25);
 }
 
 @layer base {
@@ -286,37 +191,4 @@
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
-}
-
-.dark {
-  --chart-1: oklch(0.585 0.233 277.117);
-  --chart-2: oklch(0.852 0.199 91.936);
-  --chart-3: oklch(0.667 0.295 322.15);
-  --chart-4: oklch(0.56 0.021 213.5);
-  --chart-5: oklch(1 0 0);
-  --chart-positive: oklch(0.765 0.177 163.223);
-  --chart-negative: oklch(0.704 0.191 22.216);
-  --chart-background: oklch(0.145 0 0);
-  --chart-foreground: oklch(0.45 0 0);
-  --chart-foreground-muted: oklch(0.65 0.01 260);
-  --chart-crosshair: oklch(0.45 0 0);
-  --chart-grid: oklch(0.25 0 0);
-  --chart-brush-border: var(--chart-grid);
-  --chart-marker-background: oklch(0.25 0.01 260);
-  --chart-marker-border: oklch(0.4 0.01 260);
-  --chart-marker-foreground: oklch(0.9 0 0);
-  --chart-label: oklch(0.75 0.01 260);
-  --chart-scale-mix: oklch(0.25 0 0);
-  --chart-scale-01: oklch(0.3 0 0);
-  --chart-scale-02: color-mix(in oklab, var(--chart-1) 35%, var(--chart-scale-mix));
-  --chart-scale-03: color-mix(in oklab, var(--chart-1) 55%, var(--chart-scale-mix));
-  --chart-scale-04: color-mix(in oklab, var(--chart-1) 78%, var(--chart-scale-mix));
-  --chart-scale-05: var(--chart-1);
-  --chart-scale-pattern-color: oklch(0.145 0 0);
-  --chart-indicator-color: oklch(1 0 0);
-  --chart-indicator-secondary-color: oklch(0.145 0 0);
-  --chart-marker-badge-background: oklch(1 0 0);
-  --chart-marker-badge-foreground: oklch(0.15 0 0);
-  --chart-segment-background: oklch(0.41 0.0127 248.14 / 0.25);
-  --chart-segment-line: oklch(1 0 0 / 0.25);
 }

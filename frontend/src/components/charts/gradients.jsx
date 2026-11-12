@@ -94,76 +94,76 @@ export function RadialGradient({
   );
 }
 
-// Preset colour pairs (visx defaults). All props pass through to
+// Morning dew gradient presets. All props pass through to
 // `<LinearGradient {...props} />`.
 
 export function GradientDarkgreenGreen({
-  from = "#184E86",
-  to = "#57CA85",
+  from = "var(--palette-teal)",
+  to = "var(--palette-mint)",
   ...restProps
 }) {
   return <LinearGradient from={from} to={to} {...restProps} />;
 }
 
 export function GradientLightgreenGreen({
-  from = "#42E695",
-  to = "#3BB2B8",
+  from = "var(--palette-teal)",
+  to = "var(--palette-mint)",
   ...restProps
 }) {
   return <LinearGradient from={from} to={to} {...restProps} />;
 }
 
 export function GradientOrangeRed({
-  from = "#FCE38A",
-  to = "#F38181",
+  from = "var(--palette-teal)",
+  to = "var(--palette-mint)",
   ...restProps
 }) {
   return <LinearGradient from={from} to={to} {...restProps} />;
 }
 
 export function GradientPinkBlue({
-  from = "#F02FC2",
-  to = "#6094EA",
+  from = "var(--palette-teal)",
+  to = "var(--palette-mint)",
   ...restProps
 }) {
   return <LinearGradient from={from} to={to} {...restProps} />;
 }
 
 export function GradientPinkRed({
-  from = "#F54EA2",
-  to = "#FF7676",
+  from = "var(--palette-teal)",
+  to = "var(--palette-mint)",
   ...restProps
 }) {
   return <LinearGradient from={from} to={to} {...restProps} />;
 }
 
 export function GradientPurpleOrange({
-  from = "#7117EA",
-  to = "#EA6060",
+  from = "var(--palette-teal)",
+  to = "var(--palette-mint)",
   ...restProps
 }) {
   return <LinearGradient from={from} to={to} {...restProps} />;
 }
 
 export function GradientPurpleTeal({
-  from = "#5B247A",
-  to = "#1BCEDF",
+  from = "var(--palette-teal)",
+  to = "var(--palette-mint)",
   ...restProps
 }) {
   return <LinearGradient from={from} to={to} {...restProps} />;
 }
 
 export function GradientSteelPurple({
-  from = "#65799B",
-  to = "#5E2563",
+  from = "var(--palette-teal)",
+  to = "var(--palette-mint)",
   ...restProps
 }) {
   return <LinearGradient from={from} to={to} {...restProps} />;
 }
 
 export function GradientTealBlue({
-  from = "#17EAD9",
-  to = "#6078EA",
+  from = "var(--palette-teal)",
+  to = "var(--palette-mint)",
   ...restProps
 }) {
   return <LinearGradient from={from} to={to} {...restProps} />;

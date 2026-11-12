@@ -126,7 +126,7 @@ export default function ResellerDashboard() {
               </div>
 
               {errorMsg && (
-                <div className="mb-4 p-2.5 text-xs bg-[#fef2f2] border border-[#fecaca] text-[#b91c1c] rounded-md">
+                <div className="mb-4 p-2.5 text-xs bg-[var(--background)] border border-[var(--muted)] text-[var(--primary)] rounded-md">
                   {errorMsg}
                 </div>
               )}

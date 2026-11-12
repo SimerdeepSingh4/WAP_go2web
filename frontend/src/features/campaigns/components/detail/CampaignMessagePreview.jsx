@@ -37,7 +37,7 @@ export default function CampaignMessagePreview({
       <div className="space-y-3 p-4">
         {/* Chat-style preview so the sender sees roughly what recipients see */}
         <div className="max-h-80 overflow-y-auto rounded-lg bg-muted/40 p-3 sm:p-4">
-          <div className="ml-auto w-fit max-w-full rounded-xl rounded-tr-sm border border-black/5 bg-[#e4f7dc] px-3.5 py-3 sm:max-w-[95%]">
+          <div className="ml-auto w-fit max-w-full rounded-xl rounded-tr-sm border border-black/5 bg-[var(--secondary)] px-3.5 py-3 sm:max-w-[95%]">
             {images[0] && (
               <img
                 src={images[0].url}

@@ -147,7 +147,7 @@ export function renderPatternPreset(preset, id, options = {}) {
         <PatternLines
           {...common}
           orientation={["diagonal"]}
-          stroke="#e879f9"
+          stroke="var(--palette-teal)"
           strokeWidth={strokeWidth}
         />
       );

@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { ShieldBan } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
+import { useBranding } from "@/features/branding/BrandingContext";
 
 function PortalIcon({ type = "network", className = "size-5" }) {
   const paths = {
@@ -27,12 +28,12 @@ function PortalIcon({ type = "network", className = "size-5" }) {
   );
 }
 
-function PanelBrand({ name }) {
+function PanelBrand({ name, logo }) {
   return (
     <div className="inline-flex items-center gap-3 text-foreground">
       <img
-        src="https://res.cloudinary.com/dyfjy8kmv/image/upload/v1793689940/Navy_Blue_Bird_Chat_Logo_n0udpf.webp"
-        alt="Promotion Logo"
+        src={logo || "https://res.cloudinary.com/dyfjy8kmv/image/upload/v1793689940/Navy_Blue_Bird_Chat_Logo_n0udpf.webp"}
+        alt={`${name} Logo`}
         className="size-12 sm:size-14 object-contain shrink-0"
       />
       <span className="text-2xl sm:text-[26px] font-bold tracking-tight text-foreground">
@@ -99,7 +100,10 @@ function CampaignWorkflowIllustration() {
   );
 }
 
-export default function LoginPage({ onLogin, panelName = "Promotion" }) {
+export default function LoginPage({ onLogin, panelName: propPanelName }) {
+  const { branding } = useBranding();
+  const panelName = propPanelName || branding.brandName || "Promotion";
+  const brandLogo = branding.logoUrl || "https://res.cloudinary.com/dyfjy8kmv/image/upload/v1793689940/Navy_Blue_Bird_Chat_Logo_n0udpf.webp";
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -158,7 +162,7 @@ export default function LoginPage({ onLogin, panelName = "Promotion" }) {
               setIsAccountBlocked(false);
               setPassword("");
             }}
-            className="mt-6 min-h-11 w-full rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            className="mt-6 min-h-11 w-full rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             Return to sign in
           </button>
@@ -177,7 +181,7 @@ export default function LoginPage({ onLogin, panelName = "Promotion" }) {
         aria-label="About your business messaging portal"
         className="hidden min-w-0 h-full flex-col justify-between border-r border-border bg-muted/40 px-10 py-10 md:flex lg:px-14 xl:px-20 lg:py-12 overflow-hidden"
       >
-        <PanelBrand name={panelName} />
+        <PanelBrand name={panelName} logo={brandLogo} />
 
         <div className="w-full max-w-[480px] my-auto py-4">
           <p className="text-xs font-semibold uppercase tracking-[2px] text-primary">
@@ -205,7 +209,7 @@ export default function LoginPage({ onLogin, panelName = "Promotion" }) {
         className="flex h-full min-w-0 flex-col justify-between bg-background px-8 py-10 sm:px-12 md:px-12 lg:px-16 xl:px-24 lg:py-12 overflow-y-auto md:overflow-hidden"
       >
         <div className="md:hidden">
-          <PanelBrand name={panelName} />
+          <PanelBrand name={panelName} logo={brandLogo} />
         </div>
 
         <div className="flex flex-1 items-center justify-center py-4">
@@ -291,7 +295,7 @@ export default function LoginPage({ onLogin, panelName = "Promotion" }) {
               <button
                 type="submit"
                 disabled={isLoggingIn}
-                className="flex min-h-[46px] w-full cursor-pointer items-center justify-between gap-3 rounded-lg bg-primary hover:bg-primary/90 px-5 py-3 text-sm font-semibold text-primary-foreground transition-all shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-70 mt-3"
+                className="flex min-h-[46px] w-full cursor-pointer items-center justify-between gap-3 rounded-lg bg-primary hover:bg-primary-hover px-5 py-3 text-sm font-semibold text-primary-foreground transition-all shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-70 mt-3"
               >
                 <span role="status" aria-live="polite">
                   {isLoggingIn ? "Signing in…" : "Sign in"}

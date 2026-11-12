@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { getSessions, logoutSession, changePassword, uploadProfileImage, removeProfileImage } from "@/features/auth/services/auth.api";
+import { getResellerBranding } from "@/features/branding/branding.api";
 import { QueryState, FormError } from "@/features/admin/components/shared";
 import { Card } from "@/components/ui/card";
-import { UserRound, LockKeyhole, MonitorSmartphone, Laptop, Smartphone, Tablet, RefreshCw, LogOut, Info, ShieldCheck, Eye, EyeOff, Loader2, Trash2 } from "lucide-react";
+import { UserRound, LockKeyhole, MonitorSmartphone, Laptop, Smartphone, Tablet, RefreshCw, LogOut, Info, ShieldCheck, Eye, EyeOff, Loader2, Trash2, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import UserAvatar from "@/components/dashboard/UserAvatar";
 import ProfilePhotoUpload from "./ProfilePhotoUpload";
+import ResellerBrandingSettings from "@/features/reseller/components/ResellerBrandingSettings";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { dateTime } from "@/features/admin/lib/format";
 import { toast } from "@/components/ui/toast";
@@ -43,6 +45,28 @@ export default function AccountSettings() {
   const [visiblePasswords, setVisiblePasswords] = useState({});
   const [activeTab, setActiveTab] = useState("profile");
   const [photoUploadVersion, setPhotoUploadVersion] = useState(0);
+
+  const isReseller = user?.role === "Reseller";
+  const resellerBrandingQuery = useQuery({
+    queryKey: ["resellerBranding"],
+    queryFn: getResellerBranding,
+    enabled: isReseller,
+  });
+
+  const isWhiteLabelActive = Boolean(
+    isReseller &&
+      (resellerBrandingQuery.data?.isActive ??
+        (user?.whiteLabel?.isActive ||
+          (user?.whiteLabel?.enabled &&
+            (!user?.whiteLabel?.expiresAt || new Date(user?.whiteLabel?.expiresAt) > new Date()))))
+  );
+
+  useEffect(() => {
+    if (activeTab === "branding" && !isWhiteLabelActive) {
+      setActiveTab("profile");
+    }
+  }, [activeTab, isWhiteLabelActive]);
+
   const sessions = useQuery({ queryKey: ["accountSessions", user?.id || user?._id], queryFn: getSessions, enabled: !user?.isPreview });
   const password = useMutation({ mutationFn: changePassword, onSuccess: () => { setPasswords({ currentPassword: "", newPassword: "", confirmPassword: "" }); toast.add({ title: "Password changed", type: "success" }); } });
   const profileImage = useMutation({
@@ -92,7 +116,12 @@ export default function AccountSettings() {
       <div className="portal-heading-copy"><h1>Settings</h1><p>Manage your account and keep your workspace secure.</p></div>
       <span className="account-settings-role"><UserRound aria-hidden="true" />{user?.role || "Account"} account</span>
     </header>
-    <div className="account-settings-nav" role="tablist" aria-label="Account settings sections">{[["profile", "Profile", UserRound], ["password", "Password", LockKeyhole], ["devices", "Devices", MonitorSmartphone]].map(([section, label, Icon], index, tabs) => <button key={section} id={`account-tab-${section}`} type="button" role="tab" aria-selected={activeTab === section} aria-controls={`account-${section}`} tabIndex={activeTab === section ? 0 : -1} onClick={() => setActiveTab(section)} onKeyDown={event => {
+    <div className="account-settings-nav" role="tablist" aria-label="Account settings sections">{[
+      ["profile", "Profile", UserRound],
+      ["password", "Password", LockKeyhole],
+      ["devices", "Devices", MonitorSmartphone],
+      ...(isWhiteLabelActive ? [["branding", "Branding", Palette]] : []),
+    ].map(([section, label, Icon], index, tabs) => <button key={section} id={`account-tab-${section}`} type="button" role="tab" aria-selected={activeTab === section} aria-controls={`account-${section}`} tabIndex={activeTab === section ? 0 : -1} onClick={() => setActiveTab(section)} onKeyDown={event => {
       let next;
       if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
       if (event.key === "ArrowLeft") next = (index + tabs.length - 1) % tabs.length;
@@ -167,6 +196,17 @@ export default function AccountSettings() {
           {otherDevices.length > 0 && <div className="account-settings-devices-footer"><p>Your current device will stay signed in.</p><Button variant="outline" onClick={() => { revoke.reset(); setDisconnect("all"); }}><LogOut aria-hidden="true" />Sign out other devices</Button></div>}
         </QueryState>}
       </SettingsCard>
+      {isWhiteLabelActive && (
+        <SettingsCard
+          section="branding"
+          active={activeTab === "branding"}
+          title="Branding & White-Label"
+          description="Customize your subdomain, company logo, and theme colors."
+          icon={Palette}
+        >
+          <ResellerBrandingSettings />
+        </SettingsCard>
+      )}
     </div>
     {disconnect && <Dialog open onOpenChange={open => { if (!open && !revoke.isPending) setDisconnect(null); }}><DialogContent><DialogHeader><DialogTitle>Sign out {disconnect === "all" ? "other devices" : "this device"}?</DialogTitle><DialogDescription>The affected devices will need to sign in again. Your current session stays signed in.</DialogDescription></DialogHeader><FormError message={revoke.error?.message} /><div className="flex justify-end gap-2"><Button variant="outline" disabled={revoke.isPending} onClick={() => setDisconnect(null)}>Cancel</Button><Button variant="destructive" disabled={revoke.isPending} onClick={() => revoke.mutate(disconnect)}>{revoke.isPending ? "Signing out…" : "Sign out devices"}</Button></div></DialogContent></Dialog>}
   </div>;

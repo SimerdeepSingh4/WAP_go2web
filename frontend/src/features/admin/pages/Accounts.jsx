@@ -18,13 +18,17 @@ import {
   UserCog,
   Download,
   Upload,
+  Sparkles,
+  Globe,
 } from "lucide-react";
 import api from "@/api/client";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { PageHeading, QueryState, SearchBox, FilterSelect, StatusBadge, DataTable } from "../components/shared";
 import ActionForm from "../components/ActionForm";
+import WhiteLabelAccessDialog from "../components/WhiteLabelAccessDialog";
 import { useAdminQuery } from "../hooks/useAdmin";
 import { number, dateTime } from "../lib/format";
 import { toast } from "@/components/ui/toast";
@@ -157,6 +161,16 @@ function AccountDetail({ account, onClose, onAction }) {
               ["Account expiry", account.expiresAt ? `${dateTime(account.expiresAt)}${account.isExpired ? " (Expired)" : ""}` : "No expiry"],
               ["Assigned reseller", account.resellerId?.username || "—"],
               ["Created", dateTime(account.createdAt)],
+              ...(account.role === "Reseller"
+                ? [
+                    [
+                      "White-label access",
+                      account.whiteLabel?.enabled
+                        ? `${account.whiteLabel?.expiresAt ? `Active (Expires ${dateTime(account.whiteLabel.expiresAt)})` : "Active (Unlimited)"}${account.whiteLabel?.subdomain ? ` · Subdomain: ${account.whiteLabel.subdomain}` : ""}`
+                        : "Disabled",
+                    ],
+                  ]
+                : []),
             ].map(([label, value]) => (
               <div key={label} className="border-b pb-2">
                 <dt className="text-xs text-muted-foreground">{label}</dt>
@@ -406,6 +420,29 @@ export default function Accounts({ role }) {
             render: (a) =>
               number(accounts.filter((u) => u.role === "User" && (u.resellerId?._id || u.resellerId) === a._id).length),
           },
+          {
+            key: "whiteLabel",
+            label: "White-Label",
+            render: (a) => {
+              const isEnabled = Boolean(a.whiteLabel?.enabled);
+              const isExpired = Boolean(isEnabled && a.whiteLabel?.expiresAt && new Date(a.whiteLabel.expiresAt) <= new Date());
+              if (!isEnabled) {
+                return <Badge variant="outline" className="text-muted-foreground text-[11px] font-normal">Disabled</Badge>;
+              }
+              if (isExpired) {
+                return (
+                  <Badge variant="outline" className="text-destructive border-destructive/40 text-[11px] font-medium" title={a.whiteLabel?.expiresAt ? `Expired on ${dateTime(a.whiteLabel.expiresAt)}` : "Expired"}>
+                    Expired
+                  </Badge>
+                );
+              }
+              return (
+                <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 text-[11px] font-medium" title={a.whiteLabel?.expiresAt ? `Expires ${dateTime(a.whiteLabel.expiresAt)}` : "Unlimited access"}>
+                  Active {a.whiteLabel?.subdomain ? `(${a.whiteLabel.subdomain})` : ""}
+                </Badge>
+              );
+            },
+          },
         ]),
     {
       key: "rate",
@@ -458,6 +495,12 @@ export default function Accounts({ role }) {
               <Lock className="size-4 mr-2" />
               Manage access & expiry
             </DropdownMenuItem>
+            {role === "Reseller" && (
+              <DropdownMenuItem onClick={() => setModal({ type: "whiteLabel", account: a })}>
+                <Sparkles className="size-4 mr-2 text-primary" />
+                White-label access
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={() => setModal({ type: "rate", account: a })}>
               <Pencil className="size-4 mr-2" />
               Change rate
@@ -884,6 +927,17 @@ export default function Accounts({ role }) {
             </>
           )}
           submitLabel="Reclaim credits"
+        />
+      )}
+
+      {modal?.type === "whiteLabel" && (
+        <WhiteLabelAccessDialog
+          open
+          account={modal.account}
+          onClose={() => setModal(null)}
+          onSuccess={() => {
+            query.refetch();
+          }}
         />
       )}
     </>

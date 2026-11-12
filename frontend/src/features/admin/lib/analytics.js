@@ -25,13 +25,13 @@ export function campaignTrend(campaigns, days = 14, now = new Date()) {
 }
 
 export function campaignDistribution(campaigns) {
-  const colors = { pending: "#c59239", scheduled: "#8a9fb4", ongoing: "#6D8196", completed: "#000080", paused: "#857493", stopped: "#5a6875", failed: "#b63832", draft: "#ADD8E6" };
+  const colors = { pending: "var(--palette-gray)", scheduled: "var(--palette-teal)", ongoing: "var(--chart-1)", completed: "var(--chart-2)", paused: "var(--chart-4)", stopped: "var(--muted-foreground)", failed: "var(--destructive)", draft: "var(--palette-light-gray)" };
   const counts = new Map(Object.keys(colors).map((status) => [status, 0]));
   campaigns.forEach(({ status }) => {
     const key = status === "sent" ? "completed" : status;
     counts.set(key, (counts.get(key) || 0) + 1);
   });
-  return [...counts].filter(([, value]) => value > 0).map(([status, value]) => ({ status, label: statusLabels[status] || "Other", value, color: colors[status] || "#7b807d" }));
+  return [...counts].filter(([, value]) => value > 0).map(([status, value]) => ({ status, label: statusLabels[status] || "Other", value, color: colors[status] || "var(--muted-foreground)" }));
 }
 
 export function deliveryMetrics(campaigns) {

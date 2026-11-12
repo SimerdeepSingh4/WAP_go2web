@@ -64,9 +64,83 @@ const userSchema = new mongoose.Schema(
             default: 12, // default 12 paise per message
             min: [0, "Rate per message cannot be negative"],
         },
+        whiteLabel: {
+            enabled: {
+                type: Boolean,
+                default: false,
+            },
+            expiresAt: {
+                type: Date,
+                default: null,
+            },
+            subdomain: {
+                type: String,
+                trim: true,
+                lowercase: true,
+                default: "",
+            },
+            brandName: {
+                type: String,
+                trim: true,
+                default: "",
+                maxlength: 100,
+            },
+            logoUrl: {
+                type: String,
+                trim: true,
+                default: "",
+            },
+            primaryColor: {
+                type: String,
+                trim: true,
+                default: "",
+                validate: {
+                    validator: (v) => !v || /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v),
+                    message: "Primary color must be a valid hex color code.",
+                },
+            },
+            secondaryColor: {
+                type: String,
+                trim: true,
+                default: "",
+                validate: {
+                    validator: (v) => !v || /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v),
+                    message: "Secondary color must be a valid hex color code.",
+                },
+            },
+            accentColor: {
+                type: String,
+                trim: true,
+                default: "",
+                validate: {
+                    validator: (v) => !v || /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v),
+                    message: "Accent color must be a valid hex color code.",
+                },
+            },
+        },
     },
     {
         timestamps: true,
+        toJSON: { virtuals: true },
+        toObject: { virtuals: true },
+    }
+);
+
+userSchema.virtual("isWhiteLabelActive").get(function () {
+    if (!this.whiteLabel?.enabled) return false;
+    if (!this.whiteLabel.expiresAt) return true;
+    return new Date(this.whiteLabel.expiresAt) > new Date();
+});
+
+userSchema.index(
+    { "whiteLabel.subdomain": 1 },
+    {
+        unique: true,
+        sparse: true,
+        partialFilterExpression: {
+            "whiteLabel.subdomain": { $exists: true, $type: "string", $gt: "" },
+            role: "Reseller",
+        },
     }
 );
 

@@ -33,20 +33,16 @@ export function PageHeading({ title, description, action, eyebrow }) {
 
 export function StatusBadge({ status }) {
   const tone = ["active", "completed", "sent"].includes(status)
-    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+    ? "success"
     : status === "pending"
-    ? "border-amber-200 bg-amber-50 text-amber-800"
-    : status === "scheduled"
-    ? "border-purple-200 bg-purple-50 text-purple-700"
-    : status === "ongoing"
-    ? "border-blue-200 bg-blue-50 text-blue-700"
-    : status === "stopped"
-    ? "border-stone-300 bg-stone-100 text-stone-800"
+    ? "warning"
+    : ["scheduled", "ongoing"].includes(status)
+    ? "info"
     : ["failed", "blocked", "expired"].includes(status)
-    ? "border-red-200 bg-red-50 text-red-800"
-    : "bg-muted text-muted-foreground";
+    ? "danger"
+    : "neutral";
 
-  return <Badge variant="outline" className={`rounded-md font-normal ${tone}`}>{statusLabels[status] || status}</Badge>;
+  return <Badge variant="outline" className="portal-status font-normal" data-tone={tone}>{statusLabels[status] || status}</Badge>;
 }
 
 export function FilterSelect({ label, value, onChange, options, id, disabled = false, accountSearch }) {
@@ -63,7 +59,7 @@ export function SearchBox({ value, onChange, label = "Search" }) {
 
 export function QueryState({ query, children, empty = false, emptyTitle = "No records yet", emptyDescription = "Records will appear here when they are available." }) {
   if (query.isPending) return <div role="status" aria-label="Loading records" className="space-y-3 p-6"><span className="sr-only">Loading records</span>{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-9 w-full" />)}</div>;
-  if (query.isError) return <div role="alert" className="space-y-3 rounded-lg border border-red-200 bg-red-50/40 p-5"><p className="font-medium">Unable to load this information</p><p className="text-sm text-muted-foreground">{query.error.message}</p><Button variant="outline" onClick={() => query.refetch()} disabled={query.isFetching}><RefreshCw />Retry</Button></div>;
+  if (query.isError) return <div role="alert" className="space-y-3 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] p-5"><p className="font-medium">Unable to load this information</p><p className="text-sm text-muted-foreground">{query.error.message}</p><Button variant="outline" onClick={() => query.refetch()} disabled={query.isFetching}><RefreshCw />Retry</Button></div>;
   if (empty) return <Empty className="py-12"><EmptyHeader><Inbox className="mx-auto mb-2 size-6 text-muted-foreground" aria-hidden="true" /><EmptyTitle>{emptyTitle}</EmptyTitle><EmptyDescription>{emptyDescription}</EmptyDescription></EmptyHeader></Empty>;
   return children;
 }
@@ -73,7 +69,7 @@ export function Field({ label, id, hint, children }) {
 }
 
 export function FormError({ message }) {
-  return <AnimatedCollapse open={Boolean(message)}><p role="alert" className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">{message}</p></AnimatedCollapse>;
+  return <AnimatedCollapse open={Boolean(message)}><p role="alert" className="rounded-md border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] p-3 text-sm text-[var(--status-danger-text)]">{message}</p></AnimatedCollapse>;
 }
 
 export function Pager({ page, totalPages, total, onChange, disabled }) {

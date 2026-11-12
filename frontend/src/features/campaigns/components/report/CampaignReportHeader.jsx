@@ -68,7 +68,7 @@ export default function CampaignReportHeader({
               size="sm"
               onClick={onSaveReport}
               disabled={isSaving || !isDirty}
-              className="gap-1.5 bg-[#000080] hover:bg-[#000080]/90 text-white font-medium text-xs"
+              className="gap-1.5 bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white font-medium text-xs"
             >
               <ShieldCheck className="size-4" />
               {isSaving ? "Saving…" : "Save report"}

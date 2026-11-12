@@ -21,7 +21,7 @@
   .mobile-record-highlights dt, .mobile-record-details dt { color: var(--muted-foreground); font-size: 10px; line-height: 1.5; }
   .mobile-record-highlights dd { margin-top: 5px; font-size: 12px; font-weight: 550; }
   .mobile-record-details { margin-top: 12px; border-top: 1px solid var(--border); }
-  .mobile-record-details summary { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 12px; list-style: none; color: var(--primary); font-size: 11px; font-weight: 550; cursor: pointer; }
+  .mobile-record-details summary { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 12px; list-style: none; color: var(--foreground); font-size: 11px; font-weight: 550; cursor: pointer; }
   .mobile-record-details summary::-webkit-details-marker { display: none; }
   .mobile-record-details summary svg { width: 15px; height: 15px; flex-shrink: 0; transition: transform .15s; }
   .mobile-record-details[open] summary svg { transform: rotate(180deg); }

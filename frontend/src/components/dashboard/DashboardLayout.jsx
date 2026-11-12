@@ -1,9 +1,11 @@
 import NotificationBell from "@/features/notifications/NotificationBell";
 import GlobalSearch from "./GlobalSearch";
+import ThemeToggle from "./ThemeToggle";
 import { useState } from "react";
 import { Link, NavLink, Navigate, Outlet, useLocation } from "react-router";
 import { LayoutDashboard, Megaphone, Users, Building2, Wallet, ReceiptText, Settings, LogOut, ChevronDown, PanelLeftClose, PanelLeftOpen, Bell, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useBranding } from "@/features/branding/BrandingContext";
 import UserAvatar from "@/components/dashboard/UserAvatar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -48,7 +50,11 @@ const navigation = {
 function Navigation({ role, base, items }) {
   const { pathname } = useLocation();
   const { setOpenMobile, toggleSidebar, state } = useSidebar();
+  const { branding } = useBranding();
   const isCollapsed = state === "collapsed";
+  const brandLogo = branding.logoUrl || "https://res.cloudinary.com/dyfjy8kmv/image/upload/v1793689940/Navy_Blue_Bird_Chat_Logo_n0udpf.webp";
+  const brandTitle = branding.brandName || "Promotion";
+
   return (
     <Sidebar collapsible="icon" className="portal-sidebar">
       <SidebarHeader className="portal-sidebar-header">
@@ -63,8 +69,8 @@ function Navigation({ role, base, items }) {
             >
               <span className="portal-logo-layer portal-logo-default">
                 <img
-                  src="https://res.cloudinary.com/dyfjy8kmv/image/upload/v1793689940/Navy_Blue_Bird_Chat_Logo_n0udpf.webp"
-                  alt="Promotion"
+                  src={brandLogo}
+                  alt={brandTitle}
                 />
               </span>
               <span className="portal-logo-layer portal-logo-hover">
@@ -83,8 +89,8 @@ function Navigation({ role, base, items }) {
             >
               <span className="portal-logo-layer portal-logo-default">
                 <img
-                  src="https://res.cloudinary.com/dyfjy8kmv/image/upload/v1793689940/Navy_Blue_Bird_Chat_Logo_n0udpf.webp"
-                  alt="Promotion"
+                  src={brandLogo}
+                  alt={brandTitle}
                 />
               </span>
               <span className="portal-logo-layer portal-logo-hover">
@@ -93,11 +99,11 @@ function Navigation({ role, base, items }) {
             </button>
             <Link
               to={base}
-              aria-label="Promotion home"
+              aria-label={`${brandTitle} home`}
               onClick={() => setOpenMobile(false)}
               className="portal-brand-copy flex-1 min-w-0"
             >
-              <strong>Promotion<span>.</span></strong>
+              <strong>{brandTitle}<span>.</span></strong>
               <span>{role === "Super Admin" ? "Super admin" : role}</span>
             </Link>
           </div>
@@ -158,6 +164,7 @@ export default function DashboardLayout({ role }) {
                 <div id="tour-notification-bell">
                   <NotificationBell base={base} />
                 </div>
+                <ThemeToggle />
                 {/* Help Menu with Take a Tour */}
                 {hasTour && <DropdownMenu>
                   <DropdownMenuTrigger
@@ -167,10 +174,10 @@ export default function DashboardLayout({ role }) {
                         size="sm"
                         id="tour-help-button"
                         aria-label="Help menu"
-                        className="h-8 gap-1.5 text-xs font-medium border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800"
+                        className="h-8 gap-1.5 text-xs font-medium"
                         title="Help and guided tour"
                       >
-                        <HelpCircle className="size-3.5 text-slate-600 dark:text-slate-400" />
+                        <HelpCircle className="size-3.5 text-muted-foreground" />
                         <span className="hidden sm:inline">Help</span>
                         <ChevronDown className="hidden sm:block size-3 opacity-60 ml-0.5" />
                       </Button>
@@ -202,13 +209,13 @@ export default function DashboardLayout({ role }) {
                       />
                     }
                   >
-                    <UserAvatar user={user} className="size-8.5 rounded-lg border border-slate-200 bg-slate-100 shrink-0" />
-                    <ChevronDown className="size-3.5 text-slate-500 transition-transform portal-profile-chevron" aria-hidden="true" />
+                    <UserAvatar user={user} className="size-8.5 rounded-full border border-border bg-muted shrink-0" />
+                    <ChevronDown className="size-3.5 text-muted-foreground transition-transform portal-profile-chevron" aria-hidden="true" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="portal-account-menu w-60 p-2">
                     <div className="px-2 py-1.5">
-                      <p className="text-xs font-semibold text-slate-900 leading-none">{username}</p>
-                      <p className="text-[11px] text-slate-500 mt-1 truncate">{user?.email || "admin@go2web.in"}</p>
+                      <p className="text-xs font-semibold text-foreground leading-none">{username}</p>
+                      <p className="text-[11px] text-muted-foreground mt-1 truncate">{user?.email || "admin@go2web.in"}</p>
                       <span className="portal-role-badge">
                         {role === "Super Admin" ? "Super admin" : role}
                       </span>

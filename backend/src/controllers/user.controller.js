@@ -41,6 +41,8 @@ export async function getUsers(req, res) {
         const usersWithExpiry = users.map((user) => {
             const w = walletMap.get(String(user._id));
             const isWalletExpired = Boolean(w?.expiresAt && new Date(w.expiresAt) <= now);
+            const isWlActive = Boolean(user.whiteLabel?.enabled && (!user.whiteLabel?.expiresAt || new Date(user.whiteLabel.expiresAt) > now));
+            const isWlExpired = Boolean(user.whiteLabel?.enabled && user.whiteLabel?.expiresAt && new Date(user.whiteLabel.expiresAt) <= now);
             return {
                 ...user.toObject(),
                 wallet: w
@@ -57,6 +59,8 @@ export async function getUsers(req, res) {
                           isExpired: false,
                       },
                 isExpired: user.status === "expired" || Boolean(user.expiresAt && user.expiresAt <= now),
+                isWhiteLabelActive: isWlActive,
+                isWhiteLabelExpired: isWlExpired,
             };
         });
 
@@ -484,6 +488,82 @@ export async function updateUserAccess(req, res) {
     } catch (error) {
         console.error("UpdateUserAccess error:", error);
         return res.status(500).json({ message: "Failed to update account access", success: false });
+    }
+}
+
+/**
+ * PATCH /api/users/:id/white-label-access
+ * Only Super Admin can grant, revoke, or change expiry for white-label access on Resellers.
+ */
+export async function updateWhiteLabelAccess(req, res) {
+    try {
+        const { id } = req.params;
+        const { enabled, expiresAt } = req.body;
+
+        const targetUser = await userModel.findById(id);
+        if (!targetUser) {
+            return res.status(404).json({ message: "Reseller account not found", success: false });
+        }
+
+        if (targetUser.role !== "Reseller") {
+            return res.status(400).json({
+                message: "White-label access can only be granted to Reseller accounts.",
+                success: false,
+            });
+        }
+
+        if (typeof enabled !== "boolean") {
+            return res.status(400).json({
+                message: "Enabled field must be a boolean (true or false).",
+                success: false,
+            });
+        }
+
+        targetUser.whiteLabel = targetUser.whiteLabel || {};
+        targetUser.whiteLabel.enabled = enabled;
+
+        if (Object.hasOwn(req.body, "expiresAt")) {
+            if (expiresAt === null || expiresAt === "") {
+                targetUser.whiteLabel.expiresAt = null;
+            } else {
+                const parsedExpiry = new Date(expiresAt);
+                if (Number.isNaN(parsedExpiry.getTime())) {
+                    return res.status(400).json({
+                        message: "Enter a valid white-label expiry date.",
+                        success: false,
+                    });
+                }
+                if (/^\d{4}-\d{2}-\d{2}$/.test(expiresAt)) {
+                    parsedExpiry.setUTCHours(23, 59, 59, 999);
+                }
+                targetUser.whiteLabel.expiresAt = parsedExpiry;
+            }
+        }
+
+        await targetUser.save();
+
+        notifyUser(targetUser._id, "WHITE_LABEL_ACCESS_UPDATED", {
+            whiteLabel: targetUser.whiteLabel,
+            isWhiteLabelActive: targetUser.isWhiteLabelActive,
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: `White-label access ${enabled ? "granted" : "revoked"} successfully for ${targetUser.username}.`,
+            user: {
+                id: targetUser._id,
+                username: targetUser.username,
+                role: targetUser.role,
+                whiteLabel: targetUser.whiteLabel,
+                isWhiteLabelActive: targetUser.isWhiteLabelActive,
+            },
+        });
+    } catch (error) {
+        console.error("updateWhiteLabelAccess error:", error);
+        return res.status(500).json({
+            message: "Failed to update white-label access.",
+            success: false,
+        });
     }
 }
 

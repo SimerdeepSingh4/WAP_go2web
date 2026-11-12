@@ -16,7 +16,7 @@ import {
   Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import OverviewMetricCards from "@/components/dashboard/OverviewMetricCards";
 import { useAdminQuery } from "../hooks/useAdmin";
 import {
   PageHeading,
@@ -514,43 +514,12 @@ export default function Credits({ activity = false }) {
 
         {/* Overview Stats Cards */}
         <QueryState query={overview}>
-          <div data-tour="credit-summary" className="grid gap-3 sm:grid-cols-3">
-            <Card className="rounded-lg shadow-none">
-              <CardContent className="p-4 sm:p-5">
-                <p className="flex items-center justify-between text-xs text-muted-foreground">
-                  Super Admin Balance
-                  <Wallet className="size-4 text-muted-foreground" />
-                </p>
-                <p className="mt-2 text-2xl font-bold tracking-tight text-primary">Unlimited</p>
-                <p className="mt-1 text-xs text-muted-foreground">Unlimited sending pool</p>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-lg shadow-none">
-              <CardContent className="p-4 sm:p-5">
-                <p className="flex items-center justify-between text-xs text-muted-foreground">
-                  Total Credits Given
-                  <Coins className="size-4 text-emerald-600" />
-                </p>
-                <p className="mt-2 text-2xl font-bold tracking-tight tabular-nums">
-                  {number(overview.data?.stats?.credits?.totalAllocatedBySuperAdmin)}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">Total credits added across network</p>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-lg shadow-none">
-              <CardContent className="p-4 sm:p-5">
-                <p className="flex items-center justify-between text-xs text-muted-foreground">
-                  Circulating Balances
-                  <TrendingUp className="size-4 text-blue-600" />
-                </p>
-                <p className="mt-2 text-2xl font-bold tracking-tight tabular-nums">
-                  {number(overview.data?.stats?.credits?.totalCreditsInCirculation)}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">Current credits held in user/reseller wallets</p>
-              </CardContent>
-            </Card>
+          <div data-tour="credit-summary">
+            <OverviewMetricCards columns={3} label="Credit summary" items={[
+              { label: "Super Admin Balance", value: "Unlimited", caption: "Unlimited sending pool", icon: Wallet },
+              { label: "Total Credits Given", value: overview.data?.stats?.credits?.totalAllocatedBySuperAdmin, caption: "Total credits added across network", icon: Coins },
+              { label: "Circulating Balances", value: overview.data?.stats?.credits?.totalCreditsInCirculation, caption: "Current credits held in user/reseller wallets", icon: TrendingUp },
+            ]} />
           </div>
         </QueryState>
 

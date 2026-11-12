@@ -34,25 +34,25 @@ export default function CampaignPerformanceChart({
   y2 = 19000,
 }) {
   return (
-    <div className="w-full rounded-2xl bg-[#0f1115] p-6 text-white border border-white/10 shadow-2xl space-y-4">
+    <div className="w-full rounded-2xl bg-card p-6 text-foreground border border-border shadow-sm space-y-4">
       {/* Top Header */}
       <div className="flex items-center justify-between pb-2">
         <div>
-          <h3 className="text-base font-bold tracking-tight text-white/95">
+          <h3 className="text-base font-bold tracking-tight text-foreground">
             {title}
           </h3>
-          <p className="text-xs text-white/50">
+          <p className="text-xs text-muted-foreground">
             Real-time delivery & dispatch trends
           </p>
         </div>
 
         {/* Action pills */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70">
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-accent border border-border text-xs text-accent-foreground">
             <span className="size-2 rounded-full bg-[var(--chart-1)] animate-pulse" />
             <span>{primaryLabel}</span>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70">
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-secondary border border-border text-xs text-secondary-foreground">
             <span className="size-2 rounded-full bg-[var(--chart-2)]" />
             <span>{secondaryLabel}</span>
           </div>
@@ -68,7 +68,7 @@ export default function CampaignPerformanceChart({
           className="h-full"
         >
           {/* Subtle Horizontal Grid */}
-          <Grid horizontal stroke="rgba(255, 255, 255, 0.07)" strokeDasharray="3 3" />
+          <Grid horizontal stroke="var(--chart-grid)" strokeDasharray="3 3" />
 
           {/* Reference Target Range Band */}
           <ReferenceArea
@@ -78,7 +78,7 @@ export default function CampaignPerformanceChart({
             fillOpacity={1}
             pattern="none"
             patternColor="var(--chart-foreground-muted)"
-            stroke="rgba(255, 255, 255, 0.18)"
+            stroke="var(--chart-grid)"
             strokeStyle="dashed"
             strokeDasharray="4,4"
             fadeEdges={true}

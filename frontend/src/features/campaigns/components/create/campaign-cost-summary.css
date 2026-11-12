@@ -1,4 +1,4 @@
-[data-slot="card"].campaign-cost-summary { container: cost-summary / inline-size; gap: 0; min-width: 0; padding: 0; border: 1px solid var(--border); border-radius: 16px; background: var(--card); box-shadow: 0 3px 14px #0f172a04; }
+[data-slot="card"].campaign-cost-summary { container: cost-summary / inline-size; gap: 0; min-width: 0; padding: 0; border: 1px solid var(--border); border-radius: 16px; background: var(--card); box-shadow: 0 3px 14px color-mix(in srgb, var(--foreground) 1.57%, transparent); }
 .campaign-cost-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 24px; border-bottom: 1px solid var(--border); }
 .campaign-cost-heading-copy { display: flex; min-width: 0; align-items: center; gap: 12px; }
 .campaign-cost-icon { display: grid; width: 38px; height: 38px; flex-shrink: 0; place-items: center; border: 1px solid var(--border); border-radius: 11px; background: var(--muted); color: var(--primary); }
@@ -6,7 +6,7 @@
 .campaign-cost-heading h2 { margin: 0; color: var(--foreground); font-size: 15px; font-weight: 650; line-height: 1.4; letter-spacing: -.025em; }
 .campaign-cost-heading-copy p { margin: 4px 0 0; color: var(--muted-foreground); font-size: 12px; line-height: 1.6; }
 .campaign-cost-readiness { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; padding: 6px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--muted); color: var(--muted-foreground); font-size: 10px; font-weight: 550; }
-.campaign-cost-readiness[data-ready="true"] { border-color: #bbdfd0; background: #f1faf6; color: #217553; }
+.campaign-cost-readiness[data-ready="true"] { border-color: var(--border); background: var(--background); color: var(--chart-positive); }
 .campaign-cost-readiness svg { width: 13px; height: 13px; }
 .campaign-cost-body { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 32px; padding: 24px; }
 .campaign-cost-breakdown, .campaign-cost-checklist { min-width: 0; }
@@ -38,8 +38,8 @@
 .campaign-cost-checklist li > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .campaign-cost-checklist li small { flex-shrink: 0; color: var(--muted-foreground); font-size: 9px; }
 .campaign-cost-checklist li[data-complete="true"] { color: var(--foreground); }
-.campaign-cost-checklist li[data-complete="true"] > svg { color: #278264; }
-.campaign-cost-checklist li[data-complete="true"] small { color: #278264; }
+.campaign-cost-checklist li[data-complete="true"] > svg { color: var(--chart-positive); }
+.campaign-cost-checklist li[data-complete="true"] small { color: var(--chart-positive); }
 .campaign-cost-alert { margin: 14px 0 0; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--destructive) 20%, var(--border)); border-radius: 8px; background: color-mix(in srgb, var(--destructive) 5%, var(--card)); color: var(--destructive); font-size: 11px; line-height: 1.7; }
 .campaign-cost-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 24px; border-top: 1px solid var(--border); background: color-mix(in srgb, var(--muted) 30%, var(--card)); }
 .campaign-cost-footer > p { display: flex; align-items: center; gap: 7px; margin: 0; color: var(--muted-foreground); font-size: 10px; line-height: 1.7; }

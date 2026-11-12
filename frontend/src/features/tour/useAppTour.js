@@ -46,7 +46,7 @@ export function useAppTour(role, userId) {
         showProgress: true,
         progressText: "{{current}} of {{total}}",
         animate: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-        overlayColor: "#0f172a",
+        overlayColor: "var(--foreground)",
         overlayOpacity: 0.55,
         overlayClickBehavior: "none",
         stagePadding: 6,

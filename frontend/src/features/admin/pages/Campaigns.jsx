@@ -9,7 +9,7 @@ import { useAdminMutation } from "../hooks/useAdmin";
 import { Button } from "@/components/ui/button";
 import CampaignFilterCalendar from "../components/CampaignFilterCalendar";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { PageHeading, SearchBox, QueryState, DataTable, StatusBadge } from "../components/shared";
+import { PageHeading, QueryState, DataTable, StatusBadge } from "../components/shared";
 import { useAdminQuery } from "../hooks/useAdmin";
 import { number, dateTime, ownerName, needsReport, published, waiting } from "../lib/format";
 import CampaignDetail from "../components/CampaignDetail";
@@ -253,7 +253,8 @@ export default function Campaigns({ reports = false }) {
       />
 
       {/* Filter Tabs Bar */}
-      <div data-tour="campaign-status" className="flex flex-wrap items-center gap-1.5 border-b pb-3">
+      <div className="campaign-list-toolbar flex flex-wrap items-center justify-between gap-3 border-b pb-3">
+      <div data-tour="campaign-status" className="flex flex-wrap items-center gap-1.5">
         {quickFilterTabs.map((tab) => {
           const isCurrent = status === tab.val;
           return (
@@ -279,9 +280,7 @@ export default function Campaigns({ reports = false }) {
         })}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <SearchBox value={search} onChange={(value) => update("search", value)} label="Search campaigns or accounts..." />
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="ml-auto flex max-w-full flex-wrap items-center gap-2">
           <Popover.Root open={calendarOpen} onOpenChange={(open) => {
             if (open) setDraftRange(selectedRange);
             setCalendarOpen(open);
@@ -330,7 +329,7 @@ export default function Campaigns({ reports = false }) {
               </Popover.Positioner>
             </Popover.Portal>
           </Popover.Root>
-          <motion.div className="campaign-date-clear-slot" initial={false} animate={{ opacity: hasDateFilter ? 1 : 0, scale: hasDateFilter ? 1 : 0.85 }} transition={{ duration: reducedMotion ? 0 : 0.16 }} style={{ pointerEvents: hasDateFilter ? "auto" : "none" }} aria-hidden={!hasDateFilter}>
+          <motion.div className="campaign-date-clear-slot" initial={false} animate={{ opacity: hasDateFilter ? 1 : 0, scale: hasDateFilter ? 1 : 0.85 }} transition={{ duration: reducedMotion ? 0 : 0.16 }} style={{ display: hasDateFilter ? "flex" : "none" }} aria-hidden={!hasDateFilter}>
             <Button variant="ghost" size="icon-sm" disabled={!hasDateFilter} tabIndex={hasDateFilter ? 0 : -1} aria-label="Clear date filter" title="Clear date filter" onClick={() => {
               setParams((current) => {
                 const next = new URLSearchParams(current);
@@ -343,7 +342,7 @@ export default function Campaigns({ reports = false }) {
               <X className="size-4" />
             </Button>
           </motion.div>
-          <motion.div initial={false} animate={{ opacity: hasFilters ? 1 : 0 }} transition={{ duration: reducedMotion ? 0 : 0.16 }} style={{ pointerEvents: hasFilters ? "auto" : "none" }} aria-hidden={!hasFilters}>
+          <motion.div initial={false} animate={{ opacity: hasFilters ? 1 : 0 }} transition={{ duration: reducedMotion ? 0 : 0.16 }} style={{ display: hasFilters ? undefined : "none" }} aria-hidden={!hasFilters}>
             <Button variant="ghost" size="sm" disabled={!hasFilters} tabIndex={hasFilters ? 0 : -1} onClick={() => setParams({})}>
               Clear all filters
             </Button>

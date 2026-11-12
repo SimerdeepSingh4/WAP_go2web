@@ -105,7 +105,7 @@ export default function UserDashboard() {
         <div className="flex items-center gap-3">
           <Link
             to="/campaigns/create"
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-md hover:bg-primary/90 transition-colors shadow-xs"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-md hover:bg-primary-hover transition-colors shadow-xs"
           >
             <PlusCircle size={15} />
             New Campaign
@@ -199,7 +199,7 @@ export default function UserDashboard() {
               <p className="text-xs mt-1">Create your first campaign to get started.</p>
               <Link
                 to="/campaigns/create"
-                className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-md hover:bg-primary/90 transition-colors"
+                className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground text-xs font-semibold rounded-md hover:bg-primary-hover transition-colors"
               >
                 <PlusCircle size={13} />
                 Create Campaign

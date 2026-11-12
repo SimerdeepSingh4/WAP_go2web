@@ -32,7 +32,7 @@ export default function RecordReference({ id, label, prefix, compact = false }) 
         onClick={copy}
         aria-label={`Copy ${label.toLowerCase()} ${id}`}
         title={`Copy full ${label.toLowerCase()} (${id})`}
-        className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+        className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted-hover hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
       >
         <Copy className="size-3.5" aria-hidden="true" />
       </button>

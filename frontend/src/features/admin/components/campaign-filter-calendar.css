@@ -8,7 +8,7 @@
   padding: 6px;
   background: var(--popover);
   color: var(--popover-foreground);
-  box-shadow: 0 16px 48px -16px #15244430, 0 3px 10px #15244408;
+  box-shadow: 0 16px 48px -16px color-mix(in srgb, var(--foreground) 18.82%, transparent), 0 3px 10px color-mix(in srgb, var(--foreground) 3.14%, transparent);
   outline: none;
   transform-origin: var(--transform-origin);
   transition: opacity var(--motion-fast) var(--motion-ease), transform var(--motion-panel) var(--motion-ease);

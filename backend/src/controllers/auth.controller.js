@@ -14,6 +14,35 @@ function isAccountExpired(user) {
     return user.status === "expired" || Boolean(user.expiresAt && new Date(user.expiresAt) <= new Date());
 }
 
+export async function resolveUserWhiteLabel(user) {
+    if (!user) return null;
+    const now = new Date();
+    if (user.role === "Reseller") {
+        const isWlActive = Boolean(user.whiteLabel?.enabled && (!user.whiteLabel?.expiresAt || new Date(user.whiteLabel.expiresAt) > now));
+        const isWlExpired = Boolean(user.whiteLabel?.enabled && user.whiteLabel?.expiresAt && new Date(user.whiteLabel.expiresAt) <= now);
+        return {
+            ...user.whiteLabel?.toObject?.() || user.whiteLabel || {},
+            isActive: isWlActive,
+            isExpired: isWlExpired,
+        };
+    }
+    if (user.role === "User" && user.resellerId) {
+        const reseller = await userModel.findById(user.resellerId).select("username companyName whiteLabel");
+        if (reseller?.whiteLabel?.enabled) {
+            const isWlActive = !reseller.whiteLabel.expiresAt || new Date(reseller.whiteLabel.expiresAt) > now;
+            if (isWlActive) {
+                return {
+                    ...reseller.whiteLabel.toObject?.() || reseller.whiteLabel,
+                    brandName: reseller.whiteLabel.brandName || reseller.companyName || reseller.username,
+                    isActive: true,
+                    isExpired: false,
+                };
+            }
+        }
+    }
+    return null;
+}
+
 /**
  * Creates a new session for a user and enforces the max concurrent device limit.
  * If 3 devices are already logged in, the oldest device session is removed (logged out).
@@ -233,6 +262,7 @@ export async function login(req, res) {
         }
 
         const { token } = await createDeviceSession(user, req, res);
+        const whiteLabel = await resolveUserWhiteLabel(user);
 
         return res.status(200).json({
             message: "Login successful",
@@ -245,6 +275,7 @@ export async function login(req, res) {
                 role: user.role,
                 expiresAt: user.expiresAt || null,
                 isExpired: isAccountExpired(user),
+                whiteLabel,
             },
         });
     } catch (error) {
@@ -381,6 +412,7 @@ export async function logoutSession(req, res) {
 
 export async function getMe(req, res) {
     try {
+        const whiteLabel = await resolveUserWhiteLabel(req.user);
         return res.status(200).json({
             success: true,
             user: {
@@ -395,6 +427,7 @@ export async function getMe(req, res) {
                 isPreview: req.isPreview || false,
                 isImpersonation: req.isImpersonation || false,
                 originalAdmin: req.originalAdmin || null,
+                whiteLabel,
             },
             currentSession: {
                 id: req.session._id,

@@ -573,7 +573,7 @@ export default function TestControlPanel() {
             className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
               activeTab === tab.id
                 ? "bg-[var(--primary)] text-white"
-                : "bg-[#f4f6ef] text-[var(--primary)] hover:bg-[#e7ebd9]"
+                : "bg-[var(--background)] text-[var(--primary)] hover:bg-[var(--secondary)]"
             }`}
           >
             {tab.label}
@@ -599,11 +599,11 @@ export default function TestControlPanel() {
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* 1. Allocate Credits */}
-            <div className="rounded-lg bg-[#faf8f5] border border-[var(--background)] p-4">
+            <div className="rounded-lg bg-[var(--background)] border border-[var(--background)] p-4">
               <h3 className="text-sm font-bold text-[var(--foreground)] mb-1">
                 Allocate Credits
               </h3>
-              <p className="text-[11px] text-[#6b7b64] mb-3">
+              <p className="text-[11px] text-[var(--muted-foreground)] mb-3">
                 {isSuperAdmin ? "Super Admin → Transfer credits to Reseller or User" : "Reseller → Transfer from your wallet to Client"}
               </p>
               <form
@@ -625,7 +625,7 @@ export default function TestControlPanel() {
                   required
                   value={creditAlloc.toUserId}
                   onChange={(e) => setCreditAlloc({ ...creditAlloc, toUserId: e.target.value })}
-                  className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white"
+                  className="w-full text-xs p-2 rounded border border-[var(--border)] bg-white"
                 >
                   <option value="">Select Recipient User...</option>
                   {managedUsers.map((u) => (
@@ -643,21 +643,21 @@ export default function TestControlPanel() {
                     placeholder="Credits amount"
                     value={creditAlloc.amount}
                     onChange={(e) => setCreditAlloc({ ...creditAlloc, amount: e.target.value })}
-                    className="text-xs p-2 rounded border border-[#cfd6c7] bg-white"
+                    className="text-xs p-2 rounded border border-[var(--border)] bg-white"
                   />
                   <input
                     type="text"
                     placeholder="Notes (optional)"
                     value={creditAlloc.notes}
                     onChange={(e) => setCreditAlloc({ ...creditAlloc, notes: e.target.value })}
-                    className="text-xs p-2 rounded border border-[#cfd6c7] bg-white"
+                    className="text-xs p-2 rounded border border-[var(--border)] bg-white"
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={allocateMutation.isPending}
-                  className="w-full bg-[var(--primary)] text-white text-xs font-semibold rounded p-2 hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
+                  className="w-full bg-[var(--primary)] text-white text-xs font-semibold rounded p-2 hover:bg-[var(--foreground)] cursor-pointer disabled:opacity-50"
                 >
                   Review & Confirm Transfer →
                 </button>
@@ -666,11 +666,11 @@ export default function TestControlPanel() {
 
             {/* 2. Reclaim (Super Admin Only) OR Irreversible Policy Notice (Reseller) */}
             {isSuperAdmin ? (
-              <div className="rounded-lg bg-[#fefbf6] border border-[#ecd9be] p-4">
-                <h3 className="text-sm font-bold text-[#7d5018] mb-1">
+              <div className="rounded-lg bg-[var(--background)] border border-[var(--border)] p-4">
+                <h3 className="text-sm font-bold text-[var(--primary)] mb-1">
                   Administrative Reclaim (Super Admin Only)
                 </h3>
-                <p className="text-[11px] text-[#8e6e44] mb-3">
+                <p className="text-[11px] text-[var(--primary)] mb-3">
                   Emergency administrative reversal for verified billing disputes.
                 </p>
                 <form
@@ -688,7 +688,7 @@ export default function TestControlPanel() {
                     required
                     value={creditReclaim.fromUserId}
                     onChange={(e) => setCreditReclaim({ ...creditReclaim, fromUserId: e.target.value })}
-                    className="w-full text-xs p-2 rounded border border-[#e2cca9] bg-white"
+                    className="w-full text-xs p-2 rounded border border-[var(--border)] bg-white"
                   >
                     <option value="">Select User to Reclaim From...</option>
                     {managedUsers.map((u) => (
@@ -706,7 +706,7 @@ export default function TestControlPanel() {
                       placeholder="Credits to pull back"
                       value={creditReclaim.amount}
                       onChange={(e) => setCreditReclaim({ ...creditReclaim, amount: e.target.value })}
-                      className="text-xs p-2 rounded border border-[#e2cca9] bg-white"
+                      className="text-xs p-2 rounded border border-[var(--border)] bg-white"
                     />
                     <input
                       type="text"
@@ -714,21 +714,21 @@ export default function TestControlPanel() {
                       required
                       value={creditReclaim.notes}
                       onChange={(e) => setCreditReclaim({ ...creditReclaim, notes: e.target.value })}
-                      className="text-xs p-2 rounded border border-[#e2cca9] bg-white"
+                      className="text-xs p-2 rounded border border-[var(--border)] bg-white"
                     />
                   </div>
 
                   <button
                     type="submit"
                     disabled={reclaimMutation.isPending}
-                    className="w-full bg-[#9a5b18] text-white text-xs font-semibold rounded p-2 hover:bg-[#7e4912] cursor-pointer disabled:opacity-50"
+                    className="w-full bg-[var(--primary)] text-white text-xs font-semibold rounded p-2 hover:bg-[var(--primary)] cursor-pointer disabled:opacity-50"
                   >
                     {reclaimMutation.isPending ? "Processing Reversal..." : "Execute Admin Reversal"}
                   </button>
                 </form>
               </div>
             ) : (
-              <div className="rounded-lg bg-[#f4f7f1] border border-[#d3dfcd] p-4 flex flex-col justify-between">
+              <div className="rounded-lg bg-[var(--background)] border border-[var(--border)] p-4 flex flex-col justify-between">
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-base">🔒</span>
@@ -736,15 +736,15 @@ export default function TestControlPanel() {
                       Irreversible Allocation Policy
                     </h3>
                   </div>
-                  <p className="text-xs text-[#526348] leading-relaxed mb-3">
+                  <p className="text-xs text-[var(--muted-foreground)] leading-relaxed mb-3">
                     To eliminate fraud and protect clients against unauthorized balance withdrawals, all credit allocations from Resellers are <strong>permanent and non-reversible</strong>.
                   </p>
-                  <div className="text-[11px] bg-white p-2.5 rounded border border-[#dce6d6] text-[#48593e] space-y-1">
+                  <div className="text-[11px] bg-white p-2.5 rounded border border-[var(--muted)] text-[var(--muted-foreground)] space-y-1">
                     <p>✓ Double-confirmation and password verification protect against typos.</p>
                     <p>✓ Always verify the recipient and credit quantity before sending.</p>
                   </div>
                 </div>
-                <div className="mt-4 pt-3 border-t border-[#d8e3d2] text-[11px] text-[#788870]">
+                <div className="mt-4 pt-3 border-t border-[var(--secondary)] text-[11px] text-[var(--muted-foreground)]">
                   Offline billing dispute? Contact Super Admin for verified administrative arbitration.
                 </div>
               </div>
@@ -757,8 +757,8 @@ export default function TestControlPanel() {
               Credit Transfer Audit Log ({transactions.length})
             </h3>
             <div className="overflow-x-auto rounded-lg border border-[var(--background)]">
-              <table className="w-full text-left text-xs text-[#3b4735]">
-                <thead className="bg-[#f0f4ea] text-[11px] font-semibold uppercase text-[#54644a]">
+              <table className="w-full text-left text-xs text-[var(--foreground)]">
+                <thead className="bg-[var(--muted)] text-[11px] font-semibold uppercase text-[var(--muted-foreground)]">
                   <tr>
                     <th className="p-2.5">Date</th>
                     <th className="p-2.5">Type</th>
@@ -768,10 +768,10 @@ export default function TestControlPanel() {
                     <th className="p-2.5">Notes</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#edf1e7]">
+                <tbody className="divide-y divide-[var(--muted)]">
                   {transactions.length === 0 ? (
                     <tr>
-                      <td colSpan="6" className="p-4 text-center text-[#75846b]">
+                      <td colSpan="6" className="p-4 text-center text-[var(--muted-foreground)]">
                         No transactions recorded yet.
                       </td>
                     </tr>
@@ -787,7 +787,7 @@ export default function TestControlPanel() {
                           : "bg-blue-100 text-blue-800 border-blue-300";
 
                       return (
-                        <tr key={tx._id} className="hover:bg-[#faf8f5]">
+                        <tr key={tx._id} className="hover:bg-[var(--background)]">
                           <td className="p-2.5 text-[11px] whitespace-nowrap">
                             {new Date(tx.createdAt).toLocaleTimeString()}
                           </td>
@@ -799,7 +799,7 @@ export default function TestControlPanel() {
                           <td className="p-2.5">{tx.fromUser?.username || (tx.type === "ALLOCATE" ? "Super Admin" : "—")}</td>
                           <td className="p-2.5 font-medium">{tx.toUser?.username || "Self"}</td>
                           <td className="p-2.5 font-bold">{tx.amount}</td>
-                          <td className="p-2.5 text-[#6c7b64]">{tx.notes || "—"}</td>
+                          <td className="p-2.5 text-[var(--muted-foreground)]">{tx.notes || "—"}</td>
                         </tr>
                       );
                     })
@@ -820,14 +820,14 @@ export default function TestControlPanel() {
               : "bg-[var(--muted)] border-[var(--border)]"
           }`}>
             <div>
-              <p className={`text-xs font-semibold uppercase tracking-wider ${isLocked ? "text-red-700" : "text-[#546848]"}`}>
+              <p className={`text-xs font-semibold uppercase tracking-wider ${isLocked ? "text-red-700" : "text-[var(--muted-foreground)]"}`}>
                 Your Balance {isLocked && "(Expired & Locked)"}
               </p>
               <h3 className={`text-3xl font-bold mt-1 flex items-center gap-2 ${isLocked ? "text-red-600" : "text-[var(--primary)]"}`}>
                 {isLocked && <Lock className="size-6 text-red-600" />}
                 {myBalance} Credits
               </h3>
-              <p className={`text-xs mt-1 ${isLocked ? "text-red-600 font-semibold" : "text-[#6e7d64]"}`}>
+              <p className={`text-xs mt-1 ${isLocked ? "text-red-600 font-semibold" : "text-[var(--muted-foreground)]"}`}>
                 {isLocked
                   ? `Your credits expired on ${balanceData?.wallet?.expiresAt ? new Date(balanceData.wallet.expiresAt).toLocaleDateString() : "earlier"}. Balance is locked from sending messages until renewed.`
                   : "Each message sent consumes credits from your balance."}
@@ -836,7 +836,7 @@ export default function TestControlPanel() {
             <div className={`text-xs p-3 rounded-lg border ${
               isLocked
                 ? "bg-white text-red-800 border-red-200"
-                : "text-[#526348] bg-white border-[#dde6d4]"
+                : "text-[var(--muted-foreground)] bg-white border-[var(--secondary)]"
             }`}>
               {isLocked
                 ? "Contact your administrator or reseller to renew your credit balance."
@@ -847,8 +847,8 @@ export default function TestControlPanel() {
           <div>
             <h3 className="text-sm font-bold text-[var(--foreground)] mb-2">My Credit History</h3>
             <div className="overflow-x-auto rounded-lg border border-[var(--background)]">
-              <table className="w-full text-left text-xs text-[#3b4735]">
-                <thead className="bg-[#f0f4ea] text-[11px] font-semibold uppercase text-[#54644a]">
+              <table className="w-full text-left text-xs text-[var(--foreground)]">
+                <thead className="bg-[var(--muted)] text-[11px] font-semibold uppercase text-[var(--muted-foreground)]">
                   <tr>
                     <th className="p-2.5">Date</th>
                     <th className="p-2.5">Activity</th>
@@ -856,18 +856,18 @@ export default function TestControlPanel() {
                     <th className="p-2.5">Notes</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#edf1e7]">
+                <tbody className="divide-y divide-[var(--muted)]">
                   {transactions.length === 0 ? (
                     <tr>
-                      <td colSpan="4" className="p-4 text-center text-[#75846b]">No credit activity yet.</td>
+                      <td colSpan="4" className="p-4 text-center text-[var(--muted-foreground)]">No credit activity yet.</td>
                     </tr>
                   ) : (
                     transactions.map((tx) => (
-                      <tr key={tx._id} className="hover:bg-[#faf8f5]">
+                      <tr key={tx._id} className="hover:bg-[var(--background)]">
                         <td className="p-2.5">{new Date(tx.createdAt).toLocaleDateString()}</td>
                         <td className="p-2.5 font-semibold text-[var(--primary)]">{tx.type}</td>
                         <td className="p-2.5 font-bold">{tx.amount}</td>
-                        <td className="p-2.5 text-[#6c7b64]">{tx.notes || "—"}</td>
+                        <td className="p-2.5 text-[var(--muted-foreground)]">{tx.notes || "—"}</td>
                       </tr>
                     ))
                   )}
@@ -881,7 +881,7 @@ export default function TestControlPanel() {
       {/* TAB 2: MANAGE ACCOUNTS (Super Admin & Reseller ONLY) */}
       {isManager && activeTab === "accounts" && (
         <div className="space-y-6">
-          <div className="rounded-lg bg-[#faf8f5] border border-[var(--background)] p-4">
+          <div className="rounded-lg bg-[var(--background)] border border-[var(--background)] p-4">
             <h3 className="text-sm font-bold text-[var(--foreground)] mb-2">
               Create New Account ({isSuperAdmin ? "Create Resellers or Users" : "Create Client Users"})
             </h3>
@@ -898,7 +898,7 @@ export default function TestControlPanel() {
                 placeholder="Username"
                 value={newAccount.username}
                 onChange={(e) => setNewAccount({ ...newAccount, username: e.target.value })}
-                className="text-xs p-2 rounded border border-[#cfd6c7] bg-white"
+                className="text-xs p-2 rounded border border-[var(--border)] bg-white"
               />
               <input
                 type="email"
@@ -906,7 +906,7 @@ export default function TestControlPanel() {
                 placeholder="Email"
                 value={newAccount.email}
                 onChange={(e) => setNewAccount({ ...newAccount, email: e.target.value })}
-                className="text-xs p-2 rounded border border-[#cfd6c7] bg-white"
+                className="text-xs p-2 rounded border border-[var(--border)] bg-white"
               />
               <input
                 type="password"
@@ -914,7 +914,7 @@ export default function TestControlPanel() {
                 placeholder="Password"
                 value={newAccount.password}
                 onChange={(e) => setNewAccount({ ...newAccount, password: e.target.value })}
-                className="text-xs p-2 rounded border border-[#cfd6c7] bg-white"
+                className="text-xs p-2 rounded border border-[var(--border)] bg-white"
               />
 
               <input
@@ -924,20 +924,20 @@ export default function TestControlPanel() {
                 placeholder="Rate/Msg (default 12)"
                 value={newAccount.ratePerMsg}
                 onChange={(e) => setNewAccount({ ...newAccount, ratePerMsg: e.target.value })}
-                className="text-xs p-2 rounded border border-[#cfd6c7] bg-white"
+                className="text-xs p-2 rounded border border-[var(--border)] bg-white"
               />
 
               {isSuperAdmin ? (
                 <select
                   value={newAccount.role}
                   onChange={(e) => setNewAccount({ ...newAccount, role: e.target.value })}
-                  className="text-xs p-2 rounded border border-[#cfd6c7] bg-white font-medium"
+                  className="text-xs p-2 rounded border border-[var(--border)] bg-white font-medium"
                 >
                   <option value="Reseller">Role: Reseller</option>
                   <option value="User">Role: User</option>
                 </select>
               ) : (
-                <span className="text-xs p-2 rounded border border-[#cfd6c7] bg-stone-100 text-[var(--primary)] flex items-center">
+                <span className="text-xs p-2 rounded border border-[var(--border)] bg-stone-100 text-[var(--primary)] flex items-center">
                   Role: User (Client)
                 </span>
               )}
@@ -945,7 +945,7 @@ export default function TestControlPanel() {
               <button
                 type="submit"
                 disabled={createAccountMutation.isPending}
-                className="bg-[var(--primary)] text-white text-xs font-semibold rounded p-2 hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
+                className="bg-[var(--primary)] text-white text-xs font-semibold rounded p-2 hover:bg-[var(--foreground)] cursor-pointer disabled:opacity-50"
               >
                 {createAccountMutation.isPending ? "Creating..." : "+ Add Account"}
               </button>
@@ -957,8 +957,8 @@ export default function TestControlPanel() {
               {isSuperAdmin ? "All System Users" : "Clients Assigned To You"} ({managedUsers.length})
             </h3>
             <div className="overflow-x-auto rounded-lg border border-[var(--background)]">
-              <table className="w-full text-left text-xs text-[#3b4735]">
-                <thead className="bg-[#f0f4ea] text-[11px] font-semibold uppercase text-[#54644a]">
+              <table className="w-full text-left text-xs text-[var(--foreground)]">
+                <thead className="bg-[var(--muted)] text-[11px] font-semibold uppercase text-[var(--muted-foreground)]">
                   <tr>
                     <th className="p-2.5">Username</th>
                     <th className="p-2.5">Email</th>
@@ -968,11 +968,11 @@ export default function TestControlPanel() {
                     <th className="p-2.5">User ID</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#edf1e7]">
+                <tbody className="divide-y divide-[var(--muted)]">
                   {managedUsers.map((u) => (
-                    <tr key={u._id} className="hover:bg-[#faf8f5]">
+                    <tr key={u._id} className="hover:bg-[var(--background)]">
                       <td className="p-2.5 font-bold">{u.username}</td>
-                      <td className="p-2.5 text-[#5e6d56]">{u.email}</td>
+                      <td className="p-2.5 text-[var(--muted-foreground)]">{u.email}</td>
                       <td className="p-2.5">
                         <span
                           className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
@@ -1002,11 +1002,11 @@ export default function TestControlPanel() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* 1. GROUPS SECTION */}
             <div className="space-y-4">
-              <div className="rounded-lg bg-[#faf8f5] border border-[var(--background)] p-4">
+              <div className="rounded-lg bg-[var(--background)] border border-[var(--background)] p-4">
                 <h3 className="text-sm font-bold text-[var(--foreground)] mb-1">
                   Create Contact Group
                 </h3>
-                <p className="text-[11px] text-[#6b7b64] mb-3">
+                <p className="text-[11px] text-[var(--muted-foreground)] mb-3">
                   Organize your audience for targeted WhatsApp campaigns.
                 </p>
                 <form
@@ -1022,19 +1022,19 @@ export default function TestControlPanel() {
                     placeholder="Group Name (e.g. VIP Customers, Reseller Leads)"
                     value={newGroup.name}
                     onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
-                    className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white"
+                    className="w-full text-xs p-2 rounded border border-[var(--border)] bg-white"
                   />
                   <input
                     type="text"
                     placeholder="Description (optional)"
                     value={newGroup.description}
                     onChange={(e) => setNewGroup({ ...newGroup, description: e.target.value })}
-                    className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white"
+                    className="w-full text-xs p-2 rounded border border-[var(--border)] bg-white"
                   />
                   <button
                     type="submit"
                     disabled={createGroupMutation.isPending}
-                    className="w-full bg-[var(--primary)] text-white text-xs font-semibold rounded p-2 hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
+                    className="w-full bg-[var(--primary)] text-white text-xs font-semibold rounded p-2 hover:bg-[var(--foreground)] cursor-pointer disabled:opacity-50"
                   >
                     {createGroupMutation.isPending ? "Creating Group..." : "+ Create Group"}
                   </button>
@@ -1046,8 +1046,8 @@ export default function TestControlPanel() {
                   Contact Groups ({groups.length})
                 </h3>
                 <div className="overflow-x-auto rounded-lg border border-[var(--background)]">
-                  <table className="w-full text-left text-xs text-[#3b4735]">
-                    <thead className="bg-[#f0f4ea] text-[11px] font-semibold uppercase text-[#54644a]">
+                  <table className="w-full text-left text-xs text-[var(--foreground)]">
+                    <thead className="bg-[var(--muted)] text-[11px] font-semibold uppercase text-[var(--muted-foreground)]">
                       <tr>
                         <th className="p-2.5">Name</th>
                         <th className="p-2.5">Contacts</th>
@@ -1055,20 +1055,20 @@ export default function TestControlPanel() {
                         <th className="p-2.5 text-right">Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#edf1e7]">
+                    <tbody className="divide-y divide-[var(--muted)]">
                       {groups.length === 0 ? (
                         <tr>
-                          <td colSpan="4" className="p-4 text-center text-[#75846b]">
+                          <td colSpan="4" className="p-4 text-center text-[var(--muted-foreground)]">
                             No groups created yet.
                           </td>
                         </tr>
                       ) : (
                         groups.map((g) => (
-                          <tr key={g._id} className="hover:bg-[#faf8f5]">
-                            <td className="p-2.5 font-bold text-[#283823]">
+                          <tr key={g._id} className="hover:bg-[var(--background)]">
+                            <td className="p-2.5 font-bold text-[var(--foreground)]">
                               {g.name}
                               {g.description && (
-                                <span className="block font-normal text-[10px] text-[#6e7d66]">
+                                <span className="block font-normal text-[10px] text-[var(--muted-foreground)]">
                                   {g.description}
                                 </span>
                               )}
@@ -1078,7 +1078,7 @@ export default function TestControlPanel() {
                                 {g.totalContacts ?? 0} contact(s)
                               </span>
                             </td>
-                            <td className="p-2.5 text-[#5f6f57] text-[11px]">
+                            <td className="p-2.5 text-[var(--muted-foreground)] text-[11px]">
                               {g.userId?.username || "You"}
                             </td>
                             <td className="p-2.5 text-right">
@@ -1105,11 +1105,11 @@ export default function TestControlPanel() {
 
             {/* 2. CONTACTS SECTION */}
             <div className="space-y-4">
-              <div className="rounded-lg bg-[#faf8f5] border border-[var(--background)] p-4">
+              <div className="rounded-lg bg-[var(--background)] border border-[var(--background)] p-4">
                 <h3 className="text-sm font-bold text-[var(--foreground)] mb-1">
                   Add Contacts
                 </h3>
-                <p className="text-[11px] text-[#6b7b64] mb-3">
+                <p className="text-[11px] text-[var(--muted-foreground)] mb-3">
                   Add single or bulk phone numbers (comma or newline separated).
                 </p>
                 <form
@@ -1125,12 +1125,12 @@ export default function TestControlPanel() {
                       placeholder="Contact Name (optional)"
                       value={newContact.name}
                       onChange={(e) => setNewContact({ ...newContact, name: e.target.value })}
-                      className="text-xs p-2 rounded border border-[#cfd6c7] bg-white"
+                      className="text-xs p-2 rounded border border-[var(--border)] bg-white"
                     />
                     <select
                       value={newContact.groupId}
                       onChange={(e) => setNewContact({ ...newContact, groupId: e.target.value })}
-                      className="text-xs p-2 rounded border border-[#cfd6c7] bg-white"
+                      className="text-xs p-2 rounded border border-[var(--border)] bg-white"
                     >
                       <option value="">No Group (Unassigned)</option>
                       {groups.map((g) => (
@@ -1147,13 +1147,13 @@ export default function TestControlPanel() {
                     placeholder="Phone Numbers (e.g. 919876543210, 919876543211 or paste list)"
                     value={newContact.phoneNumbers}
                     onChange={(e) => setNewContact({ ...newContact, phoneNumbers: e.target.value })}
-                    className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white"
+                    className="w-full text-xs p-2 rounded border border-[var(--border)] bg-white"
                   />
 
                   <button
                     type="submit"
                     disabled={createContactMutation.isPending}
-                    className="w-full bg-[var(--primary)] text-white text-xs font-semibold rounded p-2 hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
+                    className="w-full bg-[var(--primary)] text-white text-xs font-semibold rounded p-2 hover:bg-[var(--foreground)] cursor-pointer disabled:opacity-50"
                   >
                     {createContactMutation.isPending ? "Adding Contacts..." : "+ Add Contacts"}
                   </button>
@@ -1168,7 +1168,7 @@ export default function TestControlPanel() {
                   <select
                     value={selectedGroupFilter}
                     onChange={(e) => setSelectedGroupFilter(e.target.value)}
-                    className="text-xs p-1 rounded border border-[#cfd6c7] bg-white"
+                    className="text-xs p-1 rounded border border-[var(--border)] bg-white"
                   >
                     <option value="">All Contacts (Any Group)</option>
                     {groups.map((g) => (
@@ -1180,8 +1180,8 @@ export default function TestControlPanel() {
                 </div>
 
                 <div className="overflow-x-auto rounded-lg border border-[var(--background)]">
-                  <table className="w-full text-left text-xs text-[#3b4735]">
-                    <thead className="bg-[#f0f4ea] text-[11px] font-semibold uppercase text-[#54644a]">
+                  <table className="w-full text-left text-xs text-[var(--foreground)]">
+                    <thead className="bg-[var(--muted)] text-[11px] font-semibold uppercase text-[var(--muted-foreground)]">
                       <tr>
                         <th className="p-2.5">Name</th>
                         <th className="p-2.5">Phone Number</th>
@@ -1189,18 +1189,18 @@ export default function TestControlPanel() {
                         <th className="p-2.5 text-right">Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#edf1e7]">
+                    <tbody className="divide-y divide-[var(--muted)]">
                       {contacts.length === 0 ? (
                         <tr>
-                          <td colSpan="4" className="p-4 text-center text-[#75846b]">
+                          <td colSpan="4" className="p-4 text-center text-[var(--muted-foreground)]">
                             No contacts found.
                           </td>
                         </tr>
                       ) : (
                         contacts.map((c) => (
-                          <tr key={c._id} className="hover:bg-[#faf8f5]">
+                          <tr key={c._id} className="hover:bg-[var(--background)]">
                             <td className="p-2.5 font-medium">{c.name || "—"}</td>
-                            <td className="p-2.5 font-mono text-[11px] font-bold text-[#273822]">
+                            <td className="p-2.5 font-mono text-[11px] font-bold text-[var(--foreground)]">
                               {c.phoneNumber}
                             </td>
                             <td className="p-2.5">
@@ -1240,7 +1240,7 @@ export default function TestControlPanel() {
       {/* TAB 3: CAMPAIGNS (Visible to ALL roles) */}
       {activeTab === "campaigns" && (
         <div className="space-y-6">
-          <div className="rounded-lg bg-[#faf8f5] border border-[var(--background)] p-4">
+          <div className="rounded-lg bg-[var(--background)] border border-[var(--background)] p-4">
             <h3 className="text-sm font-bold text-[var(--foreground)] mb-2">
               Launch WhatsApp Blast
             </h3>
@@ -1258,14 +1258,14 @@ export default function TestControlPanel() {
                   placeholder="Campaign Title (e.g. Diwali Offer 2026)"
                   value={newCampaign.campaignTitle}
                   onChange={(e) => setNewCampaign({ ...newCampaign, campaignTitle: e.target.value })}
-                  className="text-xs p-2 rounded border border-[#cfd6c7] bg-white"
+                  className="text-xs p-2 rounded border border-[var(--border)] bg-white"
                 />
                 <input
                   type="text"
                   placeholder="Campaign Description (Optional)"
                   value={newCampaign.campaignDescription}
                   onChange={(e) => setNewCampaign({ ...newCampaign, campaignDescription: e.target.value })}
-                  className="text-xs p-2 rounded border border-[#cfd6c7] bg-white"
+                  className="text-xs p-2 rounded border border-[var(--border)] bg-white"
                 />
               </div>
 
@@ -1275,7 +1275,7 @@ export default function TestControlPanel() {
                 placeholder="Message Body (e.g. Hello! Special 20% discount on all orders today.)"
                 value={newCampaign.messageBody}
                 onChange={(e) => setNewCampaign({ ...newCampaign, messageBody: e.target.value })}
-                className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white"
+                className="w-full text-xs p-2 rounded border border-[var(--border)] bg-white"
               />
 
               <div className="space-y-1">
@@ -1299,7 +1299,7 @@ export default function TestControlPanel() {
                           console.error("Error loading group contacts:", err);
                         }
                       }}
-                      className="text-[10px] p-1 rounded border border-[#cfd6c7] bg-stone-50 cursor-pointer"
+                      className="text-[10px] p-1 rounded border border-[var(--border)] bg-stone-50 cursor-pointer"
                     >
                       <option value="">⚡ Quick Import: Load From Group...</option>
                       {groups.map((g) => (
@@ -1316,14 +1316,14 @@ export default function TestControlPanel() {
                   placeholder="Recipients Phone Numbers (comma-separated, e.g. 919876543210, 919876543211)"
                   value={newCampaign.phoneNumbers}
                   onChange={(e) => setNewCampaign({ ...newCampaign, phoneNumbers: e.target.value })}
-                  className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white"
+                  className="w-full text-xs p-2 rounded border border-[var(--border)] bg-white"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={campaignMutation.isPending}
-                className="bg-[var(--primary)] text-white text-xs font-semibold rounded px-4 py-2 hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
+                className="bg-[var(--primary)] text-white text-xs font-semibold rounded px-4 py-2 hover:bg-[var(--foreground)] cursor-pointer disabled:opacity-50"
               >
                 {campaignMutation.isPending ? "Dispatching..." : "Send Campaign →"}
               </button>
@@ -1341,16 +1341,16 @@ export default function TestControlPanel() {
             </h3>
             <div className="space-y-2">
               {campaigns.length === 0 ? (
-                <p className="text-xs text-[#73836a] text-center py-4">No campaigns found.</p>
+                <p className="text-xs text-[var(--muted-foreground)] text-center py-4">No campaigns found.</p>
               ) : (
                 campaigns.map((c) => (
                   <div
                     key={c._id}
-                    className="p-3 rounded-lg border border-[var(--background)] bg-[#faf8f5] flex flex-wrap items-center justify-between gap-3 text-xs"
+                    className="p-3 rounded-lg border border-[var(--background)] bg-[var(--background)] flex flex-wrap items-center justify-between gap-3 text-xs"
                   >
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-[#273322]">{c.campaignTitle}</span>
+                        <span className="font-bold text-[var(--foreground)]">{c.campaignTitle}</span>
                         {/* Status Badge */}
                         <span
                           className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${
@@ -1407,7 +1407,7 @@ export default function TestControlPanel() {
                                   });
                                 }
                               }}
-                              className="text-[10px] font-semibold py-0.5 px-1 rounded border border-[#b2c8a9] bg-white text-[#253d1d] cursor-pointer hover:border-[var(--primary)]"
+                              className="text-[10px] font-semibold py-0.5 px-1 rounded border border-[var(--border)] bg-white text-[var(--foreground)] cursor-pointer hover:border-[var(--primary)]"
                               title="Super Admin: Manual Action"
                             >
                               <option value="">Admin Action ▾</option>
@@ -1419,12 +1419,12 @@ export default function TestControlPanel() {
                           </div>
                         )}
                       </div>
-                      <p className="text-[#5d6d55] mt-0.5">{c.campaignDescription}</p>
-                      <p className="text-[11px] text-[#788870] mt-1 italic">"{c.messageBody}"</p>
+                      <p className="text-[var(--muted-foreground)] mt-0.5">{c.campaignDescription}</p>
+                      <p className="text-[11px] text-[var(--muted-foreground)] mt-1 italic">"{c.messageBody}"</p>
 
                       {/* Manual Delivery Report (if reported by Super Admin) */}
                       {c.campaignSummary?.reportedAt && (
-                        <div className="mt-2 p-2 rounded bg-emerald-50/70 border border-emerald-200 text-[11px] text-[#243f1f] flex flex-wrap items-center justify-between gap-2">
+                        <div className="mt-2 p-2 rounded bg-emerald-50/70 border border-emerald-200 text-[11px] text-[var(--foreground)] flex flex-wrap items-center justify-between gap-2">
                           <div className="flex items-center gap-3">
                             <span className="font-bold text-emerald-800">📊 Delivery Results:</span>
                             <span>Sent: <strong>{c.campaignSummary.sent}</strong></span>
@@ -1462,7 +1462,7 @@ export default function TestControlPanel() {
                           🔍 {c.recipientStats.duplicateCount} duplicate(s) preserved
                         </button>
                       )}
-                      <span className="text-[10px] text-[#7d8c75] block mt-0.5">
+                      <span className="text-[10px] text-[var(--muted-foreground)] block mt-0.5">
                         Launched by: {c.userId?.username || "You"}
                       </span>
                     </div>
@@ -1477,7 +1477,7 @@ export default function TestControlPanel() {
       {/* TAB 4: TEMPLATES (Visible to ALL roles) */}
       {activeTab === "templates" && (
         <div className="space-y-6">
-          <div className="rounded-lg bg-[#faf8f5] border border-[var(--background)] p-4">
+          <div className="rounded-lg bg-[var(--background)] border border-[var(--background)] p-4">
             <h3 className="text-sm font-bold text-[var(--foreground)] mb-2">Create Message Template</h3>
             <form
               onSubmit={(e) => {
@@ -1493,7 +1493,7 @@ export default function TestControlPanel() {
                   placeholder="Template Title (e.g. Welcome Message)"
                   value={newTpl.title}
                   onChange={(e) => setNewTpl({ ...newTpl, title: e.target.value })}
-                  className="text-xs p-2 rounded border border-[#cfd6c7] bg-white"
+                  className="text-xs p-2 rounded border border-[var(--border)] bg-white"
                 />
                 <input
                   type="text"
@@ -1501,7 +1501,7 @@ export default function TestControlPanel() {
                   placeholder="Description"
                   value={newTpl.description}
                   onChange={(e) => setNewTpl({ ...newTpl, description: e.target.value })}
-                  className="text-xs p-2 rounded border border-[#cfd6c7] bg-white"
+                  className="text-xs p-2 rounded border border-[var(--border)] bg-white"
                 />
               </div>
 
@@ -1511,13 +1511,13 @@ export default function TestControlPanel() {
                 placeholder="Template Body (e.g. Hi {{1}}, welcome to our VIP WhatsApp group!)"
                 value={newTpl.body}
                 onChange={(e) => setNewTpl({ ...newTpl, body: e.target.value })}
-                className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white"
+                className="w-full text-xs p-2 rounded border border-[var(--border)] bg-white"
               />
 
               <button
                 type="submit"
                 disabled={templateMutation.isPending}
-                className="bg-[var(--primary)] text-white text-xs font-semibold rounded px-4 py-2 hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
+                className="bg-[var(--primary)] text-white text-xs font-semibold rounded px-4 py-2 hover:bg-[var(--foreground)] cursor-pointer disabled:opacity-50"
               >
                 {templateMutation.isPending ? "Saving..." : "Save Template"}
               </button>
@@ -1530,18 +1530,18 @@ export default function TestControlPanel() {
             </h3>
             <div className="space-y-2">
               {templates.length === 0 ? (
-                <p className="text-xs text-[#73836a] text-center py-4">No templates created yet.</p>
+                <p className="text-xs text-[var(--muted-foreground)] text-center py-4">No templates created yet.</p>
               ) : (
                 templates.map((tpl) => (
-                  <div key={tpl._id} className="p-3 rounded-lg border border-[var(--background)] bg-[#faf8f5] text-xs">
+                  <div key={tpl._id} className="p-3 rounded-lg border border-[var(--background)] bg-[var(--background)] text-xs">
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-[#283923]">{tpl.title}</span>
+                      <span className="font-bold text-[var(--foreground)]">{tpl.title}</span>
                       <span className="text-[10px] text-[var(--muted-foreground)]">
                         Created: {new Date(tpl.createdAt).toLocaleDateString()}
                       </span>
                     </div>
-                    <p className="text-[#586751] mt-0.5">{tpl.description}</p>
-                    <div className="mt-2 p-2 rounded bg-white border border-[var(--background)] font-mono text-[11px] text-[#3b4b35]">
+                    <p className="text-[var(--muted-foreground)] mt-0.5">{tpl.description}</p>
+                    <div className="mt-2 p-2 rounded bg-white border border-[var(--background)] font-mono text-[11px] text-[var(--muted-foreground)]">
                       {tpl.body}
                     </div>
                   </div>
@@ -1558,10 +1558,10 @@ export default function TestControlPanel() {
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl border border-[var(--background)] space-y-4">
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="text-base font-bold text-[#233120]">
+                <h3 className="text-base font-bold text-[var(--foreground)]">
                   Confirm Credit Transfer
                 </h3>
-                <p className="text-xs text-[#6e7d64]">
+                <p className="text-xs text-[var(--muted-foreground)]">
                   Pre-transfer double confirmation (Banking Rule)
                 </p>
               </div>
@@ -1575,26 +1575,26 @@ export default function TestControlPanel() {
             </div>
 
             <div className="bg-[var(--background)] p-3.5 rounded-lg border border-[var(--background)] space-y-2 text-xs">
-              <div className="flex justify-between py-1 border-b border-[#e5ebe0]">
-                <span className="text-[#6c7d62]">Recipient User:</span>
+              <div className="flex justify-between py-1 border-b border-[var(--muted)]">
+                <span className="text-[var(--muted-foreground)]">Recipient User:</span>
                 <span className="font-bold text-[var(--foreground)]">
                   {confirmTransferModal.toUser?.username} ({confirmTransferModal.toUser?.role})
                 </span>
               </div>
-              <div className="flex justify-between py-1 border-b border-[#e5ebe0]">
-                <span className="text-[#6c7d62]">Email:</span>
-                <span className="text-[#45523e]">{confirmTransferModal.toUser?.email}</span>
+              <div className="flex justify-between py-1 border-b border-[var(--muted)]">
+                <span className="text-[var(--muted-foreground)]">Email:</span>
+                <span className="text-[var(--muted-foreground)]">{confirmTransferModal.toUser?.email}</span>
               </div>
-              <div className="flex justify-between py-1 border-b border-[#e5ebe0]">
-                <span className="text-[#6c7d62]">Amount:</span>
+              <div className="flex justify-between py-1 border-b border-[var(--muted)]">
+                <span className="text-[var(--muted-foreground)]">Amount:</span>
                 <span className="text-base font-bold text-[var(--primary)]">
                   {Number(confirmTransferModal.amount).toLocaleString()} Credits
                 </span>
               </div>
               {confirmTransferModal.notes && (
                 <div className="flex justify-between py-1">
-                  <span className="text-[#6c7d62]">Note / Reference:</span>
-                  <span className="text-[#45523e]">{confirmTransferModal.notes}</span>
+                  <span className="text-[var(--muted-foreground)]">Note / Reference:</span>
+                  <span className="text-[var(--muted-foreground)]">{confirmTransferModal.notes}</span>
                 </div>
               )}
             </div>
@@ -1616,7 +1616,7 @@ export default function TestControlPanel() {
               className="space-y-3 pt-1"
             >
               <div>
-                <label className="block text-xs font-semibold text-[#374533] mb-1">
+                <label className="block text-xs font-semibold text-[var(--foreground)] mb-1">
                   Enter your account password to authorize:
                 </label>
                 <input
@@ -1625,7 +1625,7 @@ export default function TestControlPanel() {
                   placeholder="Your account password"
                   value={confirmTransferModal.password}
                   onChange={(e) => setConfirmTransferModal({ ...confirmTransferModal, password: e.target.value })}
-                  className="w-full text-xs p-2.5 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[var(--primary)]"
+                  className="w-full text-xs p-2.5 rounded border border-[var(--border)] bg-white focus:outline-none focus:border-[var(--primary)]"
                 />
               </div>
 
@@ -1633,14 +1633,14 @@ export default function TestControlPanel() {
                 <button
                   type="button"
                   onClick={() => setConfirmTransferModal({ ...confirmTransferModal, isOpen: false })}
-                  className="px-4 py-2 text-xs font-semibold rounded border border-[#cfd6c7] text-[var(--primary)] hover:bg-stone-50 cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold rounded border border-[var(--border)] text-[var(--primary)] hover:bg-stone-50 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={allocateMutation.isPending}
-                  className="px-4 py-2 text-xs font-bold rounded bg-[var(--primary)] text-white hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 text-xs font-bold rounded bg-[var(--primary)] text-white hover:bg-[var(--foreground)] cursor-pointer disabled:opacity-50"
                 >
                   {allocateMutation.isPending ? "Verifying & Transferring..." : `Confirm & Allocate (${Number(confirmTransferModal.amount).toLocaleString()} Credits)`}
                 </button>
@@ -1656,11 +1656,11 @@ export default function TestControlPanel() {
           <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl border border-[var(--background)] space-y-4">
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="text-base font-bold text-[#233120]">
+                <h3 className="text-base font-bold text-[var(--foreground)]">
                   Preserved Duplicate & Excluded Numbers
                 </h3>
-                <p className="text-xs text-[#6e7d64]">
-                  Campaign: <span className="font-semibold text-[#273921]">{inspectDuplicatesModal.campaignTitle}</span>
+                <p className="text-xs text-[var(--muted-foreground)]">
+                  Campaign: <span className="font-semibold text-[var(--foreground)]">{inspectDuplicatesModal.campaignTitle}</span>
                 </p>
               </div>
               <button
@@ -1672,9 +1672,9 @@ export default function TestControlPanel() {
               </button>
             </div>
 
-            <div className="flex items-center justify-between text-xs bg-[#faf8f5] p-3 rounded-lg border border-[var(--background)]">
+            <div className="flex items-center justify-between text-xs bg-[var(--background)] p-3 rounded-lg border border-[var(--background)]">
               <div>
-                <span className="text-[#65765f]">Duplicates Preserved: </span>
+                <span className="text-[var(--muted-foreground)]">Duplicates Preserved: </span>
                 <span className="font-bold text-amber-900">{inspectDuplicatesModal.duplicatesList.length} numbers</span>
               </div>
               <button
@@ -1683,22 +1683,22 @@ export default function TestControlPanel() {
                   navigator.clipboard.writeText(inspectDuplicatesModal.duplicatesList.join("\n"));
                   setStatusMsg("Copied all duplicate numbers to clipboard!");
                 }}
-                className="px-2.5 py-1 text-[11px] font-bold rounded bg-white border border-[#cfd6c7] text-[var(--primary)] hover:bg-stone-50 cursor-pointer"
+                className="px-2.5 py-1 text-[11px] font-bold rounded bg-white border border-[var(--border)] text-[var(--primary)] hover:bg-stone-50 cursor-pointer"
               >
                 📋 Copy All Duplicates
               </button>
             </div>
 
             <div className="space-y-2">
-              <label className="block text-xs font-semibold text-[#3b4936]">
+              <label className="block text-xs font-semibold text-[var(--foreground)]">
                 All Preserved Duplicate Phone Numbers:
               </label>
-              <div className="max-h-60 overflow-y-auto rounded-lg border border-[#cfd6c7] bg-[#f9faf7] p-3 font-mono text-xs text-[#2a3723] space-y-1">
+              <div className="max-h-60 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--background)] p-3 font-mono text-xs text-[var(--foreground)] space-y-1">
                 {inspectDuplicatesModal.duplicatesList.length === 0 ? (
-                  <p className="text-[#889781] italic">No duplicate numbers recorded.</p>
+                  <p className="text-[var(--muted-foreground)] italic">No duplicate numbers recorded.</p>
                 ) : (
                   inspectDuplicatesModal.duplicatesList.map((num, i) => (
-                    <div key={i} className="flex items-center justify-between py-0.5 border-b border-[#edf1e7] last:border-b-0">
+                    <div key={i} className="flex items-center justify-between py-0.5 border-b border-[var(--muted)] last:border-b-0">
                       <span>{num}</span>
                       <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
                         Duplicate #{i + 1}
@@ -1713,7 +1713,7 @@ export default function TestControlPanel() {
               <button
                 type="button"
                 onClick={() => setInspectDuplicatesModal({ isOpen: false, campaignTitle: "", duplicatesList: [] })}
-                className="px-4 py-2 text-xs font-semibold rounded bg-[var(--primary)] text-white hover:bg-[#1f3f2d] cursor-pointer"
+                className="px-4 py-2 text-xs font-semibold rounded bg-[var(--primary)] text-white hover:bg-[var(--foreground)] cursor-pointer"
               >
                 Close
               </button>
@@ -1728,11 +1728,11 @@ export default function TestControlPanel() {
           <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl border border-[var(--background)] space-y-4">
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="text-base font-bold text-[#233120]">
+                <h3 className="text-base font-bold text-[var(--foreground)]">
                   Record WhatsApp Delivery Report
                 </h3>
-                <p className="text-xs text-[#6e7d64]">
-                  Campaign: <span className="font-semibold text-[#273921]">{deliveryReportModal.campaignTitle}</span>
+                <p className="text-xs text-[var(--muted-foreground)]">
+                  Campaign: <span className="font-semibold text-[var(--foreground)]">{deliveryReportModal.campaignTitle}</span>
                 </p>
               </div>
               <button
@@ -1744,7 +1744,7 @@ export default function TestControlPanel() {
               </button>
             </div>
 
-            <p className="text-[11px] text-[#607157] bg-[#f8faf5] p-2.5 rounded border border-[var(--background)]">
+            <p className="text-[11px] text-[var(--muted-foreground)] bg-[var(--background)] p-2.5 rounded border border-[var(--background)]">
               Since messages are dispatched via external WhatsApp servers, record the final actual counts delivered/failed for user dashboard reporting.
             </p>
 
@@ -1765,7 +1765,7 @@ export default function TestControlPanel() {
             >
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#374533] mb-1">
+                  <label className="block text-[11px] font-semibold text-[var(--foreground)] mb-1">
                     Total Sent:
                   </label>
                   <input
@@ -1774,11 +1774,11 @@ export default function TestControlPanel() {
                     required
                     value={deliveryReportModal.sent}
                     onChange={(e) => setDeliveryReportModal({ ...deliveryReportModal, sent: e.target.value })}
-                    className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[var(--primary)]"
+                    className="w-full text-xs p-2 rounded border border-[var(--border)] bg-white focus:outline-none focus:border-[var(--primary)]"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#374533] mb-1">
+                  <label className="block text-[11px] font-semibold text-[var(--foreground)] mb-1">
                     Delivered:
                   </label>
                   <input
@@ -1787,14 +1787,14 @@ export default function TestControlPanel() {
                     required
                     value={deliveryReportModal.delivered}
                     onChange={(e) => setDeliveryReportModal({ ...deliveryReportModal, delivered: e.target.value })}
-                    className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[var(--primary)]"
+                    className="w-full text-xs p-2 rounded border border-[var(--border)] bg-white focus:outline-none focus:border-[var(--primary)]"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#374533] mb-1">
+                  <label className="block text-[11px] font-semibold text-[var(--foreground)] mb-1">
                     Read (Optional):
                   </label>
                   <input
@@ -1802,11 +1802,11 @@ export default function TestControlPanel() {
                     min="0"
                     value={deliveryReportModal.read}
                     onChange={(e) => setDeliveryReportModal({ ...deliveryReportModal, read: e.target.value })}
-                    className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[var(--primary)]"
+                    className="w-full text-xs p-2 rounded border border-[var(--border)] bg-white focus:outline-none focus:border-[var(--primary)]"
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold text-[#374533] mb-1">
+                  <label className="block text-[11px] font-semibold text-[var(--foreground)] mb-1">
                     Failed / Undelivered:
                   </label>
                   <input
@@ -1814,19 +1814,19 @@ export default function TestControlPanel() {
                     min="0"
                     value={deliveryReportModal.failed}
                     onChange={(e) => setDeliveryReportModal({ ...deliveryReportModal, failed: e.target.value })}
-                    className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[var(--primary)]"
+                    className="w-full text-xs p-2 rounded border border-[var(--border)] bg-white focus:outline-none focus:border-[var(--primary)]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-[#374533] mb-1">
+                <label className="block text-[11px] font-semibold text-[var(--foreground)] mb-1">
                   Update Lifecycle Status:
                 </label>
                 <select
                   value={deliveryReportModal.status}
                   onChange={(e) => setDeliveryReportModal({ ...deliveryReportModal, status: e.target.value })}
-                  className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[var(--primary)]"
+                  className="w-full text-xs p-2 rounded border border-[var(--border)] bg-white focus:outline-none focus:border-[var(--primary)]"
                 >
                   <option value="completed">Completed</option>
                   <option value="ongoing">Ongoing</option>
@@ -1835,7 +1835,7 @@ export default function TestControlPanel() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold text-[#374533] mb-1">
+                <label className="block text-[11px] font-semibold text-[var(--foreground)] mb-1">
                   Super Admin Delivery Notes:
                 </label>
                 <textarea
@@ -1843,7 +1843,7 @@ export default function TestControlPanel() {
                   placeholder="e.g. Dispatched node #3, 5 invalid carrier routes"
                   value={deliveryReportModal.adminNotes}
                   onChange={(e) => setDeliveryReportModal({ ...deliveryReportModal, adminNotes: e.target.value })}
-                  className="w-full text-xs p-2 rounded border border-[#cfd6c7] bg-white focus:outline-none focus:border-[var(--primary)]"
+                  className="w-full text-xs p-2 rounded border border-[var(--border)] bg-white focus:outline-none focus:border-[var(--primary)]"
                 />
               </div>
 
@@ -1851,14 +1851,14 @@ export default function TestControlPanel() {
                 <button
                   type="button"
                   onClick={() => setDeliveryReportModal({ ...deliveryReportModal, isOpen: false })}
-                  className="px-4 py-2 text-xs font-semibold rounded border border-[#cfd6c7] text-[var(--primary)] hover:bg-stone-50 cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold rounded border border-[var(--border)] text-[var(--primary)] hover:bg-stone-50 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={updateMetricsMutation.isPending}
-                  className="px-4 py-2 text-xs font-bold rounded bg-[var(--primary)] text-white hover:bg-[#1f3f2d] cursor-pointer disabled:opacity-50"
+                  className="px-4 py-2 text-xs font-bold rounded bg-[var(--primary)] text-white hover:bg-[var(--foreground)] cursor-pointer disabled:opacity-50"
                 >
                   {updateMetricsMutation.isPending ? "Saving..." : "Save Delivery Report"}
                 </button>

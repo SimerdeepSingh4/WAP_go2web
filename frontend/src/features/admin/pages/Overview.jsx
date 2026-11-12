@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import { ArrowUpRight, Building2, Megaphone, RefreshCw, Users, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import OverviewMetricCards from "@/components/dashboard/OverviewMetricCards";
 import { useAdminQuery } from "../hooks/useAdmin";
 import { QueryState } from "../components/shared";
 import { number } from "../lib/format";
@@ -41,12 +41,12 @@ export default function Overview() {
   ];
 
   return (
-    <div className="portal-overview space-y-6">
+    <div className="portal-overview">
       {/* Page Heading & Actions */}
       <header className="portal-page-heading">
         <div className="portal-heading-copy">
-          <h1>Overview</h1>
-          <p>Review submissions and manage accounts.</p>
+          <h1>Workspace overview</h1>
+          <p>Across all accounts</p>
         </div>
         <div className="portal-page-actions items-center gap-2.5">
           <Button variant="outline" size="sm" onClick={refresh} disabled={refreshing} aria-busy={refreshing}>
@@ -63,17 +63,7 @@ export default function Overview() {
       {/* High-level Platform Totals */}
       <section aria-label="Workspace totals">
         <QueryState query={overview}>
-          <div className="portal-metrics">
-            {metrics.map(({ label, value, caption, icon: Icon, path, accent }) => (
-              <Card key={label} className={`portal-card portal-metric${accent ? " portal-metric-accent" : ""}`}>
-                <Link to={path} className="portal-metric-link">
-                  <div className="portal-metric-top"><span>{label}</span><span className="portal-metric-icon"><Icon aria-hidden="true" /></span></div>
-                  <p className="portal-metric-value">{value == null ? "—" : number(value)}</p>
-                  <div className="portal-metric-bottom"><span>{caption}</span><ArrowUpRight aria-hidden="true" /></div>
-                </Link>
-              </Card>
-            ))}
-          </div>
+          <OverviewMetricCards items={metrics} />
         </QueryState>
       </section>
 

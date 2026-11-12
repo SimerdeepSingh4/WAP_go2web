@@ -81,22 +81,22 @@ export default function GlobalSearch() {
   let index = -1;
   return <div ref={wrapper} className="portal-search-wrapper" onBlur={(event) => { if (!wrapper.current?.contains(event.relatedTarget) && !popup.current?.contains(event.relatedTarget)) close(); }}>
     <div className="portal-search-bar">
-      <Search className="size-4.5 shrink-0 text-slate-500" aria-hidden="true" />
+      <Search className="size-4.5 shrink-0 text-muted-foreground" aria-hidden="true" />
       <input ref={input} type="text" role="combobox" aria-label="Search records, transaction ID or campaign ID" aria-expanded={open} aria-controls={open ? listId : undefined} aria-autocomplete="list" aria-activedescendant={open && items[active] ? `${listId}-${active}` : undefined} maxLength={120} autoComplete="off" placeholder="Search records or IDs..." value={value} onFocus={() => setOpen(true)} onKeyDown={keyboard} onChange={(event) => { setValue(event.target.value); setActive(-1); setOpen(true); }} style={{ outline: "none", border: "none", boxShadow: "none" }} className="portal-search-input" />
-      {value ? <button type="button" aria-label="Clear search" onClick={() => { setValue(""); setActive(-1); input.current?.focus(); }} className="shrink-0 p-0.5 text-slate-400 hover:text-slate-600"><X className="size-3.5" /></button> : <kbd className="portal-search-kbd hidden sm:inline-flex"><span>Ctrl</span><span>K</span></kbd>}
+      {value ? <button type="button" aria-label="Clear search" onClick={() => { setValue(""); setActive(-1); input.current?.focus(); }} className="shrink-0 p-0.5 text-muted-foreground hover:text-muted-foreground"><X className="size-3.5" /></button> : <kbd className="portal-search-kbd hidden sm:inline-flex"><span>Ctrl</span><span>K</span></kbd>}
     </div>
-    {open && createPortal(<div ref={popup} style={position} className="z-[80] overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-2 shadow-xl" onBlur={(event) => { if (!popup.current?.contains(event.relatedTarget) && !wrapper.current?.contains(event.relatedTarget)) close(); }}>
-      {term.length < 2 ? <p className="px-3 py-4 text-sm text-slate-500">{user?.role === "User" ? "Search campaigns and credit transactions." : "Search campaigns, accounts and credit transactions."}<span className="mt-1 block text-xs">Enter at least 2 characters, or paste a full TXN- transaction ID or CMP- campaign ID.</span></p>
-        : waiting ? <div role="status" className="flex items-center gap-2 px-3 py-4 text-sm text-slate-500"><Loader2 className="size-4 animate-spin" />Searching...</div>
-          : query.isError ? <div role="alert" className="px-3 py-4 text-sm text-slate-600">Could not search records. <button type="button" onClick={() => query.refetch()} className="font-medium text-indigo-700 underline">Try again</button></div>
-            : !items.length ? <p role="status" className="px-3 py-4 text-sm text-slate-500">No matching records found.</p> : null}
+    {open && createPortal(<div ref={popup} style={position} className="z-[80] overflow-y-auto overscroll-contain rounded-2xl border border-border bg-popover text-popover-foreground p-2 shadow-xl" onBlur={(event) => { if (!popup.current?.contains(event.relatedTarget) && !wrapper.current?.contains(event.relatedTarget)) close(); }}>
+      {term.length < 2 ? <p className="px-3 py-4 text-sm text-muted-foreground">{user?.role === "User" ? "Search campaigns and credit transactions." : "Search campaigns, accounts and credit transactions."}<span className="mt-1 block text-xs">Enter at least 2 characters, or paste a full TXN- transaction ID or CMP- campaign ID.</span></p>
+        : waiting ? <div role="status" className="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />Searching...</div>
+          : query.isError ? <div role="alert" className="px-3 py-4 text-sm text-muted-foreground">Could not search records. <button type="button" onClick={() => query.refetch()} className="font-medium text-primary underline">Try again</button></div>
+            : !items.length ? <p role="status" className="px-3 py-4 text-sm text-muted-foreground">No matching records found.</p> : null}
       <div id={listId} role="listbox" aria-label="Matching records">
         {!waiting && groups.map((group) => <div key={group.label} role="group" aria-label={group.label}>
-          <p className="px-3 pb-1 pt-3 text-xs font-semibold text-slate-500">{group.label}</p>
+          <p className="px-3 pb-1 pt-3 text-xs font-semibold text-muted-foreground">{group.label}</p>
           {group.items.map((item) => {
             const itemIndex = ++index;
-            return <Link key={item.id} id={`${listId}-${itemIndex}`} role="option" aria-selected={active === itemIndex} to={item.href} onClick={close} onMouseEnter={() => setActive(itemIndex)} className={`flex items-center gap-3 rounded-lg px-3 py-2.5 outline-none hover:bg-slate-50 focus:bg-indigo-50 ${active === itemIndex ? "bg-indigo-50" : ""}`}>
-              <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-slate-900">{item.title}</span><span className="block truncate text-xs text-slate-500">{item.subtitle}</span>{item.reference && <span className="mt-1 block break-all font-mono text-xs text-slate-600">{item.reference}</span>}</span><ArrowUpRight className="size-4 shrink-0 text-slate-400" />
+            return <Link key={item.id} id={`${listId}-${itemIndex}`} role="option" aria-selected={active === itemIndex} to={item.href} onClick={close} onMouseEnter={() => setActive(itemIndex)} className={`flex items-center gap-3 rounded-lg px-3 py-2.5 outline-none hover:bg-muted focus:bg-accent ${active === itemIndex ? "bg-accent" : ""}`}>
+              <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-foreground">{item.title}</span><span className="block truncate text-xs text-muted-foreground">{item.subtitle}</span>{item.reference && <span className="mt-1 block break-all font-mono text-xs text-muted-foreground">{item.reference}</span>}</span><ArrowUpRight className="size-4 shrink-0 text-muted-foreground" />
             </Link>;
           })}
         </div>)}
