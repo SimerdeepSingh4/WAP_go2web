@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { getSessions, logoutSession, changePassword, uploadProfileImage, removeProfileImage } from "@/features/auth/services/auth.api";
@@ -48,6 +48,7 @@ export default function AccountSettings() {
   const [photoUploadVersion, setPhotoUploadVersion] = useState(0);
 
   const isReseller = user?.role === "Reseller";
+  const canManageProfilePhoto = user?.role !== "User" || user?.featureAccess?.campaignDp === true;
   const resellerBrandingQuery = useQuery({
     queryKey: ["resellerBranding"],
     queryFn: getResellerBranding,
@@ -62,11 +63,7 @@ export default function AccountSettings() {
             (!user?.whiteLabel?.expiresAt || new Date(user?.whiteLabel?.expiresAt) > new Date()))))
   );
 
-  useEffect(() => {
-    if (activeTab === "branding" && !isWhiteLabelActive) {
-      setActiveTab("profile");
-    }
-  }, [activeTab, isWhiteLabelActive]);
+  const visibleTab = activeTab === "branding" && !isWhiteLabelActive ? "profile" : activeTab;
 
   const sessions = useQuery({ queryKey: ["accountSessions", user?.id || user?._id], queryFn: getSessions, enabled: !user?.isPreview });
   const password = useMutation({ mutationFn: changePassword, onSuccess: () => { setPasswords({ currentPassword: "", newPassword: "", confirmPassword: "" }); toast.add({ title: "Password changed", type: "success" }); } });
@@ -122,7 +119,7 @@ export default function AccountSettings() {
       ["password", "Password", LockKeyhole],
       ["devices", "Devices", MonitorSmartphone],
       ...(isWhiteLabelActive ? [["branding", "Branding", Palette]] : []),
-    ].map(([section, label, Icon], index, tabs) => <button key={section} id={`account-tab-${section}`} type="button" role="tab" aria-selected={activeTab === section} aria-controls={`account-${section}`} tabIndex={activeTab === section ? 0 : -1} onClick={() => setActiveTab(section)} onKeyDown={event => {
+    ].map(([section, label, Icon], index, tabs) => <button key={section} id={`account-tab-${section}`} type="button" role="tab" aria-selected={visibleTab === section} aria-controls={`account-${section}`} tabIndex={visibleTab === section ? 0 : -1} onClick={() => setActiveTab(section)} onKeyDown={event => {
       let next;
       if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
       if (event.key === "ArrowLeft") next = (index + tabs.length - 1) % tabs.length;
@@ -135,13 +132,13 @@ export default function AccountSettings() {
     }}><Icon aria-hidden="true" />{label}</button>)}</div>
     <div className="account-settings-grid">
       <div className="account-settings-stack">
-        <SettingsCard section="profile" active={activeTab === "profile"} title="Your profile" description="Your photo and account details." icon={UserRound}>
+        <SettingsCard section="profile" active={visibleTab === "profile"} title="Your profile" description="Your photo and account details." icon={UserRound}>
           <div className="account-settings-profile-main">
           <div className="account-settings-identity">
             <UserAvatar user={user} className="size-16 rounded-2xl" />
             <div className="min-w-0 flex-1"><h3>{user?.username || "Your account"}</h3><span>{user?.role || "Account"}</span></div>
           </div>
-          <div className="account-settings-profile-image">
+          {canManageProfilePhoto && <div className="account-settings-profile-image">
             <ProfilePhotoUpload
               key={String(user?.id || user?._id) + ":" + Boolean(user?.isPreview) + ":" + photoUploadVersion}
               disabled={Boolean(user?.isPreview) || removePhoto.isPending}
@@ -160,14 +157,14 @@ export default function AccountSettings() {
               {removePhoto.isPending ? "Removing..." : "Remove photo"}
             </Button>}
             {user?.isPreview && <p className="account-settings-note mt-2">Exit account preview to change the profile photo.</p>}
-          </div>
+          </div>}
           </div>
           <div className="account-settings-profile-fields">
           <dl className="account-settings-details">{[["Email address", user?.email], ["Account name", user?.username]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || "Unavailable"}</dd></div>)}</dl>
           <p className="account-settings-note"><Info aria-hidden="true" /><span>Contact your {user?.role === "User" ? "account manager" : "administrator"} to update these details.</span></p>
           </div>
         </SettingsCard>
-        <SettingsCard section="password" active={activeTab === "password"} title="Change password" description="Keep your account protected with a strong password." icon={LockKeyhole}>
+        <SettingsCard section="password" active={visibleTab === "password"} title="Change password" description="Keep your account protected with a strong password." icon={LockKeyhole}>
           {user?.isPreview ? <p className="account-settings-note"><Info aria-hidden="true" /><span>Exit account preview to manage your password.</span></p> : <form onSubmit={submit} className="account-settings-password">
             <div className="account-settings-password-fields">
               {[["currentPassword", "Current password"], ["newPassword", "New password"], ["confirmPassword", "Confirm new password"]].map(([key, label]) => <div key={key} className={`portal-field ${key === "currentPassword" ? "account-settings-current-password" : ""}`}>
@@ -181,7 +178,7 @@ export default function AccountSettings() {
           </form>}
         </SettingsCard>
       </div>
-      <SettingsCard section="devices" active={activeTab === "devices"} title="Signed-in devices" description="See where your account is signed in and manage access." icon={MonitorSmartphone} action={!user?.isPreview && <Button variant="ghost" size="icon-sm" aria-label="Refresh devices" title="Refresh devices" onClick={() => sessions.refetch()} disabled={sessions.isFetching}><RefreshCw aria-hidden="true" className={sessions.isFetching ? "animate-spin motion-reduce:animate-none" : ""} /></Button>}>
+      <SettingsCard section="devices" active={visibleTab === "devices"} title="Signed-in devices" description="See where your account is signed in and manage access." icon={MonitorSmartphone} action={!user?.isPreview && <Button variant="ghost" size="icon-sm" aria-label="Refresh devices" title="Refresh devices" onClick={() => sessions.refetch()} disabled={sessions.isFetching}><RefreshCw aria-hidden="true" className={sessions.isFetching ? "animate-spin motion-reduce:animate-none" : ""} /></Button>}>
         {user?.isPreview ? <p className="account-settings-note"><Info aria-hidden="true" /><span>Exit account preview to manage your devices.</span></p> : <QueryState query={sessions} empty={!rows.length} emptyTitle="No devices found" emptyDescription="Refresh to check your current sessions.">
           <div className="account-settings-session-summary"><span>{rows.length} signed-in {rows.length === 1 ? "device" : "devices"}</span><span>{otherDevices.length ? `${otherDevices.length} other ${otherDevices.length === 1 ? "device" : "devices"}` : "No other devices"}</span></div>
           <ul className="account-settings-devices">{rows.map(session => {
@@ -200,7 +197,7 @@ export default function AccountSettings() {
       {isWhiteLabelActive && (
         <SettingsCard
           section="branding"
-          active={activeTab === "branding"}
+          active={visibleTab === "branding"}
           title="Branding & White-Label"
           description="Customize your subdomain, company logo, and theme colors."
           icon={Palette}

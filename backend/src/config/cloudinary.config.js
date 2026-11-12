@@ -7,11 +7,15 @@ cloudinary.config({
 });
 
 export function isCloudinaryConfigured() {
-  return Boolean(
-    process.env.CLOUDINARY_CLOUD_NAME &&
-    process.env.CLOUDINARY_API_KEY &&
-    process.env.CLOUDINARY_API_SECRET
+  const credentials = [
+    process.env.CLOUDINARY_CLOUD_NAME,
+    process.env.CLOUDINARY_API_KEY,
+    process.env.CLOUDINARY_API_SECRET,
+  ].map((value) => String(value || "").trim());
+  const hasPlaceholder = credentials.some((value) =>
+    !value || /^(?:your[_-].*|change[_-]?me.*|placeholder.*|replace[_-]?me.*|<.*>)$/i.test(value)
   );
+  return !hasPlaceholder;
 }
 
 export default cloudinary;

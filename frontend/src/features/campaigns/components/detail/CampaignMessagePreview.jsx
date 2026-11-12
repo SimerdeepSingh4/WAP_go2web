@@ -1,6 +1,7 @@
 import { Copy, Check, CheckCheck } from "lucide-react";
 import { number, dateTime } from "@/features/admin/lib/format";
 import { CampaignMessage } from "@/components/dashboard/CampaignContent";
+import CampaignActionLinks from "@/components/dashboard/CampaignActionLinks";
 import { messageTextFromHtml } from "../../lib/messageText";
 
 export default function CampaignMessagePreview({
@@ -59,6 +60,8 @@ export default function CampaignMessagePreview({
             </div>
           </div>
         </div>
+
+        <CampaignActionLinks link={campaign.campaignLink} phone={campaign.campaignNumber} />
 
         <div className="flex flex-wrap items-start justify-between gap-2 text-[11px] leading-5 text-muted-foreground">
           <span className="tabular-nums shrink-0">

@@ -69,6 +69,12 @@ export default function ActionForm({ title, description, action, successMessage,
   }
   const isAccountForm = ["createAccount", "updateAccount"].includes(action) && fields.some(field => field.key === "username");
   function renderField(field) {
+    if (field.type === "checkbox") {
+      return <label key={field.key} className="flex items-start gap-3 rounded-md border p-3 text-sm">
+        <input id={`admin-${field.key}`} type="checkbox" checked={Boolean(values[field.key])} onChange={(e) => change(field.key, e.target.checked)} className="mt-0.5 size-4 accent-primary" />
+        <span className="min-w-0"><span className="block font-medium">{field.label}</span>{field.hint && <span className="mt-1 block text-xs text-muted-foreground">{field.hint}</span>}</span>
+      </label>;
+    }
     const Control = isAccountForm && field.type === "password" ? AccountCreationPassword : Input;
     return <Field key={field.key} id={`admin-${field.key}`} label={isAccountForm ? accountCreationLabel(field.label) : field.label} hint={field.hint}>
         {field.options ? <FilterSelect id={`admin-${field.key}`} label={field.label} value={values[field.key]} onChange={(value) => change(field.key, value)} options={field.options} accountSearch={field.key === "resellerId" ? { role: "Reseller" } : ["toUserId", "fromUserId", "userId"].includes(field.key) ? { active: true, purpose: "credits" } : undefined} /> : field.type === "textarea" ? <Textarea id={`admin-${field.key}`} value={values[field.key]} onChange={(e) => change(field.key, e.target.value)} maxLength={field.maxLength} aria-invalid={Boolean(errors[field.key])} aria-describedby={errors[field.key] ? `error-${field.key}` : undefined} rows={3} /> : <Control placeholder={isAccountForm ? accountCreationPlaceholders[field.key] : undefined} id={`admin-${field.key}`} type={field.type || "text"} min={field.min} step={field.step} value={values[field.key]} onChange={(e) => change(field.key, e.target.value)} autoComplete={field.type === "password" ? "new-password" : "off"} maxLength={field.maxLength} aria-required={field.required} aria-invalid={Boolean(errors[field.key])} aria-describedby={errors[field.key] ? `error-${field.key}` : field.hint ? `admin-${field.key}-hint` : undefined} />}
