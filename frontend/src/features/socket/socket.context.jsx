@@ -72,6 +72,10 @@ export const SocketProvider = ({ children }) => {
         // Existing socket events keep business screens current. Persistent
         // notifications own the toast so the same event is not shown twice.
         socket.on("WALLET_UPDATED", refreshAccounts);
+        socket.on("ACCOUNT_ACCESS_CHANGED", () => {
+            queryClient.invalidateQueries({ queryKey: ["authUser"] });
+            refreshAccounts();
+        });
         const refreshCampaigns = () => {
             refreshAccounts();
             for (const key of ["campaignsList", "campaign-detail", "campaign-report"]) queryClient.invalidateQueries({ queryKey: [key] });

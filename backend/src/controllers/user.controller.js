@@ -157,6 +157,9 @@ async function saveUserProfileImage(req, res, userId) {
         if (req.isPreview) {
             return res.status(403).json({ message: "Exit preview mode before changing your profile image.", success: false });
         }
+        if (req.user.role === "User" && String(req.user._id) === String(userId) && req.user.featureAccess?.campaignDp !== true) {
+            return res.status(403).json({ message: "Profile photo access is not enabled for this account.", success: false });
+        }
         if (!req.file) {
             return res.status(400).json({ message: "Choose a profile image to upload.", success: false });
         }
@@ -255,6 +258,9 @@ export async function uploadCurrentUserProfileImage(req, res) {
 export async function removeCurrentUserProfileImage(req, res) {
     if (req.isPreview) {
         return res.status(403).json({ message: "Exit preview mode before removing your profile photo.", success: false });
+    }
+    if (req.user.role === "User" && req.user.featureAccess?.campaignDp !== true) {
+        return res.status(403).json({ message: "Profile photo access is not enabled for this account.", success: false });
     }
     try {
         // Return the previous photo atomically, so cleanup cannot target a
@@ -455,6 +461,23 @@ export async function updateUserAccess(req, res) {
             }
         }
 
+        if (Object.hasOwn(req.body, "featureAccess")) {
+            if (!isSuperAdmin || targetUser.role !== "User") {
+                return res.status(403).json({ message: "Only Super Admin can manage feature access for user accounts.", success: false });
+            }
+            const featureAccess = req.body.featureAccess;
+            const allowedFeatures = ["campaignDp", "campaignNumber", "campaignLink"];
+            if (!featureAccess || typeof featureAccess !== "object" || Array.isArray(featureAccess) || Object.keys(featureAccess).some((key) => !allowedFeatures.includes(key)) || Object.values(featureAccess).some((enabled) => typeof enabled !== "boolean")) {
+                return res.status(400).json({ message: "Feature access must contain boolean DP, phone, or campaign link settings.", success: false });
+            }
+            updates.featureAccess = {
+                campaignDp: targetUser.featureAccess?.campaignDp === true,
+                campaignNumber: targetUser.featureAccess?.campaignNumber === true,
+                campaignLink: targetUser.featureAccess?.campaignLink === true,
+                ...featureAccess,
+            };
+        }
+
         if (status === "expired") {
             updates.expiresAt = new Date(Date.now() - 1000);
         }
@@ -483,6 +506,7 @@ export async function updateUserAccess(req, res) {
                 id: targetUser._id,
                 status: targetUser.status,
                 expiresAt: targetUser.expiresAt,
+                featureAccess: targetUser.featureAccess,
             },
         });
     } catch (error) {

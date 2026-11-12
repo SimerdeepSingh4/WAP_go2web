@@ -72,6 +72,7 @@ async function fixture(t, { fastSweep = false } = {}) {
         crypto: { default: crypto }, jsonwebtoken: { default: jwt }, "../config/config.js": { default: config },
         "../models/session.model.js": { default: sessionModel }, "../models/user.model.js": { default: userModel },
         "../models/wallet.model.js": { default: { async deleteOne() {}, async updateOne() {}, async updateMany() {} } },
+        "../config/cloudinary.config.js": { default: {}, isCloudinaryConfigured: () => false },
         "../services/socket.service.js": service,
     };
     const auth = await load("./src/controllers/auth.controller.js", dependencies);
@@ -189,6 +190,30 @@ test("changing a future account expiry updates the existing socket timer", async
     const ended = waitFor(socket, "disconnect");
     await f.accounts.updateUserAccess({ params: { id: user._id }, user: { role: "Super Admin" }, body: { expiresAt: new Date(Date.now() + 200).toISOString() } }, response());
     await ended;
+});
+
+test("only Super Admin can grant user feature access", async (t) => {
+    const f = await fixture(t), user = f.account(), adminResponse = response();
+    await f.accounts.updateUserAccess({
+        params: { id: user._id },
+        user: { _id: "admin", role: "Super Admin" },
+        body: { featureAccess: { campaignDp: true, campaignNumber: true, campaignLink: true } },
+    }, adminResponse);
+    assert.equal(adminResponse.statusCode, 200);
+    assert.equal(user.featureAccess.campaignDp, true);
+    assert.equal(user.featureAccess.campaignNumber, true);
+    assert.equal(user.featureAccess.campaignLink, true);
+
+    const resellerResponse = response();
+    await f.accounts.updateUserAccess({
+        params: { id: user._id },
+        user: { _id: "reseller", role: "Reseller" },
+        body: { featureAccess: { campaignDp: false } },
+    }, resellerResponse);
+    assert.equal(resellerResponse.statusCode, 403);
+    assert.equal(user.featureAccess.campaignDp, true);
+    assert.equal(user.featureAccess.campaignNumber, true);
+    assert.equal(user.featureAccess.campaignLink, true);
 });
 
 test("outgoing events are withheld after revocation or a database permission change", async (t) => {

@@ -37,7 +37,7 @@ async function fixture({ photo = "", missing = false, updateError = false, clean
     });
     await module.evaluate();
     const res = { code: 200, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
-    const invoke = (overrides = {}) => module.namespace.removeCurrentUserProfileImage({ user: { _id: userId }, params: { id: "another-account" }, ...overrides }, res);
+    const invoke = (overrides = {}) => module.namespace.removeCurrentUserProfileImage({ user: { _id: userId, role: "User", featureAccess: { campaignDp: true } }, params: { id: "another-account" }, ...overrides }, res);
     return { invoke, res, updates, removedFiles, removedCloudFiles };
 }
 
@@ -55,6 +55,14 @@ test("removal clears only the signed-in user's photo and returns the default ava
 test("preview mode blocks removal before any database or file operations", async () => {
     const f = await fixture();
     await f.invoke({ isPreview: true });
+    assert.equal(f.res.code, 403);
+    assert.equal(f.updates.length, 0);
+    assert.equal(f.removedFiles.length, 0);
+});
+
+test("users without profile photo permission cannot remove their photo", async () => {
+    const f = await fixture({ photo: `/uploads/profile-pictures/${filename}` });
+    await f.invoke({ user: { _id: userId, role: "User", featureAccess: { campaignDp: false } } });
     assert.equal(f.res.code, 403);
     assert.equal(f.updates.length, 0);
     assert.equal(f.removedFiles.length, 0);

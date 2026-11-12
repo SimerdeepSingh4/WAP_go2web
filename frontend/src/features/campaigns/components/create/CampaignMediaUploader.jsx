@@ -43,8 +43,8 @@ export function formatFileSize(bytes) {
   return `${(bytes / MB).toFixed(1)} MB`;
 }
 
-function MediaSlot({ kind, value, onSelect, onRemove }) {
-  const cfg = MEDIA_KINDS[kind];
+function MediaSlot({ kind, config, value, onSelect, onRemove }) {
+  const cfg = config || MEDIA_KINDS[kind];
   const Icon = cfg.icon;
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
@@ -140,15 +140,17 @@ export default function CampaignMediaUploader({
   media,
   onSelectMedia,
   onRemoveMedia,
+  canUploadImage = false,
 }) {
   const totalMediaCount = Object.values(media).filter(Boolean).length;
+  const mediaKinds = Object.keys(MEDIA_KINDS).filter((kind) => kind !== "image" || canUploadImage);
 
   return (
     <SectionCard
       dataTour="create-media"
       icon={Upload}
       title="Campaign media"
-      description="Optional campaign attachments: one image, one video, and one PDF."
+      description="Optional campaign DP/image, video, and PDF attachments."
       aside={
         totalMediaCount > 0 && (
           <Badge
@@ -161,10 +163,11 @@ export default function CampaignMediaUploader({
       }
     >
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-        {Object.keys(MEDIA_KINDS).map((kind) => (
+        {mediaKinds.map((kind) => (
           <MediaSlot
             key={kind}
             kind={kind}
+            config={kind === "image" ? { ...MEDIA_KINDS.image, label: "DP / Image" } : MEDIA_KINDS[kind]}
             value={media[kind]}
             onSelect={onSelectMedia}
             onRemove={onRemoveMedia}

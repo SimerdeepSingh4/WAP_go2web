@@ -20,6 +20,7 @@ import { QueryState, StatusBadge } from "./shared";
 import { dateTime, number, ownerName, published, statusLabels, validateReport } from "../lib/format";
 import ActionForm from "./ActionForm";
 import { CampaignMessage, CampaignMedia, CampaignRecipients } from "@/components/dashboard/CampaignContent";
+import CampaignActionLinks from "@/components/dashboard/CampaignActionLinks";
 import api from "@/api/client";
 import { toast } from "@/components/ui/toast";
 import UserAvatar from "@/components/dashboard/UserAvatar";
@@ -174,8 +175,14 @@ export default function CampaignDetail({ id, initialReport, initialStatus, onClo
 
                   <section className="space-y-2">
                     <h2 className="text-sm font-medium">Message content</h2>
-                    <CampaignMessage content={campaign.messageBody || campaign.templateId?.body} />
+                    <div className="rounded-lg border bg-muted/40 p-4">
+                      <CampaignMessage
+                        content={campaign.messageBody || campaign.templateId?.body}
+                        className="rounded-none border-0 bg-transparent p-0"
+                      />
+                    </div>
                     <CampaignMedia campaign={campaign} />
+                    <CampaignActionLinks link={campaign.campaignLink} phone={campaign.campaignNumber} />
                   </section>
 
                   <CampaignRecipients campaign={campaign} />
