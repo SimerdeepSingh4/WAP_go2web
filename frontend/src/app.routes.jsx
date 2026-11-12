@@ -9,6 +9,7 @@ import ResellerUsers from "./features/reseller/pages/Users.jsx";
 import ResellerCredits from "./features/reseller/pages/Credits.jsx";
 import ResellerCampaigns from "./features/reseller/pages/Campaigns.jsx";
 import ResellerSettings from "./features/reseller/pages/Settings.jsx";
+import SupportChatPage from "./features/support/pages/SupportChatPage.jsx";
 import UserLayout from "./features/user/components/UserLayout.jsx";
 import UserOverview from "./features/user/pages/UserOverview.jsx";
 import UserCredits from "./features/user/pages/Credits.jsx";
@@ -148,6 +149,7 @@ export const router = createBrowserRouter([
       { path: "credits", element: <AdminCredits key="credits" /> },
       { path: "activity", element: <AdminCredits key="activity" activity /> },
       { path: "notifications", element: <NotificationsPage /> },
+      { path: "support", element: <SupportChatPage /> },
       { path: "settings", element: <AdminOperatingRules /> },
     ],
   },
@@ -170,6 +172,7 @@ export const router = createBrowserRouter([
       { path: "credits", element: <ResellerCredits key="credits" /> },
       { path: "activity", element: <Navigate to="/reseller/credits" replace /> },
       { path: "notifications", element: <NotificationsPage /> },
+      { path: "support", element: <SupportChatPage /> },
       { path: "settings", element: <ResellerSettings /> },
     ],
   },
@@ -190,6 +193,7 @@ export const router = createBrowserRouter([
       { path: "credits", element: <UserCredits key="credits" /> },
       { path: "activity", element: <Navigate to="/user/credits" replace /> },
       { path: "notifications", element: <NotificationsPage /> },
+      { path: "support", element: <SupportChatPage /> },
       { path: "settings", element: <UserSettings /> },
     ],
   },
