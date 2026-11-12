@@ -12,6 +12,13 @@ export const SUPPORT_LIMITS = {
 
 export const SUPPORT_STORAGE_DIR = path.resolve(process.cwd(), "storage/support_private");
 
+export async function removeSupportMedia(storageReference) {
+    const target = path.resolve(SUPPORT_STORAGE_DIR, storageReference);
+    if (path.dirname(target) !== SUPPORT_STORAGE_DIR) throw new Error("Invalid support media path.");
+    try { await fs.promises.unlink(target); }
+    catch (error) { if (error.code !== "ENOENT") throw error; }
+}
+
 if (!fs.existsSync(SUPPORT_STORAGE_DIR)) {
     fs.mkdirSync(SUPPORT_STORAGE_DIR, { recursive: true });
 }

@@ -150,7 +150,7 @@ export default function CampaignMediaUploader({
       dataTour="create-media"
       icon={Upload}
       title="Campaign media"
-      description="Optional campaign DP/image, video, and PDF attachments."
+      description="Optional campaign image, video, and PDF attachments."
       aside={
         totalMediaCount > 0 && (
           <Badge
@@ -167,7 +167,7 @@ export default function CampaignMediaUploader({
           <MediaSlot
             key={kind}
             kind={kind}
-            config={kind === "image" ? { ...MEDIA_KINDS.image, label: "DP / Image" } : MEDIA_KINDS[kind]}
+            config={MEDIA_KINDS[kind]}
             value={media[kind]}
             onSelect={onSelectMedia}
             onRemove={onRemoveMedia}

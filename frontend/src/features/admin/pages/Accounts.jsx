@@ -845,7 +845,7 @@ export default function Accounts({ role }) {
             { key: "status", label: "Account status", options: [{ value: "active", label: "Active" }, { value: "blocked", label: "Blocked" }, { value: "expired", label: "Expired" }] },
             { key: "expiresAt", label: "Account expiry date (optional)", type: "date", hint: "The account remains active through this date. Leave blank for no expiry." },
             ...(role === "User" ? [
-              { key: "allowCampaignDp", label: "Campaign DP / image", type: "checkbox", hint: "Allow this user to attach a DP/image to a campaign." },
+              { key: "allowCampaignDp", label: "Campaign image", type: "checkbox", hint: "Allow this user to attach an image to a campaign." },
               { key: "allowCampaignNumber", label: "Campaign number", type: "checkbox", hint: "Allow this user to add an optional contact number to a campaign." },
               { key: "allowCampaignLink", label: "Campaign link", type: "checkbox", hint: "Show an optional link field when this user creates a campaign." },
             ] : []),
@@ -861,7 +861,7 @@ export default function Accounts({ role }) {
               <p className="font-medium">{modal.account.username}</p>
               <p>Status: <strong>{values.status}</strong></p>
               <p>Expiry: <strong>{values.expiresAt || "No expiry"}</strong></p>
-              {role === "User" && <p>Campaign DP/image: <strong>{values.allowCampaignDp ? "Allowed" : "Not allowed"}</strong></p>}
+              {role === "User" && <p>Campaign image: <strong>{values.allowCampaignDp ? "Allowed" : "Not allowed"}</strong></p>}
               {role === "User" && <p>Campaign number: <strong>{values.allowCampaignNumber ? "Allowed" : "Not allowed"}</strong></p>}
               {role === "User" && <p>Campaign link: <strong>{values.allowCampaignLink ? "Allowed" : "Not allowed"}</strong></p>}
             </>

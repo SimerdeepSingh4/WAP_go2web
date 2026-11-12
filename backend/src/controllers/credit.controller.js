@@ -7,6 +7,7 @@ import userModel from "../models/user.model.js";
 import { creditAmount as normalizeCreditAmount, creditsForCount, creditTransactionOptions } from "../helpers/credit-amount.js";
 import { startCreditSession, saveCreditReceipt } from "../helpers/credit-operation.js";
 import { transactionObjectId } from "../helpers/transaction-reference.js";
+import { publicAccountIdentity } from "../helpers/account-identity.js";
 
 /**
  * GET /api/credits/balance
@@ -838,7 +839,13 @@ export async function getTransactions(req, res) {
 
         return res.status(200).json({
             success: true,
-            transactions,
+            transactions: req.user.role === "Super Admin" ? transactions : transactions.map(transaction => {
+                const view = transaction.toJSON();
+                for (const field of ["fromUser", "toUser", "performedBy"]) {
+                    view[field] = publicAccountIdentity(view[field], req.user.role);
+                }
+                return view;
+            }),
             pagination: {
                 page: pageNum,
                 limit: limitNum,

@@ -1,11 +1,12 @@
 import express from "express";
 import mongoose from "mongoose";
-import { protect, blockInPreviewMode } from "../middlewares/auth.middleware.js";
+import { protect, blockInPreviewMode, authorizeRoles } from "../middlewares/auth.middleware.js";
 import { supportMediaUpload } from "../middlewares/support-upload.middleware.js";
 import {
     getOrCreateConversation,
     listConversations,
     getConversationById,
+    deleteConversation,
     getConversationMessages,
     sendMessage,
     markAsRead,
@@ -27,6 +28,7 @@ router.param("id", (req, res, next, id) => mongoose.Types.ObjectId.isValid(id) ?
 router.post("/conversations", getOrCreateConversation);
 router.get("/conversations", listConversations);
 router.get("/conversations/:id", getConversationById);
+router.delete("/conversations/:id", authorizeRoles("Super Admin"), deleteConversation);
 router.patch("/conversations/:id/status", updateStatus);
 router.post("/conversations/:id/escalate", requestEscalation);
 router.post("/conversations/:id/read", markAsRead);

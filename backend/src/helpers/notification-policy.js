@@ -1,3 +1,5 @@
+import { publicAccountIdentity } from "./account-identity.js";
+
 export const notificationCategories = ["campaigns", "credits", "accounts", "system"];
 export const roleBase = (role) => role === "Super Admin" ? "/admin" : role === "Reseller" ? "/reseller" : "/user";
 
@@ -146,7 +148,7 @@ export function formatNotification(event, viewer, subject, threshold = 100) {
     const base = roleBase(viewer.role);
     const isSelf = sameId(viewer._id, subject?._id);
     const subjectRole = subject?.role || "User";
-    const subjectName = subject?.username || "Account";
+    const subjectName = publicAccountIdentity(subject, viewer.role)?.username || "Account";
     const subjectLabel = subject?.username ? `${subjectRole} "${subjectName}"` : "Account";
 
     const result = (category, title, body, href) => ({ category, title, body, href });

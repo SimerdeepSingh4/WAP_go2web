@@ -7,6 +7,7 @@ import { notificationScope } from "../services/notification.service.js";
 import { isAllowedPushEndpoint, notificationCategories, notificationAttentionFilter } from "../helpers/notification-policy.js";
 import { pushConfigured } from "../workers/notification.worker.js";
 import { notifyUser } from "../services/socket.service.js";
+import { publicAccountIdentity } from "../helpers/account-identity.js";
 
 const router = Router();
 const route = (handler) => async (req, res) => { try { await handler(req, res); } catch (error) { console.error("Notifications:", error.message); res.status(500).json({ success: false, message: "Could not update notifications. Please try again." }); } };
@@ -34,7 +35,16 @@ router.get("/", route(async (req, res) => {
         Notification.countDocuments({ ...scope, archivedAt: null }),
         Notification.countDocuments({ $and: [scope, { archivedAt: null, readAt: null }, notificationAttentionFilter] }),
     ]);
-    res.json({ items, unreadCount, inboxCount, attentionCount, pagination: { page, limit, total, pages: Math.max(1, Math.ceil(total / limit)) } });
+    const visibleItems = items.map(item => {
+        const subject = item.subjectUserId;
+        const identity = publicAccountIdentity(subject, req.user.role);
+        if (identity === subject) return item;
+        const displayText = text => subject.username && subject.username !== "Super Admin"
+            ? text?.replaceAll(subject.username, "Super Admin")
+            : text;
+        return { ...item, subjectUserId: identity, title: displayText(item.title), body: displayText(item.body) };
+    });
+    res.json({ items: visibleItems, unreadCount, inboxCount, attentionCount, pagination: { page, limit, total, pages: Math.max(1, Math.ceil(total / limit)) } });
 }));
 
 router.get("/preferences", route(async (req, res) => {

@@ -214,7 +214,7 @@ export default function CreateCampaignPage() {
   /* ---- Media ---- */
   const selectMedia = (kind, file) => {
     if (kind === "image" && !canAddCampaignDp) {
-      toast.add({ title: "Campaign DP/image access is not enabled for this account", type: "error" });
+      toast.add({ title: "Campaign image access is not enabled for this account", type: "error" });
       return;
     }
     const cfg = MEDIA_KINDS[kind];
