@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from "react";
 import { useLocation } from "react-router";
 import { driver } from "driver.js";
 import "./tour.css";
-import { isTourDismissed, setTourStatus } from "./tourStorage";
+import { isTourAutoDisabled, isTourDismissed, setTourStatus } from "./tourStorage";
 import { getPageTour, getTourSteps } from "./appTourSteps";
 
 function visibleElement(selector) {
@@ -20,21 +20,34 @@ export function useAppTour(role, userId) {
 
   const startTour = useCallback((force = true) => {
     if (!tour || !userId) return;
-    const sessionKey = `${role}:${userId}:${tour.id}`;
-    if (!force && (dismissedRef.current.has(sessionKey) || isTourDismissed(role, userId, tour.id))) return;
+    const guideId = force ? tour.id : "help-introduction";
+    const sessionKey = `${role}:${userId}:${guideId}`;
+    const workspaceKey = `${role}:${userId}:auto-disabled`;
+    const autoDisabled = () => dismissedRef.current.has(workspaceKey) || isTourAutoDisabled(role, userId);
+    if (!force && (autoDisabled() || dismissedRef.current.has(sessionKey) || isTourDismissed(role, userId, guideId))) return;
     window.clearTimeout(timerRef.current);
     instanceRef.current?.destroy();
     let attempts = 0;
 
     const launchWhenReady = () => {
+      if (!force && autoDisabled()) return;
       const main = document.getElementById("dashboard-main");
       const busy = main?.querySelector('[aria-label^="Loading"], .animate-pulse, [data-tour-loading="true"]');
       const dialog = document.querySelector('[role="dialog"], [role="alertdialog"], [role="menu"]');
-      if (!main?.querySelector("h1") || busy || dialog) {
+      if (!main?.querySelector("h1") || busy || dialog || (!force && !visibleElement("#tour-help-button"))) {
         if (++attempts < 100) timerRef.current = window.setTimeout(launchWhenReady, 150);
         return;
       }
-      const steps = getTourSteps(tour).flatMap((step) => {
+      const sourceSteps = force ? getTourSteps(tour) : [{
+        element: "#tour-help-button",
+        popover: {
+          title: "Explore at your own pace",
+          description: "Want to understand each feature in detail? Click Take a tour here whenever you need a step-by-step guide to the page you’re on.",
+          side: "bottom",
+          align: "end",
+        },
+      }];
+      const steps = sourceSteps.flatMap((step) => {
         if (!step.element) return [step];
         const element = visibleElement(step.element);
         return element ? [{ ...step, element }] : [];
@@ -42,12 +55,13 @@ export function useAppTour(role, userId) {
       let action = null;
       const instance = driver({
         steps,
-        popoverClass: "app-tour",
-        showProgress: true,
+        popoverClass: force ? "app-tour" : "app-tour app-tour-intro",
+        showProgress: force,
+        showButtons: force ? ["next", "previous", "close"] : ["next", "close"],
         progressText: "{{current}} of {{total}}",
         animate: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
         overlayColor: "var(--foreground)",
-        overlayOpacity: 0.55,
+        overlayOpacity: force ? 0.55 : 0.2,
         overlayClickBehavior: "none",
         stagePadding: 6,
         stageRadius: 12,
@@ -55,7 +69,7 @@ export function useAppTour(role, userId) {
         disableActiveInteraction: true,
         nextBtnText: "Next &rarr;",
         prevBtnText: "Back",
-        doneBtnText: "Finish tour",
+        doneBtnText: force ? "Finish tour" : "Got it",
         onNextClick: () => {
           if (instance.isLastStep()) { action = "completed"; instance.destroy(); }
           else instance.moveNext();
@@ -65,7 +79,7 @@ export function useAppTour(role, userId) {
           const index = instance.getActiveIndex() ?? 0;
           const label = document.createElement("div");
           label.className = "app-tour-label";
-          label.textContent = `PAGE GUIDE / ${tour.title}`;
+          label.textContent = force ? `PAGE GUIDE / ${tour.title}` : "QUICK TIP";
           popover.wrapper.prepend(label);
           const progress = document.createElement("div");
           progress.className = "app-tour-track";
@@ -73,11 +87,11 @@ export function useAppTour(role, userId) {
           const fill = document.createElement("span");
           fill.style.width = `${((index + 1) / steps.length) * 100}%`;
           progress.append(fill);
-          popover.wrapper.append(progress);
+          if (force) popover.wrapper.append(progress);
           const skip = document.createElement("button");
           skip.type = "button";
           skip.className = "app-tour-skip";
-          skip.textContent = "Skip tour";
+          skip.textContent = force ? "Skip tour" : "Dismiss";
           skip.onclick = () => { action = "skipped"; instance.destroy(); };
           popover.description.after(skip);
           popover.closeButton.setAttribute("aria-label", "Close page tour");
@@ -89,13 +103,19 @@ export function useAppTour(role, userId) {
         onDestroyed: () => {
           if (action) {
             dismissedRef.current.add(sessionKey);
-            setTourStatus(role, userId, action, tour.id);
+            if (action === "skipped") dismissedRef.current.add(workspaceKey);
+            setTourStatus(role, userId, action, guideId);
           }
           if (instanceRef.current === instance) instanceRef.current = null;
         },
       });
       instanceRef.current = instance;
       instance.drive();
+      if (!force) {
+        // Showing the tip once is enough, including when navigation closes it.
+        dismissedRef.current.add(sessionKey);
+        setTourStatus(role, userId, "completed", guideId);
+      }
     };
     timerRef.current = window.setTimeout(launchWhenReady, 350);
   }, [role, userId, tour]);

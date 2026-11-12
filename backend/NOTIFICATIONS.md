@@ -30,8 +30,4 @@ Browser services, device settings and permissions can delay or prevent OS alerts
 
 ## Verification
 
-```powershell
-node --test test-notifications.js test-notification-service-worker.js test-notifications-integration.js
-```
-
-The integration suite creates and removes an isolated temporary database. It tests transaction rollback, duplicate protection, privacy, read/archive controls, retry handling and expired subscriptions. Push transport is mocked; it sends no external notifications. A real browser must grant permission to verify OS-level delivery on that device.
+A real browser must grant permission to verify OS-level delivery on that device.

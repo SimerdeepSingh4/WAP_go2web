@@ -1,5 +1,9 @@
 @import "driver.js/dist/driver.css";
 
+.driver-popover.app-tour.app-tour-intro { width:min(320px,calc(100vw - 24px)); padding:18px; border-radius:14px; }
+.app-tour-intro .app-tour-label { margin-bottom:10px; }
+.app-tour-intro .driver-popover-title { font-size:17px; font-weight:600; }
+
 .driver-popover.app-tour {
   --tour-surface: var(--card);
   --tour-text: var(--foreground);
