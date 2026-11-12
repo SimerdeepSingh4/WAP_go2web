@@ -21,6 +21,17 @@ const campaignSchema = new mongoose.Schema(
             trim: true,
             default: "",
         },
+        campaignLink: {
+            type: String,
+            trim: true,
+            maxlength: 2048,
+            default: "",
+        },
+        campaignNumber: {
+            type: String,
+            trim: true,
+            default: "",
+        },
         recipientInputAudit: { type: mongoose.Schema.Types.Mixed, default: null, immutable: true },
         templateId: {
             type: mongoose.Schema.Types.ObjectId,

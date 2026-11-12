@@ -19,6 +19,7 @@ import { campaignPublicStatus, publicCampaignView } from "../helpers/campaign-vi
 import { failureReportEntries, failureReportSheet } from "../../../shared/campaignFailure.js";
 import { campaignContactRows, restoreOriginalCampaignEntries } from "../../../shared/campaignContacts.js";
 import { sanitizeRecipientInputAudit } from "../helpers/recipient-input-audit.js";
+import { normalizeAccountPhone } from "../helpers/account-phone.js";
 
 const REPORT_CATEGORIES = [
     "whatsapp_successful",
@@ -341,6 +342,8 @@ export const createCampaign = async (req, res) => {
         const {
             campaignTitle,
             campaignDescription,
+            campaignNumber,
+            campaignLink,
             templateId,
             messageBody,
             recipients: rawInputRecipients,
@@ -353,6 +356,51 @@ export const createCampaign = async (req, res) => {
             messageType,
             status,
         } = req.body;
+
+        const uploadedImages = [...(req.files?.images || []), ...(req.files?.image || [])];
+        if (uploadedImages.length && req.user.role !== "Super Admin" && req.user.featureAccess?.campaignDp !== true) {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
+            return res.status(403).json({ success: false, message: "Campaign DP/image access is not enabled for this account." });
+        }
+
+        let normalizedCampaignNumber = "";
+        if (campaignNumber != null && campaignNumber !== "") {
+            if (req.user.role !== "Super Admin" && req.user.featureAccess?.campaignNumber !== true) {
+                await mongoSession.abortTransaction();
+                mongoSession.endSession();
+                return res.status(403).json({ success: false, message: "Campaign number access is not enabled for this account." });
+            }
+            try {
+                normalizedCampaignNumber = normalizeAccountPhone(campaignNumber);
+            } catch (error) {
+                await mongoSession.abortTransaction();
+                mongoSession.endSession();
+                return res.status(400).json({ success: false, message: error.message });
+            }
+        }
+
+        const normalizedCampaignLink = typeof campaignLink === "string" ? campaignLink.trim() : "";
+        if (campaignLink != null && typeof campaignLink !== "string") {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
+            return res.status(400).json({ success: false, message: "Campaign link must be a URL string." });
+        }
+        if (normalizedCampaignLink && req.user.role !== "Super Admin" && req.user.featureAccess?.campaignLink !== true) {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
+            return res.status(403).json({ success: false, message: "Campaign link access is not enabled for this account." });
+        }
+        if (normalizedCampaignLink) {
+            try {
+                const parsedLink = new URL(normalizedCampaignLink);
+                if (!["http:", "https:"].includes(parsedLink.protocol) || normalizedCampaignLink.length > 2048) throw new Error("Invalid campaign link.");
+            } catch {
+                await mongoSession.abortTransaction();
+                mongoSession.endSession();
+                return res.status(400).json({ success: false, message: "Enter a valid HTTP or HTTPS campaign link." });
+            }
+        }
 
         // Safely parse recipients whether sent as JSON array or via multipart/form-data
         let recipients = rawInputRecipients;
@@ -715,6 +763,8 @@ export const createCampaign = async (req, res) => {
                     userId: req.user._id,
                     campaignTitle,
                     campaignDescription: campaignDescription || "",
+                    campaignNumber: normalizedCampaignNumber,
+                    campaignLink: normalizedCampaignLink,
                     templateId: templateId || null,
                     messageBody: messageBody || "",
                     recipients: sanitizedRecipients,

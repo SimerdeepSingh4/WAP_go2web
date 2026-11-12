@@ -50,11 +50,16 @@ export default function CreateCampaignPage() {
   const base = user?.role === "Super Admin" ? "/admin" : user?.role === "Reseller" ? "/reseller" : "/user";
   const parentCampaignsPath = `${base}/campaigns`;
   const isAdmin = user?.role === "Super Admin";
+  const canAddCampaignDp = isAdmin || user?.featureAccess?.campaignDp === true;
+  const canAddCampaignNumber = isAdmin || user?.featureAccess?.campaignNumber === true;
+  const canAddCampaignLink = isAdmin || user?.featureAccess?.campaignLink === true;
   const accountId = user?.id || user?._id;
   const draftKey = accountId ? `campaign-create:${user?.role}:${accountId}` : null;
 
   const [campaignTitle, setCampaignTitle] = useState("");
   const [campaignDescription, setCampaignDescription] = useState("");
+  const [campaignLink, setCampaignLink] = useState("");
+  const [campaignNumber, setCampaignNumber] = useState("");
   const [messageBody, setMessageBody] = useState("");
   const recipientTracking = useRecipientTracking();
   const { rawRecipients, change: setRawRecipients, audit: recipientAudit } = recipientTracking;
@@ -79,12 +84,15 @@ export default function CreateCampaignPage() {
       if (draft) {
         setCampaignTitle(draft.campaignTitle || "");
         setCampaignDescription(draft.campaignDescription || "");
+        setCampaignLink(draft.campaignLink || "");
+        setCampaignNumber(draft.campaignNumber || "");
         setMessageBody(draft.messageBody || "");
         recipientTracking.restore(draft.rawRecipients || "", draft.recipientTracking);
         setScheduleType(draft.scheduleType || "now");
         setScheduledTime(draft.scheduledTime || "");
         const restoredMedia = { image: null, video: null, pdf: null };
         for (const kind of Object.keys(restoredMedia)) {
+          if (kind === "image" && !canAddCampaignDp) continue;
           const file = draft.media?.[kind];
           if (file) {
             restoredMedia[kind] = {
@@ -104,7 +112,7 @@ export default function CreateCampaignPage() {
     });
 
     return () => { active = false; };
-  }, [draftKey]);
+  }, [draftKey, canAddCampaignDp]);
 
   // Revoke object URLs when replaced or on unmount
   useEffect(() => () => { if (media.image?.preview) URL.revokeObjectURL(media.image.preview); }, [media.image]);
@@ -157,7 +165,7 @@ export default function CreateCampaignPage() {
     { ok: !hasInsufficientCredits && !isLocked, label: "Enough credits" },
   ];
 
-  const isDirty = Boolean(campaignTitle || campaignDescription || messageText || rawRecipients.trim() || totalMediaCount || scheduleType !== "now" || scheduledTime);
+  const isDirty = Boolean(campaignTitle || campaignDescription || campaignLink || campaignNumber || messageText || rawRecipients.trim() || totalMediaCount || scheduleType !== "now" || scheduledTime);
 
   useEffect(() => {
     if (!draftReady || !draftKey) return undefined;
@@ -170,6 +178,8 @@ export default function CreateCampaignPage() {
       writeCampaignDraft(draftKey, {
         campaignTitle,
         campaignDescription,
+        campaignLink,
+        campaignNumber,
         messageBody,
         rawRecipients,
         recipientTracking: recipientTracking.tracking,
@@ -183,7 +193,7 @@ export default function CreateCampaignPage() {
       }).catch(() => {});
     }, 300);
     return () => window.clearTimeout(draftSaveTimer.current);
-  }, [draftReady, draftKey, isDirty, campaignTitle, campaignDescription, messageBody, rawRecipients, recipientTracking.tracking, scheduleType, scheduledTime, media]);
+  }, [draftReady, draftKey, isDirty, campaignTitle, campaignDescription, campaignLink, campaignNumber, messageBody, rawRecipients, recipientTracking.tracking, scheduleType, scheduledTime, media]);
 
   // Warn before leaving with unsent work
   useEffect(() => {
@@ -203,6 +213,10 @@ export default function CreateCampaignPage() {
 
   /* ---- Media ---- */
   const selectMedia = (kind, file) => {
+    if (kind === "image" && !canAddCampaignDp) {
+      toast.add({ title: "Campaign DP/image access is not enabled for this account", type: "error" });
+      return;
+    }
     const cfg = MEDIA_KINDS[kind];
     if (!cfg.types.includes(file.type) && !(kind === "pdf" && /\.pdf$/i.test(file.name))) {
       toast.add({ title: `Unsupported ${cfg.label.toLowerCase()} type`, description: `Allowed: ${cfg.hint}.`, type: "error" });
@@ -285,6 +299,20 @@ export default function CreateCampaignPage() {
     if (user?.isPreview) return setFormError("Exit account preview to submit a campaign.");
     if (!isAdmin && !balanceQuery.isSuccess) return setFormError("Load your credit balance before continuing.");
     if (scheduleType === "later" && !scheduleValid) return setFormError("Choose a future date and time.");
+    if (canAddCampaignLink && campaignLink.trim()) {
+      try {
+        const parsedLink = new URL(campaignLink.trim());
+        if (!["http:", "https:"].includes(parsedLink.protocol)) throw new Error("unsupported protocol");
+      } catch {
+        return setFormError("Enter a valid HTTP or HTTPS campaign link.");
+      }
+    }
+    if (canAddCampaignNumber && campaignNumber.trim()) {
+      const campaignNumberDigits = campaignNumber.replace(/\D/g, "");
+      if (!/^\+?[\d\s().-]+$/.test(campaignNumber.trim()) || campaignNumberDigits.length < 7 || campaignNumberDigits.length > 15) {
+        return setFormError("Enter a valid campaign number with 7 to 15 digits.");
+      }
+    }
     if (isLocked) return setFormError("Your credit balance is expired and locked. Please contact your administrator.");
     if (!campaignTitle.trim()) return setFormError("Please provide a campaign title.");
     if (!messageText && totalMediaCount === 0) return setFormError("Please provide message content or attach media (image, video, or PDF).");
@@ -296,6 +324,8 @@ export default function CreateCampaignPage() {
     const formData = new FormData();
     formData.append("campaignTitle", campaignTitle.trim());
     formData.append("campaignDescription", campaignDescription.trim());
+    if (canAddCampaignLink && campaignLink.trim()) formData.append("campaignLink", campaignLink.trim());
+    if (canAddCampaignNumber && campaignNumber.trim()) formData.append("campaignNumber", campaignNumber.trim());
     formData.append("messageBody", messageBody.trim());
     formData.append("recipients", JSON.stringify(splitRecipientInput(rawRecipients)));
     formData.append("recipientInputAudit", JSON.stringify(recipientAudit));
@@ -387,6 +417,10 @@ export default function CreateCampaignPage() {
             onCampaignTitleChange={setCampaignTitle}
             campaignDescription={campaignDescription}
             onCampaignDescriptionChange={setCampaignDescription}
+            campaignLink={campaignLink}
+            onCampaignLinkChange={canAddCampaignLink ? setCampaignLink : undefined}
+            campaignNumber={campaignNumber}
+            onCampaignNumberChange={canAddCampaignNumber ? setCampaignNumber : undefined}
           />
 
           <CampaignMessageEditor
@@ -404,6 +438,7 @@ export default function CreateCampaignPage() {
             media={media}
             onSelectMedia={selectMedia}
             onRemoveMedia={removeMedia}
+            canUploadImage={canAddCampaignDp}
           />
 
           <CampaignRecipientsInput
@@ -466,6 +501,8 @@ export default function CreateCampaignPage() {
         }}
         isPending={createCampaignMutation.isPending}
         campaignTitle={campaignTitle}
+        campaignLink={canAddCampaignLink ? campaignLink : ""}
+        campaignNumber={canAddCampaignNumber ? campaignNumber : ""}
         totalRecipients={totalRecipients}
         estimate={estimate}
         estimatedCost={estimatedCost}

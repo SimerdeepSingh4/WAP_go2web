@@ -64,6 +64,11 @@ const userSchema = new mongoose.Schema(
             default: 12, // default 12 paise per message
             min: [0, "Rate per message cannot be negative"],
         },
+        featureAccess: {
+            campaignDp: { type: Boolean, default: false },
+            campaignNumber: { type: Boolean, default: false },
+            campaignLink: { type: Boolean, default: false },
+        },
         whiteLabel: {
             enabled: {
                 type: Boolean,

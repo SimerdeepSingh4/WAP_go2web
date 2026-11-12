@@ -208,10 +208,12 @@ export async function register(req, res) {
                 id: user._id,
                 username: user.username,
                 email: user.email,
+                phone: user.phone || "",
                 dp_img: user.dp_img || "",
                 role: user.role,
                 resellerId: user.resellerId,
                 ratePerMsg: user.ratePerMsg,
+                featureAccess: user.featureAccess,
             },
         });
     } catch (error) {
@@ -272,9 +274,11 @@ export async function login(req, res) {
                 id: user._id,
                 username: user.username,
                 email: user.email,
+                phone: user.phone || "",
                 role: user.role,
                 expiresAt: user.expiresAt || null,
                 isExpired: isAccountExpired(user),
+                featureAccess: user.featureAccess,
                 whiteLabel,
             },
         });
@@ -419,6 +423,7 @@ export async function getMe(req, res) {
                 id: req.user._id,
                 username: req.user.username,
                 email: req.user.email,
+                phone: req.user.phone || "",
                 dp_img: req.user.dp_img || "",
                 role: req.user.role,
                 status: req.user.status,
@@ -427,6 +432,7 @@ export async function getMe(req, res) {
                 isPreview: req.isPreview || false,
                 isImpersonation: req.isImpersonation || false,
                 originalAdmin: req.originalAdmin || null,
+                featureAccess: req.user.featureAccess,
                 whiteLabel,
             },
             currentSession: {

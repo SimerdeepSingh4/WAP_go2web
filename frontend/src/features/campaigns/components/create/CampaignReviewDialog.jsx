@@ -10,6 +10,8 @@ export default function CampaignReviewDialog({
   onClose,
   isPending,
   campaignTitle,
+  campaignLink,
+  campaignNumber,
   totalRecipients,
   estimate,
   estimatedCost,
@@ -42,6 +44,8 @@ export default function CampaignReviewDialog({
         <dl className="campaign-review-details">
           {[
             ["Campaign", campaignTitle],
+            ...(campaignNumber ? [["Campaign number", campaignNumber]] : []),
+            ...(campaignLink ? [["Campaign link", campaignLink]] : []),
             ["Numbers entered", number(totalRecipients)],
             ["Rate per recipient", `${number(estimate.rate)} ${estimate.rate === 1 ? "credit" : "credits"}`],
             ["Estimated charge", `${number(estimatedCost)} credits`],

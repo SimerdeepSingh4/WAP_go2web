@@ -1,4 +1,4 @@
-import { FileText } from "lucide-react";
+import { FileText, Link2 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,6 +28,10 @@ export default function CampaignDetailsSection({
   onCampaignTitleChange,
   campaignDescription,
   onCampaignDescriptionChange,
+  campaignLink,
+  onCampaignLinkChange,
+  campaignNumber,
+  onCampaignNumberChange,
 }) {
   return (
     <SectionCard
@@ -62,6 +66,38 @@ export default function CampaignDetailsSection({
             className="h-10 bg-background text-sm focus-visible:ring-2 focus-visible:ring-ring/20"
           />
         </div>
+        {onCampaignLinkChange && <div className="space-y-1.5 md:col-span-2">
+          <Label htmlFor="campaign-link" className="text-xs font-medium">
+            Campaign link <span className="text-muted-foreground font-normal">(optional)</span>
+          </Label>
+          <div className="relative">
+            <Link2 aria-hidden="true" className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="campaign-link"
+              type="url"
+              placeholder="https://example.com/offer"
+              value={campaignLink}
+              onChange={(e) => onCampaignLinkChange(e.target.value)}
+              className="h-10 bg-background pl-9 text-sm focus-visible:ring-2 focus-visible:ring-ring/20"
+              maxLength={2048}
+            />
+          </div>
+        </div>}
+        {onCampaignNumberChange && <div className="space-y-1.5">
+          <Label htmlFor="campaign-number" className="text-xs font-medium">
+            Campaign number <span className="text-muted-foreground font-normal">(optional)</span>
+          </Label>
+          <Input
+            id="campaign-number"
+            type="tel"
+            autoComplete="tel"
+            placeholder="+919876543210"
+            value={campaignNumber}
+            onChange={(e) => onCampaignNumberChange(e.target.value)}
+            className="h-10 bg-background text-sm focus-visible:ring-2 focus-visible:ring-ring/20"
+            maxLength={40}
+          />
+        </div>}
       </div>
     </SectionCard>
   );
