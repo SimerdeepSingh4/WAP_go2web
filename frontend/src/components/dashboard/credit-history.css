@@ -1,0 +1,45 @@
+.credit-history { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
+.credit-ledger-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+.credit-ledger-heading { min-width: 160px; }
+.credit-ledger-heading p { margin-top: 4px; color: var(--muted-foreground); font-size: 11px; line-height: 1.5; }
+.credit-ledger-filters { display: flex; min-width: 0; align-items: center; gap: 8px; }
+.credit-ledger-type-filter { width: 190px; min-width: 0; }
+.credit-ledger-account-filter { width: 280px; min-width: 0; }
+.credit-ledger-filters :is([data-slot="select-trigger"], .account-picker-trigger) { width: 100%; min-width: 0; height: 38px; min-height: 38px; border-radius: 8px; font-size: 12px; }
+.credit-ledger .responsive-data-table { border: 0; border-radius: 0; }
+.credit-history .credit-ledger [data-slot="table"] { min-width: 1030px; table-layout: fixed; }
+.credit-history .credit-ledger[data-request-actions="true"] [data-slot="table"] { min-width: 1140px; }
+.credit-history .credit-ledger :is([data-slot="table-head"], [data-slot="table-cell"]) { padding: 12px 14px; vertical-align: middle; }
+.credit-history .credit-ledger [data-slot="table-head"] { height: 42px; padding-block: 10px; font-size: 11px; font-weight: 500; }
+.credit-ledger-col-reference { width: 190px; }
+.credit-ledger-col-type { width: 158px; }
+.credit-ledger-col-account { width: 118px; }
+.credit-ledger-col-amount { width: 106px; }
+.credit-ledger-col-balance { width: 138px; }
+.credit-ledger-col-help { width: 90px; }
+.credit-ledger-col-actor { width: 112px; }
+.credit-ledger-col-action { width: 110px; }
+.credit-ledger-reference { display: grid; gap: 4px; }
+.credit-ledger-date { color: var(--muted-foreground); font-size: 10px; line-height: 1.5; white-space: nowrap; }
+.credit-ledger-account { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.credit-ledger-badge { max-width: 100%; white-space: nowrap; }
+.credit-ledger-note { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; white-space: normal; line-height: 1.6; }
+.credit-ledger-allocate { min-width: 86px; height: 30px; gap: 4px; padding-inline: 8px; white-space: nowrap; font-size: 11px; }
+.credit-ledger > .responsive-table-pager { border-top: 1px solid var(--border); padding: 12px 18px; }
+
+@container portal (max-width: 1000px) {
+  .credit-ledger-toolbar { align-items: stretch; flex-direction: column; gap: 14px; }
+  .credit-ledger-filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto; }
+  .credit-ledger-filters:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
+  .credit-ledger-type-filter, .credit-ledger-account-filter { width: auto; }
+}
+@media (max-width: 767px) {
+  .credit-ledger-toolbar { align-items: stretch; flex-direction: column; gap: 14px; padding: 16px; }
+  .credit-ledger-filters { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .credit-ledger-type-filter, .credit-ledger-account-filter { width: 100%; }
+  .credit-ledger-filters :is([data-slot="select-trigger"], .account-picker-trigger) { min-height: 44px; height: 44px; }
+  .credit-ledger .mobile-record-value .credit-ledger-reference { font-size: 12px; }
+  .credit-ledger .credit-ledger-note { display: block; overflow: visible; -webkit-line-clamp: unset; }
+  .credit-ledger .mobile-record-actions { margin-top: 12px; }
+  .credit-ledger .mobile-record-actions:has([aria-label="No action available"]) { display: none; }
+}

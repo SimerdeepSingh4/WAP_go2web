@@ -12,6 +12,10 @@ import {
   Loader2,
   ChevronDown,
   Pencil,
+  FolderPlus,
+  RotateCcw,
+  Wallet,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -639,67 +643,89 @@ export default function CampaignCategoryCards({ campaign }) {
         </DialogContent>
       </Dialog>
       <Dialog open={createCategoryModalOpen} onOpenChange={setCreateCategoryModalOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add category</DialogTitle>
-            <DialogDescription>
-              Choose a category name and credit treatment.
-            </DialogDescription>
+        <DialogContent className="max-h-[calc(100dvh-2rem)] gap-0 overflow-y-auto rounded-2xl p-0 shadow-xl sm:max-w-[480px] [&>[data-slot=dialog-close]]:right-4 [&>[data-slot=dialog-close]]:top-4">
+          <DialogHeader className="gap-4 px-5 pt-6 pr-14 sm:px-6 sm:pr-14">
+            <div className="flex size-10 items-center justify-center rounded-xl border border-primary/15 bg-primary/5 text-primary">
+              <FolderPlus className="size-5" aria-hidden="true" />
+            </div>
+            <div className="space-y-1.5">
+              <DialogTitle className="text-lg font-semibold leading-6 tracking-tight">Add category</DialogTitle>
+              <DialogDescription className="text-sm leading-5">
+                Organize numbers and choose how credits are handled.
+              </DialogDescription>
+            </div>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-foreground">Category Name</label>
+          <div className="space-y-6 px-5 py-6 sm:px-6">
+            <div className="space-y-2">
+              <label htmlFor="new-category-name" className="block text-sm font-medium text-foreground">Category name</label>
               <Input
-                placeholder="e.g. Server Timeout, Opt-Out, Country Mismatch"
+                id="new-category-name"
+                placeholder="e.g. Server timeout"
+                aria-describedby="new-category-name-hint"
+                autoComplete="off"
                 value={newCatName}
                 onChange={(e) => setNewCatName(e.target.value)}
-                className="h-9 text-xs"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (newCatName.trim()) handleCreateCategory();
+                  }
+                }}
+                className="h-11 rounded-lg bg-background px-3 focus-visible:ring-2 focus-visible:ring-ring/20"
               />
+              <p id="new-category-name-hint" className="text-xs leading-5 text-muted-foreground">
+                Use a short, descriptive name for your report.
+              </p>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-foreground">Billing Rule for Numbers</label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setNewCatBilling("refund")}
-                  className={`p-3 rounded-lg border text-left cursor-pointer transition-colors ${
-                    newCatBilling === "refund"
-                      ? "border-emerald-500 bg-emerald-50/70 text-emerald-950 dark:bg-emerald-950/30 dark:text-emerald-200"
-                      : "border-border bg-card hover:bg-muted/50"
-                  }`}
-                >
-                  <span className="text-xs font-semibold block">Refund Credit</span>
-                  <span className="text-[11px] text-muted-foreground block mt-0.5">
-                    Refunds credits back to creator wallet upon publish
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setNewCatBilling("keep")}
-                  className={`p-3 rounded-lg border text-left cursor-pointer transition-colors ${
-                    newCatBilling === "keep"
-                      ? "border-blue-500 bg-blue-50/70 text-blue-950 dark:bg-blue-950/30 dark:text-blue-200"
-                      : "border-border bg-card hover:bg-muted/50"
-                  }`}
-                >
-                  <span className="text-xs font-semibold block">Keep Charged</span>
-                  <span className="text-[11px] text-muted-foreground block mt-0.5">
-                    Treated as billable delivery; keeps credits charged
-                  </span>
-                </button>
+            <fieldset>
+              <legend className="mb-3 text-sm font-medium text-foreground">Billing rule</legend>
+              <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2">
+                {[
+                  { value: "refund", title: "Refund credit", description: "Return credits to the creator’s wallet.", icon: RotateCcw },
+                  { value: "keep", title: "Keep charged", description: "Keep these numbers billed as delivery.", icon: Wallet },
+                ].map(({ value, title, description, icon: Icon }) => (
+                  <label key={value} className="relative cursor-pointer">
+                    <input
+                      type="radio"
+                      name="new-category-billing"
+                      value={value}
+                      checked={newCatBilling === value}
+                      onChange={() => setNewCatBilling(value)}
+                      aria-label={title}
+                      aria-describedby={`new-category-billing-${value}-description`}
+                      className="peer sr-only"
+                    />
+                    <span className="flex h-full flex-col rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-muted/30 peer-checked:border-primary peer-checked:bg-primary/5 peer-focus-visible:ring-2 peer-focus-visible:ring-ring/30 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background">
+                      <span className="mb-3 flex items-center justify-between" aria-hidden="true">
+                        <Icon className={`size-5 ${newCatBilling === value ? "text-primary" : "text-muted-foreground"}`} />
+                        <span className={`flex size-4 items-center justify-center rounded-full border ${newCatBilling === value ? "border-primary bg-primary text-primary-foreground" : "border-input bg-background"}`}>
+                          {newCatBilling === value && <Check className="size-2.5" strokeWidth={3} />}
+                        </span>
+                      </span>
+                      <span className="text-sm font-semibold text-foreground">{title}</span>
+                      <span id={`new-category-billing-${value}-description`} className="mt-1 text-xs leading-5 text-muted-foreground">{description}</span>
+                    </span>
+                  </label>
+                ))}
               </div>
-            </div>
+            </fieldset>
+
+            <p className="flex items-start gap-2 text-xs leading-5 text-muted-foreground">
+              <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+              Credits are updated when you publish the report.
+            </p>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" size="sm" onClick={() => setCreateCategoryModalOpen(false)}>
+          <DialogFooter className="m-0 flex-row justify-end gap-2.5 rounded-none border-border bg-muted/25 px-5 py-4 sm:px-6">
+            <Button type="button" variant="outline" className="h-10 px-4" onClick={() => setCreateCategoryModalOpen(false)}>
               Cancel
             </Button>
-            <Button size="sm" onClick={handleCreateCategory} disabled={!newCatName.trim()}>
-              Create Category
+            <Button type="button" className="h-10 gap-2 px-4" onClick={handleCreateCategory} disabled={!newCatName.trim()}>
+              <Plus className="size-4" aria-hidden="true" />
+              Create category
             </Button>
           </DialogFooter>
         </DialogContent>

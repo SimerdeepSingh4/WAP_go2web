@@ -6,10 +6,6 @@ import {
   Plus,
   Wallet,
   Lock,
-  ArrowUpRight,
-  ArrowDownLeft,
-  ArrowDownRight,
-  ArrowRight,
   Coins,
   Users,
   CheckCircle2,
@@ -17,83 +13,13 @@ import {
   MinusCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import OverviewMetricCards from "@/components/dashboard/OverviewMetricCards";
 import { useResellerQuery } from "../hooks/useReseller";
 import { PageHeading, QueryState, FilterSelect, DataTable, Pager } from "@/features/admin/components/shared";
 import ResellerActionForm from "../components/ResellerActionForm";
 import { dateTime, number, ownerName } from "@/features/admin/lib/format";
-import "./reseller-credits.css";
-
-/**
- * Reseller Transaction Display:
- * - ALLOCATE (From Super Admin / null): Incoming credit topup -> Inflow (+, Green, ↙) "Credit Received"
- * - ALLOCATE (From Reseller to User): Credit given to user -> Outflow (-, Blue, ↗) "Credit Allocated"
- * - DEDUCT: Message delivery usage -> Deduction (-, Red, ↘) "Campaign Usage"
- * - REFUND: Delivery failure refund -> Refund (+, Cyan, ↙) "Refund"
- * - RECLAIM: Returned to Super Admin -> Outflow (-, Amber, ↗) "Reclaimed"
- */
-function getTransactionDisplay(t) {
-  if(t.type === "REQUEST") return {label:"Credit request",badgeClass:"border-amber-200 bg-amber-50 text-amber-800",amountClass:"text-amber-800 font-medium",sign:"",icon:Coins};
-  const isFromSuperAdmin = !t.fromUser || t.fromUser?.role === "Super Admin";
-
-  if (t.type === "ALLOCATE") {
-    if (isFromSuperAdmin) {
-      return {
-        label: "Credit Received",
-        badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300",
-        amountClass: "text-emerald-700 dark:text-emerald-400 font-semibold",
-        sign: "+",
-        icon: ArrowDownLeft,
-      };
-    } else {
-      return {
-        label: "Credit Allocated",
-        badgeClass: "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300",
-        amountClass: "text-blue-700 dark:text-blue-400 font-semibold",
-        sign: "-",
-        icon: ArrowUpRight,
-      };
-    }
-  }
-
-  if (t.type === "DEDUCT") {
-    return {
-      label: "Campaign Usage",
-      badgeClass: "border-red-200 bg-red-50 text-red-800 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300",
-      amountClass: "text-red-700 dark:text-red-400 font-semibold",
-      sign: "-",
-      icon: ArrowDownRight,
-    };
-  }
-
-  if (t.type === "REFUND") {
-    return {
-      label: "Refund",
-      badgeClass: "border-cyan-200 bg-cyan-50 text-cyan-800 dark:border-cyan-900/60 dark:bg-cyan-950/40 dark:text-cyan-300",
-      amountClass: "text-cyan-700 dark:text-cyan-400 font-semibold",
-      sign: "+",
-      icon: ArrowDownLeft,
-    };
-  }
-
-  if (t.type === "RECLAIM") {
-    return {
-      label: "Reclaimed",
-      badgeClass: "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300",
-      amountClass: "text-amber-700 dark:text-amber-400 font-semibold",
-      sign: "-",
-      icon: ArrowUpRight,
-    };
-  }
-
-  return {
-    label: t.type,
-    badgeClass: "border-border bg-muted text-foreground",
-    amountClass: "text-foreground font-medium",
-    sign: "",
-    icon: ArrowRight,
-  };
-}
+import "@/components/dashboard/credit-history.css";
+import { getTransactionDisplay } from "@/components/dashboard/creditTransactionDisplay";
 
 export default function ResellerCredits({ activity = false }) {
   const { user: signedInUser } = useAuth();
@@ -143,19 +69,19 @@ export default function ResellerCredits({ activity = false }) {
     {
       key: "transactionId",
       label: "Transaction",
-      className: "reseller-ledger-col-reference",
-      render: (transaction) => <div className="reseller-ledger-reference"><TransactionReference transaction={transaction} /><span className="reseller-ledger-date">{dateTime(transaction.createdAt)}</span></div>,
+      className: "credit-ledger-col-reference",
+      render: (transaction) => <div className="credit-ledger-reference"><TransactionReference transaction={transaction} /><span className="credit-ledger-date">{dateTime(transaction.createdAt)}</span></div>,
     },
     {
       key: "type",
       label: "Type",
-      className: "reseller-ledger-col-type",
+      className: "credit-ledger-col-type",
       render: (t) => {
         const info = getTransactionDisplay(t);
         const Icon = info.icon;
         return (
           <span
-            className={`reseller-ledger-badge inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-medium border ${info.badgeClass}`}
+            className={`credit-ledger-badge inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-medium border ${info.badgeClass}`}
           >
             <Icon className="size-3 shrink-0" />
             {info.label}
@@ -166,10 +92,10 @@ export default function ResellerCredits({ activity = false }) {
     {
       key: "from",
       label: "From",
-      className: "reseller-ledger-col-account",
+      className: "credit-ledger-col-account",
       render: (t) =>
         t.fromUser ? (
-          <span className="reseller-ledger-account text-xs font-medium" title={ownerName(t.fromUser)}>{ownerName(t.fromUser)}</span>
+          <span className="credit-ledger-account text-xs font-medium" title={ownerName(t.fromUser)}>{ownerName(t.fromUser)}</span>
         ) : (
           <span className="text-xs font-medium text-muted-foreground">Super Admin</span>
         ),
@@ -177,13 +103,13 @@ export default function ResellerCredits({ activity = false }) {
     {
       key: "to",
       label: "To",
-      className: "reseller-ledger-col-account",
-      render: (t) => <span className="reseller-ledger-account text-xs font-medium" title={ownerName(t.toUser)}>{ownerName(t.toUser)}</span>,
+      className: "credit-ledger-col-account",
+      render: (t) => <span className="credit-ledger-account text-xs font-medium" title={ownerName(t.toUser)}>{ownerName(t.toUser)}</span>,
     },
     {
       key: "amount",
       label: "Credits",
-      className: "reseller-ledger-col-amount text-right",
+      className: "credit-ledger-col-amount text-right",
       render: (t) => {
         const info = getTransactionDisplay(t);
         return (
@@ -196,17 +122,17 @@ export default function ResellerCredits({ activity = false }) {
     {
       key: "actor",
       label: "By",
-      className: "reseller-ledger-col-actor",
+      className: "credit-ledger-col-actor",
       render: (t) => (
-        <span className="reseller-ledger-account text-xs text-muted-foreground" title={ownerName(t.performedBy)}>{ownerName(t.performedBy)}</span>
+        <span className="credit-ledger-account text-xs text-muted-foreground" title={ownerName(t.performedBy)}>{ownerName(t.performedBy)}</span>
       ),
     },
     {
       key: "note",
       label: "Note",
-      className: "reseller-ledger-col-note",
+      className: "credit-ledger-col-note",
       render: (t) => (
-        <span className="reseller-ledger-note text-xs text-muted-foreground" title={t.notes || undefined}>
+        <span className="credit-ledger-note text-xs text-muted-foreground" title={t.notes || undefined}>
           {t.notes || "—"}
         </span>
       ),
@@ -214,10 +140,10 @@ export default function ResellerCredits({ activity = false }) {
     ...(hasRequestActions ? [{
       key: "actions",
       label: "Action",
-      className: "reseller-ledger-col-action text-right",
+      className: "credit-ledger-col-action text-right",
       render: (transaction) => canAllocateRequest(transaction) ? (
         <Button size="sm" variant="outline" nativeButton={false}
-          className="reseller-ledger-allocate"
+          className="credit-ledger-allocate"
           disabled={signedInUser?.isPreview || isWalletLocked}
           aria-label={`Allocate credits to ${ownerName(transaction.toUser)}`}
           render={<Link to={`/reseller/credits?${new URLSearchParams({ allocate: String(transaction.toUser?._id || transaction.toUser), amount: String(transaction.amount) })}`} />}>
@@ -288,105 +214,63 @@ export default function ResellerCredits({ activity = false }) {
       {/* Top 4 KPI Metrics Grid (matching Super Admin Credits page) */}
       {!activity && (
         <QueryState query={myBalance}>
-          <div data-tour="reseller-credit-summary" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Card
-              className={`rounded-lg shadow-none ${
-                isWalletLocked ? "border-red-300 bg-red-50/60" : ""
-              }`}
-            >
-              <CardContent className="p-4 sm:p-5">
-                <div className="flex items-center justify-between text-muted-foreground">
-                  <span className="text-xs font-medium">Available credits</span>
-                  {isWalletLocked ? (
-                    <Lock className="size-4 text-red-600" />
-                  ) : (
-                    <Wallet className="size-4 text-primary" />
-                  )}
-                </div>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <p
-                    className={`text-2xl font-bold tabular-nums tracking-tight ${
-                      isWalletLocked ? "text-red-700" : "text-foreground"
-                    }`}
-                  >
-                    {number(myBalance.data?.wallet?.balance)}
-                  </p>
-                  {isWalletLocked && (
-                    <span className="inline-flex items-center gap-1 rounded bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-800">
-                      Locked
-                    </span>
-                  )}
-                </div>
-                {myBalance.data?.wallet?.expiresAt ? (
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    Expires: <strong>{dateTime(myBalance.data?.wallet?.expiresAt)}</strong>
-                  </p>
-                ) : (
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    Available for campaigns and allocation
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-lg shadow-none">
-              <CardContent className="p-4 sm:p-5">
-                <div className="flex items-center justify-between text-muted-foreground">
-                  <span className="text-xs font-medium">Received this month</span>
-                  <Coins className="size-4 text-emerald-600" />
-                </div>
-                <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-emerald-700 dark:text-emerald-400">
-                  {number(
+          <div data-tour="reseller-credit-summary">
+            <OverviewMetricCards
+              columns={4}
+              label="Credit summary"
+              items={[
+                {
+                  label: "Available credits",
+                  value: myBalance.data?.wallet?.balance,
+                  loading: myBalance.isPending,
+                  caption: isWalletLocked
+                    ? "Locked · contact administrator"
+                    : myBalance.data?.wallet?.expiresAt
+                    ? `Expires ${dateTime(myBalance.data?.wallet?.expiresAt)}`
+                    : "Available for allocation",
+                  icon: isWalletLocked ? Lock : Wallet,
+                  accent: true,
+                },
+                {
+                  label: "Received this month",
+                  value:
                     stats?.credits?.creditsPurchasedThisMonth ??
-                      stats?.wallet?.creditsPurchasedThisMonth ??
-                      0
-                  )}
-                </p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  Received from Super Admin
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-lg shadow-none">
-              <CardContent className="p-4 sm:p-5">
-                <div className="flex items-center justify-between text-muted-foreground">
-                  <span className="text-xs font-medium">Assigned users</span>
-                  <Users className="size-4 text-blue-600" />
-                </div>
-                <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight">
-                  {number(accountsQuery.isSuccess ? accounts.length : null)}
-                </p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  Registered under your agency
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-lg shadow-none">
-              <CardContent className="p-4 sm:p-5">
-                <div className="flex items-center justify-between text-muted-foreground">
-                  <span className="text-xs font-medium">Active accounts</span>
-                  <CheckCircle2 className="size-4 text-emerald-600" />
-                </div>
-                <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight">
-                  {number(accountsQuery.isSuccess ? accounts.filter((a) => a.status === "active").length : null)}
-                </p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  Eligible for campaigns
-                </p>
-              </CardContent>
-            </Card>
+                    stats?.wallet?.creditsPurchasedThisMonth ??
+                    0,
+                  loading: overviewQuery.isPending,
+                  caption: "Received from Super Admin",
+                  icon: Coins,
+                },
+                {
+                  label: "Assigned users",
+                  value: accountsQuery.isSuccess ? accounts.length : null,
+                  loading: accountsQuery.isPending,
+                  caption: "Registered under your agency",
+                  icon: Users,
+                  path: "/reseller/users",
+                },
+                {
+                  label: "Active accounts",
+                  value: accountsQuery.isSuccess
+                    ? accounts.filter((a) => a.status === "active").length
+                    : null,
+                  loading: accountsQuery.isPending,
+                  caption: "Eligible for campaigns",
+                  icon: CheckCircle2,
+                  path: "/reseller/users",
+                },
+              ]}
+            />
           </div>
         </QueryState>
       )}
 
       {/* Transaction Filter Header */}
-      <section className="reseller-credit-history" aria-labelledby="reseller-transactions-title">
-      <div className="reseller-ledger-toolbar">
-        <div className="reseller-ledger-heading"><h2 id="reseller-transactions-title" className="text-sm font-semibold text-foreground">Transaction history</h2><p>Transfers, credit requests and campaign usage.</p></div>
-        <div className="reseller-ledger-filters">
-          <div className="reseller-ledger-type-filter">
+      <section className="credit-history" aria-labelledby="reseller-transactions-title">
+      <div className="credit-ledger-toolbar">
+        <div className="credit-ledger-heading"><h2 id="reseller-transactions-title" className="text-sm font-semibold text-foreground">Transaction history</h2><p>Transfers, credit requests and campaign usage.</p></div>
+        <div className="credit-ledger-filters">
+          <div className="credit-ledger-type-filter">
           <FilterSelect
             label="Transaction type"
             value={type}
@@ -401,7 +285,7 @@ export default function ResellerCredits({ activity = false }) {
             ]}
           />
           </div>
-          <div className="reseller-ledger-account-filter">
+          <div className="credit-ledger-account-filter">
           <FilterSelect
             label="Filter by account"
             accountSearch={{ purpose: "credits" }}
@@ -444,7 +328,7 @@ export default function ResellerCredits({ activity = false }) {
 
       {transactionId && <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm"><span>Showing selected transaction</span><button type="button" className="font-medium text-indigo-700 underline" onClick={() => setParams((previous) => { const next = new URLSearchParams(previous); next.delete("transaction"); next.delete("page"); return next; }, { replace: true })}>View all transactions</button></div>}
       <QueryState query={ledger}>
-        <div className="reseller-ledger" data-request-actions={hasRequestActions}>
+        <div className="credit-ledger" data-request-actions={hasRequestActions}>
           <DataTable
             caption="Credit transaction history"
             paginated={false}
