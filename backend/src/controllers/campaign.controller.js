@@ -460,7 +460,8 @@ export const createCampaign = async (req, res) => {
         // 2. Upload media files to Cloudinary (or local fallback) with sharp WebP compression
         const IMG_MAX_SIZE = parseInt(process.env.IMG_MAX_SIZE_MB || "5") * 1024 * 1024; // default 5 MB
         const AUDIO_MAX_SIZE = parseInt(process.env.AUDIO_MAX_SIZE_MB || "7") * 1024 * 1024; // default 7 MB
-        const VIDEO_MAX_SIZE = parseInt(process.env.VIDEO_MAX_SIZE_MB || "7") * 1024 * 1024; // default 7 MB
+        const userVideoLimitMB = Number(req.user?.maxVideoSizeMB) || parseInt(process.env.VIDEO_MAX_SIZE_MB || "9");
+        const VIDEO_MAX_SIZE = userVideoLimitMB * 1024 * 1024; // default 9 MB or per-user limit configured by Super Admin
         const DOC_MAX_SIZE = parseInt(process.env.DOC_MAX_SIZE_MB || "3") * 1024 * 1024; // default 3 MB
 
         const isCloudinaryActive = isCloudinaryConfigured();

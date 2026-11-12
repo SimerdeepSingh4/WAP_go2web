@@ -6,8 +6,8 @@ import { checkCampaignMediaName, validateCampaignMedia } from "../helpers/campai
 const storage = multer.memoryStorage();
 
 // Memory & DoS Protection Limits for Campaign Media Uploads
-export const MAX_SINGLE_MEDIA_SIZE = 16 * 1024 * 1024; // 16 MB per file
-export const MAX_TOTAL_UPLOAD_BYTES = 35 * 1024 * 1024; // 35 MB total multipart payload
+export const MAX_SINGLE_MEDIA_SIZE = 100 * 1024 * 1024; // 100 MB per file parser ceiling (exact per-user limit validated in controller)
+export const MAX_TOTAL_UPLOAD_BYTES = 120 * 1024 * 1024; // 120 MB total multipart payload ceiling
 export const MAX_MEDIA_FILES = 15; // Max 15 files per campaign request
 export const MAX_FIELD_SIZE = 4 * 1024 * 1024; // 4 MB for non-file text/JSON fields
 export const MAX_FIELDS = 50;
@@ -112,7 +112,7 @@ export function uploadFiles(req, res, next) {
     if (Number.isFinite(declaredLength) && declaredLength > MAX_TOTAL_UPLOAD_BYTES) {
         return res.status(413).json({
             success: false,
-            message: `Total upload size (${(declaredLength / 1024 / 1024).toFixed(1)}MB) exceeds the 35MB maximum allowable limit.`,
+            message: `Total upload size (${(declaredLength / 1024 / 1024).toFixed(1)}MB) exceeds allowable limit.`,
             code: "LIMIT_TOTAL_UPLOAD_SIZE",
         });
     }
@@ -155,7 +155,7 @@ export function uploadFiles(req, res, next) {
             if (!res.headersSent) {
                 return res.status(413).set("Connection", "close").json({
                     success: false,
-                    message: "Total upload size exceeds the 35MB maximum allowable limit.",
+                    message: "Total upload size exceeds allowable limit.",
                     code: "LIMIT_TOTAL_UPLOAD_SIZE",
                 });
             }
@@ -176,14 +176,14 @@ export function uploadFiles(req, res, next) {
                 if (error.code === "LIMIT_TOTAL_UPLOAD_SIZE") {
                     return res.status(413).json({
                         success: false,
-                        message: "Total upload size exceeds the 35MB maximum allowable limit.",
+                        message: "Total upload size exceeds allowable limit.",
                         code: error.code,
                     });
                 }
                 if (error.code === "LIMIT_FILE_SIZE") {
                     return res.status(413).json({
                         success: false,
-                        message: "Media file too large. Maximum allowed size per file is 16MB.",
+                        message: "Media file too large. Exceeds allowable size limit.",
                         code: error.code,
                     });
                 }

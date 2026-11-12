@@ -166,6 +166,14 @@ export async function register(req, res) {
             }
         }
 
+        let customMaxVideoSizeMB = 9;
+        if (req.user?.role === "Super Admin" && req.body.maxVideoSizeMB !== undefined && req.body.maxVideoSizeMB !== null && req.body.maxVideoSizeMB !== "") {
+            const parsedVideoSize = Number(req.body.maxVideoSizeMB);
+            if (!isNaN(parsedVideoSize) && parsedVideoSize >= 1) {
+                customMaxVideoSizeMB = parsedVideoSize;
+            }
+        }
+
         let accountExpiry = null;
         if (req.body.expiresAt) {
             const parsedExpiry = new Date(req.body.expiresAt);
@@ -186,6 +194,7 @@ export async function register(req, res) {
             role: assignedRole,
             resellerId: assignedReseller,
             ratePerMsg: customRate,
+            maxVideoSizeMB: customMaxVideoSizeMB,
             expiresAt: accountExpiry,
             createdBy: req.user?._id || null,
         });
@@ -213,6 +222,7 @@ export async function register(req, res) {
                 role: user.role,
                 resellerId: user.resellerId,
                 ratePerMsg: user.ratePerMsg,
+                maxVideoSizeMB: user.maxVideoSizeMB ?? 9,
                 featureAccess: user.featureAccess,
             },
         });
@@ -278,6 +288,7 @@ export async function login(req, res) {
                 role: user.role,
                 expiresAt: user.expiresAt || null,
                 isExpired: isAccountExpired(user),
+                maxVideoSizeMB: user.maxVideoSizeMB ?? 9,
                 featureAccess: user.featureAccess,
                 whiteLabel,
             },
@@ -432,6 +443,7 @@ export async function getMe(req, res) {
                 isPreview: req.isPreview || false,
                 isImpersonation: req.isImpersonation || false,
                 originalAdmin: req.originalAdmin || null,
+                maxVideoSizeMB: req.user.maxVideoSizeMB ?? 9,
                 featureAccess: req.user.featureAccess,
                 whiteLabel,
             },

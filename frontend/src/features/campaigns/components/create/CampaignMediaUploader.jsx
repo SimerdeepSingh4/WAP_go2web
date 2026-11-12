@@ -22,7 +22,7 @@ export const MEDIA_KINDS = {
     hint: "MP4, MOV, WebM",
     accept: "video/mp4,video/quicktime,video/webm",
     types: ["video/mp4", "video/quicktime", "video/webm"],
-    max: 7 * MB,
+    max: 9 * MB,
     icon: VideoIcon,
     tone: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
   },

@@ -46,6 +46,7 @@ export async function getUsers(req, res) {
             const isWlExpired = Boolean(user.whiteLabel?.enabled && user.whiteLabel?.expiresAt && new Date(user.whiteLabel.expiresAt) <= now);
             return {
                 ...user.toObject(),
+                maxVideoSizeMB: user.maxVideoSizeMB ?? 9,
                 wallet: w
                     ? {
                           balance: w.balance ?? 0,
@@ -344,6 +345,14 @@ export async function createUser(req, res) {
             }
         }
 
+        let customMaxVideoSizeMB = 9;
+        if (req.user.role === "Super Admin" && req.body.maxVideoSizeMB !== undefined && req.body.maxVideoSizeMB !== null && req.body.maxVideoSizeMB !== "") {
+            const parsedVideoSize = Number(req.body.maxVideoSizeMB);
+            if (!isNaN(parsedVideoSize) && parsedVideoSize >= 1) {
+                customMaxVideoSizeMB = parsedVideoSize;
+            }
+        }
+
         let accountExpiry = null;
         if (req.body.expiresAt) {
             const parsedExpiry = new Date(req.body.expiresAt);
@@ -364,6 +373,7 @@ export async function createUser(req, res) {
             role: assignedRole,
             resellerId: assignedReseller,
             ratePerMsg: customRate,
+            maxVideoSizeMB: customMaxVideoSizeMB,
             expiresAt: accountExpiry,
             createdBy: req.user._id,
         });
@@ -389,6 +399,7 @@ export async function createUser(req, res) {
                 role: newUser.role,
                 resellerId: newUser.resellerId,
                 ratePerMsg: newUser.ratePerMsg,
+                maxVideoSizeMB: newUser.maxVideoSizeMB ?? 9,
             },
         });
     } catch (error) {
@@ -473,13 +484,24 @@ export async function updateUserAccess(req, res) {
             };
         }
 
+        if (Object.hasOwn(req.body, "maxVideoSizeMB")) {
+            if (!isSuperAdmin) {
+                return res.status(403).json({ message: "Only Super Admin can manage video upload limits.", success: false });
+            }
+            const parsedVideoSize = Number(req.body.maxVideoSizeMB);
+            if (!Number.isFinite(parsedVideoSize) || parsedVideoSize < 1) {
+                return res.status(400).json({ message: "Max video size must be at least 1 MB.", success: false });
+            }
+            updates.maxVideoSizeMB = parsedVideoSize;
+        }
+
         if (status === "expired") {
             updates.expiresAt = new Date(Date.now() - 1000);
         }
 
         if (!Object.keys(updates).length) {
             return res.status(400).json({
-                message: "Provide a status or expiry date to update.",
+                message: "Provide a status, expiry date, or limit to update.",
                 success: false,
             });
         }
@@ -501,6 +523,7 @@ export async function updateUserAccess(req, res) {
                 id: targetUser._id,
                 status: targetUser.status,
                 expiresAt: targetUser.expiresAt,
+                maxVideoSizeMB: targetUser.maxVideoSizeMB ?? 9,
                 featureAccess: targetUser.featureAccess,
             },
         });
@@ -1196,6 +1219,18 @@ export async function updateUser(req, res) {
             await walletModel.updateOne({ userId: targetUser._id }, { $set: { resellerId: newResellerId } });
         }
 
+        // 8. Update maxVideoSizeMB (Super Admin only)
+        if (Object.hasOwn(req.body, "maxVideoSizeMB")) {
+            if (!isSuperAdmin) {
+                return res.status(403).json({ message: "Only Super Admin can manage video upload limits.", success: false });
+            }
+            const parsedVideoSize = Number(req.body.maxVideoSizeMB);
+            if (!Number.isFinite(parsedVideoSize) || parsedVideoSize < 1) {
+                return res.status(400).json({ message: "Max video size must be at least 1 MB.", success: false });
+            }
+            targetUser.maxVideoSizeMB = parsedVideoSize;
+        }
+
         await targetUser.save();
 
         if (didChangeReseller) {
@@ -1219,6 +1254,7 @@ export async function updateUser(req, res) {
                 ratePerMsg: targetUser.ratePerMsg,
                 status: targetUser.status,
                 expiresAt: targetUser.expiresAt,
+                maxVideoSizeMB: targetUser.maxVideoSizeMB ?? 9,
                 resellerId: targetUser.resellerId,
             },
         });

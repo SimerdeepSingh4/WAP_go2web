@@ -16,6 +16,7 @@ import {
     updateManagedUserProfile,
     updateUser,
     updateUserRole,
+    updateUser,
     deleteUser,
 } from "../controllers/user.controller.js";
 import { protect, authorizeRoles, blockInPreviewMode } from "../middlewares/auth.middleware.js";
@@ -55,6 +56,9 @@ userRouter.patch("/:id/access", authorizeRoles("Reseller", "Super Admin"), updat
 // Admin account edits, including optional password resets.
 userRouter.patch("/:id", authorizeRoles("Super Admin"), blockInPreviewMode("Account updates"), updateUser);
 userRouter.delete("/:id", authorizeRoles("Reseller", "Super Admin"), deleteUser);
+
+// Edit account details (username, email, password, rate, limits, status, etc.)
+userRouter.patch("/:id", authorizeRoles("Reseller", "Super Admin"), updateUser);
 
 // Access a single user's details
 userRouter.get("/:id", getUserById);

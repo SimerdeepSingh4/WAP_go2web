@@ -60,6 +60,7 @@ function UserDetail({ account, onClose, onAction }) {
               ["Phone", account.phone || "Not provided"],
               ["Role", account.role || "User"],
               ["Rate", `${number(account.ratePerMsg)} credits / recipient`],
+              ["Max video size", `${account.maxVideoSizeMB ?? 9} MB`],
               ["Account expiry", account.expiresAt ? `${dateTime(account.expiresAt)}${account.isExpired ? " (Expired)" : ""}` : "No expiry"],
               ["Created", dateTime(account.createdAt)],
             ].map(([label, value]) => (
@@ -209,6 +210,12 @@ export default function ResellerUsers() {
       label: "Credits / recipient",
       sort: (a) => a.ratePerMsg,
       render: (a) => <span className="tabular-nums">{number(a.ratePerMsg)}</span>,
+    },
+    {
+      key: "maxVideoSize",
+      label: "Max video",
+      sort: (a) => a.maxVideoSizeMB ?? 9,
+      render: (a) => <span className="tabular-nums font-semibold text-xs">{a.maxVideoSizeMB ?? 9} MB</span>,
     },
     {
       key: "accountExpiry",
