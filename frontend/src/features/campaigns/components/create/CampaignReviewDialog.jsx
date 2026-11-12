@@ -37,7 +37,9 @@ export default function CampaignReviewDialog({
           <span className="campaign-dialog-icon" aria-hidden="true"><ClipboardCheck /></span>
           <div><DialogTitle>Review campaign</DialogTitle>
           <DialogDescription>
-            Credits are charged when the server accepts your submission. The super admin handles approval and processing.
+            {isAdmin
+              ? "Credits are charged when the server accepts your submission. The super admin handles approval and processing."
+              : "Review your campaign details before submitting."}
           </DialogDescription></div>
         </DialogHeader>
 
@@ -66,10 +68,10 @@ export default function CampaignReviewDialog({
           <div className="campaign-review-message"><h3><MessageSquare aria-hidden="true" />Message preview</h3><p>{previewText}</p></div>
         )}
 
-        <p className="campaign-review-note"><Info aria-hidden="true" /><span>
+        {isAdmin && <p className="campaign-review-note"><Info aria-hidden="true" /><span>
           {isAdmin && invalidCount > 0 ? `${number(invalidCount)} entries need review. ` : ""}
           The server confirms the final charge.
-        </span></p>
+        </span></p>}
 
         <FormError message={error?.response?.data?.message || error?.message} />
 

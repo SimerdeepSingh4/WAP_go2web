@@ -158,9 +158,6 @@ async function saveUserProfileImage(req, res, userId) {
         if (req.isPreview) {
             return res.status(403).json({ message: "Exit preview mode before changing your profile image.", success: false });
         }
-        if (req.user.role === "User" && String(req.user._id) === String(userId) && req.user.featureAccess?.campaignDp !== true) {
-            return res.status(403).json({ message: "Profile photo access is not enabled for this account.", success: false });
-        }
         if (!req.file) {
             return res.status(400).json({ message: "Choose a profile image to upload.", success: false });
         }
@@ -259,9 +256,6 @@ export async function uploadCurrentUserProfileImage(req, res) {
 export async function removeCurrentUserProfileImage(req, res) {
     if (req.isPreview) {
         return res.status(403).json({ message: "Exit preview mode before removing your profile photo.", success: false });
-    }
-    if (req.user.role === "User" && req.user.featureAccess?.campaignDp !== true) {
-        return res.status(403).json({ message: "Profile photo access is not enabled for this account.", success: false });
     }
     try {
         // Return the previous photo atomically, so cleanup cannot target a
@@ -472,10 +466,11 @@ export async function updateUserAccess(req, res) {
                 return res.status(400).json({ message: "Feature access must contain boolean DP, phone, or campaign link settings.", success: false });
             }
             updates.featureAccess = {
-                campaignDp: targetUser.featureAccess?.campaignDp === true,
+                campaignDp: true,
                 campaignNumber: targetUser.featureAccess?.campaignNumber === true,
                 campaignLink: targetUser.featureAccess?.campaignLink === true,
                 ...featureAccess,
+                campaignDp: true,
             };
         }
 

@@ -48,7 +48,7 @@ export default function AccountSettings() {
   const [photoUploadVersion, setPhotoUploadVersion] = useState(0);
 
   const isReseller = user?.role === "Reseller";
-  const canManageProfilePhoto = user?.role !== "User" || user?.featureAccess?.campaignDp === true;
+  const canManageProfilePhoto = true;
   const resellerBrandingQuery = useQuery({
     queryKey: ["resellerBranding"],
     queryFn: getResellerBranding,

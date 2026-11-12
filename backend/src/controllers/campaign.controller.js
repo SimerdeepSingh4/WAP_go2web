@@ -358,11 +358,6 @@ export const createCampaign = async (req, res) => {
         } = req.body;
 
         const uploadedImages = [...(req.files?.images || []), ...(req.files?.image || [])];
-        if (uploadedImages.length && req.user.role !== "Super Admin" && req.user.featureAccess?.campaignDp !== true) {
-            await mongoSession.abortTransaction();
-            mongoSession.endSession();
-            return res.status(403).json({ success: false, message: "Campaign DP/image access is not enabled for this account." });
-        }
 
         let normalizedCampaignNumber = "";
         if (campaignNumber != null && campaignNumber !== "") {

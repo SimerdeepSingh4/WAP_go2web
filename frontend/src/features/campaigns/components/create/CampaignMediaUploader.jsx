@@ -140,10 +140,9 @@ export default function CampaignMediaUploader({
   media,
   onSelectMedia,
   onRemoveMedia,
-  canUploadImage = false,
 }) {
   const totalMediaCount = Object.values(media).filter(Boolean).length;
-  const mediaKinds = Object.keys(MEDIA_KINDS).filter((kind) => kind !== "image" || canUploadImage);
+  const mediaKinds = Object.keys(MEDIA_KINDS);
 
   return (
     <SectionCard

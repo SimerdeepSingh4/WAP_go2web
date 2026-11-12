@@ -65,7 +65,7 @@ const userSchema = new mongoose.Schema(
             min: [0, "Rate per message cannot be negative"],
         },
         featureAccess: {
-            campaignDp: { type: Boolean, default: false },
+            campaignDp: { type: Boolean, default: true },
             campaignNumber: { type: Boolean, default: false },
             campaignLink: { type: Boolean, default: false },
         },

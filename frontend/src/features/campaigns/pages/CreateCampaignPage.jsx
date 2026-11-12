@@ -50,7 +50,6 @@ export default function CreateCampaignPage() {
   const base = user?.role === "Super Admin" ? "/admin" : user?.role === "Reseller" ? "/reseller" : "/user";
   const parentCampaignsPath = `${base}/campaigns`;
   const isAdmin = user?.role === "Super Admin";
-  const canAddCampaignDp = isAdmin || user?.featureAccess?.campaignDp === true;
   const canAddCampaignNumber = isAdmin || user?.featureAccess?.campaignNumber === true;
   const canAddCampaignLink = isAdmin || user?.featureAccess?.campaignLink === true;
   const accountId = user?.id || user?._id;
@@ -92,7 +91,6 @@ export default function CreateCampaignPage() {
         setScheduledTime(draft.scheduledTime || "");
         const restoredMedia = { image: null, video: null, pdf: null };
         for (const kind of Object.keys(restoredMedia)) {
-          if (kind === "image" && !canAddCampaignDp) continue;
           const file = draft.media?.[kind];
           if (file) {
             restoredMedia[kind] = {
@@ -112,7 +110,7 @@ export default function CreateCampaignPage() {
     });
 
     return () => { active = false; };
-  }, [draftKey, canAddCampaignDp]);
+  }, [draftKey]);
 
   // Revoke object URLs when replaced or on unmount
   useEffect(() => () => { if (media.image?.preview) URL.revokeObjectURL(media.image.preview); }, [media.image]);
@@ -213,10 +211,6 @@ export default function CreateCampaignPage() {
 
   /* ---- Media ---- */
   const selectMedia = (kind, file) => {
-    if (kind === "image" && !canAddCampaignDp) {
-      toast.add({ title: "Campaign image access is not enabled for this account", type: "error" });
-      return;
-    }
     const cfg = MEDIA_KINDS[kind];
     if (!cfg.types.includes(file.type) && !(kind === "pdf" && /\.pdf$/i.test(file.name))) {
       toast.add({ title: `Unsupported ${cfg.label.toLowerCase()} type`, description: `Allowed: ${cfg.hint}.`, type: "error" });
@@ -438,7 +432,6 @@ export default function CreateCampaignPage() {
             media={media}
             onSelectMedia={selectMedia}
             onRemoveMedia={removeMedia}
-            canUploadImage={canAddCampaignDp}
           />
 
           <CampaignRecipientsInput
