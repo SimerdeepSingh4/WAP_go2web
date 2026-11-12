@@ -75,6 +75,8 @@ export function sanitizeAttachment(attachment, viewerRole) {
     // Mask uploader details if uploader was Super Admin
     if (att.uploaderRole === "Super Admin" && viewerRole !== "Super Admin") {
         delete att.uploader;
+        const extension = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "video/mp4": "mp4", "video/quicktime": "mov", "audio/wav": "wav", "application/pdf": "pdf", "text/plain": "txt", "text/csv": "csv", "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx" }[att.mimeType] || "bin";
+        att.originalName = `${att.mediaType || "support"}-attachment.${extension}`;
     }
 
     // Don't expose internal disk path to client
@@ -112,13 +114,19 @@ export function sanitizeConversation(conversationDoc, viewerRole) {
     if (!conversationDoc) return null;
     const doc = conversationDoc.toObject ? conversationDoc.toObject() : { ...conversationDoc };
 
+    if (viewerRole !== "Super Admin") {
+        const ownIds = [doc.user?._id || doc.user, ...(doc.reseller?.role === "Super Admin" ? [] : [doc.reseller?._id || doc.reseller])].map(String);
+        doc.participantReadPositions = Object.fromEntries(Object.entries(doc.participantReadPositions instanceof Map ? Object.fromEntries(doc.participantReadPositions) : doc.participantReadPositions || {}).filter(([id]) => ownIds.includes(id)));
+        if (doc.reseller?.role === "Super Admin") doc.reseller = { username: "Super Admin", displayRole: "Super Admin" };
+    }
+
     // Sanitize user view
     if (viewerRole === "User") {
         if (doc.reseller && typeof doc.reseller === "object") {
             doc.reseller = {
                 _id: doc.reseller._id,
                 username: doc.reseller.username || "Support Admin",
-                displayRole: "Admin",
+                displayRole: doc.reseller.displayRole || "Admin",
                 dp_img: doc.reseller.dp_img || "",
             };
         }
@@ -128,6 +136,7 @@ export function sanitizeConversation(conversationDoc, viewerRole) {
             doc.escalation = {
                 isEscalated: true,
                 statusLabel: "In Review with Specialist Support",
+                resolvedAt: doc.escalation.resolvedAt,
             };
         }
     } else if (viewerRole === "Reseller") {
@@ -135,6 +144,7 @@ export function sanitizeConversation(conversationDoc, viewerRole) {
             doc.escalation = {
                 isEscalated: true,
                 reason: doc.escalation.reason,
+                resolvedAt: doc.escalation.resolvedAt,
                 requestedAt: doc.escalation.requestedAt,
                 statusLabel: "Escalated to Super Admin",
             };
@@ -147,7 +157,8 @@ export function sanitizeConversation(conversationDoc, viewerRole) {
             const sanitized = { ...evt };
             if (viewerRole !== "Super Admin" && evt.actorRole === "Super Admin") {
                 sanitized.actor = "system-super-admin";
-                sanitized.note = evt.note ? evt.note.replace(/by .+/i, "by Super Admin") : "";
+                sanitized.note = "Super Admin updated the conversation.";
+                delete sanitized.metadata;
             }
             return sanitized;
         });

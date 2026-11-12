@@ -9,6 +9,7 @@ import { useUserQuery } from "../hooks/useUser";
 import { dateTime } from "@/features/admin/lib/format";
 import { toast } from "@/components/ui/toast";
 import DashboardGreeting from "@/components/dashboard/DashboardGreeting";
+import SupportHelpButton from "@/features/support/components/SupportHelpButton";
 
 export default function UserOverview() {
   const { user } = useAuth();
@@ -22,7 +23,7 @@ export default function UserOverview() {
     toast.add({ title: failed ? "Some information could not be refreshed" : "Overview refreshed", type: failed ? "error" : "success" });
   }
   return <>
-    <DashboardGreeting username={username} description="Your credits and recent campaigns." action={<div className="flex flex-wrap gap-2"><Button variant="outline" onClick={refresh} disabled={campaigns.isFetching || balance.isFetching}><RefreshCw />Refresh</Button><Button nativeButton={false} render={<Link to="/user/campaigns/create" />}><Plus />Create campaign</Button></div>} />
+    <DashboardGreeting username={username} description="Your credits and recent campaigns." action={<div className="flex flex-wrap gap-2"><SupportHelpButton area="my dashboard" /><Button variant="outline" onClick={refresh} disabled={campaigns.isFetching || balance.isFetching}><RefreshCw />Refresh</Button><Button nativeButton={false} render={<Link to="/user/campaigns/create" />}><Plus />Create campaign</Button></div>} />
     <QueryState query={balance}><OverviewMetricCards items={[
       { label: "Total campaigns", value: campaigns.isSuccess ? (campaigns.data?.data || []).length : null, loading: campaigns.isPending, caption: "All your submissions", icon: Megaphone, path: "/user/campaigns" },
       { label: "Completed campaigns", value: campaigns.isSuccess ? (campaigns.data?.data || []).filter(campaign => ["completed", "sent"].includes(campaign.status)).length : null, loading: campaigns.isPending, caption: "View campaign results", icon: CheckCircle, path: "/user/campaigns?status=completed" },

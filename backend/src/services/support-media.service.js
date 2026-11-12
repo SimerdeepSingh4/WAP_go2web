@@ -6,6 +6,7 @@ import { fileTypeFromBuffer } from "file-type";
 export const SUPPORT_LIMITS = {
     IMAGE_MAX_BYTES: 5 * 1024 * 1024,       // 5 MB
     MEDIA_MAX_BYTES: 10 * 1024 * 1024,      // 10 MB (Audio / Video)
+    FILE_MAX_BYTES: 10 * 1024 * 1024,       // 10 MB (Documents)
     MEDIA_MAX_DURATION_SEC: 30,             // 30 seconds
 };
 
@@ -57,7 +58,7 @@ export function parseWavDuration(buffer) {
  * Enforces:
  * - Real magic bytes / file-type detection
  * - 5 MB image limit
- * - 10 MB and 30s duration limit on video / audio
+ * - 10 MB document limit and 30s duration limit on video / audio
  *
  * @param {Buffer} buffer
  * @param {string} originalName
@@ -67,8 +68,18 @@ export async function processAndSaveSupportMedia(buffer, originalName, clientDur
     if (!buffer || buffer.length === 0) {
         throw new Error("File buffer is empty.");
     }
+    if (buffer.length > SUPPORT_LIMITS.FILE_MAX_BYTES) throw new Error("Files must be no larger than 10 MB.");
 
-    const detected = await fileTypeFromBuffer(buffer);
+    let detected = await fileTypeFromBuffer(buffer);
+    // Plain text has no magic signature. Accept it only for explicit TXT/CSV
+    // extensions after verifying UTF-8 and rejecting binary control characters.
+    if (!detected && /\.(txt|csv)$/i.test(originalName)) {
+        let text;
+        try { text = new TextDecoder("utf-8", { fatal: true }).decode(buffer); }
+        catch { throw new Error("TXT and CSV files must contain valid UTF-8 text."); }
+        if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(text)) throw new Error("TXT and CSV files must contain plain text, not binary data.");
+        detected = /\.csv$/i.test(originalName) ? { mime: "text/csv", ext: "csv" } : { mime: "text/plain", ext: "txt" };
+    }
     if (!detected) {
         throw new Error("Unable to determine file type. File may be corrupted or disguised.");
     }
@@ -82,8 +93,10 @@ export async function processAndSaveSupportMedia(buffer, originalName, clientDur
         mediaType = "video";
     } else if (["audio/mpeg", "audio/wav", "audio/ogg", "audio/mp4", "audio/webm", "audio/aac"].includes(mime)) {
         mediaType = "audio";
+    } else if (["application/pdf", "text/plain", "text/csv", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"].includes(mime)) {
+        mediaType = "document";
     } else {
-        throw new Error(`Unsupported media format: ${mime}. Allowed: JPEG, PNG, WEBP, GIF, MP4, WEBM, MOV, MP3, WAV, OGG.`);
+        throw new Error(`Unsupported file format: ${mime}. Choose an image, PDF, TXT, CSV, DOCX, XLSX, MP4, MOV or WAV file.`);
     }
 
     // Size limit enforcement
@@ -93,7 +106,7 @@ export async function processAndSaveSupportMedia(buffer, originalName, clientDur
         }
     } else {
         if (buffer.length > SUPPORT_LIMITS.MEDIA_MAX_BYTES) {
-            throw new Error(`Video/Audio size exceeds the 10MB limit (current: ${(buffer.length / 1024 / 1024).toFixed(2)} MB).`);
+            throw new Error(`File size exceeds the 10MB limit (current: ${(buffer.length / 1024 / 1024).toFixed(2)} MB).`);
         }
     }
 
@@ -109,11 +122,11 @@ export async function processAndSaveSupportMedia(buffer, originalName, clientDur
 
         if (parsedDuration !== null && Number.isFinite(parsedDuration)) {
             validatedDuration = Math.round(parsedDuration * 10) / 10;
-        } else if (clientDuration && Number.isFinite(Number(clientDuration))) {
-            validatedDuration = Math.round(Number(clientDuration) * 10) / 10;
+        } else {
+            throw new Error("This clip's duration could not be verified. Use an MP4/MOV video or WAV audio file up to 30 seconds.");
         }
-
-        if (validatedDuration !== null && validatedDuration > SUPPORT_LIMITS.MEDIA_MAX_DURATION_SEC) {
+        if (!Number.isFinite(parsedDuration) || parsedDuration <= 0) throw new Error("Media must contain a valid duration.");
+        if (parsedDuration > SUPPORT_LIMITS.MEDIA_MAX_DURATION_SEC) {
             throw new Error(`Media duration of ${validatedDuration}s exceeds the maximum limit of ${SUPPORT_LIMITS.MEDIA_MAX_DURATION_SEC} seconds.`);
         }
     }

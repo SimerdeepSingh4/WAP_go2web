@@ -15,6 +15,7 @@ import { useUserQuery } from "../hooks/useUser";
 import { PageHeading, SearchBox, FilterSelect, QueryState, DataTable, StatusBadge } from "@/features/admin/components/shared";
 import { dateTime, number, statusLabels, published } from "@/features/admin/lib/format";
 import ReadOnlyCampaignDetail from "@/components/dashboard/ReadOnlyCampaignDetail";
+import SupportHelpButton from "@/features/support/components/SupportHelpButton";
 
 export default function Campaigns() {
   const [campaignToDelete, setCampaignToDelete] = useState(null);
@@ -48,20 +49,21 @@ export default function Campaigns() {
               >
                 <MoreHorizontal />
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44">
-                <DropdownMenuItem render={<Link to={`/user/campaigns/${c._id}`} />}>
-                  <Eye className="size-4 mr-2" />
+              <DropdownMenuContent align="end" className="w-48 p-1.5">
+                <DropdownMenuItem className="min-h-9 gap-2 px-2 py-2" render={<Link to={`/user/campaigns/${c._id}`} />}>
+                  <Eye className="size-4" />
                   View Campaign
                 </DropdownMenuItem>
-                <DropdownMenuItem render={<Link to={`/user/campaigns/${c._id}/report`} />}>
-                  <FileText className="size-4 mr-2" />
+                <DropdownMenuItem className="min-h-9 gap-2 px-2 py-2" render={<Link to={`/user/campaigns/${c._id}/report`} />}>
+                  <FileText className="size-4" />
                   View Report
                 </DropdownMenuItem>
+                <SupportHelpButton campaign={c} area="this campaign" menuItem label="Get help" className="min-h-9 px-2 py-2" />
                 <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
+                  className="min-h-9 gap-2 px-2 py-2 text-destructive focus:text-destructive"
                   onClick={() => setCampaignToDelete(c)}
                 >
-                  <Trash2 className="size-4 mr-2" />
+                  <Trash2 className="size-4" />
                   Delete Campaign
                 </DropdownMenuItem>
               </DropdownMenuContent>

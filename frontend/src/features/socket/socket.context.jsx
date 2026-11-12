@@ -24,13 +24,23 @@ export const SocketProvider = ({ children }) => {
             reconnectionDelay: 1000, reconnectionDelayMax: 15000,
         });
         const refreshNotifications = () => queryClient.invalidateQueries({ queryKey: ["notifications", accountId] });
+        const refreshSupport = () => queryClient.invalidateQueries({ queryKey: ["support", accountId] });
         const refreshAccounts = () => {
             for (const key of ["admin", "reseller", "user", "myWalletBalance", "myBalance", "creditTransactions", "managedUsers", "clientUsers", "dashboardStats"]) queryClient.invalidateQueries({ queryKey: [key] });
         };
         const visibility = () => socket.emit("NOTIFICATION_VISIBILITY", { visible: document.visibilityState === "visible" });
-        socket.on("connect", () => { setConnectedSocket(socket); refreshNotifications(); refreshAccounts(); visibility(); });
+        socket.on("connect", () => { setConnectedSocket(socket); refreshNotifications(); refreshAccounts(); refreshSupport(); visibility(); });
         socket.on("disconnect", () => setConnectedSocket(null));
         socket.on("NOTIFICATIONS_CHANGED", refreshNotifications);
+        for (const event of ["SUPPORT_CONVERSATION_UPDATED", "SUPPORT_CONVERSATION_ASSIGNED", "SUPPORT_CONVERSATION_REVOKED"]) socket.on(event, refreshSupport);
+        socket.on("SUPPORT_CONVERSATION_CREATED", () => {
+            void refreshSupport();
+            toast.add({ title: "New support conversation", description: "Open Support to view the group.", type: "info" });
+        });
+        socket.on("SUPPORT_ESCALATION_ALERT", () => {
+            void refreshSupport();
+            void refreshNotifications();
+        });
         socket.on("NOTIFICATION_CREATED", (data) => {
             const toastId = data.toastId || `notification-${data.id}`;
             if (document.visibilityState === "visible") {
@@ -103,6 +113,7 @@ export const SocketProvider = ({ children }) => {
         navigator.serviceWorker?.addEventListener("message", pushed);
         return () => {
             socket.disconnect();
+            queryClient.removeQueries({ queryKey: ["support", accountId] });
             document.removeEventListener("visibilitychange", visibility);
             window.removeEventListener("storage", storage);
             navigator.serviceWorker?.removeEventListener("message", pushed);

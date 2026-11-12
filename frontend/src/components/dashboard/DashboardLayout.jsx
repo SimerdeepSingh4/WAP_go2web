@@ -1,6 +1,7 @@
 import NotificationBell from "@/features/notifications/NotificationBell";
 import GlobalSearch from "./GlobalSearch";
 import ThemeToggle from "./ThemeToggle";
+import HelpMenu from "./HelpMenu";
 import { useState } from "react";
 import { Link, NavLink, Navigate, Outlet, useLocation } from "react-router";
 import { LayoutDashboard, Megaphone, Users, Building2, Wallet, ReceiptText, Settings, LogOut, ChevronDown, PanelLeftClose, PanelLeftOpen, Bell, ShieldCheck } from "lucide-react";
@@ -12,8 +13,6 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { toast } from "@/components/ui/toast";
 import PreviewBanner from "@/components/PreviewBanner";
-import { Button } from "@/components/ui/button";
-import { HelpCircle, MessageCircle } from "lucide-react";
 import { useAppTour } from "@/features/tour/useAppTour";
 
 const rolePaths = { "Super Admin": "/admin", Reseller: "/reseller", User: "/user" };
@@ -165,31 +164,7 @@ export default function DashboardLayout({ role }) {
                   <NotificationBell base={base} />
                 </div>
                 <ThemeToggle />
-                <Button
-                  nativeButton={false}
-                  render={<Link to={`${base}/support`} />}
-                  variant="outline"
-                  size="sm"
-                  aria-label="Chat support"
-                  title="Chat support"
-                  className="h-8 gap-1.5 text-xs font-medium"
-                >
-                  <MessageCircle className="size-3.5 text-muted-foreground" aria-hidden="true" />
-                  <span className="hidden sm:inline">Support</span>
-                </Button>
-                {hasTour && <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  id="tour-help-button"
-                  aria-label="Take a tour of this page"
-                  title="Take a tour of this page"
-                  onClick={() => startTour(true)}
-                  className="h-8 gap-1.5 text-xs font-medium"
-                >
-                  <HelpCircle className="size-3.5 text-muted-foreground" aria-hidden="true" />
-                  <span className="hidden sm:inline">Take a tour</span>
-                </Button>}
+                <HelpMenu base={base} user={user} hasTour={hasTour} startTour={startTour} />
 
                 <DropdownMenu>
                   <DropdownMenuTrigger

@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { motion, useReducedMotion } from "motion/react";
-import { ArrowUpRight, Bell, Check, Info, Loader2, MailOpen, Megaphone, Undo2, UserRound, Wallet, X } from "lucide-react";
+import { ArrowUpRight, Bell, Check, Info, Loader2, MailOpen, Megaphone, MessageCircle, Undo2, UserRound, Wallet, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { getNotificationSubject } from "./notification.utils";
@@ -44,7 +44,9 @@ export default function NotificationListItem({ item, base, action, isPreview, on
   const { user } = useAuth();
   const reduced = useReducedMotion();
   const creditRequest = item.itemType === "transaction" && item.fieldKey === "REQUEST";
-  const category = creditRequest ? { icon: Wallet, label: "Credit request", tone: "text-amber-700 dark:text-amber-400" } : categories[item.category] || { icon: Bell, label: "Update", tone: "text-primary" };
+  const important = item.priority === "urgent";
+  const supportRequest = item.itemType === "support";
+  const category = supportRequest ? { icon: MessageCircle, label: "Support", tone: "text-red-600 dark:text-red-400" } : creditRequest ? { icon: Wallet, label: "Credit request", tone: "text-amber-700 dark:text-amber-400" } : categories[item.category] || { icon: Bell, label: "Update", tone: "text-primary" };
   const Icon = category.icon;
   const unread = !item.readAt && !item.archivedAt;
   const subject = getNotificationSubject(item);
@@ -65,14 +67,15 @@ export default function NotificationListItem({ item, base, action, isPreview, on
   return (
     <motion.li layout={reduced ? false : "position"} initial={reduced ? false : { opacity: 0, height: 0, y: -16, scale: 0.96 }} animate={{ opacity: 1, height: "auto", y: 0, scale: 1 }} exit={{ opacity: 0, height: 0, x: reduced ? 0 : 64, scale: reduced ? 1 : 0.98 }} transition={reduced ? { duration: 0 } : { duration: 0.34, opacity: { duration: 0.2 }, y: { type: "spring", stiffness: 340, damping: 25 } }} className="relative min-w-0 overflow-hidden" data-notification={item._id}>
       {day && <p className="px-2 pb-2 pt-3 text-[10px] font-medium text-muted-foreground">{day}</p>}
-      <article aria-label={`${category.label}: ${item.title}`} className={`group relative mb-2 rounded-2xl border ${creditRequest ? "border-amber-300 border-l-4 bg-amber-50/70 dark:border-amber-700 dark:bg-amber-950/25" : "border-border/80 bg-card hover:border-border"} text-foreground shadow-sm transition-colors ${compact ? "p-3" : "p-4 sm:p-5"}`}>
+      <article aria-label={`${important ? "Important, " : ""}${category.label}: ${item.title}`} className={`group relative mb-2 rounded-2xl border ${important ? "border-red-300 border-l-4 bg-red-50/70 dark:border-red-800 dark:bg-red-950/25" : creditRequest ? "border-amber-300 border-l-4 bg-amber-50/70 dark:border-amber-700 dark:bg-amber-950/25" : "border-border/80 bg-card hover:border-border"} text-foreground shadow-sm transition-colors ${compact ? "p-3" : "p-4 sm:p-5"}`}>
         <div className="flex items-start gap-3">
           <span className={`relative grid size-9 shrink-0 place-items-center rounded-xl ${category.tone}`} style={{ background: tint }}>
             <Icon className="size-[18px]" aria-hidden="true" />
             {unread && !reduced && <motion.span aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-xl border-2 border-current" initial={{ scale: 1, opacity: 0.5 }} animate={{ scale: 1.8, opacity: 0 }} transition={{ duration: 0.9, delay: 0.26 }} />}
           </span>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5 pr-5 text-[11px] text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-1.5 pr-5 text-[11px] text-muted-foreground">
+              {important && <span className="rounded-full border border-red-200 bg-red-100 px-2 py-0.5 font-semibold text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">Important</span>}
               <span className={creditRequest ? "rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 font-semibold text-foreground dark:border-amber-700 dark:bg-amber-900" : "font-medium"}>{category.label}</span><span aria-hidden="true">&middot;</span>
               <time dateTime={item.createdAt} title={new Date(item.createdAt).toLocaleString()} className="tabular-nums">{relativeTime(item.createdAt)}</time>
             </div>

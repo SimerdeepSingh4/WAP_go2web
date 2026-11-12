@@ -1,4 +1,5 @@
 import CampaignReference from "@/components/dashboard/CampaignReference";
+import SupportHelpButton from "@/features/support/components/SupportHelpButton";
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { ArrowLeft, ChevronLeft, ChevronRight, Search, Users } from "lucide-react";
@@ -23,7 +24,7 @@ export function FailureContacts({ rows }) {
 export default function FailedCampaignReport({ campaign, base, embedded = false }) {
   const sheet = campaign.publishedSpreadsheet;
   return <div className="w-full min-w-0 space-y-5">
-    {!embedded && <header className="space-y-3"><Link to={`${base}/campaigns`} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft className="size-3.5" />Back to campaigns</Link><div className="flex flex-wrap items-center gap-2.5"><h1 className="break-words text-xl font-semibold tracking-tight">{campaign.campaignTitle}</h1><CampaignReference campaign={campaign} /><StatusBadge status="failed" /></div><p className="text-xs text-muted-foreground">Campaign failure report</p></header>}
+    {!embedded && <header className="space-y-3"><Link to={`${base}/campaigns`} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft className="size-3.5" />Back to campaigns</Link><div className="flex flex-wrap items-center gap-2.5"><h1 className="break-words text-xl font-semibold tracking-tight">{campaign.campaignTitle}</h1><CampaignReference campaign={campaign} /><StatusBadge status="failed" /><SupportHelpButton campaign={campaign} area="this campaign failure report" className="ml-auto" /></div><p className="text-xs text-muted-foreground">Campaign failure report</p></header>}
     <section data-tour="report-failure" className="rounded-xl border border-border bg-card p-4 sm:p-5"><h2 className="text-sm font-semibold">Reason for failure</h2><p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground">{sheet.notes}</p><p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">Total campaign charge: <strong className="font-medium text-foreground">{number(sheet.summary?.creditsCharged || 0)}</strong> credits. Total refunded: <strong className="font-medium text-foreground">{number(sheet.summary?.creditsRefunded || 0)}</strong> credits.</p></section>
     <FailureContacts rows={sheet.rows} />
   </div>;

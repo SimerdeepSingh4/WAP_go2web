@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { dateTime } from "@/features/admin/lib/format";
 import { toast } from "@/components/ui/toast";
 import "./account-settings.css";
+import SupportHelpButton from "@/features/support/components/SupportHelpButton";
 
 function SettingsCard({ title, description, icon: Icon, action, children, section, active }) {
   if (!active) return null;
@@ -114,7 +115,7 @@ export default function AccountSettings() {
   return <div className="account-settings portal-settings">
     <header className="portal-page-heading account-settings-heading">
       <div className="portal-heading-copy"><h1>Settings</h1><p>Manage your account and keep your workspace secure.</p></div>
-      <span className="account-settings-role"><UserRound aria-hidden="true" />{user?.role || "Account"} account</span>
+      <div className="flex flex-wrap items-center gap-2"><SupportHelpButton area={`my ${activeTab} settings`} /><span className="account-settings-role"><UserRound aria-hidden="true" />{user?.role || "Account"} account</span></div>
     </header>
     <div className="account-settings-nav" role="tablist" aria-label="Account settings sections">{[
       ["profile", "Profile", UserRound],

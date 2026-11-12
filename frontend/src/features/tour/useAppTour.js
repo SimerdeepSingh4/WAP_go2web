@@ -42,7 +42,7 @@ export function useAppTour(role, userId) {
         element: "#tour-help-button",
         popover: {
           title: "Explore at your own pace",
-          description: "Want to understand each feature in detail? Click Take a tour here whenever you need a step-by-step guide to the page you’re on.",
+          description: "Open Help and choose Take a tour whenever you need a step-by-step guide to the page you’re on. You can also open Support from Help.",
           side: "bottom",
           align: "end",
         },

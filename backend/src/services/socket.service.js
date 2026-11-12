@@ -9,6 +9,30 @@ import supportMessageModel from "../models/supportMessage.model.js";
 import { sanitizeMessage } from "../helpers/support-identity.helper.js";
 
 let io = null;
+
+// Recheck membership and session for each recipient, then sanitize per viewer.
+export async function emitSupportEvent(conversationId, event, payload) {
+    if (!io) return;
+    const conversation = await supportConversationModel.findById(conversationId).lean();
+    if (!conversation) return;
+    const room = `support:conv:${conversationId}`;
+    const sockets = [...io.sockets.sockets.values()].filter(socket => socket.rooms.has(room));
+    await Promise.all(sockets.map(async socket => {
+        if (!await checkConnectedSocket(socket)) return;
+        if (!socket.rooms.has(room)) return;
+        const user = socket.user;
+        const allowed = user.role === "Super Admin" ||
+            (user.role === "User" && String(conversation.user) === String(user._id)) ||
+            (user.role === "Reseller" && String(conversation.reseller) === String(user._id));
+        if (!allowed) {
+            socket.leave(room);
+            socket.leave(`${room}:user`);
+            socket.leave(`${room}:staff`);
+            return;
+        }
+        socket.emit(event, event === "SUPPORT_MESSAGE_RECEIVED" ? sanitizeMessage(payload, user.role) : payload);
+    }));
+}
 const REVALIDATE_MS = 30_000;
 const VALIDATION_TIMEOUT_MS = 5_000;
 const expiryTimers = new WeakMap();

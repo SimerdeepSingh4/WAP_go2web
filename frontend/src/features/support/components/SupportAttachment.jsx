@@ -1,0 +1,34 @@
+import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowUpRight, Download, FileAudio, FileText, Film, Image, Loader2 } from "lucide-react";
+import { supportApi } from "@/api/support.api";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+
+export default function SupportAttachment({ attachment }) {
+  const { user } = useAuth();
+  const [opened, setOpened] = useState(false);
+  const [url, setUrl] = useState("");
+  const media = useQuery({
+    queryKey: ["support", user?.id || user?._id, "media", attachment._id],
+    queryFn: ({ signal }) => supportApi.getAttachment(attachment._id, signal),
+    enabled: opened, staleTime: Infinity, gcTime: 0, retry: false,
+  });
+  useEffect(() => {
+    if (!media.data) return;
+    const next = URL.createObjectURL(media.data);
+    setUrl(next);
+    return () => URL.revokeObjectURL(next);
+  }, [media.data]);
+  const Icon = attachment.mediaType === "image" ? Image : attachment.mediaType === "video" ? Film : attachment.mediaType === "document" ? FileText : FileAudio;
+  const size = attachment.sizeBytes < 1024 * 1024 ? `${Math.max(1, Math.round(attachment.sizeBytes / 1024))} KB` : `${(attachment.sizeBytes / 1024 / 1024).toFixed(1)} MB`;
+  return <div className="support-attachment">
+    <div className="support-attachment-header"><span className="support-attachment-icon"><Icon aria-hidden="true" /></span><span className="support-attachment-title"><strong title={attachment.originalName}>{attachment.originalName || `${attachment.mediaType} attachment`}</strong><small>{attachment.mediaType[0].toUpperCase() + attachment.mediaType.slice(1)} · {size}</small></span></div>
+    {!opened && <button type="button" className="support-attachment-open" onClick={() => setOpened(true)}>{attachment.mediaType === "document" ? "Get file" : `Open ${attachment.mediaType}`}<ArrowUpRight aria-hidden="true" /></button>}
+    {opened && media.isPending && <span role="status" className="flex items-center gap-2 text-xs"><Loader2 className="size-3 animate-spin" />Loading attachment…</span>}
+    {media.isError && <div role="alert" className="text-xs">Attachment could not be loaded. <button type="button" className="underline" onClick={() => media.refetch()}>Retry</button></div>}
+    {url && <>
+      {attachment.mediaType === "image" ? <img src={url} alt={attachment.originalName || "Shared image"} className="max-h-72 max-w-full rounded-lg object-contain" /> : attachment.mediaType === "video" ? <video src={url} controls preload="metadata" className="max-h-72 max-w-full rounded-lg" /> : attachment.mediaType === "audio" ? <audio src={url} controls preload="metadata" className="max-w-full" /> : null}
+      <a href={url} download={attachment.originalName || "attachment"} className="support-attachment-download"><Download aria-hidden="true" />Download file</a>
+    </>}
+  </div>;
+}

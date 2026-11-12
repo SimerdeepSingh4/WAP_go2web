@@ -1,5 +1,6 @@
 import express from "express";
-import { protect } from "../middlewares/auth.middleware.js";
+import mongoose from "mongoose";
+import { protect, blockInPreviewMode } from "../middlewares/auth.middleware.js";
 import { supportMediaUpload } from "../middlewares/support-upload.middleware.js";
 import {
     getOrCreateConversation,
@@ -19,6 +20,8 @@ const router = express.Router();
 
 // All support routes require authentication
 router.use(protect);
+router.use((req, res, next) => req.method === "GET" ? next() : blockInPreviewMode("Support changes")(req, res, next));
+router.param("id", (req, res, next, id) => mongoose.Types.ObjectId.isValid(id) ? next() : res.status(400).json({ success: false, message: "Invalid support reference." }));
 
 // Conversation lifecycle & inbox
 router.post("/conversations", getOrCreateConversation);

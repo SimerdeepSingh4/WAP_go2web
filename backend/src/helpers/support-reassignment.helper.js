@@ -1,5 +1,5 @@
 import supportConversationModel from "../models/supportConversation.model.js";
-import { notifyUser, notifyRole } from "../services/socket.service.js";
+import { notifyUser, getIO } from "../services/socket.service.js";
 
 /**
  * Updates active support conversations when a user's assigned reseller is changed.
@@ -16,16 +16,15 @@ export async function syncResellerReassignment(userId, oldResellerId, newReselle
             return;
         }
 
-        // Find all non-resolved conversations for this user
+        // Move both ongoing and historical groups to the newly assigned Admin.
         const conversations = await supportConversationModel.find({
             user: userId,
-            status: { $in: ["open", "reopened"] },
         });
 
         if (!conversations || conversations.length === 0) return;
 
         for (const conv of conversations) {
-            conv.reseller = newResellerId;
+            conv.reseller = newResellerId || actorId;
             conv.events.push({
                 eventType: "reseller_reassigned",
                 actor: actorId,
@@ -39,6 +38,11 @@ export async function syncResellerReassignment(userId, oldResellerId, newReselle
             });
 
             await conv.save();
+            if (oldResellerId) {
+                try {
+                    getIO().in(`user:${oldResellerId}`).socketsLeave([`support:conv:${conv._id}`, `support:conv:${conv._id}:staff`, `support:conv:${conv._id}:user`]);
+                } catch { /* No socket server in offline administrative scripts. */ }
+            }
 
             // Realtime socket notifications
             if (oldResellerId) {

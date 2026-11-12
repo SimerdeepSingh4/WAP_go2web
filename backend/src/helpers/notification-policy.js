@@ -8,6 +8,7 @@ export const notificationAttentionFilter = {
 export function notificationPriority(event) {
     const d = event.data || {};
     return d.priority === "urgent" || event.kind === "operations"
+        || (event.kind === "support" && d.action === "escalated")
         || (event.kind === "expiry" && d.expired)
         || (event.kind === "wallet" && d.isLocked && d.changes?.includes("isLocked"))
         || (event.kind === "campaign" && d.status === "failed" && d.changes?.includes("status"))
@@ -24,6 +25,17 @@ export function mayReadNotification(viewer, notification, subject) {
 export function getNotificationGroup(event, changeField) {
     const d = event.data;
     const kind = event.kind;
+
+    if (kind === "support") {
+        const conversationId = String(d.id);
+        return {
+            groupKey: `support:${conversationId}:escalation:requested`,
+            itemType: "support",
+            itemId: conversationId,
+            changeType: "escalation",
+            fieldKey: "requested",
+        };
+    }
 
     if (kind === "campaign") {
         const campaignId = String(d.id || d._id);
@@ -138,6 +150,12 @@ export function formatNotification(event, viewer, subject, threshold = 100) {
     const subjectLabel = subject?.username ? `${subjectRole} "${subjectName}"` : "Account";
 
     const result = (category, title, body, href) => ({ category, title, body, href });
+
+    if (event.kind === "support") {
+        if (viewer.role !== "Super Admin" || d.action !== "escalated") return null;
+        const body = `Super Admin assistance was requested for “${d.subject}”. ${d.reason || ""}`.trim().slice(0, 800);
+        return result("system", "Super Admin assistance needed", body, `${base}/support?conversation=${encodeURIComponent(d.id)}`);
+    }
 
     if (event.kind === "campaign") {
         if (viewer.role !== "Super Admin" && d.statusVisible === false && d.changes?.includes("status")) return null;

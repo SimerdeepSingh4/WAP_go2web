@@ -32,6 +32,9 @@ export async function deliverEvent(event) {
         if (!recipients.has(key) || sameId(user._id, subject?._id)) recipients.set(key, { user, subject, managed });
     };
     for (const subject of subjects) {
+        // Escalation reasons are internal staff details. Only Super Admins
+        // receive these notifications, regardless of who owns the conversation.
+        if (event.kind === "support") continue;
         put(subject, subject);
         if (creditRequest) {
             const managerId = d.requestedFrom || subject.createdBy;

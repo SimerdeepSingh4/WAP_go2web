@@ -5,6 +5,8 @@ import supportConversationModel from "../models/supportConversation.model.js";
 import supportMessageModel from "../models/supportMessage.model.js";
 import supportAttachmentModel from "../models/supportAttachment.model.js";
 import userModel from "../models/user.model.js";
+import { NotificationEvent } from "../models/notification.model.js";
+import { getNextNotificationSequence } from "../helpers/notification-hooks.js";
 import {
     sanitizeSenderIdentity,
     sanitizeConversation,
@@ -15,7 +17,7 @@ import {
     processAndSaveSupportMedia,
     SUPPORT_STORAGE_DIR,
 } from "../services/support-media.service.js";
-import { notifyUser, notifyRole, getIO } from "../services/socket.service.js";
+import { notifyUser, notifyRole, emitSupportEvent } from "../services/socket.service.js";
 
 /**
  * Access check helper:
@@ -26,9 +28,22 @@ import { notifyUser, notifyRole, getIO } from "../services/socket.service.js";
 export function hasConversationAccess(conversation, user) {
     if (!conversation || !user) return false;
     if (user.role === "Super Admin") return true;
-    if (user.role === "Reseller" && String(conversation.reseller) === String(user._id)) return true;
-    if (user.role === "User" && String(conversation.user) === String(user._id)) return true;
+    if (user.role === "Reseller" && String(conversation.reseller?._id || conversation.reseller) === String(user._id)) return true;
+    if (user.role === "User" && String(conversation.user?._id || conversation.user) === String(user._id)) return true;
     return false;
+}
+
+async function inboxConversations(conversations, viewer) {
+    if (!conversations.length) return [];
+    const unread = await supportMessageModel.aggregate([
+        { $match: { sender: { $ne: viewer._id }, $or: conversations.map(conversation => ({
+            conversationId: conversation._id,
+            sequenceNumber: { $gt: conversation.participantReadPositions?.get(String(viewer._id))?.lastReadSequence || 0 },
+        })) } },
+        { $group: { _id: "$conversationId", count: { $sum: 1 } } },
+    ]);
+    const counts = new Map(unread.map(item => [String(item._id), item.count]));
+    return conversations.map(conversation => ({ ...sanitizeConversation(conversation, viewer.role), unreadCount: counts.get(String(conversation._id)) || 0 }));
 }
 
 /**
@@ -45,17 +60,19 @@ export async function getOrCreateConversation(req, res) {
             });
         }
 
+        if (req.body.subject !== undefined && (typeof req.body.subject !== "string" || !req.body.subject.trim() || req.body.subject.trim().length > 150)) return res.status(400).json({ message: "Provide a subject up to 150 characters." });
         // Determine assigned reseller from user record
         let resellerId = user.resellerId;
         if (!resellerId) {
-            const admin = await userModel.findOne({ role: "Super Admin" });
+            const admin = await userModel.findOne({ role: "Super Admin", status: "active" });
             resellerId = admin ? admin._id : null;
         }
 
+        if (!resellerId) return res.status(503).json({ message: "No support administrator is available. Please contact your account manager." });
         let conversation = await supportConversationModel.findOne({
             user: user._id,
             status: { $in: ["open", "reopened"] },
-        }).populate("reseller", "username email dp_img");
+        }).populate("reseller", "username email dp_img role");
 
         let isNew = false;
         if (!conversation) {
@@ -74,8 +91,9 @@ export async function getOrCreateConversation(req, res) {
                     },
                 ],
             });
-            await conversation.populate("reseller", "username email dp_img");
+            await conversation.populate("reseller", "username email dp_img role");
             isNew = true;
+            void notifyRole("Super Admin", "SUPPORT_CONVERSATION_UPDATED", { conversationId: conversation._id });
 
             // Notify assigned reseller
             if (resellerId) {
@@ -116,8 +134,11 @@ export async function listConversations(req, res) {
         if (status && ["open", "resolved", "reopened"].includes(status)) {
             filter.status = status;
         }
+        if (status === "ongoing") filter.status = { $in: ["open", "reopened"] };
+        if (req.query.search) filter.subject = { $regex: String(req.query.search).slice(0, 120).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" };
         if (isEscalated === "true") {
             filter["escalation.isEscalated"] = true;
+            if (!status) filter.status = { $ne: "resolved" };
         }
 
         const skip = (Math.max(1, parseInt(page, 10)) - 1) * Math.min(50, Math.max(1, parseInt(limit, 10)));
@@ -130,10 +151,10 @@ export async function listConversations(req, res) {
                 .skip(skip)
                 .limit(pageLimit)
                 .populate("user", "username email dp_img")
-                .populate("reseller", "username email dp_img"),
+                .populate("reseller", "username email dp_img role"),
         ]);
 
-        const sanitized = conversations.map((c) => sanitizeConversation(c, role));
+        const sanitized = await inboxConversations(conversations, req.user);
 
         return res.status(200).json({
             success: true,
@@ -161,7 +182,7 @@ export async function getConversationById(req, res) {
 
         const conversation = await supportConversationModel.findById(id)
             .populate("user", "username email dp_img")
-            .populate("reseller", "username email dp_img");
+            .populate("reseller", "username email dp_img role");
 
         if (!conversation || !hasConversationAccess(conversation, req.user)) {
             return res.status(404).json({ success: false, message: "Conversation not found or access denied." });
@@ -184,7 +205,7 @@ export async function getConversationById(req, res) {
 export async function getConversationMessages(req, res) {
     try {
         const { id } = req.params;
-        const { beforeSequence, limit = 50 } = req.query;
+        const { beforeSequence, afterSequence, limit = 50 } = req.query;
 
         const conversation = await supportConversationModel.findById(id);
         if (!conversation || !hasConversationAccess(conversation, req.user)) {
@@ -195,17 +216,20 @@ export async function getConversationMessages(req, res) {
         if (beforeSequence && !isNaN(Number(beforeSequence))) {
             query.sequenceNumber = { $lt: Number(beforeSequence) };
         }
+        if (afterSequence !== undefined && Number.isSafeInteger(Number(afterSequence)) && Number(afterSequence) >= 0) {
+            query.sequenceNumber = { $gt: Number(afterSequence) };
+        }
 
         const fetchLimit = Math.min(100, Math.max(1, parseInt(limit, 10)));
 
         const messages = await supportMessageModel.find(query)
-            .sort({ sequenceNumber: -1 })
+            .sort({ sequenceNumber: afterSequence !== undefined ? 1 : -1 })
             .limit(fetchLimit)
             .populate("sender", "username email dp_img")
             .populate("attachments");
 
         // Return chronologically
-        const ordered = messages.reverse();
+        const ordered = afterSequence !== undefined ? messages : messages.reverse();
         const sanitized = ordered.map((m) => sanitizeMessage(m, req.user.role));
 
         return res.status(200).json({
@@ -224,144 +248,61 @@ export async function getConversationMessages(req, res) {
  * Send a reply message in a conversation. Retry-safe with clientMessageId.
  */
 export async function sendMessage(req, res) {
+    const { id } = req.params;
+    const user = req.user;
+    const { text = "", clientMessageId, attachmentIds = [] } = req.body;
+    if (typeof text !== "string" || text.length > 4000 || typeof clientMessageId !== "string" || clientMessageId.length > 128 || !clientMessageId.trim() || !Array.isArray(attachmentIds) || attachmentIds.length > 5 || attachmentIds.some(value => !mongoose.Types.ObjectId.isValid(value))) {
+        return res.status(400).json({ success: false, message: "Provide a message up to 4,000 characters, a unique message reference, and at most five attachments." });
+    }
+    if (!text.trim() && !attachmentIds.length) return res.status(400).json({ success: false, message: "Write a message or attach media." });
+    let session;
     try {
-        const { id } = req.params;
-        const { text, clientMessageId, attachmentIds } = req.body;
-        const user = req.user;
-
-        if (!clientMessageId) {
-            return res.status(400).json({ success: false, message: "clientMessageId is required for idempotency." });
-        }
-
-        if ((!text || !text.trim()) && (!attachmentIds || attachmentIds.length === 0)) {
-            return res.status(400).json({ success: false, message: "Message must contain text or attachments." });
-        }
-
         const conversation = await supportConversationModel.findById(id);
-        if (!conversation || !hasConversationAccess(conversation, user)) {
-            return res.status(403).json({ success: false, message: "Unauthorized." });
-        }
-
-        // Idempotency: Return existing message if client is retrying
-        const existing = await supportMessageModel.findOne({
-            conversationId: conversation._id,
-            clientMessageId,
-        }).populate("sender", "username email dp_img").populate("attachments");
-
+        if (!hasConversationAccess(conversation, user)) return res.status(403).json({ success: false, message: "Conversation access denied." });
+        const existing = await supportMessageModel.findOne({ conversationId: id, clientMessageId }).populate("sender", "username email dp_img").populate("attachments");
         if (existing) {
-            return res.status(200).json({
-                success: true,
-                data: sanitizeMessage(existing, user.role),
-            });
+            if (String(existing.sender?._id || existing.sender) !== String(user._id)) return res.status(409).json({ message: "Message reference already used." });
+            return res.json({ success: true, data: sanitizeMessage(existing, user.role) });
         }
-
-        // Validate that attachments actually belong to this conversation
-        if (attachmentIds && attachmentIds.length > 0) {
-            const validCount = await supportAttachmentModel.countDocuments({
-                _id: { $in: attachmentIds },
-                conversationId: conversation._id,
-            });
-            if (validCount !== attachmentIds.length) {
-                return res.status(400).json({
-                    success: false,
-                    message: "One or more attachments are invalid or belong to a different conversation.",
-                });
+        let message;
+        let updatedConversation;
+        session = await mongoose.startSession();
+        await session.withTransaction(async () => {
+            const current = await supportConversationModel.findById(id).session(session);
+            if (!hasConversationAccess(current, user)) throw new Error("Conversation access changed. Reload the conversation.");
+            if (attachmentIds.length) {
+                const count = await supportAttachmentModel.countDocuments({ _id: { $in: attachmentIds }, conversationId: id, uploader: user._id, isProcessed: true }).session(session);
+                if (count !== attachmentIds.length) throw new Error("Attachments must be your own uploads in this conversation.");
             }
-        }
-
-        // Atomically increment sequenceNumber and update conversation latestActivity
-        const updateDoc = {
-            $inc: { nextSequenceNumber: 1 },
-            $set: {
-                "latestActivity.messageText": (text || "[Attachment]").slice(0, 150),
-                "latestActivity.sentAt": new Date(),
-                "latestActivity.senderRole": user.role,
-            },
-        };
-
-        // If conversation was resolved and user or staff sends a message, auto-reopen
-        if (conversation.status === "resolved") {
-            updateDoc.$set.status = "reopened";
-            updateDoc.$push = {
-                events: {
-                    eventType: "reopened",
-                    actor: user._id,
-                    actorRole: user.role,
-                    note: "Reopened by incoming message",
-                    timestamp: new Date(),
-                },
-            };
-        }
-
-        // If Super Admin replies, record staff intervention event
-        if (user.role === "Super Admin") {
-            updateDoc.$push = updateDoc.$push || {};
-            updateDoc.$push.events = {
-                eventType: "staff_intervention",
-                actor: user._id,
-                actorRole: "Super Admin",
-                note: "Super Admin replied in conversation",
-                timestamp: new Date(),
-            };
-        }
-
-        const updatedConversation = await supportConversationModel.findByIdAndUpdate(
-            id,
-            updateDoc,
-            { new: true }
-        );
-
-        const assignedSequence = updatedConversation.nextSequenceNumber - 1;
-
-        const message = await supportMessageModel.create({
-            conversationId: conversation._id,
-            sender: user._id,
-            senderRole: user.role,
-            clientMessageId,
-            sequenceNumber: assignedSequence,
-            text: text ? text.trim() : "",
-            attachments: attachmentIds || [],
+            const events = [];
+            if (current.status === "resolved") events.push({ eventType: "reopened", actor: user._id, actorRole: user.role, note: "Reopened by incoming message" });
+            if (user.role === "Super Admin") events.push({ eventType: "staff_intervention", actor: user._id, actorRole: user.role, note: "Super Admin joined the conversation" });
+            const update = { $inc: { nextSequenceNumber: 1 }, $set: {
+                "latestActivity.messageText": text.trim().slice(0, 150) || "[Attachment]",
+                "latestActivity.sentAt": new Date(), "latestActivity.senderRole": user.role,
+                ...(current.status === "resolved" ? { status: "reopened" } : {}),
+            } };
+            if (events.length) update.$push = { events: { $each: events } };
+            updatedConversation = await supportConversationModel.findByIdAndUpdate(id, update, { new: true, session });
+            [message] = await supportMessageModel.create([{ conversationId: id, sender: user._id, senderRole: user.role, clientMessageId, sequenceNumber: updatedConversation.nextSequenceNumber - 1, text: text.trim(), attachments: attachmentIds }], { session });
         });
-
         await message.populate("sender", "username email dp_img");
         await message.populate("attachments");
-
-        // Real-time broadcast: Persisted first, then emit identity-filtered copies
         try {
-            const io = getIO();
-            if (io) {
-                const userView = sanitizeMessage(message, "User");
-                const staffView = sanitizeMessage(message, "Super Admin");
-
-                io.to(`support:conv:${conversation._id}:user`).emit("SUPPORT_MESSAGE_RECEIVED", userView);
-                io.to(`support:conv:${conversation._id}:staff`).emit("SUPPORT_MESSAGE_RECEIVED", staffView);
-
-                // Update participant unread / preview indicator in user personal rooms
-                notifyUser(conversation.user, "SUPPORT_CONVERSATION_UPDATED", {
-                    conversationId: conversation._id,
-                    latestActivity: updatedConversation.latestActivity,
-                });
-                if (conversation.reseller) {
-                    notifyUser(conversation.reseller, "SUPPORT_CONVERSATION_UPDATED", {
-                        conversationId: conversation._id,
-                        latestActivity: updatedConversation.latestActivity,
-                    });
-                }
-            }
-        } catch (socketErr) {
-            console.error("Socket broadcast warning:", socketErr.message);
-        }
-
-        return res.status(201).json({
-            success: true,
-            data: sanitizeMessage(message, user.role),
-        });
+            await emitSupportEvent(id, "SUPPORT_MESSAGE_RECEIVED", message);
+            const payload = { conversationId: id };
+            await Promise.all([notifyUser(conversation.user, "SUPPORT_CONVERSATION_UPDATED", payload), notifyUser(conversation.reseller, "SUPPORT_CONVERSATION_UPDATED", payload), notifyRole("Super Admin", "SUPPORT_CONVERSATION_UPDATED", payload)]);
+        } catch (error) { console.error("Support delivery:", error.message); }
+        return res.status(201).json({ success: true, data: sanitizeMessage(message, user.role) });
     } catch (error) {
-        console.error("sendMessage error:", error);
-        return res.status(500).json({ success: false, message: "Failed to send message." });
-    }
+        if (error.code === 11000) {
+            const existing = await supportMessageModel.findOne({ conversationId: id, clientMessageId, sender: user._id }).populate("sender", "username email dp_img").populate("attachments");
+            if (existing) return res.json({ success: true, data: sanitizeMessage(existing, user.role) });
+        }
+        console.error("Support send:", error.message);
+        return res.status(500).json({ success: false, message: "Message could not be sent. You can retry safely." });
+    } finally { if (session) await session.endSession(); }
 }
-
 /**
  * POST /api/support/conversations/:id/read
  * Mark messages in a conversation as read up to a sequence number.
@@ -377,24 +318,21 @@ export async function markAsRead(req, res) {
             return res.status(403).json({ success: false, message: "Unauthorized." });
         }
 
-        const readSeq = Number(sequenceNumber) || conversation.nextSequenceNumber - 1;
+        const requested = sequenceNumber === undefined ? conversation.nextSequenceNumber - 1 : Number(sequenceNumber);
+        if (!Number.isSafeInteger(requested) || requested < 0 || requested >= conversation.nextSequenceNumber) return res.status(400).json({ message: "Invalid read position." });
+        const readSeq = Math.max(requested, conversation.participantReadPositions.get(String(user._id))?.lastReadSequence || 0);
 
-        conversation.set(`participantReadPositions.${user._id}`, {
-            lastReadSequence: readSeq,
-            lastReadAt: new Date(),
-        });
-
-        await conversation.save();
+        await supportConversationModel.updateOne({ _id: id }, {
+            $max: { [`participantReadPositions.${user._id}.lastReadSequence`]: readSeq },
+            $set: { [`participantReadPositions.${user._id}.lastReadAt`]: new Date() },
+        }, { timestamps: false });
 
         try {
-            const io = getIO();
-            if (io) {
-                io.to(`support:conv:${conversation._id}:user`).to(`support:conv:${conversation._id}:staff`).emit("SUPPORT_MESSAGES_READ", {
+            await emitSupportEvent(conversation._id, "SUPPORT_MESSAGES_READ", {
                     conversationId: conversation._id,
                     readerRole: user.role,
                     sequenceNumber: readSeq,
-                });
-            }
+            });
         } catch {}
 
         return res.status(200).json({ success: true, sequenceNumber: readSeq });
@@ -413,6 +351,7 @@ export async function updateStatus(req, res) {
         const { id } = req.params;
         const { status } = req.body;
         const user = req.user;
+        if (user.role === "User") return res.status(403).json({ message: "Your Admin manages resolution. Send a message to reopen the conversation." });
 
         if (!["open", "resolved", "reopened"].includes(status)) {
             return res.status(400).json({ success: false, message: "Invalid status value." });
@@ -439,13 +378,11 @@ export async function updateStatus(req, res) {
         await conversation.save();
 
         try {
-            const io = getIO();
-            if (io) {
-                io.to(`support:conv:${conversation._id}:user`).to(`support:conv:${conversation._id}:staff`).emit("SUPPORT_STATUS_CHANGED", {
+            await emitSupportEvent(conversation._id, "SUPPORT_STATUS_CHANGED", {
                     conversationId: conversation._id,
                     status,
-                });
-            }
+            });
+            await Promise.all([notifyUser(conversation.user, "SUPPORT_CONVERSATION_UPDATED", { conversationId: id }), notifyUser(conversation.reseller, "SUPPORT_CONVERSATION_UPDATED", { conversationId: id }), notifyRole("Super Admin", "SUPPORT_CONVERSATION_UPDATED", { conversationId: id })]);
         } catch {}
 
         return res.status(200).json({
@@ -467,6 +404,7 @@ export async function requestEscalation(req, res) {
         const { id } = req.params;
         const { reason } = req.body;
         const user = req.user;
+        if (typeof reason !== "string" || !reason.trim() || reason.length > 2000) return res.status(400).json({ message: "Explain the request in up to 2,000 characters." });
 
         if (user.role !== "Reseller" && user.role !== "Super Admin") {
             return res.status(403).json({
@@ -475,37 +413,55 @@ export async function requestEscalation(req, res) {
             });
         }
 
-        const conversation = await supportConversationModel.findById(id);
-        if (!conversation || !hasConversationAccess(conversation, user)) {
-            return res.status(403).json({ success: false, message: "Unauthorized." });
-        }
-
-        conversation.escalation = {
-            isEscalated: true,
-            reason: (reason || "Reseller requested Super Admin assistance").trim(),
-            requestedAt: new Date(),
-            requestedBy: user._id,
-            resolvedAt: null,
-        };
-
-        conversation.events.push({
-            eventType: "escalated",
-            actor: user._id,
-            actorRole: user.role,
-            note: reason || "Escalation requested",
-            timestamp: new Date(),
+        let conversation;
+        // Commit the request and its durable notification together so an offline
+        // Super Admin receives the same important alert after signing in.
+        await mongoose.connection.transaction(async session => {
+            conversation = await supportConversationModel.findById(id).session(session);
+            if (!hasConversationAccess(conversation, user)) {
+                throw Object.assign(new Error("Unauthorized."), { status: 403 });
+            }
+            const requestedAt = new Date();
+            conversation.escalation = {
+                isEscalated: true,
+                reason: reason.trim(),
+                requestedAt,
+                requestedBy: user._id,
+                resolvedAt: null,
+            };
+            conversation.events.push({
+                eventType: "escalated",
+                actor: user._id,
+                actorRole: user.role,
+                note: reason.trim(),
+                timestamp: requestedAt,
+            });
+            await conversation.save({ session });
+            const version = getNextNotificationSequence();
+            await NotificationEvent.create([{
+                eventKey: `support:${id}:escalation:${version}`,
+                kind: "support",
+                data: {
+                    id: conversation._id,
+                    userId: conversation.user,
+                    subject: conversation.subject,
+                    reason: conversation.escalation.reason,
+                    action: "escalated",
+                    version,
+                },
+            }], { session });
         });
-
-        await conversation.save();
 
         // Real-time alert to Super Admin room (sanitized summary, no private leak)
         try {
-            notifyRole("Super Admin", "SUPPORT_ESCALATION_ALERT", {
+            await notifyRole("Super Admin", "SUPPORT_ESCALATION_ALERT", {
                 conversationId: conversation._id,
                 subject: conversation.subject,
                 reason: conversation.escalation.reason,
                 requestedAt: conversation.escalation.requestedAt,
             });
+            await notifyUser(conversation.user, "SUPPORT_CONVERSATION_UPDATED", { conversationId: conversation._id });
+            await notifyUser(conversation.reseller, "SUPPORT_CONVERSATION_UPDATED", { conversationId: conversation._id });
         } catch (err) {
             console.error("Socket escalation alert error:", err);
         }
@@ -516,6 +472,7 @@ export async function requestEscalation(req, res) {
             data: sanitizeConversation(conversation, user.role),
         });
     } catch (error) {
+        if (error.status === 403) return res.status(403).json({ success: false, message: error.message });
         console.error("requestEscalation error:", error);
         return res.status(500).json({ success: false, message: "Failed to escalate conversation." });
     }
@@ -542,6 +499,7 @@ export async function getAdminInbox(req, res) {
         } else if (filter === "resolved") {
             query.status = "resolved";
         }
+        if (req.query.search) query.subject = { $regex: String(req.query.search).slice(0, 120).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" };
 
         const skip = (Math.max(1, parseInt(page, 10)) - 1) * Math.min(50, Math.max(1, parseInt(limit, 10)));
         const pageLimit = Math.min(50, Math.max(1, parseInt(limit, 10)));
@@ -553,14 +511,15 @@ export async function getAdminInbox(req, res) {
                 .skip(skip)
                 .limit(pageLimit)
                 .populate("user", "username email dp_img")
-                .populate("reseller", "username email dp_img"),
+                .populate("reseller", "username email dp_img role"),
         ]);
 
         return res.status(200).json({
             success: true,
             total,
             page: parseInt(page, 10),
-            data: conversations.map((c) => sanitizeConversation(c, "Super Admin")),
+            totalPages: Math.ceil(total / pageLimit),
+            data: await inboxConversations(conversations, req.user),
         });
     } catch (error) {
         console.error("getAdminInbox error:", error);
@@ -647,15 +606,17 @@ export async function serveAttachment(req, res) {
         }
 
         res.setHeader("X-Content-Type-Options", "nosniff");
+        res.setHeader("Cache-Control", "private, no-store");
         res.setHeader("Content-Type", attachment.mimeType);
 
-        if (isDownload) {
+        if (isDownload || attachment.mediaType === "document") {
             res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(attachment.originalName)}"`);
         } else {
             res.setHeader("Content-Disposition", "inline");
         }
 
         const stream = fs.createReadStream(filePath);
+        stream.on("error", () => { if (!res.headersSent) res.status(500).end(); else res.destroy(); });
         stream.pipe(res);
     } catch (error) {
         console.error("serveAttachment error:", error);

@@ -1,0 +1,4 @@
+.admin-portal .support-context-link[data-slot="button"] { height:auto; min-height:30px; gap:5px; padding:3px 5px; border:0; border-radius:5px; background:transparent; color:var(--primary); box-shadow:none; font-size:12px; font-weight:500; }
+.admin-portal .support-context-link[data-slot="button"]:hover { background:var(--accent); color:var(--primary-hover); }
+.admin-portal .support-context-link[data-slot="button"] > svg { width:14px; height:14px; }
+@media(max-width:540px) { .admin-portal .support-context-link[data-slot="button"] { min-height:36px; } }

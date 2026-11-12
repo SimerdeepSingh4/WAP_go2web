@@ -23,7 +23,7 @@ const supportAttachmentSchema = new mongoose.Schema(
         mimeType: { type: String, required: true },
         mediaType: {
             type: String,
-            enum: ["image", "video", "audio"],
+            enum: ["image", "video", "audio", "document"],
             required: true,
         },
         sizeBytes: { type: Number, required: true },

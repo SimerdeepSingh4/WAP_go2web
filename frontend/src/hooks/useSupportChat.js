@@ -1,162 +1,109 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSocket } from "@/features/socket/socket.context";
 import { supportApi } from "@/api/support.api";
 
-/**
- * Custom hook to manage a real-time support conversation thread.
- * Supports:
- * - Room join/leave lifecycle
- * - Reconnection catching up via sequence numbers
- * - Idempotent retry-safe sending
- * - Identity-filtered participant rendering
- *
- * @param {string} conversationId
- * @param {object} currentUser
- */
+const merge = (previous, incoming) => [...new Map([...previous, ...incoming].map(message => [String(message._id), message])).values()].sort((a, b) => a.sequenceNumber - b.sequenceNumber);
+
 export function useSupportChat(conversationId, currentUser) {
-    const { socket } = useSocket();
-    const [messages, setMessages] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [sending, setSending] = useState(false);
-    const [status, setStatus] = useState("open");
-    const [conversation, setConversation] = useState(null);
+  const { socket } = useSocket();
+  const accountId = currentUser?.id || currentUser?._id;
+  const client = useQueryClient();
+  const [state, setState] = useState({ id: null, messages: [], entranceSequence: null, loading: false, error: null, hasOlder: false, loadingOlder: false });
+  const [sending, setSending] = useState(false);
+  const [reload, setReload] = useState(0);
+  const sequence = useRef(0), activeId = useRef(null), generation = useRef(0), readSequence = useRef(0), sendLock = useRef(false);
+  const metadata = useQuery({ queryKey: ["support", accountId, "conversation", conversationId], queryFn: ({ signal }) => supportApi.getConversationById(conversationId, signal), enabled: Boolean(accountId && conversationId), refetchInterval: 15000 });
+  const invalidate = useCallback(() => client.invalidateQueries({ queryKey: ["support", accountId] }), [client, accountId]);
+  const receive = useCallback((messages, id) => {
+    if (activeId.current !== id) return;
+    // An HTTP send response can arrive before another participant's earlier reply.
+    // Display it immediately, but keep the catch-up cursor before any missing gap.
+    let contiguous = sequence.current;
+    for (const message of [...messages].sort((a, b) => a.sequenceNumber - b.sequenceNumber)) {
+      if (message.sequenceNumber === contiguous + 1) contiguous = message.sequenceNumber;
+    }
+    sequence.current = contiguous;
+    setState(previous => previous.id === id ? { ...previous, messages: merge(previous.messages, messages) } : previous);
+  }, []);
 
-    const highestSeqRef = useRef(0);
+  useEffect(() => {
+    activeId.current = conversationId;
+    const revision = ++generation.current;
+    sequence.current = 0; readSequence.current = 0;
+    setState({ id: conversationId, messages: [], entranceSequence: null, loading: Boolean(conversationId), error: null, hasOlder: false, loadingOlder: false });
+    if (!conversationId) return;
+    const controller = new AbortController();
+    supportApi.getMessages(conversationId, {}, controller.signal).then(response => {
+      if (revision !== generation.current) return;
+      const messages = response.data || [];
+      sequence.current = Math.max(sequence.current, ...messages.map(message => message.sequenceNumber));
+      setState(previous => ({ ...previous, messages: merge(messages, previous.messages), entranceSequence: Math.max(0, ...messages.map(message => message.sequenceNumber)), loading: false, hasOlder: messages.length === 50 }));
+    }).catch(error => {
+      if (!controller.signal.aborted && revision === generation.current) setState(previous => ({ ...previous, loading: false, error }));
+    });
+    return () => { controller.abort(); ++generation.current; activeId.current = null; };
+  }, [conversationId, accountId, reload]);
 
-    // Initial load of conversation messages
-    const fetchInitialData = useCallback(async () => {
-        if (!conversationId) return;
-        setLoading(true);
-        try {
-            const [convRes, msgRes] = await Promise.all([
-                supportApi.getConversationById(conversationId),
-                supportApi.getMessages(conversationId, null, 50),
-            ]);
-
-            if (convRes.success) {
-                setConversation(convRes.data);
-                setStatus(convRes.data.status);
-            }
-
-            if (msgRes.success && Array.isArray(msgRes.data)) {
-                setMessages(msgRes.data);
-                if (msgRes.data.length > 0) {
-                    highestSeqRef.current = msgRes.data[msgRes.data.length - 1].sequenceNumber;
-                }
-            }
-        } catch (err) {
-            console.error("Failed to load support chat:", err);
-        } finally {
-            setLoading(false);
-        }
-    }, [conversationId]);
-
-    // Reconnection message sync
-    const syncMissed = useCallback(() => {
-        if (!socket || !conversationId) return;
-
-        socket.emit("SUPPORT_SYNC_MESSAGES", {
-            conversationId,
-            lastSequence: highestSeqRef.current,
-        }, (res) => {
-            if (res?.success && Array.isArray(res.messages) && res.messages.length > 0) {
-                setMessages((prev) => {
-                    const map = new Map(prev.map((m) => [m.sequenceNumber, m]));
-                    res.messages.forEach((m) => map.set(m.sequenceNumber, m));
-                    const sorted = Array.from(map.values()).sort((a, b) => a.sequenceNumber - b.sequenceNumber);
-                    highestSeqRef.current = sorted[sorted.length - 1].sequenceNumber;
-                    return sorted;
-                });
-            }
-        });
-    }, [socket, conversationId]);
-
-    useEffect(() => {
-        fetchInitialData();
-    }, [fetchInitialData]);
-
-    useEffect(() => {
-        if (!socket || !conversationId) return;
-
-        // Join room
-        socket.emit("JOIN_SUPPORT_CONVERSATION", { conversationId });
-        syncMissed();
-
-        const handleNewMessage = (msg) => {
-            if (String(msg.conversationId) !== String(conversationId)) return;
-            setMessages((prev) => {
-                // Deduplicate by clientMessageId or sequenceNumber
-                if (prev.some((m) => m.clientMessageId === msg.clientMessageId || m.sequenceNumber === msg.sequenceNumber)) {
-                    return prev;
-                }
-                const next = [...prev, msg];
-                highestSeqRef.current = Math.max(highestSeqRef.current, msg.sequenceNumber);
-                return next;
-            });
-        };
-
-        const handleStatusChange = (data) => {
-            if (String(data.conversationId) === String(conversationId)) {
-                setStatus(data.status);
-            }
-        };
-
-        socket.on("SUPPORT_MESSAGE_RECEIVED", handleNewMessage);
-        socket.on("SUPPORT_STATUS_CHANGED", handleStatusChange);
-        socket.on("connect", syncMissed);
-
-        return () => {
-            socket.emit("LEAVE_SUPPORT_CONVERSATION", { conversationId });
-            socket.off("SUPPORT_MESSAGE_RECEIVED", handleNewMessage);
-            socket.off("SUPPORT_STATUS_CHANGED", handleStatusChange);
-            socket.off("connect", syncMissed);
-        };
-    }, [socket, conversationId, syncMissed]);
-
-    // Send message action
-    const sendMessage = async (text, attachmentIds = []) => {
-        if (!conversationId) return;
-        setSending(true);
-
-        const clientMessageId = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-
-        try {
-            const res = await supportApi.sendMessage(conversationId, {
-                text,
-                clientMessageId,
-                attachmentIds,
-            });
-
-            if (res.success && res.data) {
-                setMessages((prev) => {
-                    if (prev.some((m) => m.clientMessageId === clientMessageId)) return prev;
-                    const next = [...prev, res.data];
-                    highestSeqRef.current = Math.max(highestSeqRef.current, res.data.sequenceNumber);
-                    return next;
-                });
-            }
-            return res.data;
-        } finally {
-            setSending(false);
-        }
+  useEffect(() => {
+    if (!conversationId || state.id !== conversationId || state.loading) return;
+    let cancelled = false, syncing = false;
+    const revision = generation.current;
+    const sync = async () => {
+      if (syncing || cancelled || document.visibilityState !== "visible") return;
+      syncing = true;
+      try {
+        let batch;
+        do {
+          const response = await supportApi.getMessages(conversationId, { afterSequence: sequence.current, limit: 100 });
+          if (cancelled || revision !== generation.current) return;
+          batch = response.data || []; receive(batch, conversationId);
+        } while (batch.length === 100);
+      } catch { /* Background sync retries; initial request errors remain visible. */ }
+      finally { syncing = false; }
     };
-
-    // Mark as read action
-    const markRead = async () => {
-        if (!conversationId || messages.length === 0) return;
-        const lastSeq = highestSeqRef.current;
-        await supportApi.markAsRead(conversationId, lastSeq);
+    const join = () => { socket?.emit("JOIN_SUPPORT_CONVERSATION", { conversationId }, () => void sync()); void sync(); };
+    const message = data => {
+      if (String(data.conversationId) !== conversationId) return;
+      if (data.sequenceNumber > sequence.current + 1) void sync(); else receive([data], conversationId);
+      void invalidate();
     };
-
-    return {
-        conversation,
-        messages,
-        loading,
-        sending,
-        status,
-        sendMessage,
-        markRead,
-        refresh: fetchInitialData,
+    const changed = data => { if (String(data.conversationId) === conversationId) { void sync(); void invalidate(); } };
+    socket?.on("SUPPORT_MESSAGE_RECEIVED", message); socket?.on("SUPPORT_STATUS_CHANGED", changed); socket?.on("SUPPORT_MESSAGES_READ", changed); socket?.on("connect", join);
+    join();
+    const interval = window.setInterval(sync, 10000);
+    document.addEventListener("visibilitychange", sync);
+    return () => {
+      cancelled = true; clearInterval(interval); document.removeEventListener("visibilitychange", sync);
+      socket?.emit("LEAVE_SUPPORT_CONVERSATION", { conversationId });
+      socket?.off("SUPPORT_MESSAGE_RECEIVED", message); socket?.off("SUPPORT_STATUS_CHANGED", changed); socket?.off("SUPPORT_MESSAGES_READ", changed); socket?.off("connect", join);
     };
+  }, [conversationId, socket, receive, invalidate, state.id, state.loading, reload]);
+
+  async function loadOlder() {
+    if (!conversationId || state.loadingOlder || !state.messages.length) return;
+    const revision = generation.current;
+    setState(previous => ({ ...previous, loadingOlder: true, error: null }));
+    try {
+      const response = await supportApi.getMessages(conversationId, { beforeSequence: state.messages[0].sequenceNumber });
+      if (revision !== generation.current) return;
+      receive(response.data || [], conversationId);
+      setState(previous => ({ ...previous, hasOlder: response.data.length === 50 }));
+    } catch (error) { if (revision === generation.current) setState(previous => ({ ...previous, error })); }
+    finally { if (revision === generation.current) setState(previous => ({ ...previous, loadingOlder: false })); }
+  }
+  async function sendMessage(message) {
+    if (!conversationId || sendLock.current || currentUser?.isPreview) return;
+    sendLock.current = true; setSending(true);
+    try { const response = await supportApi.sendMessage(conversationId, message); receive([response.data], conversationId); void invalidate(); return response.data; }
+    finally { sendLock.current = false; setSending(false); }
+  }
+  const markRead = useCallback(async () => {
+    const latest = sequence.current;
+    if (!conversationId || !latest || latest <= readSequence.current || currentUser?.isPreview || document.visibilityState !== "visible") return;
+    readSequence.current = latest;
+    try { await supportApi.markAsRead(conversationId, latest); void client.invalidateQueries({ queryKey: ["support", accountId, "inbox"] }); }
+    catch { if (activeId.current === conversationId) readSequence.current = 0; }
+  }, [conversationId, currentUser?.isPreview, client, accountId]);
+  return { conversation: metadata.data?.data, messages: state.id === conversationId ? state.messages : [], entranceSequence: state.entranceSequence, loading: Boolean(conversationId) && (state.id !== conversationId || state.loading || metadata.isPending), error: state.error || metadata.error, hasOlder: state.hasOlder, loadingOlder: state.loadingOlder, loadOlder, sending, sendMessage, markRead, refresh: () => { setReload(value => value + 1); void metadata.refetch(); }, connected: Boolean(socket?.connected) };
 }
-

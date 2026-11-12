@@ -1,4 +1,5 @@
 import CampaignReference from "@/components/dashboard/CampaignReference";
+import SupportHelpButton from "@/features/support/components/SupportHelpButton";
 import { useDeferredValue, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, Check, CheckCircle2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, FileSpreadsheet, Filter, Loader2, RotateCcw, Search, ShieldCheck, Users, Wallet, X } from "lucide-react";
@@ -89,6 +90,7 @@ export default function PublishedSpreadsheetReport({ campaign, base, isAdmin, em
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground"><span>Published {dateTime(sheet.publishedAt)}</span><span className="hidden h-3 border-l border-border sm:block" aria-hidden="true" /><span>{number(overview.total)} recipients</span></div>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <SupportHelpButton campaign={campaign} area="this campaign report" />
             {isAdmin && <Button variant="outline" size="sm" nativeButton={false} render={<Link to={`${base}/campaigns/${campaign._id}`} />}>Edit campaign</Button>}
             <Button type="button" size="sm" disabled={downloading} onClick={download} className="h-8 gap-1.5">{downloading ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}{downloading ? "Downloading..." : "Download Excel"}</Button>
           </div>

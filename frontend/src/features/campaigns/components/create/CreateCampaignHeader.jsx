@@ -1,5 +1,6 @@
 import { ArrowLeft, Check, ChevronRight, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import SupportHelpButton from "@/features/support/components/SupportHelpButton";
 
 export default function CreateCampaignHeader({
   onNavigateBack,
@@ -11,7 +12,7 @@ export default function CreateCampaignHeader({
       <Button type="button" variant="ghost" size="sm" onClick={onNavigateBack} disabled={isPending} className="-ml-2 gap-1.5 text-xs text-muted-foreground"><ArrowLeft className="size-3.5" /> Back to campaigns</Button>
       <div className="campaign-create-heading">
         <div><h1>Create a campaign</h1><p>Prepare your message, choose your audience, and review the credit cost.</p></div>
-        <span className="campaign-create-approval"><ShieldCheck aria-hidden="true" />Admin approval required</span>
+        <div className="flex flex-wrap items-center gap-2"><SupportHelpButton area="creating a campaign" /><span className="campaign-create-approval"><ShieldCheck aria-hidden="true" />Admin approval required</span></div>
       </div>
       <nav className="campaign-compose-steps" aria-label="Campaign form sections"><ol>{[
         { label: "Campaign details", href: "create-details", complete: checks[0]?.ok },

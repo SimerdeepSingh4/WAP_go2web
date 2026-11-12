@@ -40,6 +40,7 @@ import {
 import { dateTime, number, ownerName, statusLabels } from "@/features/admin/lib/format";
 import { toast } from "@/components/ui/toast";
 import UserAvatar from "@/components/dashboard/UserAvatar";
+import SupportHelpButton from "@/features/support/components/SupportHelpButton";
 
 const STATUS_OPTIONS = [
   { value: "ongoing", label: "Ongoing", description: "Currently active & dispatching", dot: "bg-blue-500" },
@@ -317,7 +318,7 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
             <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
               {campaign.campaignTitle}
             </h1>
-          <div className="campaign-detail-reference"><span>Campaign ID</span><CampaignReference campaign={campaign} /></div>
+          <div className="campaign-detail-reference"><span>Campaign ID</span><CampaignReference campaign={campaign} /><SupportHelpButton campaign={campaign} area="this campaign" inline label="Get help" /></div>
           <div className="campaign-detail-metadata text-xs text-muted-foreground">
             <span className="campaign-detail-owner"><UserAvatar user={campaign.userId} className="size-7" /><span>{ownerName(campaign.userId)}</span></span>
             <span className="campaign-detail-date"><CalendarDays aria-hidden="true" /><span>Submitted {dateTime(campaign.createdAt)}</span></span>

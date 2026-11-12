@@ -14,7 +14,7 @@ export function getTourSteps(tour) {
     { popover: { title: tour.title, description: `${tour.description} Choose Next to look around, or Skip tour to close.` } },
     ...tour.steps,
     { element: "#tour-help-button", popover: {
-      title: "See this guide again", description: "Choose Take a tour in the top bar whenever you want to see this page's guide again.",
+      title: "See this guide again", description: "Open Help in the top bar and choose Take a tour whenever you want to see this page's guide again.",
       side: "left", align: "start",
     } },
   ];

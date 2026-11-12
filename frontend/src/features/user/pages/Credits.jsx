@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { dateTime, number, ownerName } from "@/features/admin/lib/format";
+import SupportHelpButton from "@/features/support/components/SupportHelpButton";
 
 const labels = { ALLOCATE: "Allocation", DEDUCT: "Campaign charge", REFUND: "Refund", RECLAIM: "Reclaim", REQUEST: "Credit request" };
 export default function UserCredits({ activity = false }) {
@@ -34,9 +35,10 @@ export default function UserCredits({ activity = false }) {
     { key: "amount", label: "Credits", className: "text-right", render: t => <span className="font-medium tabular-nums">{number(t.amount)}</span> },
     { key: "balance", label: "Your balance after", className: "text-right", render: t => number(t.type === "REQUEST" ? null : String(t.fromUser?._id || t.fromUser) === String(accountId) ? t.balanceAfterFrom : t.balanceAfterTo) },
     { key: "notes", label: "Notes", render: t => <span className="block max-w-72 whitespace-normal break-words">{t.notes || "-"}</span> },
+    { key: "help", label: "Help", render: transaction => <SupportHelpButton transaction={transaction} area="this transaction" /> },
   ];
   return <>
-    <PageHeading title={activity ? "Transactions" : "Credits"} description={activity ? "Your credit allocations, charges and requests." : "Your available balance and credit history."} action={!activity && <Button data-tour="request-credits" disabled={user?.isPreview} onClick={() => { request.reset(); setReview(false); update("request", "new"); }}>Request credits</Button>} />
+    <PageHeading title={activity ? "Transactions" : "Credits"} description={activity ? "Your credit allocations, charges and requests." : "Your available balance and credit history."} action={<div className="flex flex-wrap items-center gap-2"><SupportHelpButton area={activity ? "my transactions" : "my credits"} />{!activity && <Button data-tour="request-credits" disabled={user?.isPreview} onClick={() => { request.reset(); setReview(false); update("request", "new"); }}>Request credits</Button>}</div>} />
     {!activity && <QueryState query={balance}><Summary items={[{ label: "Available credits", value: number(balance.data?.wallet?.balance), credit: true, hint: balance.data?.wallet?.isLocked ? "Locked - contact your reseller" : "Available for campaigns" }, { label: "Rate per recipient", value: number(balance.data?.wallet?.ratePerMsg), hint: "Credits per message" }]} /></QueryState>}
     <div className="dashboard-section-heading"><h2>Transaction history</h2><FilterSelect label="Transaction type" value={type} onChange={v => update("type", v)} options={[{ value: "all", label: "All transactions" }, ...Object.entries(labels).map(([value, label]) => ({ value, label }))]} /></div>
     {transactionId && <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm"><span>Showing selected transaction</span><button type="button" className="font-medium text-indigo-700 underline" onClick={() => setParams((previous) => { const next = new URLSearchParams(previous); next.delete("transaction"); next.delete("page"); return next; }, { replace: true })}>View all transactions</button></div>}

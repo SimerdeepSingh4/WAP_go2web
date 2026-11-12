@@ -1,4 +1,5 @@
 import CampaignReference from "@/components/dashboard/CampaignReference";
+import SupportHelpButton from "@/features/support/components/SupportHelpButton";
 ﻿import { Link } from "react-router";
 import { ArrowLeft, Check, Clock, FileBarChart2, RefreshCw, RotateCcw, Users, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ export default function PendingCampaignReport({ campaign, base, onRefresh, isRef
         <div className="flex flex-wrap items-center gap-2.5">
           <h1 className="min-w-0 break-words text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{campaign.campaignTitle}</h1><CampaignReference campaign={campaign} />
           <StatusBadge status={campaign.status} />
+          <SupportHelpButton campaign={campaign} area="this campaign report" className="ml-auto" />
         </div>
         <p className="text-xs text-muted-foreground">Submitted {dateTime(campaign.createdAt)}</p>
       </header>
