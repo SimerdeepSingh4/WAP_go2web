@@ -13,11 +13,37 @@ export default function CampaignMessageEditor({
   onMessageBodyChange,
   charCount,
   isOverCharacterLimit,
-  onInsertVariable,
   quillModules,
   quillFormats,
 }) {
   const characterPct = Math.min(100, (charCount / CHARACTER_LIMIT) * 100);
+
+  // Prevent dynamic variable typing: block consecutive '{' that would form '{{'
+  const handleKeyDown = (e) => {
+    if (e.key === "{") {
+      const editor = quillRef?.current?.getEditor?.();
+      if (editor) {
+        const range = editor.getSelection();
+        if (range && range.index > 0) {
+          const prevChar = editor.getText(range.index - 1, 1);
+          if (prevChar === "{") {
+            e.preventDefault();
+            return;
+          }
+        }
+      }
+    }
+  };
+
+  // Strip any dynamic placeholder tags (like {{name}}, {{phone}}, {{...}}) on input/paste
+  const handleChange = (content, delta, source, editor) => {
+    if (content && /\{\{[\s\S]*?\}\}/.test(content)) {
+      const sanitized = content.replace(/\{\{[\s\S]*?\}\}/g, "").replace(/\{\{+/g, "{");
+      onMessageBodyChange(sanitized);
+      return;
+    }
+    onMessageBodyChange(content, delta, source, editor);
+  };
 
   return (
     <SectionCard
@@ -56,26 +82,13 @@ export default function CampaignMessageEditor({
       }
     >
       <div className="space-y-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-muted-foreground mr-1">Personalise with</span>
-          {["name", "phone"].map((tag) => (
-            <button
-              key={tag}
-              type="button"
-              onClick={() => onInsertVariable(tag)}
-              className="px-2.5 py-1 text-xs rounded-md bg-muted hover:bg-muted/70 text-foreground font-mono transition-colors border border-border/60 hover:border-primary/40 cursor-pointer"
-            >
-              {`{{${tag}}}`}
-            </button>
-          ))}
-        </div>
-
         <div className="quill-editor-container">
           <ReactQuill
             ref={quillRef}
             theme="snow"
             value={messageBody}
-            onChange={onMessageBodyChange}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
             modules={quillModules}
             formats={quillFormats}
             placeholder="Type your message here…"
@@ -96,4 +109,3 @@ export default function CampaignMessageEditor({
     </SectionCard>
   );
 }
-

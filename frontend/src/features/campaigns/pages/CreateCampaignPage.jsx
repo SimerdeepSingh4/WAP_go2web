@@ -201,18 +201,6 @@ export default function CreateCampaignPage() {
     if (formError) errorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [formError]);
 
-  const insertVariable = (tag) => {
-    const editor = quillRef.current?.getEditor();
-    if (editor) {
-      const range = editor.getSelection(true);
-      const position = range ? range.index : editor.getLength() - 1;
-      editor.insertText(position, `{{${tag}}} `);
-      editor.setSelection(position + tag.length + 5);
-    } else {
-      setMessageBody((prev) => `${prev} {{${tag}}} `);
-    }
-  };
-
   /* ---- Media ---- */
   const selectMedia = (kind, file) => {
     const cfg = MEDIA_KINDS[kind];
@@ -301,6 +289,7 @@ export default function CreateCampaignPage() {
     if (!campaignTitle.trim()) return setFormError("Please provide a campaign title.");
     if (!messageText && totalMediaCount === 0) return setFormError("Please provide message content or attach media (image, video, or PDF).");
     if (isOverCharacterLimit) return setFormError(`Message exceeds the maximum limit of ${CHARACTER_LIMIT} characters (currently ${charCount}). Please shorten it.`);
+    if (/\{\{[\s\S]*?\}\}/.test(messageBody)) return setFormError("Dynamic variables like {{...}} are not allowed. Please enter static text only.");
     if (validRecipients.length === 0) return setFormError("Please provide at least one valid recipient phone number.");
     if (hasInsufficientCredits) return setFormError(`Insufficient credits. You need ${estimatedCost} credits but currently hold ${currentBalance}.`);
 
@@ -322,9 +311,7 @@ export default function CreateCampaignPage() {
   // Redirect only after all hooks have run
   if (isAdmin) return <Navigate to="/admin/campaigns" replace />;
 
-  const sampleName = "Aarav";
-  const samplePhone = validRecipients[0] ? `+${String(validRecipients[0]).replace(/^\+/, "")}` : "+919876543210";
-  const previewText = messageText.replace(/\{\{\s*name\s*\}\}/gi, sampleName).replace(/\{\{\s*phone\s*\}\}/gi, samplePhone);
+  const previewText = messageText;
   const submitDisabled =
     createCampaignMutation.isPending ||
     user?.isPreview ||
@@ -409,7 +396,6 @@ export default function CreateCampaignPage() {
 
             charCount={charCount}
             isOverCharacterLimit={isOverCharacterLimit}
-            onInsertVariable={insertVariable}
             quillModules={quillModules}
             quillFormats={quillFormats}
           />
