@@ -126,9 +126,10 @@ export default function Campaigns({ reports = false }) {
     {
       key: "owner",
       label: "Account",
+      className: "min-w-56",
       sort: (c) => ownerName(c.userId),
       render: (c) => (
-        <div className="flex items-center gap-2">
+        <div className="flex w-48 max-w-full items-center gap-2">
           <div className="relative shrink-0">
             <UserAvatar user={c.userId} className="size-7" />
             {(c.profileDp || c.userId?.dp_img) && (
@@ -143,8 +144,9 @@ export default function Campaigns({ reports = false }) {
               </a>
             )}
           </div>
-          <div className="min-w-0">
-            <p className="truncate font-medium text-xs">{ownerName(c.userId)} · {c.userId?.role || "—"}</p>
+          <div className="min-w-0 flex-1">
+            <p className="overflow-hidden text-ellipsis whitespace-nowrap font-medium text-xs" title={ownerName(c.userId)}>{ownerName(c.userId)}</p>
+            <p className="text-xs text-muted-foreground whitespace-nowrap">{c.userId?.role || "—"}</p>
           </div>
         </div>
       ),

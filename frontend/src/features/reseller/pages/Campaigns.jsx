@@ -97,11 +97,12 @@ export default function ResellerCampaigns({ reports = false }) {
     {
       key: "owner",
       label: "Account",
+      className: "min-w-56",
       sort: (c) => ownerName(c.userId),
       render: (c) => (
-        <div className="flex items-center gap-2">
-          <UserAvatar user={c.userId} className="size-8" />
-          <p className="max-w-40 truncate font-medium text-foreground">{ownerName(c.userId)}</p>
+        <div className="flex w-48 max-w-full items-center gap-2">
+          <UserAvatar user={c.userId} className="size-8 shrink-0" />
+          <p className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap font-medium text-foreground" title={ownerName(c.userId)}>{ownerName(c.userId)}</p>
         </div>
       ),
     },
