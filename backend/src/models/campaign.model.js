@@ -27,6 +27,12 @@ const campaignSchema = new mongoose.Schema(
             maxlength: 2048,
             default: "",
         },
+        campaignLinkName: {
+            type: String,
+            trim: true,
+            maxlength: 150,
+            default: "",
+        },
         campaignNumber: {
             type: String,
             trim: true,

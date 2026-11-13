@@ -59,6 +59,7 @@ export default function CreateCampaignPage() {
   const [campaignTitle, setCampaignTitle] = useState("");
   const [campaignDescription, setCampaignDescription] = useState("");
   const [campaignLink, setCampaignLink] = useState("");
+  const [campaignLinkName, setCampaignLinkName] = useState("");
   const [campaignNumber, setCampaignNumber] = useState("");
   const [shareProfileDp, setShareProfileDp] = useState(false);
   const [messageBody, setMessageBody] = useState("");
@@ -87,6 +88,7 @@ export default function CreateCampaignPage() {
         setCampaignTitle(draft.campaignTitle || "");
         setCampaignDescription(draft.campaignDescription || "");
         setCampaignLink(draft.campaignLink || "");
+        setCampaignLinkName(draft.campaignLinkName || "");
         setCampaignNumber(draft.campaignNumber || "");
         setShareProfileDp(draft.shareProfileDp === true);
         setMessageBody(draft.messageBody || "");
@@ -167,7 +169,7 @@ export default function CreateCampaignPage() {
     { ok: !hasInsufficientCredits && !isLocked, label: "Enough credits" },
   ];
 
-  const isDirty = Boolean(campaignTitle || campaignDescription || campaignLink || campaignNumber || shareProfileDp || messageText || rawRecipients.trim() || totalMediaCount || scheduleType !== "now" || scheduledTime);
+  const isDirty = Boolean(campaignTitle || campaignDescription || campaignLink || campaignLinkName || campaignNumber || shareProfileDp || messageText || rawRecipients.trim() || totalMediaCount || scheduleType !== "now" || scheduledTime);
 
   useEffect(() => {
     if (!draftReady || !draftKey) return undefined;
@@ -181,6 +183,7 @@ export default function CreateCampaignPage() {
         campaignTitle,
         campaignDescription,
         campaignLink,
+        campaignLinkName,
         campaignNumber,
         shareProfileDp,
         messageBody,
@@ -196,7 +199,7 @@ export default function CreateCampaignPage() {
       }).catch(() => {});
     }, 300);
     return () => window.clearTimeout(draftSaveTimer.current);
-  }, [draftReady, draftKey, isDirty, campaignTitle, campaignDescription, campaignLink, campaignNumber, shareProfileDp, messageBody, rawRecipients, recipientTracking.tracking, scheduleType, scheduledTime, media]);
+  }, [draftReady, draftKey, isDirty, campaignTitle, campaignDescription, campaignLink, campaignLinkName, campaignNumber, shareProfileDp, messageBody, rawRecipients, recipientTracking.tracking, scheduleType, scheduledTime, media]);
 
   // Warn before leaving with unsent work
   useEffect(() => {
@@ -329,7 +332,12 @@ export default function CreateCampaignPage() {
     const formData = new FormData();
     formData.append("campaignTitle", campaignTitle.trim());
     formData.append("campaignDescription", campaignDescription.trim());
-    if (canAddCampaignLink && campaignLink.trim()) formData.append("campaignLink", campaignLink.trim());
+    if (canAddCampaignLink && campaignLink.trim()) {
+      formData.append("campaignLink", campaignLink.trim());
+      if (campaignLinkName.trim()) {
+        formData.append("campaignLinkName", campaignLinkName.trim());
+      }
+    }
     if (canAddCampaignNumber && campaignNumber.trim()) formData.append("campaignNumber", campaignNumber.trim());
     if (canShareProfileDp && shareProfileDp) formData.append("shareProfileDp", "true");
     formData.append("messageBody", messageBody.trim());
@@ -425,6 +433,8 @@ export default function CreateCampaignPage() {
             onCampaignDescriptionChange={setCampaignDescription}
             campaignLink={campaignLink}
             onCampaignLinkChange={canAddCampaignLink ? setCampaignLink : undefined}
+            campaignLinkName={campaignLinkName}
+            onCampaignLinkNameChange={canAddCampaignLink ? setCampaignLinkName : undefined}
             campaignNumber={campaignNumber}
             onCampaignNumberChange={canAddCampaignNumber ? setCampaignNumber : undefined}
           />
@@ -521,6 +531,7 @@ export default function CreateCampaignPage() {
         isPending={createCampaignMutation.isPending}
         campaignTitle={campaignTitle}
         campaignLink={canAddCampaignLink ? campaignLink : ""}
+        campaignLinkName={canAddCampaignLink ? campaignLinkName : ""}
         campaignNumber={canAddCampaignNumber ? campaignNumber : ""}
         shareProfileDp={canShareProfileDp ? shareProfileDp : false}
         totalRecipients={totalRecipients}

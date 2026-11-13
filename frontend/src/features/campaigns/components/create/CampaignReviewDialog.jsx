@@ -11,6 +11,7 @@ export default function CampaignReviewDialog({
   isPending,
   campaignTitle,
   campaignLink,
+  campaignLinkName,
   campaignNumber,
   shareProfileDp,
   totalRecipients,
@@ -48,7 +49,7 @@ export default function CampaignReviewDialog({
           {[
             ["Campaign", campaignTitle],
             ...(campaignNumber ? [["Campaign number", campaignNumber]] : []),
-            ...(campaignLink ? [["Campaign link", campaignLink]] : []),
+            ...(campaignLink ? [[campaignLinkName ? `Link (${campaignLinkName})` : "Campaign link", campaignLink]] : []),
             ...(shareProfileDp ? [["Profile DP", "Shared from settings"]] : []),
             ["Numbers entered", number(totalRecipients)],
             ["Rate per recipient", `${number(estimate.rate)} ${estimate.rate === 1 ? "credit" : "credits"}`],

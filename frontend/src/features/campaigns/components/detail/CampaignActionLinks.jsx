@@ -1,7 +1,7 @@
 import { Copy, ExternalLink, Phone } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 
-export default function CampaignActionLinks({ link, phone }) {
+export default function CampaignActionLinks({ link, phone, linkName }) {
   if (!link && !phone) return null;
 
   async function copyValue(label, value) {
@@ -17,17 +17,20 @@ export default function CampaignActionLinks({ link, phone }) {
     <div className="grid gap-2 sm:grid-cols-2">
       {link && <div className="flex min-w-0 items-center gap-2 rounded-md border border-border bg-card px-3 py-2.5">
         <ExternalLink aria-hidden="true" className="size-4 shrink-0 text-primary" />
-        <a
-          href={link}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="min-w-0 flex-1 break-all text-xs font-medium text-foreground underline underline-offset-2"
-        >
-          {link}
-        </a>
+        <div className="min-w-0 flex-1">
+          {linkName && <p className="truncate text-xs font-semibold text-foreground">{linkName}</p>}
+          <a
+            href={link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block min-w-0 break-all text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+          >
+            {link}
+          </a>
+        </div>
         <button
           type="button"
-          onClick={() => copyValue("Campaign link", link)}
+          onClick={() => copyValue(linkName ? `Campaign link (${linkName})` : "Campaign link", link)}
           aria-label="Copy campaign link"
           title="Copy campaign link"
           className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
