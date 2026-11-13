@@ -2,13 +2,13 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { Link } from "react-router";
 import { Plus, RefreshCw, Megaphone, CheckCircle, Coins, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { QueryState } from "@/features/admin/components/shared";
-import { RecentCampaigns } from "@/components/dashboard/OverviewPanels";
-import OverviewMetricCards from "@/components/dashboard/OverviewMetricCards";
+import { QueryState } from "@/features/dashboard/components/shared";
+import { RecentCampaigns } from "@/features/dashboard/components/OverviewPanels";
+import OverviewMetricCards from "@/features/dashboard/components/OverviewMetricCards";
 import { useUserQuery } from "../hooks/useUser";
-import { dateTime } from "@/features/admin/lib/format";
+import { dateTime } from "@/lib/format";
 import { toast } from "@/components/ui/toast";
-import DashboardGreeting from "@/components/dashboard/DashboardGreeting";
+import DashboardGreeting from "@/features/dashboard/components/DashboardGreeting";
 import SupportHelpButton from "@/features/support/components/SupportHelpButton";
 
 export default function UserOverview() {

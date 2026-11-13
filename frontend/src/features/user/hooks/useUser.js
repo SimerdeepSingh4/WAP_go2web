@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { toast } from "@/components/ui/toast";
-import { userQueries, userActions } from "../services/user.api"; // Adjust path if needed
+import { userQueries, userActions } from "../services/user.api.js"; // Adjust path if needed
 
 /**
  * Generic query hook for user‑facing resources.

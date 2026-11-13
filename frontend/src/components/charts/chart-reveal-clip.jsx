@@ -1,6 +1,6 @@
 "use client";;
 import { motion } from "motion/react";
-import { clipRevealTransition } from "./animation";
+import { clipRevealTransition } from "./lib/animation";
 
 /**
  * Left-to-right clip reveal for cartesian series.

@@ -16,14 +16,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useAdminQuery } from "../hooks/useAdmin";
-import { QueryState, StatusBadge } from "./shared";
-import { dateTime, number, ownerName, published, statusLabels, validateReport } from "../lib/format";
+import { QueryState, StatusBadge } from "../../dashboard/components/shared";
+import { dateTime, number, ownerName, published, statusLabels, validateReport } from "../../../lib/format";
 import ActionForm from "./ActionForm";
-import { CampaignMessage, CampaignMedia } from "@/components/dashboard/CampaignContent";
-import CampaignActionLinks from "@/components/dashboard/CampaignActionLinks";
+import { CampaignMessage, CampaignMedia } from "@/features/campaigns/components/detail/CampaignContent";
+import CampaignActionLinks from "@/features/campaigns/components/detail/CampaignActionLinks";
 import api from "@/api/client";
 import { toast } from "@/components/ui/toast";
-import UserAvatar from "@/components/dashboard/UserAvatar";
+import UserAvatar from "@/features/accounts/components/UserAvatar";
 import CampaignRecipientReview from "@/features/campaigns/components/detail/CampaignRecipientReview";
 
 export default function CampaignDetail({ id, initialReport, initialStatus, onClose }) {

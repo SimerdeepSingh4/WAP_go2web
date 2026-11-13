@@ -3,9 +3,9 @@ import { ArrowRight, ArrowUpRight, ChevronRight, Clock3, FileText, Megaphone, Wa
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { QueryState, StatusBadge } from "./shared";
+import { QueryState, StatusBadge } from "../../dashboard/components/shared";
 import { DeliveryChart } from "./OverviewCharts";
-import { dateTime, needsReport, number, ownerName, waiting } from "../lib/format";
+import { dateTime, needsReport, number, ownerName, waiting } from "../../../lib/format";
 
 function CampaignQueue({ query }) {
   const campaigns = query.data?.data || [];

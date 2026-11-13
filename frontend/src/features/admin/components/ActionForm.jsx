@@ -1,4 +1,4 @@
-import { AccountCreationFields, AccountCreationPassword, accountCreationLabel, accountCreationPlaceholders } from "@/components/dashboard/AccountCreationFields";
+import { AccountCreationFields, AccountCreationPassword, accountCreationLabel, accountCreationPlaceholders } from "@/features/accounts/components/AccountCreationFields";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import { useAdminMutation } from "../hooks/useAdmin";
-import { Field, FilterSelect, FormError } from "./shared";
+import { Field, FilterSelect, FormError } from "../../dashboard/components/shared";
 import { readCampaignDraft, removeCampaignDraft, writeCampaignDraft } from "@/features/campaigns/lib/draftStorage";
 
 export default function ActionForm({ title, description, action, successMessage, fields, initialValues, validate, payload, review, onClose, submitLabel = "Confirm changes", draftKey }) {

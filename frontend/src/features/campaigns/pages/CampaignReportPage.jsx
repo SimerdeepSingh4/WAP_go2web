@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/api/client";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { number } from "@/features/admin/lib/format";
+import { number } from "@/lib/format";
 import { toast } from "@/components/ui/toast";
 
 import CampaignReportHeader from "../components/report/CampaignReportHeader";

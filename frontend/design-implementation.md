@@ -28,7 +28,7 @@ Source of truth: `design.md`. This update edits the existing React application l
 
 Pending. Record actual checks and remaining limitations here; no simulated production data.
 
-Stage 3: all role layouts use `components/dashboard/DashboardLayout.jsx` and `dashboard.css`. Shared light tokens cover dialogs. Navigation reflects each role; manager visits to another role route return to their own panel (account preview still uses the target role).
+Stage 3: all role layouts use `features/dashboard/components/DashboardLayout.jsx` and `dashboard.css`. Shared light tokens cover dialogs. Navigation reflects each role; manager visits to another role route return to their own panel (account preview still uses the target role).
 
 Stage 4: admin overview prioritizes review queue and resellers, without charts. Existing account, credits, contacts and campaign operations inherit shared controls. Removed account IDs and pulsing status marks; corrected published-report counts. Build attempted; Windows sandbox blocked Vite dependency resolution (EPERM), retry requested.
 

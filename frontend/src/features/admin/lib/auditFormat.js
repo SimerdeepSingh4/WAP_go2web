@@ -1,4 +1,4 @@
-import { dateTime, number, statusLabels } from "./format.js";
+import { dateTime, number, statusLabels } from "../../../lib/format.js";
 
 const fields = { username: "Name", email: "Email address", ratePerMsg: "Credits per recipient", expiresAt: "Expiry date", isLocked: "Credits locked", balance: "Available credits", balanceMinor: "Available credits", amountMinor: "Credits", amount: "Credits", resellerId: "Assigned reseller", createdBy: "Created by", userId: "Account", campaignTitle: "Campaign name", campaignDescription: "Campaign description", publicStatus: "Status shown to users", campaignSummary: "Campaign results", publishedSpreadsheet: "Published report", performedBy: "Changed by", fromUser: "From account", toUser: "To account", messageBody: "Message", dp_img: "Profile picture", phone: "Phone number", companyName: "Company name", totalRecipients: "Number of recipients", scheduledTime: "Scheduled time", schedule: "When to send", recipientReport: "Recipient report", type: "Activity type" };
 const credits = { ALLOCATE: "Credits added", DEDUCT: "Credits used", REFUND: "Credits returned", RECLAIM: "Credits taken back", REQUEST: "Credits requested" };

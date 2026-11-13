@@ -2,7 +2,7 @@ import { Users, Upload, CheckCircle2, Copy as CopyIcon, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { number } from "@/features/admin/lib/format";
+import { number } from "@/lib/format";
 import { SectionCard } from "./CampaignDetailsSection";
 import { AnimatedCollapse } from "@/components/ui/animated-collapse";
 

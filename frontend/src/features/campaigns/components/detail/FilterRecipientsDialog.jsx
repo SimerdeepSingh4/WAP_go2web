@@ -1,7 +1,7 @@
 import { AlertTriangle, CheckCircle2, Copy, Filter, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { number } from "@/features/admin/lib/format";
+import { number } from "@/lib/format";
 
 export default function FilterRecipientsDialog({ open, onOpenChange, preview, onApply }) {
   const excluded = preview ? preview.wrongCount + preview.duplicateCount + preview.nonWhatsAppCount : 0;

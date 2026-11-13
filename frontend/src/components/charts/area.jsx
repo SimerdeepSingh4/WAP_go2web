@@ -4,15 +4,15 @@ import { AreaClosed, LinePath } from "@visx/shape";
 
 import { useCallback, useId, useMemo, useRef, useState } from "react";
 import { AreaGradientDefs } from "./area-gradient-defs";
-import { chartCssVars, useChartStable, useYScale } from "./chart-context";
-import { resolveFadeSides } from "./fade-edges";
+import { chartCssVars, useChartStable, useYScale } from "./context/chart-context";
+import { resolveFadeSides } from "./lib/fade-edges";
 import { LineLoadingPulseStroke, resolveLineLoadingPulseMode } from "./line-loading-pulse";
-import { LINE_LOADING_LOOP_PAUSE_MS } from "./line-loading-timing";
+import { LINE_LOADING_LOOP_PAUSE_MS } from "./lib/line-loading-timing";
 import { LineLoadingSweep } from "./loading-sweep";
 import {
   resolveDashTailBounds,
   usePathStrokeMetrics,
-} from "./path-stroke-utils";
+} from "./lib/path-stroke-utils";
 import { SeriesDashTailOverlay } from "./series-dash-tail-overlay";
 import { SeriesHighlightLayer } from "./series-highlight-layer";
 import { SeriesHoverDim } from "./series-hover-dim";

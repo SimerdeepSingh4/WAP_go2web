@@ -1,6 +1,6 @@
 import { Info } from "lucide-react";
-import { number, ownerName } from "@/features/admin/lib/format";
-import UserAvatar from "@/components/dashboard/UserAvatar";
+import { number, ownerName } from "@/lib/format";
+import UserAvatar from "@/features/accounts/components/UserAvatar";
 
 export const BUCKET_COLORS = [
   "bg-emerald-500",

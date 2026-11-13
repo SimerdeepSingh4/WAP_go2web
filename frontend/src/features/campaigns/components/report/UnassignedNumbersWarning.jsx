@@ -1,6 +1,6 @@
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { number } from "@/features/admin/lib/format";
+import { number } from "@/lib/format";
 
 export default function UnassignedNumbersWarning({
   isAdmin,

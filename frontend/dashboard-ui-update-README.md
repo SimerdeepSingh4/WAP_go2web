@@ -3,7 +3,7 @@
 ## Apply the update
 
 1. Replace the five JSX files at their existing locations in your project. Keep their current filenames and relative locations.
-2. Put `admin-dashboard.css` in the **same directory as `AdminLayout.jsx`**. The updated layout imports it with `import "./admin-dashboard.css"`.
+2. Keep the shared dashboard stylesheet at `src/features/dashboard/components/dashboard-base.css`. It is imported globally by `src/index.css`.
 3. Keep your existing shared components, chart components, hooks, utilities, routes, and auth services. No new runtime packages are required beyond the dependencies already imported by the original files.
 4. Run your project's normal build and check the actual API responses and custom charts before deploying.
 
@@ -16,7 +16,7 @@ The ZIP contains the five replacement components, the required CSS file, and thi
 | `OverviewWorkPanel.jsx` | Campaign queue with responsive rows, compact operational shortcuts, reseller list, brown credit panel. |
 | `OverviewCharts.jsx` | Consistent chart containers, responsive legends and delivery totals, native date-range selector, accessible data tables, empty states. |
 | `OperatingRules.jsx` | Responsive settings categories, keyboard tabs, larger controls, field validation, draft reset, unsaved-change feedback, sticky save controls, session error handling. |
-| `admin-dashboard.css` | Scoped light theme, container-based grids, mobile layout rules, focus styles, reduced-motion support. |
+| `dashboard-base.css` | Scoped light theme, container-based grids, mobile layout rules, focus styles, reduced-motion support. |
 
 ## Design choices
 

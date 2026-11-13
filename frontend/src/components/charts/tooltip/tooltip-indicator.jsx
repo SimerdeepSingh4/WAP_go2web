@@ -1,9 +1,9 @@
 "use client";;
 import { motion, useSpring } from "motion/react";
 import { useEffect, useId } from "react";
-import { useChartConfig } from "../chart-config-context";
-import { chartCssVars } from "../chart-context";
-import { indicatorFadeGradientStops, resolveVerticalFadeSides } from "../indicator-fade";
+import { useChartConfig } from "../context/chart-config-context";
+import { chartCssVars } from "../context/chart-context";
+import { indicatorFadeGradientStops, resolveVerticalFadeSides } from "../lib/indicator-fade";
 
 function resolveWidth(width) {
   if (typeof width === "number") {

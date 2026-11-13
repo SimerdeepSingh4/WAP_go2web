@@ -1,20 +1,20 @@
-import TransactionReference from "@/components/dashboard/TransactionReference";
+import TransactionReference from "@/features/credits/components/TransactionReference";
 import { useSearchParams } from "react-router";
 import { useState } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useUserQuery, useUserMutation } from "../hooks/useUser";
-import { PageHeading, QueryState, FilterSelect, DataTable, Pager, Field, FormError } from "@/features/admin/components/shared";
-import OverviewMetricCards from "@/components/dashboard/OverviewMetricCards";
+import { PageHeading, QueryState, FilterSelect, DataTable, Pager, Field, FormError } from "@/features/dashboard/components/shared";
+import OverviewMetricCards from "@/features/dashboard/components/OverviewMetricCards";
 import { Wallet, Lock, Coins, History, MoreHorizontal, FileText } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { dateTime, number, ownerName } from "@/features/admin/lib/format";
+import { dateTime, number, ownerName } from "@/lib/format";
 import SupportHelpButton from "@/features/support/components/SupportHelpButton";
-import { getTransactionDisplay } from "@/components/dashboard/creditTransactionDisplay";
-import "@/components/dashboard/credit-history.css";
+import { getTransactionDisplay } from "@/features/credits/lib/creditTransactionDisplay";
+import "@/features/credits/components/credit-history.css";
 
 const labels = { ALLOCATE: "Allocation", DEDUCT: "Campaign charge", REFUND: "Refund", RECLAIM: "Reclaim", REQUEST: "Credit request" };
 export default function UserCredits({ activity = false }) {

@@ -1,4 +1,4 @@
-import CampaignReference from "@/components/dashboard/CampaignReference";
+import CampaignReference from "@/features/campaigns/components/CampaignReference";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { Plus, RefreshCw, MoreHorizontal, Eye, FileText, Trash2 } from "lucide-react";
@@ -12,9 +12,9 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { useUserQuery } from "../hooks/useUser";
-import { PageHeading, SearchBox, FilterSelect, QueryState, DataTable, StatusBadge } from "@/features/admin/components/shared";
-import { dateTime, number, statusLabels, published } from "@/features/admin/lib/format";
-import ReadOnlyCampaignDetail from "@/components/dashboard/ReadOnlyCampaignDetail";
+import { PageHeading, SearchBox, FilterSelect, QueryState, DataTable, StatusBadge } from "@/features/dashboard/components/shared";
+import { dateTime, number, statusLabels, published } from "@/lib/format";
+import ReadOnlyCampaignDetail from "@/features/campaigns/components/detail/ReadOnlyCampaignDetail";
 import SupportHelpButton from "@/features/support/components/SupportHelpButton";
 
 export default function Campaigns() {

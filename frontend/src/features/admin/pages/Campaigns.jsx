@@ -1,4 +1,4 @@
-import CampaignReference from "@/components/dashboard/CampaignReference";
+import CampaignReference from "@/features/campaigns/components/CampaignReference";
 import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { useSearchParams, Link } from "react-router";
@@ -9,11 +9,11 @@ import { useAdminMutation } from "../hooks/useAdmin";
 import { Button } from "@/components/ui/button";
 import CampaignFilterCalendar from "../components/CampaignFilterCalendar";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { PageHeading, QueryState, DataTable, StatusBadge } from "../components/shared";
+import { PageHeading, QueryState, DataTable, StatusBadge } from "../../dashboard/components/shared";
 import { useAdminQuery } from "../hooks/useAdmin";
-import { number, dateTime, ownerName, needsReport, published, waiting } from "../lib/format";
+import { number, dateTime, ownerName, needsReport, published, waiting } from "../../../lib/format";
 import CampaignDetail from "../components/CampaignDetail";
-import UserAvatar from "@/components/dashboard/UserAvatar";
+import UserAvatar from "@/features/accounts/components/UserAvatar";
 
 const IST_OFFSET = 330 * 60_000;
 

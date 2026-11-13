@@ -22,7 +22,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { number } from "@/features/admin/lib/format";
+import { number } from "@/lib/format";
 import { toast } from "@/components/ui/toast";
 import api from "@/api/client";
 import { useQueryClient } from "@tanstack/react-query";

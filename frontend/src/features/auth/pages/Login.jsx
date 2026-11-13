@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { ShieldBan } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
-import { useBranding } from "@/features/branding/BrandingContext";
+import { useBranding } from "@/features/branding/context/BrandingContext";
 
 function PortalIcon({ type = "network", className = "size-5" }) {
   const paths = {

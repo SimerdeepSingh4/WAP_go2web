@@ -1,4 +1,4 @@
-import { fadeGradientStops, resolveFadeSides, viewportFadeGradientAttrs } from "./fade-edges";
+import { fadeGradientStops, resolveFadeSides, viewportFadeGradientAttrs } from "./lib/fade-edges";
 
 export function AreaGradientDefs({
   gradientId,

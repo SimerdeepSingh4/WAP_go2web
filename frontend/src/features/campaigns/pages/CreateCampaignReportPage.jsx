@@ -2,7 +2,7 @@ import { Link, useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import api from "@/api/client";
-import { StatusBadge } from "@/features/admin/components/shared";
+import { StatusBadge } from "@/features/dashboard/components/shared";
 import CampaignCategoryCards from "../components/detail/CampaignCategoryCards";
 import ReportLoadError from "../components/report/ReportLoadError";
 import FailedCampaignReportEditor from "../components/report/FailedCampaignReportEditor";

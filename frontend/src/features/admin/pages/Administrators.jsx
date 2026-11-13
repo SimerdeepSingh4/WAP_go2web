@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { PageHeading, SearchBox, QueryState, DataTable, StatusBadge } from "../components/shared";
+import { PageHeading, SearchBox, QueryState, DataTable, StatusBadge } from "../../dashboard/components/shared";
 import { useAdminQuery } from "../hooks/useAdmin";
-import { dateTime } from "../lib/format";
+import { dateTime } from "../../../lib/format";
 
 export default function Administrators() {
   const query = useAdminQuery("accounts");

@@ -1,4 +1,4 @@
-import { published, statusLabels } from "./format.js";
+import { published, statusLabels } from "../../../lib/format.js";
 
 const DAY = 86_400_000;
 const IST_OFFSET = 330 * 60_000;

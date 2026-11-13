@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { PageHeading } from "@/features/admin/components/shared";
+import { PageHeading } from "@/features/dashboard/components/shared";
 import { useUserMutation } from "../hooks/useUser";
 import { toast } from "@/components/ui/toast";
 

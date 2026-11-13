@@ -1,10 +1,10 @@
-import CampaignReference from "@/components/dashboard/CampaignReference";
+import CampaignReference from "@/features/campaigns/components/CampaignReference";
 import SupportHelpButton from "@/features/support/components/SupportHelpButton";
 ﻿import { Link } from "react-router";
 import { ArrowLeft, Check, Clock, FileBarChart2, RefreshCw, RotateCcw, Users, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/features/admin/components/shared";
-import { dateTime, number } from "@/features/admin/lib/format";
+import { StatusBadge } from "@/features/dashboard/components/shared";
+import { dateTime, number } from "@/lib/format";
 
 export default function PendingCampaignReport({ campaign, base, onRefresh, isRefreshing }) {
   const audience = campaign.recipientCount ?? campaign.totalRecipients ?? campaign.recipients?.length ?? 0;

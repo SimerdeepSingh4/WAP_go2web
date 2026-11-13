@@ -1,10 +1,10 @@
-import CampaignReference from "@/components/dashboard/CampaignReference";
+import CampaignReference from "@/features/campaigns/components/CampaignReference";
 import { Link } from "react-router";
 import { ArrowLeft, Download, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { StatusBadge } from "@/features/admin/components/shared";
-import { dateTime, ownerName } from "@/features/admin/lib/format";
-import UserAvatar from "@/components/dashboard/UserAvatar";
+import { StatusBadge } from "@/features/dashboard/components/shared";
+import { dateTime, ownerName } from "@/lib/format";
+import UserAvatar from "@/features/accounts/components/UserAvatar";
 import SupportHelpButton from "@/features/support/components/SupportHelpButton";
 
 export default function CampaignReportHeader({

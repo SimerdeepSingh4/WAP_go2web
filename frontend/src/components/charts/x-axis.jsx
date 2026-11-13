@@ -6,11 +6,11 @@ import {
   useChart,
   useChartPortalContainer,
   useChartStable,
-} from "./chart-context";
-import { shortDateFmt } from "./chart-formatters";
-import { DEFAULT_Y_DOMAIN_TWEEN_MS } from "./chart-phase";
-import { LINE_LOADING_PULSE_EASE } from "./line-loading-timing";
-import { resolveResponsiveChartLabelCount } from "./responsive-chart-label-count";
+} from "./context/chart-context";
+import { shortDateFmt } from "./lib/chart-formatters";
+import { DEFAULT_Y_DOMAIN_TWEEN_MS } from "./lib/chart-phase";
+import { LINE_LOADING_PULSE_EASE } from "./lib/line-loading-timing";
+import { resolveResponsiveChartLabelCount } from "./lib/responsive-chart-label-count";
 
 const X_AXIS_POSITION_TWEEN_MS = DEFAULT_Y_DOMAIN_TWEEN_MS;
 

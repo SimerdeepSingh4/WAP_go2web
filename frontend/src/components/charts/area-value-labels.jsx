@@ -5,14 +5,14 @@ import {
   layoutAreaValueLabels,
   resolveAreaValueLabelCount,
   resolveSharedAreaValueLabelCount,
-} from "./area-value-label-layout";
-import { chartCssVars, useChartStable } from "./chart-context";
-import { valueLabelFmt } from "./chart-formatters";
+} from "./lib/area-value-label-layout";
+import { chartCssVars, useChartStable } from "./context/chart-context";
+import { valueLabelFmt } from "./lib/chart-formatters";
 import {
   fadeGradientStops,
   resolveFadeSides,
   viewportFadeGradientAttrs,
-} from "./fade-edges";
+} from "./lib/fade-edges";
 
 /** One final layer keeps later area fills from painting over earlier labels. */
 export function AreaValueLabels({

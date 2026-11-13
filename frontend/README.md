@@ -49,7 +49,7 @@ The frontend is organized into 4 distinct layers to keep the code clean, modular
                            │ uses
 ┌──────────────────────────▼─────────────────────────────┐
 │ 2. Application / State Layer (Hooks & Context)         │
-│    auth.context.jsx, useAuth.js                        │
+│    context/auth.context.jsx, useAuth.js                        │
 └──────────────────────────┬─────────────────────────────┘
                            │ calls
 ┌──────────────────────────▼─────────────────────────────┐
@@ -76,7 +76,7 @@ frontend/
 │   │
 │   ├── features/                      # Feature modules
 │   │   ├── auth/                      # Authentication Feature
-│   │   │   ├── auth.context.jsx       # [Layer 2] TanStack Query authentication cache
+│   │   │   ├── context/auth.context.jsx       # [Layer 2] TanStack Query authentication cache
 │   │   │   ├── components/            # [Layer 1] ActiveDevices.jsx live device monitor
 │   │   │   ├── hooks/                 # [Layer 2] useAuth.js custom hook
 │   │   │   ├── pages/                 # [Layer 1] Login.jsx full-screen white-label login

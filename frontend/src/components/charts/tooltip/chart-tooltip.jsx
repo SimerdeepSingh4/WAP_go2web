@@ -2,9 +2,9 @@
 import { motion, useSpring } from "motion/react";
 import { memo, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { resolveTooltipBoxMotion, useChartConfig } from "../chart-config-context";
-import { chartCssVars, useChart, useChartPortalContainer, useChartStable } from "../chart-context";
-import { formatBandRange, weekdayDateFmt } from "../chart-formatters";
+import { resolveTooltipBoxMotion, useChartConfig } from "../context/chart-config-context";
+import { chartCssVars, useChart, useChartPortalContainer, useChartStable } from "../context/chart-context";
+import { formatBandRange, weekdayDateFmt } from "../lib/chart-formatters";
 import { DateTicker } from "./date-ticker";
 import { TooltipBox } from "./tooltip-box";
 import { TooltipContent } from "./tooltip-content";

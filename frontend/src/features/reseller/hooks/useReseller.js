@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { toast } from "@/components/ui/toast";
-import { resellerQueries, resellerActions } from "../services/reseller.api";
+import { resellerQueries, resellerActions } from "../services/reseller.api.js";
 
 export function useResellerQuery(resource, params = {}, enabled = true) {
   const { user } = useAuth();

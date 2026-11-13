@@ -1,15 +1,15 @@
 "use client";;
 import { motion } from "motion/react";
 import { memo, useId, useMemo } from "react";
-import { computeSquareColumn } from "./bar-squares-layout";
+import { computeSquareColumn } from "./lib/bar-squares-layout";
 import {
   chartCssVars,
   useChart,
   useChartStable,
   useYScale,
-} from "./chart-context";
+} from "./context/chart-context";
 import { useChartLegendHover } from "./chart-legend-hover";
-import { transitionWithDelay } from "./motion-utils";
+import { transitionWithDelay } from "./lib/motion-utils";
 import { renderPatternPreset } from "./pattern-preset";
 
 function isPatternFill(fill) {

@@ -1,12 +1,12 @@
 "use client";;
 import { useCallback, useMemo } from "react";
-import { clipRevealTransition } from "./animation";
+import { clipRevealTransition } from "./lib/animation";
 import {
   defaultScatterColors,
   useChartHover,
   useChartStable,
   useYScale,
-} from "./chart-context";
+} from "./context/chart-context";
 import { useChartLegendHover } from "./chart-legend-hover";
 import { getSeriesMarkerVisualExtent, SeriesPointMarker, StaticSeriesPointMarker } from "./series-point-marker";
 

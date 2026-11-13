@@ -9,11 +9,11 @@ import {
   useRef,
   useState,
 } from "react";
-import { chartCssVars, useChartStable } from "./chart-context";
+import { chartCssVars, useChartStable } from "./context/chart-context";
 import {
   LINE_LOADING_PULSE_EASE,
   LOADING_LABEL_EXIT_S,
-} from "./line-loading-timing";
+} from "./lib/line-loading-timing";
 import { areaClosedD, LinePath, linePathD } from "./line-path";
 
 /**

@@ -4,9 +4,9 @@ import {
   chartCenterContainerClassName,
   chartCenterLabelClassName,
   chartCenterValueClassName,
-} from "./chart-center-typography";
+} from "./lib/chart-center-typography";
 import { ChartStatFlow, defaultChartStatFlowFormat } from "./chart-stat-flow";
-import { usePieHover, usePieStable } from "./pie-context";
+import { usePieHover, usePieStable } from "./context/pie-context";
 
 /**
  * PieCenter displays content in the center of a donut/pie chart.

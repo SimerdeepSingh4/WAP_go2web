@@ -1,7 +1,7 @@
 import { Sliders, Search, Plus, Trash2, X, CheckCircle2, RotateCcw, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { number } from "@/features/admin/lib/format";
+import { number } from "@/lib/format";
 import { BUCKET_COLORS } from "./CampaignReportDistribution";
 
 export const CHIP_LIMIT = 48;

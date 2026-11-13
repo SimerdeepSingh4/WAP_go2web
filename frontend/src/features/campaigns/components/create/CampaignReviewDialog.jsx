@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { FormError } from "@/features/admin/components/shared";
-import { number, dateTime } from "@/features/admin/lib/format";
+import { FormError } from "@/features/dashboard/components/shared";
+import { number, dateTime } from "@/lib/format";
 import { ClipboardCheck, Info, MessageSquare, Send } from "lucide-react";
 import "./campaign-dialogs.css";
 

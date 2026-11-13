@@ -1,9 +1,9 @@
-import TransactionReference from "@/components/dashboard/TransactionReference";
+import TransactionReference from "@/features/credits/components/TransactionReference";
 // src/features/user/pages/UserActivity.jsx
 import { useSearchParams } from "react-router";
-import { PageHeading, QueryState, DataTable, Pager } from "@/features/admin/components/shared";
+import { PageHeading, QueryState, DataTable, Pager } from "@/features/dashboard/components/shared";
 import { useUserQuery } from "../hooks/useUser";
-import { dateTime, number } from "@/features/admin/lib/format";
+import { dateTime, number } from "@/lib/format";
 
 /**
  * User Activity page – displays recent activity logs for the user.

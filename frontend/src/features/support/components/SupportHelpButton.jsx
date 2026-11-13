@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { toast } from "@/components/ui/toast";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { supportApi } from "@/api/support.api";
+import { supportApi } from "@/features/support/services/support.api.js";
 import { supportContext } from "../lib/references";
-import "../context-help.css";
+import "./context-help.css";
 
 export default function SupportHelpButton({ campaign, transaction, area = "your account", menuItem = false, inline = false, label = "Help", className = "" }) {
   const { user } = useAuth();

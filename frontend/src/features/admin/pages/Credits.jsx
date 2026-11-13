@@ -1,4 +1,4 @@
-import TransactionReference from "@/components/dashboard/TransactionReference";
+import TransactionReference from "@/features/credits/components/TransactionReference";
 import "./admin-transactions.css";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
@@ -16,7 +16,7 @@ import {
   Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import OverviewMetricCards from "@/components/dashboard/OverviewMetricCards";
+import OverviewMetricCards from "@/features/dashboard/components/OverviewMetricCards";
 import { useAdminQuery } from "../hooks/useAdmin";
 import {
   PageHeading,
@@ -26,9 +26,9 @@ import {
   StatusBadge,
   DataTable,
   Pager,
-} from "../components/shared";
+} from "../../dashboard/components/shared";
 import ActionForm from "../components/ActionForm";
-import { dateTime, number, ownerName } from "../lib/format";
+import { dateTime, number, ownerName } from "../../../lib/format";
 
 const transactionLabels = {
   REQUEST: "Credit request",

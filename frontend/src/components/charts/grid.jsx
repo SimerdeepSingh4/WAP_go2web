@@ -1,13 +1,13 @@
 "use client";;
 import { motion } from "motion/react";
 import { useId } from "react";
-import { chartCssVars, useChartStable, useYScale } from "./chart-context";
+import { chartCssVars, useChartStable, useYScale } from "./context/chart-context";
 import { GridColumns, GridRows } from "./grid-lines";
-import { useGridShimmer } from "./use-grid-shimmer";
+import { useGridShimmer } from "./hooks/use-grid-shimmer";
 import {
   isLoadingChromePhase,
   isLoadingGridChromePhase,
-} from "./y-domain-utils";
+} from "./lib/y-domain-utils";
 
 const DEFAULT_SHIMMER_LENGTH_PX = 140;
 const DEFAULT_SHIMMER_SPEED = 1;

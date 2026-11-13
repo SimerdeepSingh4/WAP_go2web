@@ -1,5 +1,5 @@
 import apiClient from "../../../api/client.js";
-import { clearPushOwner } from "@/features/notifications/push";
+import { clearPushOwner } from "@/features/notifications/services/push";
 
 export async function register(username, email, password) {
     const payload = typeof username === "object"

@@ -2,8 +2,8 @@
 import { scaleBand, scaleLinear } from "d3-scale";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
-import { DEFAULT_ANIMATION_EASING } from "./animation";
-import { topSquareCenterY } from "./bar-squares-layout";
+import { DEFAULT_ANIMATION_EASING } from "./lib/animation";
+import { topSquareCenterY } from "./lib/bar-squares-layout";
 import {
   forEachChartChild,
   isClipExcludedComponent,
@@ -11,26 +11,26 @@ import {
   isUnderlayComponent,
   renderKeyedChartLayers,
   resolveChartChildElement,
-} from "./chart-child-passthrough";
-import { ChartProvider } from "./chart-context";
-import { isGradientDefComponent, isPatternDefComponent } from "./chart-defs";
-import { shortDateFmt } from "./chart-formatters";
+} from "./lib/chart-child-passthrough";
+import { ChartProvider } from "./context/chart-context";
+import { isGradientDefComponent, isPatternDefComponent } from "./lib/chart-defs";
+import { shortDateFmt } from "./lib/chart-formatters";
 import { ParentSize } from "./chart-parent-size";
-import { DEFAULT_CHART_LIFECYCLE, resolveRestingChartPhase } from "./chart-phase";
+import { DEFAULT_CHART_LIFECYCLE, resolveRestingChartPhase } from "./lib/chart-phase";
 import { BarLoadingSkeleton } from "./loading-sweep";
-import { localPoint } from "./local-point";
-import { extractReferenceAreaConfigs } from "./reference-area-config";
-import { useScheduledTooltip } from "./use-scheduled-tooltip";
+import { localPoint } from "./lib/local-point";
+import { extractReferenceAreaConfigs } from "./lib/reference-area-config";
+import { useScheduledTooltip } from "./hooks/use-scheduled-tooltip";
 import {
   buildYScalesForLines,
   getPrimaryYScale,
   normalizeYAxisId,
   wrapSingleYScale,
-} from "./y-axis-scales";
+} from "./lib/y-axis-scales";
 import {
   collectBarValueExtents,
   resolveBarValueDomain,
-} from "./y-domain-utils";
+} from "./lib/y-domain-utils";
 
 /** Skeleton bars to show when `status="loading"` and `data` is empty. */
 const FALLBACK_LOADING_BARS = 12;

@@ -1,6 +1,6 @@
 "use client";;
 import { motion } from "motion/react";
-import { useChartHover } from "./chart-context";
+import { useChartHover } from "./context/chart-context";
 import { useChartLegendHover } from "./chart-legend-hover";
 
 /**

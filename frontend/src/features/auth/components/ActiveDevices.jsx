@@ -1,6 +1,6 @@
 import React from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { getSessions, logoutAll, logoutSession } from "../services/auth.api";
+import { getSessions, logoutAll, logoutSession } from "../services/auth.api.js";
 
 export default function ActiveDevices() {
   const { data, isLoading, refetch } = useQuery({

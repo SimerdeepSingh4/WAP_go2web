@@ -7,7 +7,7 @@ import {
   useChart,
   useChartPortalContainer,
   useChartStable,
-} from "./chart-context";
+} from "./context/chart-context";
 
 function BarYAxisLabel({
   label,

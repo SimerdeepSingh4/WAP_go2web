@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { number } from "@/features/admin/lib/format";
+import { number } from "@/lib/format";
 
 export default function DraftReportPreview({ sheet, onClose }) {
   const [page, setPage] = useState(0);

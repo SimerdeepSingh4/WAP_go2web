@@ -1,6 +1,6 @@
 "use client";;
 import { cn } from "@/lib/utils";
-import { intFmt } from "../chart-formatters";
+import { intFmt } from "../lib/chart-formatters";
 
 /**
  * Popover-style header row: medium-weight label separated from the body by a

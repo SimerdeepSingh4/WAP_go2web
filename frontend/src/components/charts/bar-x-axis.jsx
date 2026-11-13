@@ -7,8 +7,8 @@ import {
   useChart,
   useChartPortalContainer,
   useChartStable,
-} from "./chart-context";
-import { resolveResponsiveChartLabelCount } from "./responsive-chart-label-count";
+} from "./context/chart-context";
+import { resolveResponsiveChartLabelCount } from "./lib/responsive-chart-label-count";
 
 function BarXAxisLabel({
   label,

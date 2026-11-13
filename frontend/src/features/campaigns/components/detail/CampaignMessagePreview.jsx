@@ -1,17 +1,14 @@
 import { Copy, Check, CheckCheck } from "lucide-react";
-import { number, dateTime } from "@/features/admin/lib/format";
-import { CampaignMessage } from "@/components/dashboard/CampaignContent";
-import CampaignActionLinks from "@/components/dashboard/CampaignActionLinks";
+import { number, dateTime } from "@/lib/format";
+import { CampaignMessage } from "@/features/campaigns/components/detail/CampaignContent";
+import CampaignActionLinks from "@/features/campaigns/components/detail/CampaignActionLinks";
 import { messageTextFromHtml } from "../../lib/messageText";
-import { normalizeCampaignMedia } from "../../lib/mediaUrl";
 
 export default function CampaignMessagePreview({
   campaign,
   copiedText,
   onCopyMessage,
 }) {
-  const images = normalizeCampaignMedia(campaign.images);
-
   return (
     <section data-tour="campaign-message" className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
       <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
@@ -40,13 +37,6 @@ export default function CampaignMessagePreview({
         {/* Chat-style preview so the sender sees roughly what recipients see */}
         <div className="max-h-80 overflow-y-auto rounded-lg bg-muted/40 p-3 sm:p-4">
           <div className="ml-auto w-fit max-w-full rounded-xl rounded-tr-sm border border-black/5 bg-[var(--secondary)] px-3.5 py-3 sm:max-w-[95%]">
-            {images[0] && (
-              <img
-                src={images[0].url}
-                alt=""
-                className="mb-2 w-full max-h-40 rounded-lg object-cover"
-              />
-            )}
             {campaign.messageBody ? (
               <CampaignMessage
                 content={campaign.messageBody}

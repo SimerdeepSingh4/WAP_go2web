@@ -1,4 +1,4 @@
-import CampaignReference from "@/components/dashboard/CampaignReference";
+import CampaignReference from "@/features/campaigns/components/CampaignReference";
 import { useState } from "react";
 import { useSearchParams, Link } from "react-router";
 import {
@@ -23,7 +23,7 @@ import {
   QueryState,
   DataTable,
   StatusBadge,
-} from "@/features/admin/components/shared";
+} from "@/features/dashboard/components/shared";
 import { useResellerMutation, useResellerQuery } from "../hooks/useReseller";
 import {
   number,
@@ -33,9 +33,9 @@ import {
   needsReport,
   published,
   waiting,
-} from "@/features/admin/lib/format";
-import CampaignDetail from "@/components/dashboard/ReadOnlyCampaignDetail";
-import UserAvatar from "@/components/dashboard/UserAvatar";
+} from "@/lib/format";
+import CampaignDetail from "@/features/campaigns/components/detail/ReadOnlyCampaignDetail";
+import UserAvatar from "@/features/accounts/components/UserAvatar";
 
 export default function ResellerCampaigns({ reports = false }) {
   const [campaignToDelete, setCampaignToDelete] = useState(null);

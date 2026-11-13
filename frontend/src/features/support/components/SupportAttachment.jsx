@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, Download, FileAudio, FileText, Film, Image, Loader2 } from "lucide-react";
-import { supportApi } from "@/api/support.api";
+import { supportApi } from "@/features/support/services/support.api.js";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 
 export default function SupportAttachment({ attachment }) {

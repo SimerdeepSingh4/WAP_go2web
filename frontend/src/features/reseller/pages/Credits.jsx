@@ -1,4 +1,4 @@
-import TransactionReference from "@/components/dashboard/TransactionReference";
+import TransactionReference from "@/features/credits/components/TransactionReference";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { Link, useSearchParams } from "react-router";
 import { useState } from "react";
@@ -13,13 +13,13 @@ import {
   MinusCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import OverviewMetricCards from "@/components/dashboard/OverviewMetricCards";
+import OverviewMetricCards from "@/features/dashboard/components/OverviewMetricCards";
 import { useResellerQuery } from "../hooks/useReseller";
-import { PageHeading, QueryState, FilterSelect, DataTable, Pager } from "@/features/admin/components/shared";
+import { PageHeading, QueryState, FilterSelect, DataTable, Pager } from "@/features/dashboard/components/shared";
 import ResellerActionForm from "../components/ResellerActionForm";
-import { dateTime, number, ownerName } from "@/features/admin/lib/format";
-import "@/components/dashboard/credit-history.css";
-import { getTransactionDisplay } from "@/components/dashboard/creditTransactionDisplay";
+import { dateTime, number, ownerName } from "@/lib/format";
+import "@/features/credits/components/credit-history.css";
+import { getTransactionDisplay } from "@/features/credits/lib/creditTransactionDisplay";
 
 export default function ResellerCredits({ activity = false }) {
   const { user: signedInUser } = useAuth();

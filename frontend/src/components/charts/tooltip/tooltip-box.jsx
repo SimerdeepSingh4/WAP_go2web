@@ -3,8 +3,8 @@ import { AnimatePresence, motion, useReducedMotion, useSpring } from "motion/rea
 import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
-import { useChartConfig } from "../chart-config-context";
-import { chartCssVars, useChartPortalContainer } from "../chart-context";
+import { useChartConfig } from "../context/chart-config-context";
+import { chartCssVars, useChartPortalContainer } from "../context/chart-context";
 
 /**
  * Popover-style panel: rounded, 1px border, soft layered shadow and a 1px

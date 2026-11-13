@@ -1,17 +1,17 @@
 "use client";;
 import { motion } from "motion/react";
 import { memo, useId, useMemo } from "react";
-import { barDepthAndRise, barDepthMaxDepth } from "./bar-depth-geometry";
-import { getBarValueLabelLayout } from "./bar-value-label-layout";
+import { barDepthAndRise, barDepthMaxDepth } from "./lib/bar-depth-geometry";
+import { getBarValueLabelLayout } from "./lib/bar-value-label-layout";
 import {
   chartCssVars,
   useChartHover,
   useChartStable,
   useYScale,
-} from "./chart-context";
-import { valueLabelFmt } from "./chart-formatters";
+} from "./context/chart-context";
+import { valueLabelFmt } from "./lib/chart-formatters";
 import { useChartLegendHover } from "./chart-legend-hover";
-import { transitionWithDelay } from "./motion-utils";
+import { transitionWithDelay } from "./lib/motion-utils";
 
 // ── Bar-depth perspective trim ───────────────────────────────────────────
 // Uses the SHARED geometry (`bar-depth-geometry.ts`) so a

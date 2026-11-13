@@ -1,12 +1,12 @@
 import { Link } from "react-router";
 import { ArrowUpRight, Building2, Megaphone, RefreshCw, Users, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import OverviewMetricCards from "@/components/dashboard/OverviewMetricCards";
+import OverviewMetricCards from "@/features/dashboard/components/OverviewMetricCards";
 import { useAdminQuery } from "../hooks/useAdmin";
-import { QueryState } from "../components/shared";
-import { number } from "../lib/format";
+import { QueryState } from "../../dashboard/components/shared";
+import { number } from "../../../lib/format";
 
-import { RecentCampaigns, AccountList, RecentTransactions } from "@/components/dashboard/OverviewPanels";
+import { RecentCampaigns, AccountList, RecentTransactions } from "@/features/dashboard/components/OverviewPanels";
 import { toast } from "@/components/ui/toast";
 
 export default function Overview() {

@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { updateWhiteLabelAccess } from "@/features/branding/branding.api";
+import { updateWhiteLabelAccess } from "@/features/branding/services/branding.api.js";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
-import { FormError } from "@/features/admin/components/shared";
+import { FormError } from "@/features/dashboard/components/shared";
 import { Sparkles, Calendar, Check, Globe, AlertCircle, Clock } from "lucide-react";
-import { dateTime } from "@/features/admin/lib/format";
+import { dateTime } from "@/lib/format";
 
 export default function WhiteLabelAccessDialog({ open, onClose, account, onSuccess }) {
   const queryClient = useQueryClient();

@@ -1,7 +1,7 @@
 import ReactQuill from "react-quill-new";
 import "react-quill-new/dist/quill.snow.css";
 import { FileText, AlertTriangle } from "lucide-react";
-import { number } from "@/features/admin/lib/format";
+import { number } from "@/lib/format";
 import { SectionCard } from "./CampaignDetailsSection";
 import { AnimatedCollapse } from "@/components/ui/animated-collapse";
 

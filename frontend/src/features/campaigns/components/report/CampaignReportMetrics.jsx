@@ -1,5 +1,5 @@
 import { CheckCircle2, RotateCcw, Coins } from "lucide-react";
-import { number } from "@/features/admin/lib/format";
+import { number } from "@/lib/format";
 
 function Metric({ icon: Icon, label, hint, tone, children }) {
   return (

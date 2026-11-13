@@ -2,7 +2,7 @@
 import { pie as d3Pie } from "d3-shape";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PieCenter } from "./pie-center";
-import { defaultPieColors, PieProvider } from "./pie-context";
+import { defaultPieColors, PieProvider } from "./context/pie-context";
 
 const SHELL_HOVER_OFFSET = 10;
 

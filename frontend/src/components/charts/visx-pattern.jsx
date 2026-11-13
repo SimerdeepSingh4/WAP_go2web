@@ -4,7 +4,7 @@ import {
   PatternHexagons as VisxPatternHexagons,
   PatternLines as VisxPatternLines,
   PatternWaves as VisxPatternWaves,
-} from "./patterns/index";
+} from "./patterns";
 
 export function PatternLines(props) {
   return <VisxPatternLines {...props} />;

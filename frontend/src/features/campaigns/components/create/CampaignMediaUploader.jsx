@@ -3,7 +3,7 @@ import { Upload, Image as ImageIcon, Video as VideoIcon, FileText, Trash2, Plus 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SectionCard } from "./CampaignDetailsSection";
-import { resolveUserImageUrl } from "@/components/dashboard/profileImage";
+import { resolveUserImageUrl } from "@/features/accounts/lib/profileImage";
 
 export const MB = 1024 * 1024;
 

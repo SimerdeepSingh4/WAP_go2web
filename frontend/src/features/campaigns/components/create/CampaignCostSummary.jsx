@@ -1,7 +1,7 @@
 import { ArrowRight, CheckCircle2, Circle, Clock3, Coins, Info, Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { number } from "@/features/admin/lib/format";
+import { number } from "@/lib/format";
 import "./campaign-cost-summary.css";
 
 export default function CampaignCostSummary({

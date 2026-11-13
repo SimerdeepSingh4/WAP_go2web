@@ -2,12 +2,12 @@
 
 import { motion } from "motion/react";
 import { useId, useLayoutEffect, useMemo } from "react";
-import { chartCssVars, useChartStable, useYScale } from "./chart-context";
+import { chartCssVars, useChartStable, useYScale } from "./context/chart-context";
 import { renderPatternPreset } from "./pattern-preset";
-import { computeReferenceAreaRect } from "./reference-area-geometry";
-import { useReferenceAreaRegistration } from "./reference-area-registration-context";
-import { normalizeYAxisId } from "./y-axis-scales";
-import { isReferenceAreaVisiblePhase } from "./y-domain-utils";
+import { computeReferenceAreaRect } from "./lib/reference-area-geometry";
+import { useReferenceAreaRegistration } from "./context/reference-area-registration-context";
+import { normalizeYAxisId } from "./lib/y-axis-scales";
+import { isReferenceAreaVisiblePhase } from "./lib/y-domain-utils";
 
 const DEFAULT_FILL =
   "color-mix(in oklch, var(--chart-foreground-muted) 12%, transparent)";

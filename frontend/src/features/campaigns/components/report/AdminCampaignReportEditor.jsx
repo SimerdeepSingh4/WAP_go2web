@@ -1,4 +1,4 @@
-import CampaignReference from "@/components/dashboard/CampaignReference";
+import CampaignReference from "@/features/campaigns/components/CampaignReference";
 ﻿import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -7,8 +7,8 @@ import api from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
-import UserAvatar from "@/components/dashboard/UserAvatar";
-import { dateTime, number, ownerName } from "@/features/admin/lib/format";
+import UserAvatar from "@/features/accounts/components/UserAvatar";
+import { dateTime, number, ownerName } from "@/lib/format";
 import { buildCampaignReportPreview } from "../../lib/reportPreview";
 import PublishedSpreadsheetReport from "./PublishedSpreadsheetReport";
 import FailedCampaignReport from "./FailedCampaignReport";

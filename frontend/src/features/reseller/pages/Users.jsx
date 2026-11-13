@@ -16,10 +16,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { PageHeading, QueryState, SearchBox, FilterSelect, StatusBadge, DataTable } from "@/features/admin/components/shared";
+import { PageHeading, QueryState, SearchBox, FilterSelect, StatusBadge, DataTable } from "@/features/dashboard/components/shared";
 import ResellerActionForm from "../components/ResellerActionForm";
 import { useResellerQuery } from "../hooks/useReseller";
-import { number, dateTime } from "@/features/admin/lib/format";
+import { number, dateTime } from "@/lib/format";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,7 +31,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useResellerMutation } from "../hooks/useReseller";
-import UserAvatar from "@/components/dashboard/UserAvatar";
+import UserAvatar from "@/features/accounts/components/UserAvatar";
 
 function UserDetail({ account, onClose, onAction }) {
   const balance = useResellerQuery("balance", { id: account._id });

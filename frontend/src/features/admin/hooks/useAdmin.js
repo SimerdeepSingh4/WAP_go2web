@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { toast } from "@/components/ui/toast";
-import { adminActions, adminQueries } from "../services/admin.api";
+import { adminActions, adminQueries } from "../services/admin.api.js";
 
 export function useAdminQuery(resource, params = {}, enabled = true) {
   const { user } = useAuth();

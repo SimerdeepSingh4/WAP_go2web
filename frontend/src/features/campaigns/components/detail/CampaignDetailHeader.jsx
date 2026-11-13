@@ -1,5 +1,5 @@
 import "./campaign-detail-header.css";
-import CampaignReference from "@/components/dashboard/CampaignReference";
+import CampaignReference from "@/features/campaigns/components/CampaignReference";
 import { Link, useNavigate } from "react-router";
 import { useState, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -37,9 +37,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import { dateTime, number, ownerName, statusLabels } from "@/features/admin/lib/format";
+import { dateTime, number, ownerName, statusLabels } from "@/lib/format";
 import { toast } from "@/components/ui/toast";
-import UserAvatar from "@/components/dashboard/UserAvatar";
+import UserAvatar from "@/features/accounts/components/UserAvatar";
 import SupportHelpButton from "@/features/support/components/SupportHelpButton";
 
 const STATUS_OPTIONS = [

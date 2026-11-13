@@ -17,7 +17,7 @@ import { PieChart } from "@/components/charts/pie-chart";
 import { PieSlice } from "@/components/charts/pie-slice";
 import { PieCenter } from "@/components/charts/pie-center";
 import { campaignTrend, campaignDistribution, deliveryMetrics } from "../lib/analytics";
-import { number } from "../lib/format";
+import { number } from "../../../lib/format";
 
 const dayLabel = (date) => new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short" }).format(date);
 

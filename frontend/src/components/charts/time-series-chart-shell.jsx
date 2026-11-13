@@ -15,54 +15,54 @@ import {
 import {
   DEFAULT_ANIMATION_EASING,
   DEFAULT_CHART_ENTER_TRANSITION,
-} from "./animation";
-import { bandKeysByAxis, extractBandConfigs } from "./band-config";
+} from "./lib/animation";
+import { bandKeysByAxis, extractBandConfigs } from "./lib/band-config";
 import {
   isClipExcludedComponent,
   isPostOverlayComponent,
   isUnderlayComponent,
   renderableChartChild,
   resolveChartChildElement,
-} from "./chart-child-passthrough";
-import { ChartProvider } from "./chart-context";
-import { isGradientDefComponent, isPatternDefComponent } from "./chart-defs";
-import { lazyLabels, shortDateFmt } from "./chart-formatters";
-import { DEFAULT_CHART_STATUS, DEFAULT_Y_DOMAIN_TWEEN_MS, isChartInteractionPhase } from "./chart-phase";
+} from "./lib/chart-child-passthrough";
+import { ChartProvider } from "./context/chart-context";
+import { isGradientDefComponent, isPatternDefComponent } from "./lib/chart-defs";
+import { lazyLabels, shortDateFmt } from "./lib/chart-formatters";
+import { DEFAULT_CHART_STATUS, DEFAULT_Y_DOMAIN_TWEEN_MS, isChartInteractionPhase } from "./lib/chart-phase";
 import { ChartRevealClip } from "./chart-reveal-clip";
 import {
   decimateTimeSeries,
   maxRenderPointsForWidth,
-} from "./decimate-time-series";
-import { filterDataByXDomain } from "./filter-data-by-x-domain";
+} from "./lib/decimate-time-series";
+import { filterDataByXDomain } from "./lib/filter-data-by-x-domain";
 import {
   generateChartSkeletonData,
   generateChartSkeletonFromTarget,
-} from "./generate-chart-skeleton-data";
+} from "./lib/generate-chart-skeleton-data";
 import {
   extractProjectionLineConfigs,
   mergeProjectionXDomainMax,
   mergeProjectionYDomain,
-} from "./projection-config";
-import { extractReferenceAreaConfigs } from "./reference-area-config";
-import { ReferenceAreaRegistrationContext } from "./reference-area-registration-context";
+} from "./lib/projection-config";
+import { extractReferenceAreaConfigs } from "./lib/reference-area-config";
+import { ReferenceAreaRegistrationContext } from "./context/reference-area-registration-context";
 import {
   computeSeriesBarRevealClipPadding,
   computeSeriesBarWidth,
-} from "./series-bar-layout";
-import { useStaticChartPreview } from "./static-chart-preview-context";
-import { useAnimatedYDomains } from "./use-animated-y-domains";
-import { useChartInteraction } from "./use-chart-interaction";
-import { useChartPhaseOrchestrator } from "./use-chart-phase-orchestrator";
+} from "./lib/series-bar-layout";
+import { useStaticChartPreview } from "./context/static-chart-preview-context";
+import { useAnimatedYDomains } from "./hooks/use-animated-y-domains";
+import { useChartInteraction } from "./hooks/use-chart-interaction";
+import { useChartPhaseOrchestrator } from "./hooks/use-chart-phase-orchestrator";
 import {
   buildYScalesFromDomains,
   DEFAULT_Y_AXIS_ID,
   getPrimaryYScale,
   groupLinesByYAxisId,
-} from "./y-axis-scales";
+} from "./lib/y-axis-scales";
 import {
   computeYDomainsByAxis,
   resolveTimeSeriesYDomain,
-} from "./y-domain-utils";
+} from "./lib/y-domain-utils";
 
 /**
  * Bleed around the series reveal clip so glyphs centred on the plot edge

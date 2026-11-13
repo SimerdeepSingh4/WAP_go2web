@@ -1,1 +1,1 @@
-export { default } from "@/components/dashboard/AccountSettings";
+export { default } from "@/features/accounts/components/AccountSettings";

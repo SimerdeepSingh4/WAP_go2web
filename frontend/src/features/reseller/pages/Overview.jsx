@@ -2,12 +2,12 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { Link } from "react-router";
 import { RefreshCw, Plus, Megaphone, Users, Coins, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { QueryState } from "@/features/admin/components/shared";
-import { RecentCampaigns, AccountList } from "@/components/dashboard/OverviewPanels";
-import OverviewMetricCards from "@/components/dashboard/OverviewMetricCards";
+import { QueryState } from "@/features/dashboard/components/shared";
+import { RecentCampaigns, AccountList } from "@/features/dashboard/components/OverviewPanels";
+import OverviewMetricCards from "@/features/dashboard/components/OverviewMetricCards";
 import { useResellerQuery } from "../hooks/useReseller";
 import { toast } from "@/components/ui/toast";
-import DashboardGreeting from "@/components/dashboard/DashboardGreeting";
+import DashboardGreeting from "@/features/dashboard/components/DashboardGreeting";
 
 export default function Overview() {
   const { user: signedInUser } = useAuth();

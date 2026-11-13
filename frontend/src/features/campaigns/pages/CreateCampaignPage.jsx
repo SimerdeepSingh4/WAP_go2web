@@ -6,7 +6,7 @@ import { AlertTriangle, Lock, X } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 import apiClient from "@/api/client";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { QueryState } from "@/features/admin/components/shared";
+import { QueryState } from "@/features/dashboard/components/shared";
 import { campaignEstimate, parseRecipients, splitRecipientInput } from "../lib/submission";
 
 import CreateCampaignHeader from "../components/create/CreateCampaignHeader";

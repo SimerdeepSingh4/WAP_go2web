@@ -2,9 +2,9 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "./index.css";
-import "./components/dashboard/dashboard.css";
+import "./features/dashboard/components/dashboard.css";
 import App from "./App.jsx";
-import { initializeTheme } from "./features/branding/ThemeProvider";
+import { initializeTheme } from "./features/branding/context/ThemeProvider";
 
 initializeTheme();
 

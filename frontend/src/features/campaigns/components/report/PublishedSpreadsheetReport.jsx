@@ -1,12 +1,12 @@
-import CampaignReference from "@/components/dashboard/CampaignReference";
+import CampaignReference from "@/features/campaigns/components/CampaignReference";
 import SupportHelpButton from "@/features/support/components/SupportHelpButton";
 import { useDeferredValue, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, Check, CheckCircle2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, FileSpreadsheet, Filter, Loader2, RotateCcw, Search, ShieldCheck, Users, Wallet, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { StatusBadge } from "@/features/admin/components/shared";
-import { dateTime, number } from "@/features/admin/lib/format";
+import { StatusBadge } from "@/features/dashboard/components/shared";
+import { dateTime, number } from "@/lib/format";
 import { toast } from "@/components/ui/toast";
 import api from "@/api/client";
 

@@ -1,5 +1,5 @@
 import { Users, Coins, FileText, Calendar } from "lucide-react";
-import { number, dateTime } from "@/features/admin/lib/format";
+import { number, dateTime } from "@/lib/format";
 import { campaignDetailSummary } from "../../lib/detailSummary";
 
 function MetricCard({ label, value, hint, icon: Icon }) {

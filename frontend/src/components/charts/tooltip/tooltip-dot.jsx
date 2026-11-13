@@ -1,8 +1,8 @@
 "use client";;
 import { motion, useSpring, useTransform } from "motion/react";
 import { useId } from "react";
-import { useChartConfig } from "../chart-config-context";
-import { chartCssVars } from "../chart-context";
+import { useChartConfig } from "../context/chart-config-context";
+import { chartCssVars } from "../context/chart-context";
 
 const DEFAULT_HALO_SCALE = 2.6;
 const DEFAULT_HALO_OPACITY = 0.3;

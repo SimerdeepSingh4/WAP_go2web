@@ -7,7 +7,7 @@ import {
   DEFAULT_SKELETON_DATA_KEY,
   DEFAULT_SKELETON_POINT_COUNT,
   generateChartSkeletonData,
-} from "./generate-chart-skeleton-data";
+} from "./lib/generate-chart-skeleton-data";
 import { Grid } from "./grid";
 
 const LOADING_DATA_KEY = DEFAULT_SKELETON_DATA_KEY;

@@ -32,7 +32,7 @@ import api from "@/api/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { normalizeDuplicateRows } from "@campaign-sheet";
-import { number } from "@/features/admin/lib/format";
+import { number } from "@/lib/format";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { readCampaignDraft, removeCampaignDraft, writeCampaignDraft } from "../../lib/draftStorage";
 

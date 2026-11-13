@@ -1,4 +1,4 @@
-import { AccountCreationFields, AccountCreationPassword, accountCreationLabel, accountCreationPlaceholders } from "@/components/dashboard/AccountCreationFields";
+import { AccountCreationFields, AccountCreationPassword, accountCreationLabel, accountCreationPlaceholders } from "@/features/accounts/components/AccountCreationFields";
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import { useResellerMutation } from "../hooks/useReseller";
-import { Field, FilterSelect, FormError } from "@/features/admin/components/shared";
+import { Field, FilterSelect, FormError } from "@/features/dashboard/components/shared";
 
 export default function ResellerActionForm({ title, description, action, successMessage, fields, initialValues, validate, payload, review, onClose, submitLabel = "Confirm changes" }) {
   const submitting = useRef(false);

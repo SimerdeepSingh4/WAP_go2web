@@ -1,8 +1,8 @@
-import NotificationsPage from "./features/notifications/NotificationsPage.jsx";
+import NotificationsPage from "./features/notifications/pages/NotificationsPage.jsx";
 import { createBrowserRouter, Navigate, useLocation, useParams } from "react-router";
 import LoginPage from "./features/auth/pages/Login.jsx";
 import { useAuth } from "./features/auth/hooks/useAuth.js";
-import RoleRoute from "./components/RoleRoute.jsx";
+import RoleRoute from "./components/guards/RoleRoute.jsx";
 import ResellerOverview from "./features/reseller/pages/Overview.jsx";
 import ResellerLayout from "./features/reseller/components/ResellerLayout.jsx";
 import ResellerUsers from "./features/reseller/pages/Users.jsx";
@@ -19,10 +19,10 @@ import CreateCampaignPage from "./features/campaigns/pages/CreateCampaignPage.js
 import CampaignDetailPage from "./features/campaigns/pages/CampaignDetailPage.jsx";
 import CampaignReportPage from "./features/campaigns/pages/CampaignReportPage.jsx";
 import CreateCampaignReportPage from "./features/campaigns/pages/CreateCampaignReportPage.jsx";
-import PreviewBanner from "./components/PreviewBanner.jsx";
+import PreviewBanner from "./components/guards/PreviewBanner.jsx";
 
 import { lazy, Suspense } from "react";
-import AdminAccess from "./features/admin/components/AdminAccess.jsx";
+import AdminAccess from "./features/admin/guards/AdminAccess.jsx";
 import ExpiredAccountPage from "./features/auth/pages/ExpiredAccountPage.jsx";
 import ImpersonationHandoff from "./features/auth/pages/ImpersonationHandoff.jsx";
 

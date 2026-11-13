@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { campaignTrend, campaignDistribution, deliveryMetrics } from "./analytics.js";
 import { timeToWheelValue, wheelValueToTime, validateOperatingWindow } from "./operatingTime.js";
-import { validateReport } from "./format.js";
+import { validateReport } from "../../../lib/format.js";
 
 test("campaign creation buckets use IST midnight and exclude drafts and invalid dates", () => {
   const rows = campaignTrend([

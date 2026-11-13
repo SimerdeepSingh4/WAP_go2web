@@ -25,11 +25,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { PageHeading, QueryState, SearchBox, FilterSelect, StatusBadge, DataTable } from "../components/shared";
+import { PageHeading, QueryState, SearchBox, FilterSelect, StatusBadge, DataTable } from "../../dashboard/components/shared";
 import ActionForm from "../components/ActionForm";
 import WhiteLabelAccessDialog from "../components/WhiteLabelAccessDialog";
 import { useAdminQuery } from "../hooks/useAdmin";
-import { number, dateTime } from "../lib/format";
+import { number, dateTime } from "../../../lib/format";
 import { toast } from "@/components/ui/toast";
 import {
   AlertDialog,
@@ -42,9 +42,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useAdminMutation } from "../hooks/useAdmin";
-import { exitFullAccessImpersonation, startFullAccessImpersonation } from "@/features/dashboard/services/users.api";
-import UserAvatar from "@/components/dashboard/UserAvatar";
-import { resolveUserImageUrl } from "@/components/dashboard/profileImage";
+import { exitFullAccessImpersonation, startFullAccessImpersonation } from "@/features/accounts/services/users.api.js";
+import UserAvatar from "@/features/accounts/components/UserAvatar";
+import { resolveUserImageUrl } from "@/features/accounts/lib/profileImage";
 
 function AccountDetail({ account, onClose, onAction }) {
   const [showAudit, setShowAudit] = useState(false);

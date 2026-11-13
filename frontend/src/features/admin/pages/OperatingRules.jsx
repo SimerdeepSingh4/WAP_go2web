@@ -11,8 +11,8 @@ import { Card } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
 import OperatingTimePicker from "../components/OperatingTimePicker";
 import { validateOperatingWindow } from "../lib/operatingTime";
-import { getSessions, logoutSession, logoutAll } from "@/features/auth/services/auth.api";
-import { dateTime, number } from "../lib/format";
+import { getSessions, logoutSession, logoutAll } from "@/features/auth/services/auth.api.js";
+import { dateTime, number } from "../../../lib/format";
 
 const STORAGE_KEY = "admin_platform_settings";
 const DEFAULT_SETTINGS = {

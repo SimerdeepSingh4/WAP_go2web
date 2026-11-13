@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/toast";
 import api from "@/api/client";
-import { number } from "@/features/admin/lib/format";
+import { number } from "@/lib/format";
 import { campaignContactRows } from "../../../../../../shared/campaignContacts.js";
 
 export function buildCampaignContacts(campaign) {

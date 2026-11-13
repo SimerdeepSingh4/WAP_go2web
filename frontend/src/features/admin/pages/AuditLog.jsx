@@ -3,9 +3,9 @@ import { RefreshCw, Search, ShieldCheck, ChevronRight, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { PageHeading, QueryState, DataTable, FilterSelect } from "../components/shared";
+import { PageHeading, QueryState, DataTable, FilterSelect } from "../../dashboard/components/shared";
 import { useAdminQuery } from "../hooks/useAdmin";
-import { dateTime } from "../lib/format";
+import { dateTime } from "../../../lib/format";
 import { actionLabel, affectedRecord, basicActivityDetails, changedFields, fieldLabel, valueText } from "../lib/auditFormat";
 
 function Changes({ event }) {

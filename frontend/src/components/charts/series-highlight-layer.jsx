@@ -1,7 +1,7 @@
 "use client";;
-import { useChartStable } from "./chart-context";
+import { useChartStable } from "./context/chart-context";
 import { HighlightSegment } from "./highlight-segment";
-import { useHighlightSegment } from "./use-highlight-segment";
+import { useHighlightSegment } from "./hooks/use-highlight-segment";
 
 /**
  * Self-contained hover-highlight band over a series stroke.

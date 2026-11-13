@@ -1,12 +1,12 @@
-import CampaignReference from "@/components/dashboard/CampaignReference";
+import CampaignReference from "@/features/campaigns/components/CampaignReference";
 import SupportHelpButton from "@/features/support/components/SupportHelpButton";
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { ArrowLeft, ChevronLeft, ChevronRight, Search, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { number } from "@/features/admin/lib/format";
-import { StatusBadge } from "@/features/admin/components/shared";
+import { number } from "@/lib/format";
+import { StatusBadge } from "@/features/dashboard/components/shared";
 
 export function FailureContacts({ rows }) {
   const [search, setSearch] = useState("");

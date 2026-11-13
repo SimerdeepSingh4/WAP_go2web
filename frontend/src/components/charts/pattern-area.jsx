@@ -1,7 +1,7 @@
 "use client";;
 import { curveMonotoneX } from "@visx/curve";
 import { AreaClosed } from "@visx/shape";
-import { useChartStable } from "./chart-context";
+import { useChartStable } from "./context/chart-context";
 
 /**
  * Filled area using an SVG pattern (`url(#id)`).
