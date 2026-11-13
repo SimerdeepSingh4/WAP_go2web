@@ -18,6 +18,7 @@ import {
     launchCampaignNow,
     exportRecipientDraft,
     deleteCampaign,
+    downloadProfileDp,
 } from "../controllers/campaign.controller.js";
 import {
     protect,
@@ -38,6 +39,7 @@ campaignRouter.post("/:id/tracked-numbers/contacts", authorizeRoles("Super Admin
 campaignRouter.patch("/:id/tracked-numbers/:phoneNumber", authorizeRoles("Super Admin"), blockInPreviewMode("Editing tracked notes"), updateTrackedNote);
 campaignRouter.get("/:id/recipient-report", downloadRecipientReport);
 campaignRouter.get("/:id/export-recipients", exportCampaignRecipients);
+campaignRouter.get("/:id/profile-dp", downloadProfileDp);
 campaignRouter.get("/:id/documents/:documentId", downloadCampaignDocument);
 campaignRouter.post("/:id/recipient-report/export", authorizeRoles("Super Admin"), exportRecipientDraft);
 campaignRouter.get(
