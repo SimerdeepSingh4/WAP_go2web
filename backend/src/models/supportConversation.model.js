@@ -36,6 +36,7 @@ const supportConversationSchema = new mongoose.Schema(
             trim: true,
             maxlength: 150,
         },
+        topic: { type: String, enum: ["general", "account-expired", "account-blocked"], default: "general" },
         status: {
             type: String,
             enum: ["open", "resolved", "reopened"],

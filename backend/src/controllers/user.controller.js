@@ -449,6 +449,13 @@ export async function updateUserAccess(req, res) {
             updates.status = status;
         }
 
+        if (Object.hasOwn(req.body, "accessReason")) {
+            if (typeof req.body.accessReason !== "string" || req.body.accessReason.trim().length > 1000) {
+                return res.status(400).json({ success: false, message: "Use up to 1000 characters for the account access reason." });
+            }
+            updates.accessReason = req.body.accessReason.trim();
+        }
+
         if (Object.hasOwn(req.body, "expiresAt")) {
             if (expiresAt === null || expiresAt === "") {
                 updates.expiresAt = null;
@@ -508,13 +515,7 @@ export async function updateUserAccess(req, res) {
 
         Object.assign(targetUser, updates);
         await targetUser.save();
-        if (targetUser.status !== "active" || (targetUser.expiresAt && new Date(targetUser.expiresAt) <= new Date())) {
-            await sessionModel.deleteMany({ userId: targetUser._id });
-            notifyUser(targetUser._id, "SESSION_EXPIRED", { reason: "Your account access has ended." });
-        } else {
-            // Re-check connected sessions and reschedule timers for a future expiry change.
-            await notifyUser(targetUser._id, "ACCOUNT_ACCESS_CHANGED", {});
-        }
+        await notifyUser(targetUser._id, "ACCOUNT_ACCESS_CHANGED", {});
 
         return res.status(200).json({
             success: true,
@@ -694,12 +695,7 @@ export async function updateManagedUserProfile(req, res) {
         Object.assign(targetUser, updates);
         await targetUser.save();
 
-        if (targetUser.status !== "active" || (targetUser.expiresAt && new Date(targetUser.expiresAt) <= new Date())) {
-            await sessionModel.deleteMany({ userId: targetUser._id });
-            notifyUser(targetUser._id, "SESSION_EXPIRED", { reason: "Your account access has ended." });
-        } else {
-            await notifyUser(targetUser._id, "ACCOUNT_ACCESS_CHANGED", {});
-        }
+        await notifyUser(targetUser._id, "ACCOUNT_ACCESS_CHANGED", {});
 
         return res.status(200).json({
             success: true,
@@ -1176,9 +1172,6 @@ export async function updateUser(req, res) {
                 return res.status(400).json({ message: "Status must be active, blocked, or expired", success: false });
             }
             targetUser.status = status;
-            if (status === "blocked") {
-                await sessionModel.deleteMany({ userId: targetUser._id });
-            }
             if (status === "expired") {
                 targetUser.expiresAt = new Date(Date.now() - 1000);
             }
@@ -1236,12 +1229,7 @@ export async function updateUser(req, res) {
         if (didChangeReseller) {
             await syncResellerReassignment(targetUser._id, oldResellerId, newResellerId, req.user._id);
         }
-        if (targetUser.status !== "active" || (targetUser.expiresAt && new Date(targetUser.expiresAt) <= new Date())) {
-            await sessionModel.deleteMany({ userId: targetUser._id });
-            notifyUser(targetUser._id, "SESSION_EXPIRED", { reason: "Your account access has ended." });
-        } else {
-            await notifyUser(targetUser._id, "ACCOUNT_ACCESS_CHANGED", {});
-        }
+        await notifyUser(targetUser._id, "ACCOUNT_ACCESS_CHANGED", {});
 
         return res.status(200).json({
             success: true,

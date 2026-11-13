@@ -265,14 +265,6 @@ export async function login(req, res) {
             });
         }
 
-        if (user.status === "blocked") {
-            return res.status(403).json({
-                message: "Your account is blocked. Contact your account administrator.",
-                success: false,
-                isAccountBlocked: true,
-            });
-        }
-
         const { token } = await createDeviceSession(user, req, res);
         const whiteLabel = await resolveUserWhiteLabel(user);
 
@@ -287,6 +279,9 @@ export async function login(req, res) {
                 phone: user.phone || "",
                 role: user.role,
                 expiresAt: user.expiresAt || null,
+                status: user.status,
+                isBlocked: user.status === "blocked",
+                accessReason: user.accessReason || "",
                 isExpired: isAccountExpired(user),
                 maxVideoSizeMB: user.maxVideoSizeMB ?? 9,
                 featureAccess: user.featureAccess,
@@ -438,6 +433,8 @@ export async function getMe(req, res) {
                 dp_img: req.user.dp_img || "",
                 role: req.user.role,
                 status: req.user.status,
+                isBlocked: req.user.status === "blocked",
+                accessReason: req.user.accessReason || "",
                 expiresAt: req.user.expiresAt || null,
                 isExpired: req.accountExpired,
                 isPreview: req.isPreview || false,

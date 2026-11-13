@@ -12,6 +12,8 @@ import NotificationPreferences from "../components/NotificationPreferences";
 import NotificationListItem from "../components/NotificationListItem";
 import SupportHelpButton from "@/features/support/components/SupportHelpButton";
 import { FilterSelect } from "@/features/dashboard/components/shared";
+import RestrictedNotifications from "../components/RestrictedNotifications";
+import { accountRestriction } from "../../../../../shared/accountAccess.js";
 
 const categoryOptions = [
   { value: "all", label: "All categories" },
@@ -30,6 +32,12 @@ function dayLabel(value) {
 }
 
 export default function NotificationsPage() {
+  const { user } = useAuth();
+  const restriction = accountRestriction(user);
+  return restriction ? <div className="space-y-6"><h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Notifications</h1><section className="rounded-2xl border border-border bg-muted/40" aria-label="Notification history"><RestrictedNotifications restriction={restriction} /></section></div> : <NotificationHistory />;
+}
+
+function NotificationHistory() {
   const { user } = useAuth();
   const base = user.role === "Super Admin" ? "/admin" : user.role === "Reseller" ? "/reseller" : "/user";
   const client = useQueryClient();

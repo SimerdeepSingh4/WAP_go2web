@@ -10,7 +10,7 @@ export default function HelpMenu({ base, user, hasTour, startTour }) {
   const activity = useQuery({
     queryKey: ["support", accountId, "activity"],
     queryFn: ({ signal }) => supportApi.listConversations({ status: "ongoing", limit: 1 }, signal),
-    enabled: Boolean(accountId) && !user?.isExpired,
+    enabled: Boolean(accountId),
     staleTime: 15000,
     refetchInterval: 30000,
   });

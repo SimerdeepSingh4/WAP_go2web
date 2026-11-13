@@ -23,7 +23,7 @@ export default function SupportHelpButton({ campaign, transaction, area = "your 
     onError: error => toast.add({ title: "Couldn’t open support", description: error.message, type: "error" }),
   });
   if (user?.role !== "User") return null;
-  const disabled = user.isPreview || user.isExpired || opening.isPending;
+  const disabled = user.isPreview || opening.isPending;
   const icon = opening.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden="true" /> : <HelpCircle className="size-4" aria-hidden="true" />;
   const description = campaign ? `Get help with campaign ${campaign.campaignTitle || context.references[0]?.value}` : transaction ? `Get help with transaction ${context.references.at(-1)?.value}` : `Get help with ${area.toLowerCase()}`;
   if (menuItem) return <DropdownMenuItem disabled={disabled} onClick={() => opening.mutate()} aria-label={description} className={`gap-2 ${className}`}>{icon}{opening.isPending ? "Opening support…" : label}</DropdownMenuItem>;

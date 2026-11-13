@@ -19,6 +19,7 @@ import {
     SUPPORT_STORAGE_DIR,
 } from "../services/support-media.service.js";
 import { notifyUser, notifyRole, emitSupportEvent } from "../services/socket.service.js";
+import { accountRestriction } from "../../../shared/accountAccess.js";
 
 /**
  * Access check helper:
@@ -30,7 +31,7 @@ export function hasConversationAccess(conversation, user) {
     if (!conversation || !user) return false;
     if (user.role === "Super Admin") return true;
     if (user.role === "Reseller" && String(conversation.reseller?._id || conversation.reseller) === String(user._id)) return true;
-    if (user.role === "User" && String(conversation.user?._id || conversation.user) === String(user._id)) return true;
+    if (String(conversation.user?._id || conversation.user) === String(user._id)) return true;
     return false;
 }
 
@@ -54,7 +55,11 @@ async function inboxConversations(conversations, viewer) {
 export async function getOrCreateConversation(req, res) {
     try {
         const user = req.user;
-        if (user.role !== "User") {
+        const recovery = req.body.accountAccess === true;
+        const restriction = recovery ? accountRestriction(user) : null;
+        if (recovery && !restriction) return res.status(400).json({ success: false, message: "Your account access has already been restored." });
+        const topic = recovery ? `account-${restriction}` : "general";
+        if (user.role !== "User" && !recovery) {
             return res.status(400).json({
                 success: false,
                 message: "Conversations can only be initiated by Users. Resellers and Admins respond to existing threads.",
@@ -62,16 +67,18 @@ export async function getOrCreateConversation(req, res) {
         }
 
         if (req.body.subject !== undefined && (typeof req.body.subject !== "string" || !req.body.subject.trim() || req.body.subject.trim().length > 150)) return res.status(400).json({ message: "Provide a subject up to 150 characters." });
+        const subject = recovery ? `Account ${restriction}` : (req.body.subject || "Customer Support").trim();
         // Determine assigned reseller from user record
-        let resellerId = user.resellerId;
+        let resellerId = user.role === "User" ? user.resellerId : null;
         if (!resellerId) {
-            const admin = await userModel.findOne({ role: "Super Admin", status: "active" });
+            const admin = await userModel.findOne({ role: "Super Admin", status: "active", _id: { $ne: user._id } });
             resellerId = admin ? admin._id : null;
         }
 
         if (!resellerId) return res.status(503).json({ message: "No support administrator is available. Please contact your account manager." });
         let conversation = await supportConversationModel.findOne({
             user: user._id,
+            topic: recovery ? topic : { $nin: ["account-expired", "account-blocked"] },
             status: { $in: ["open", "reopened"] },
         }).populate("reseller", "username email dp_img role");
 
@@ -80,13 +87,14 @@ export async function getOrCreateConversation(req, res) {
             conversation = await supportConversationModel.create({
                 user: user._id,
                 reseller: resellerId,
-                subject: (req.body.subject || "Customer Support").trim(),
+                subject,
+                topic,
                 status: "open",
                 events: [
                     {
                         eventType: "created",
                         actor: user._id,
-                        actorRole: "User",
+                        actorRole: user.role,
                         note: "Conversation initiated by user",
                         timestamp: new Date(),
                     },
@@ -95,8 +103,8 @@ export async function getOrCreateConversation(req, res) {
             await conversation.populate("reseller", "username email dp_img role");
             isNew = true;
         } else if (conversation.nextSequenceNumber <= 1 && !conversation.latestActivity?.messageText) {
-            if (req.body.subject && req.body.subject.trim() && conversation.subject !== req.body.subject.trim()) {
-                conversation.subject = req.body.subject.trim();
+            if (conversation.subject !== subject) {
+                conversation.subject = subject;
                 await conversation.save();
             }
         }
@@ -126,7 +134,7 @@ export async function listConversations(req, res) {
         if (role === "User") {
             filter.user = _id;
         } else if (role === "Reseller") {
-            filter.reseller = _id;
+            filter.$or = [{ reseller: _id }, { user: _id }];
         } // Super Admin has universal access
 
         // Clean up stale abandoned empty drafts in background

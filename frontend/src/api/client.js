@@ -33,8 +33,8 @@ apiClient.interceptors.response.use(
         // A timeout or server error can occur after commit. Retain the request
         // reference so retrying returns its receipt instead of moving credits twice.
         if (error.response?.status >= 400 && error.response.status < 500 && error.response.status !== 409) settleCreditRequest(error.config);
-        if (error.response?.data?.isAccountExpired) {
-            window.dispatchEvent(new CustomEvent("auth:expired", {
+        if (error.response?.data?.isAccountExpired || error.response?.data?.isAccountBlocked) {
+            window.dispatchEvent(new CustomEvent("auth:access-changed", {
                 detail: error.response.data,
             }));
         }

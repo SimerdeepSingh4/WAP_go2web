@@ -5,6 +5,7 @@ import sessionModel from "../models/session.model.js";
 import userModel from "../models/user.model.js";
 import { auditAuthenticatedRequest, auditContext } from "../services/audit.service.js";
 import { randomUUID } from "node:crypto";
+import { accountRestriction, allowsRestrictedRequest } from "../../../shared/accountAccess.js";
 
 /**
  * Role hierarchy levels:
@@ -84,27 +85,19 @@ export async function protect(req, res, next) {
             });
         }
 
-        if (user.status === "blocked" && !decoded.isPreview) {
-            return res.status(403).json({
-                message: "User account is blocked.",
-                success: false,
-                isAccountBlocked: true,
-            });
-        }
-
         const accountExpired = user.status === "expired" || Boolean(
             user.expiresAt && new Date(user.expiresAt) <= new Date()
         );
-        const isAuthRefresh = req.method === "GET" &&
-            req.baseUrl === "/api/auth" && req.path === "/me";
-        const isPreviewExit = req.method === "POST" && decoded.isPreview &&
-            req.baseUrl === "/api/users" && req.path === "/exit-preview";
-
-        if (accountExpired && !decoded.isPreview && !isAuthRefresh && !isPreviewExit) {
+        const restriction = decoded.isPreview ? null : accountRestriction(user);
+        if (restriction && !allowsRestrictedRequest(req)) {
             return res.status(403).json({
-                message: "Your account has expired. Contact your account manager.",
+                message: `Your account is ${restriction}. Your dashboard is read-only. Contact your administrator to restore access.`,
                 success: false,
-                isAccountExpired: true,
+                isAccountReadOnly: true,
+                isAccountBlocked: restriction === "blocked",
+                isAccountExpired: restriction === "expired",
+                status: user.status,
+                accessReason: user.accessReason || "",
                 expiresAt: user.expiresAt,
             });
         }
@@ -113,6 +106,7 @@ export async function protect(req, res, next) {
         req.session = session;
         req.token = token;
         req.accountExpired = accountExpired;
+        req.accountReadOnly = Boolean(restriction);
         req.isPreview = !!decoded.isPreview;
         req.isImpersonation = !!decoded.isImpersonation;
         req.originalAdmin = decoded.originalAdmin || null;

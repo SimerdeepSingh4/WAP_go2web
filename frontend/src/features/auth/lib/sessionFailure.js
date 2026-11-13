@@ -3,6 +3,5 @@
 export function isSessionRejection(error, authCheck = false) {
   const status = error.response?.status;
   const data = error.response?.data;
-  return (status === 401 && (authCheck || data?.isLoggedOut === true))
-    || (status === 403 && data?.isAccountBlocked === true);
+  return status === 401 && (authCheck || data?.isLoggedOut === true);
 }

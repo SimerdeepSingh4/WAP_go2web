@@ -564,23 +564,26 @@ export default function ResellerUsers() {
       {modal?.type === "accountAccess" && (
         <ResellerActionForm
           title="Manage account access"
-          description={`Set ${modal.account.username}'s account status and optional expiry date. Expired users can sign in only to see the expiry notice.`}
+          description={`Set ${modal.account.username}'s account status and expiry date. Blocked and expired accounts keep read-only dashboard access.`}
           action="accountAccess"
           successMessage="Account access updated successfully"
           onClose={() => setModal(null)}
           initialValues={{
             status: modal.account.status === "expired" || (modal.account.isExpired && modal.account.status === "active") ? "expired" : modal.account.status || "active",
+            accessReason: modal.account.accessReason || "",
             expiresAt: modal.account.expiresAt ? new Date(modal.account.expiresAt).toISOString().slice(0, 10) : "",
           }}
           fields={[
             { key: "status", label: "Account status", options: [{ value: "active", label: "Active" }, { value: "blocked", label: "Blocked" }, { value: "expired", label: "Expired" }] },
+            { key: "accessReason", label: "Reason shown to this account (optional)", type: "textarea", maxLength: 1000, hint: "The account holder can view this reason." },
             { key: "expiresAt", label: "Account expiry date (optional)", type: "date", hint: "The account remains active through this date. Leave blank for no expiry." },
           ]}
-          payload={(values) => ({ id: modal.account._id, status: values.status, expiresAt: values.expiresAt || null })}
+          payload={(values) => ({ id: modal.account._id, status: values.status, expiresAt: values.expiresAt || null, accessReason: (values.accessReason || "").trim() })}
           review={(values) => (
             <>
               <p className="font-medium">{modal.account.username}</p>
               <p>Status: <strong>{values.status}</strong></p>
+              {values.accessReason && <p>Reason: {values.accessReason}</p>}
               <p>Expiry: <strong>{values.expiresAt || "No expiry"}</strong></p>
             </>
           )}

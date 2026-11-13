@@ -14,6 +14,9 @@ import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarGroup, 
 import { toast } from "@/components/ui/toast";
 import PreviewBanner from "@/components/guards/PreviewBanner";
 import { useAppTour } from "@/features/tour/hooks/useAppTour";
+import { ReadOnlyContext } from "@/features/auth/context/read-only.context";
+import { accountRestriction } from "../../../../../shared/accountAccess.js";
+import AccountAccessBanner from "@/features/auth/components/AccountAccessBanner";
 
 const rolePaths = { "Super Admin": "/admin", Reseller: "/reseller", User: "/user" };
 const navigation = {
@@ -134,6 +137,19 @@ export default function DashboardLayout({ role }) {
   const { user, logout, isLoggingOut } = useAuth();
   const { startTour, hasTour } = useAppTour(role, user?._id || user?.id);
   const [open, setOpen] = useState(true);
+  const { pathname } = useLocation();
+  const restriction = accountRestriction(user);
+  const readOnly = Boolean(restriction) && !pathname.endsWith("/support");
+  const showReadOnlyNotice = () => toast.add({ title: `Your account is ${restriction}. Contact your admin to restore access.`, type: "error" });
+  function blockReadOnlyAction(event) {
+    const control = event.target.closest("button, [role=button], [data-slot=button], input[type=submit], input[type=file]");
+    const actionLink = event.target.closest("a[href]");
+    const writeLink = actionLink && /\/(?:create|new|edit)(?:[/?#]|$)|[?&]request=/.test(actionLink.getAttribute("href"));
+    if ((!control && !writeLink) || control?.dataset.readonlySafe === "true") return;
+    event.preventDefault();
+    event.stopPropagation();
+    showReadOnlyNotice();
+  }
   const base = rolePaths[role];
   const items = navigation[role];
 
@@ -203,7 +219,12 @@ export default function DashboardLayout({ role }) {
 
             </header>
             
-            <main id="dashboard-main" tabIndex={-1} className="portal-main"><Outlet /></main>
+            <AccountAccessBanner />
+            <main id="dashboard-main" tabIndex={-1} className="portal-main">
+              <ReadOnlyContext.Provider key={readOnly ? "restricted" : "editable"} value={readOnly ? { restriction, onBlocked: showReadOnlyNotice } : null}>
+                {readOnly ? <fieldset className="account-readonly-content" aria-label="Read-only dashboard" onClickCapture={blockReadOnlyAction} onSubmitCapture={event => { event.preventDefault(); event.stopPropagation(); showReadOnlyNotice(); }}><Outlet /></fieldset> : <Outlet />}
+              </ReadOnlyContext.Provider>
+            </main>
           </SidebarInset>
         </SidebarProvider>
       </TooltipProvider>

@@ -1,9 +1,13 @@
 import { cn } from "cn"
+import { useContext } from "react";
+import { ReadOnlyContext } from "@/features/auth/context/read-only.context";
 
 function Textarea({
   className,
+  disabled,
   ...props
 }) {
+  const readOnly = useContext(ReadOnlyContext);
   return (
     <textarea
       data-slot="textarea"
@@ -12,6 +16,7 @@ function Textarea({
         className
       )}
       {...props}
+      disabled={disabled || Boolean(readOnly?.restriction)}
     />
   )
 }

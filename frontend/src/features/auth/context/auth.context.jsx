@@ -37,6 +37,7 @@ export const AuthProvider = ({ children }) => {
         },
         retry: false,
         staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+        refetchInterval: 30000,
     });
 
     const user = authData ?? null;
@@ -111,16 +112,19 @@ export const AuthProvider = ({ children }) => {
         const handleAccountExpired = (event) => {
             queryClient.setQueryData(["authUser"], (current) => current ? ({
                 ...current,
-                isExpired: true,
-                expiresAt: event.detail?.expiresAt || current.expiresAt,
+                status: event.detail?.status || (event.detail?.isAccountBlocked ? "blocked" : "expired"),
+                isExpired: Boolean(event.detail?.isAccountExpired),
+                isBlocked: Boolean(event.detail?.isAccountBlocked),
+                accessReason: event.detail?.accessReason ?? current.accessReason,
+                expiresAt: event.detail?.expiresAt ?? current.expiresAt,
             }) : current);
         };
 
         window.addEventListener("auth:unauthorized", handleUnauthorized);
-        window.addEventListener("auth:expired", handleAccountExpired);
+        window.addEventListener("auth:access-changed", handleAccountExpired);
         return () => {
             window.removeEventListener("auth:unauthorized", handleUnauthorized);
-            window.removeEventListener("auth:expired", handleAccountExpired);
+            window.removeEventListener("auth:access-changed", handleAccountExpired);
         };
     }, [queryClient]);
 

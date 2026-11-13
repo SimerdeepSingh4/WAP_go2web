@@ -845,12 +845,13 @@ export default function Accounts({ role }) {
       {modal?.type === "accountAccess" && (
         <ActionForm
           title="Manage account access"
-          description={`Set ${modal.account.username}'s account status and optional expiry date. Expired users can sign in only to see the expiry notice.`}
+          description={`Set ${modal.account.username}'s account status and expiry date. Blocked and expired accounts keep read-only dashboard access.`}
           action="accountAccess"
           successMessage="Account access updated"
           onClose={() => setModal(null)}
           initialValues={{
             status: modal.account.status === "expired" || (modal.account.isExpired && modal.account.status === "active") ? "expired" : modal.account.status || "active",
+            accessReason: modal.account.accessReason || "",
             expiresAt: modal.account.expiresAt ? new Date(modal.account.expiresAt).toISOString().slice(0, 10) : "",
             maxVideoSizeMB: String(modal.account.maxVideoSizeMB ?? 9),
             allowCampaignDp: modal.account.featureAccess?.campaignDp === true,
@@ -859,6 +860,7 @@ export default function Accounts({ role }) {
           }}
           fields={[
             { key: "status", label: "Account status", options: [{ value: "active", label: "Active" }, { value: "blocked", label: "Blocked" }, { value: "expired", label: "Expired" }] },
+            { key: "accessReason", label: "Reason shown to this account (optional)", type: "textarea", maxLength: 1000, hint: "Explain why access is blocked or expired. The account holder can view this reason." },
             { key: "expiresAt", label: "Account expiry date (optional)", type: "date", hint: "The account remains active through this date. Leave blank for no expiry." },
             ...(role === "User" || role === "Reseller" ? [
               { key: "allowCampaignDp", label: "Share profile DP in campaigns", type: "checkbox", hint: "Allow this account's profile DP (from settings) to be shared in campaigns." },
@@ -869,6 +871,7 @@ export default function Accounts({ role }) {
           payload={(values) => ({
             id: modal.account._id,
             status: values.status,
+            accessReason: (values.accessReason || "").trim(),
             expiresAt: values.expiresAt || null,
             ...((role === "User" || role === "Reseller") ? { featureAccess: { campaignDp: values.allowCampaignDp, campaignNumber: values.allowCampaignNumber, campaignLink: values.allowCampaignLink } } : {}),
           })}
@@ -876,6 +879,7 @@ export default function Accounts({ role }) {
             <>
               <p className="font-medium">{modal.account.username}</p>
               <p>Status: <strong>{values.status}</strong></p>
+              {values.accessReason && <p>Reason: {values.accessReason}</p>}
               <p>Expiry: <strong>{values.expiresAt || "No expiry"}</strong></p>
               {(role === "User" || role === "Reseller") && <p>Share profile DP in campaigns: <strong>{values.allowCampaignDp ? "Allowed" : "Not allowed"}</strong></p>}
               {(role === "User" || role === "Reseller") && <p>Campaign number: <strong>{values.allowCampaignNumber ? "Allowed" : "Not allowed"}</strong></p>}

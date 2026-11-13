@@ -22,7 +22,7 @@ export async function emitSupportEvent(conversationId, event, payload) {
         if (!socket.rooms.has(room)) return;
         const user = socket.user;
         const allowed = user.role === "Super Admin" ||
-            (user.role === "User" && String(conversation.user) === String(user._id)) ||
+            String(conversation.user) === String(user._id) ||
             (user.role === "Reseller" && String(conversation.reseller) === String(user._id));
         if (!allowed) {
             socket.leave(room);
@@ -36,6 +36,30 @@ export async function emitSupportEvent(conversationId, event, payload) {
 const REVALIDATE_MS = 30_000;
 const VALIDATION_TIMEOUT_MS = 5_000;
 const expiryTimers = new WeakMap();
+const accountExpiryTimers = new WeakMap();
+
+function syncAccountAccess(socket, user) {
+    const isExpired = user.status === "expired" || Boolean(user.expiresAt && new Date(user.expiresAt).getTime() <= Date.now());
+    const access = { status: user.status, isBlocked: user.status === "blocked", isExpired, expiresAt: user.expiresAt || null, accessReason: user.accessReason || "" };
+    const key = JSON.stringify(access);
+    if (socket.data.accountAccessKey === key) return;
+    const changed = socket.data.accountAccessKey !== undefined;
+    socket.data.accountAccessKey = key;
+    clearTimeout(accountExpiryTimers.get(socket));
+    if (changed) socket.emit("ACCOUNT_ACCESS_CHANGED", access);
+    const remaining = user.expiresAt ? new Date(user.expiresAt).getTime() - Date.now() : 0;
+    if (remaining > 0) {
+        const timer = setTimeout(() => {
+            // Re-read the account in case the expiry was extended while waiting.
+            socket.data.accountAccessKey = undefined;
+            void checkConnectedSocket(socket).then(valid => {
+                if (valid) socket.emit("ACCOUNT_ACCESS_CHANGED", JSON.parse(socket.data.accountAccessKey));
+            });
+        }, Math.min(remaining, 2_147_483_647));
+        timer.unref();
+        accountExpiryTimers.set(socket, timer);
+    }
+}
 
 function endSocket(socket, reason = "Session access ended. Please sign in again.") {
     if (!socket.connected) return;
@@ -60,14 +84,15 @@ async function loadAccess(auth) {
     if (auth.userId) filter.userId = auth.userId;
     const session = await sessionModel.findOne(filter);
     if (!session) throw new Error("Session was revoked or expired.");
-    const user = await userModel.findById(session.userId).select("_id role resellerId status expiresAt");
-    if (!user || user.status !== "active" || (user.expiresAt && new Date(user.expiresAt).getTime() <= Date.now())) {
-        throw new Error("Account is unavailable, blocked or expired.");
+    const user = await userModel.findById(session.userId).select("_id role resellerId status expiresAt accessReason");
+    if (!user || !["active", "blocked", "expired"].includes(user.status)) {
+        throw new Error("Account is unavailable.");
     }
     if (auth.role !== undefined && (user.role !== auth.role || String(user.resellerId || "") !== auth.resellerId)) {
         throw new Error("Account permissions changed. Please sign in again.");
     }
-    const deadline = Math.min(auth.tokenExpiresAt, new Date(session.expiresAt).getTime(), user.expiresAt ? new Date(user.expiresAt).getTime() : Infinity);
+    // Account restrictions keep read access; only session/token expiry ends it.
+    const deadline = Math.min(auth.tokenExpiresAt, new Date(session.expiresAt).getTime());
     if (!Number.isFinite(deadline) || deadline <= Date.now()) throw new Error("Session expired.");
     return { user, session, deadline };
 }
@@ -90,6 +115,7 @@ async function checkConnectedSocket(socket) {
         const access = await boundedAccess(socket.data.auth);
         if (!socket.connected) return false;
         socket.user = access.user;
+        syncAccountAccess(socket, access.user);
         armExpiry(socket, access.deadline);
         return true;
     } catch {
@@ -241,7 +267,7 @@ export function initSocket(httpServer) {
                 const hasAccess =
                     user.role === "Super Admin" ||
                     (user.role === "Reseller" && String(conv.reseller) === String(user._id)) ||
-                    (user.role === "User" && String(conv.user) === String(user._id));
+                    String(conv.user) === String(user._id);
 
                 if (!hasAccess) {
                     if (typeof ack === "function") ack({ success: false, message: "Access denied" });
@@ -290,7 +316,7 @@ export function initSocket(httpServer) {
                 const hasAccess =
                     user.role === "Super Admin" ||
                     (user.role === "Reseller" && String(conv.reseller) === String(user._id)) ||
-                    (user.role === "User" && String(conv.user) === String(user._id));
+                    String(conv.user) === String(user._id);
 
                 if (!hasAccess) {
                     if (typeof ack === "function") ack({ success: false, message: "Access denied" });
@@ -317,6 +343,8 @@ export function initSocket(httpServer) {
         socket.on("disconnect", () => {
             clearTimeout(expiryTimers.get(socket));
             expiryTimers.delete(socket);
+            clearTimeout(accountExpiryTimers.get(socket));
+            accountExpiryTimers.delete(socket);
         });
     });
 
