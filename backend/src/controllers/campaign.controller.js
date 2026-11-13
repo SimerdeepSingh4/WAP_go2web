@@ -57,6 +57,61 @@ async function findCampaignForReport(req, id) {
     return { campaign };
 }
 
+export const downloadProfileDp = async (req, res) => {
+    try {
+        const campaign = await campaignModel.findById(req.params.id).select("profileDp userId").populate("userId", "dp_img resellerId");
+        if (!campaign) return res.status(404).json({ success: false, message: "Campaign not found." });
+
+        const ownsCampaign = String(campaign.userId?._id || campaign.userId) === String(req.user._id);
+        const isSuperAdmin = req.user.role === "Super Admin";
+        const isAssignedReseller = req.user.role === "Reseller" && String(campaign.userId?.resellerId || "") === String(req.user._id);
+        if (!ownsCampaign && !isSuperAdmin && !isAssignedReseller) {
+            return res.status(403).json({ success: false, message: "You cannot access this campaign." });
+        }
+
+        const dpUrl = campaign.profileDp || campaign.userId?.dp_img;
+        if (!dpUrl) return res.status(404).json({ success: false, message: "No profile picture available for this campaign." });
+
+        // dp_img can be a full Cloudinary URL or a local relative path like /uploads/profile-pictures/...
+        const isAbsolute = /^https?:\/\//i.test(dpUrl);
+        if (isAbsolute) {
+            // Fetch from Cloudinary / external URL
+            let parsedUrl;
+            try { parsedUrl = new URL(dpUrl); } catch {
+                console.error("Profile DP invalid URL:", dpUrl);
+                return res.status(400).json({ success: false, message: "Profile picture URL is invalid." });
+            }
+            if (!["http:", "https:"].includes(parsedUrl.protocol)) {
+                return res.status(400).json({ success: false, message: "Profile picture URL is not supported." });
+            }
+            const upstream = await fetch(dpUrl, { signal: AbortSignal.timeout(15000) });
+            if (!upstream.ok) return res.status(502).json({ success: false, message: "Could not retrieve profile picture." });
+            const contentType = upstream.headers.get("content-type") || "image/jpeg";
+            const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
+            const buffer = Buffer.from(await upstream.arrayBuffer());
+            res.setHeader("Content-Type", contentType);
+            res.setHeader("Content-Disposition", `attachment; filename="profile-dp.${ext}"`);
+            res.setHeader("Cache-Control", "private, no-store");
+            return res.send(buffer);
+        } else {
+            // Local file — serve directly from disk
+            const localPath = path.join(process.cwd(), dpUrl.startsWith("/") ? dpUrl.slice(1) : dpUrl);
+            if (!fs.existsSync(localPath)) {
+                return res.status(404).json({ success: false, message: "Profile picture file not found on server." });
+            }
+            const ext = path.extname(localPath).replace(".", "") || "jpg";
+            const mimeMap = { webp: "image/webp", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png" };
+            res.setHeader("Content-Type", mimeMap[ext] || "image/jpeg");
+            res.setHeader("Content-Disposition", `attachment; filename="profile-dp.${ext}"`);
+            res.setHeader("Cache-Control", "private, no-store");
+            return res.sendFile(localPath);
+        }
+    } catch (error) {
+        console.error("Profile DP download error:", error.message, "| URL:", error.cause ?? "");
+        return res.status(500).json({ success: false, message: "Failed to download profile picture." });
+    }
+};
+
 export const downloadCampaignDocument = async (req, res) => {
     try {
         const { id, documentId } = req.params;

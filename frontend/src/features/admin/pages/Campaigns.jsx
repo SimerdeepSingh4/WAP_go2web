@@ -3,7 +3,7 @@ import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { useSearchParams, Link } from "react-router";
 import { Popover } from "@base-ui/react/popover";
-import { MoreHorizontal, Eye, FileText, RefreshCw, CalendarDays, X, Trash2 } from "lucide-react";
+import { MoreHorizontal, Eye, FileText, RefreshCw, CalendarDays, X, Trash2, Download } from "lucide-react";
 import CampaignDeleteDialog from "@/features/campaigns/components/CampaignDeleteDialog";
 import { useAdminMutation } from "../hooks/useAdmin";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { PageHeading, QueryState, DataTable, StatusBadge } from "../../dashboard/components/shared";
 import { useAdminQuery } from "../hooks/useAdmin";
 import { number, dateTime, ownerName, needsReport, published, waiting } from "../../../lib/format";
+import { resolveUserImageUrl } from "@/features/accounts/lib/profileImage";
 import CampaignDetail from "../components/CampaignDetail";
 import UserAvatar from "@/features/accounts/components/UserAvatar";
 
@@ -128,10 +129,22 @@ export default function Campaigns({ reports = false }) {
       sort: (c) => ownerName(c.userId),
       render: (c) => (
         <div className="flex items-center gap-2">
-          <UserAvatar user={c.userId} className="size-8" />
+          <div className="relative shrink-0">
+            <UserAvatar user={c.userId} className="size-7" />
+            {(c.profileDp || c.userId?.dp_img) && (
+              <a
+                href={`/api/campaigns/${c._id}/profile-dp`}
+                download="profile-dp.jpg"
+                aria-label="Download profile picture"
+                title="Download DP"
+                className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm hover:text-foreground hover:bg-muted transition-colors"
+              >
+                <Download className="size-2.5" />
+              </a>
+            )}
+          </div>
           <div className="min-w-0">
-            <p className="max-w-40 truncate font-medium text-xs">{ownerName(c.userId)}</p>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">{c.userId?.role || "—"}</p>
+            <p className="truncate font-medium text-xs">{ownerName(c.userId)} · {c.userId?.role || "—"}</p>
           </div>
         </div>
       ),
