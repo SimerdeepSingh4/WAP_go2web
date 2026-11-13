@@ -162,22 +162,22 @@ export default function CampaignDetail({ id, initialReport, initialStatus, onClo
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <StatusBadge status={campaign.status} />
                     <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
-  <UserAvatar user={campaign.userId} className="size-8" />
-  {ownerName(campaign.userId)}
-  {campaign.profileDp || campaign.userId?.dp_img ? (
-    <a
-      href={campaign.profileDp || campaign.userId?.dp_img}
-      target="_blank"
-      rel="noreferrer"
-      aria-label="View profile picture"
-      title="View profile picture"
-      className="ml-2 flex items-center gap-1 text-muted-foreground hover:text-foreground"
-    >
-      <Download className="size-4" />
-      <span className="text-xs">DP</span>
-    </a>
-  ) : null}
-</span>
+                      <UserAvatar user={campaign.userId} className="size-8" />
+                      {ownerName(campaign.userId)}
+                      {campaign.profileDp || campaign.userId?.dp_img ? (
+                        <a
+                          href={campaign.profileDp || campaign.userId?.dp_img}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label="View profile picture"
+                          title="View profile picture"
+                          className="ml-2 flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                        >
+                          <Download className="size-4" />
+                          <span className="text-xs">DP</span>
+                        </a>
+                      ) : null}
+                    </span>
                   </div>
 
                   <dl className="text-sm divide-y">
@@ -203,7 +203,7 @@ export default function CampaignDetail({ id, initialReport, initialStatus, onClo
                       />
                     </div>
                     <CampaignMedia campaign={campaign} />
-                    <CampaignActionLinks link={campaign.campaignLink} phone={campaign.campaignNumber} />
+                    <CampaignActionLinks link={campaign.campaignLink} phone={campaign.campaignNumber} linkName={campaign.campaignLinkName} />
                   </section>
 
                   <CampaignRecipientReview key={campaign._id} campaign={campaign} />
@@ -531,4 +531,4 @@ export default function CampaignDetail({ id, initialReport, initialStatus, onClo
       )}
     </>
   );
-}
+} 

@@ -458,6 +458,7 @@ export const createCampaign = async (req, res) => {
             campaignDescription,
             campaignNumber,
             campaignLink,
+            campaignLinkName,
             templateId,
             messageBody,
             recipients: rawInputRecipients,
@@ -490,6 +491,7 @@ export const createCampaign = async (req, res) => {
         }
 
         const normalizedCampaignLink = typeof campaignLink === "string" ? campaignLink.trim() : "";
+        const normalizedCampaignLinkName = typeof campaignLinkName === "string" ? campaignLinkName.trim().slice(0, 150) : "";
         if (campaignLink != null && typeof campaignLink !== "string") {
             await mongoSession.abortTransaction();
             mongoSession.endSession();
@@ -814,6 +816,7 @@ export const createCampaign = async (req, res) => {
                     campaignDescription: campaignDescription || "",
                     campaignNumber: normalizedCampaignNumber,
                     campaignLink: normalizedCampaignLink,
+                    campaignLinkName: normalizedCampaignLink ? normalizedCampaignLinkName : "",
                     shareProfileDp: Boolean(shareProfileDp),
                     profileDp: shareProfileDp && req.user.dp_img ? req.user.dp_img : "",
                     templateId: templateId || null,

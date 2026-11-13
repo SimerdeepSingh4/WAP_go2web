@@ -69,20 +69,62 @@ export default function CampaignRecipientsTable({ campaign, trackedRows, focused
   const [pageSize, setPageSize] = useState(10);
   const [isExporting, setIsExporting] = useState(false);
   const [copiedNumber, setCopiedNumber] = useState(null);
+  const [copiedAll, setCopiedAll] = useState(false);
   const allRecipients = useMemo(() => buildCampaignContacts(campaign), [campaign]);
   const filtered = useMemo(() => allRecipients.filter((row) => focusedPhone ? row.phoneNumber.replace(/\D/g, "") === focusedPhone : row.phoneNumber.toLowerCase().includes(deferredSearch.trim().toLowerCase())), [allRecipients, deferredSearch, focusedPhone]);
   const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const current = Math.min(page, pages - 1);
   const start = current * pageSize;
   const rows = filtered.slice(start, start + pageSize);
+
   const copyNumber = async (phoneNumber) => {
     try {
-      await navigator.clipboard.writeText(phoneNumber);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(phoneNumber);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = phoneNumber;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
       setCopiedNumber(phoneNumber);
       setTimeout(() => setCopiedNumber(null), 1500);
       toast.add({ title: "Phone number copied", type: "success" });
     } catch { toast.add({ title: "Could not copy phone number", type: "error" }); }
   };
+
+  const copyAllNumbers = async () => {
+    const listToCopy = filtered.length ? filtered : allRecipients;
+    if (!listToCopy.length) return;
+    const numbersText = listToCopy.map((r) => r.phoneNumber).join("\n");
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(numbersText);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = numbersText;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      setCopiedAll(true);
+      setTimeout(() => setCopiedAll(false), 2000);
+      toast.add({
+        title: `${number(listToCopy.length)} phone ${listToCopy.length === 1 ? "number" : "numbers"} copied`,
+        type: "success",
+      });
+    } catch {
+      toast.add({ title: "Could not copy phone numbers", type: "error" });
+    }
+  };
+
   const download = async () => {
     setIsExporting(true);
     try {
@@ -103,7 +145,31 @@ export default function CampaignRecipientsTable({ campaign, trackedRows, focused
           {!embedded && <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground"><Users className="size-4" /></span>}
           <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="text-sm font-semibold">{embedded ? "Recipients" : "Campaign contacts"}</h2><span className={embedded ? "text-xs font-normal text-muted-foreground tabular-nums" : "rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground tabular-nums"}>{number(allRecipients.length)}</span></div>{!embedded && <p className="mt-1 text-[11px] text-muted-foreground">Submitted contacts and published delivery status.</p>}</div>
         </div>
-        <div className="flex flex-wrap items-center gap-2"><RecipientActivityButton activity={inputAudit} /><Button type="button" variant={embedded ? "ghost" : "outline"} size="sm" disabled={isExporting || !allRecipients.length} onClick={download} className="gap-1.5 text-xs">{isExporting ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}Download Excel</Button></div>
+        <div className="flex flex-wrap items-center gap-2">
+          <RecipientActivityButton activity={inputAudit} />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={!allRecipients.length}
+            onClick={copyAllNumbers}
+            className="gap-1.5 text-xs"
+          >
+            {copiedAll ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}
+            {copiedAll ? "Copied all" : "Copy all numbers"}
+          </Button>
+          <Button
+            type="button"
+            variant={embedded ? "ghost" : "outline"}
+            size="sm"
+            disabled={isExporting || !allRecipients.length}
+            onClick={download}
+            className="gap-1.5 text-xs"
+          >
+            {isExporting ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
+            Download Excel
+          </Button>
+        </div>
       </header>
       <div className={`flex flex-wrap items-center justify-between gap-3 border-b border-border py-3 ${embedded ? "" : "bg-muted/15 px-4 sm:px-5"}`}>
         <div className="relative w-full sm:max-w-xs"><Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" /><Input type="search" aria-label="Search campaign contacts" placeholder="Search phone number..." value={focusedPhone || search} onChange={(event) => { onClearFocus?.(); setSearch(event.target.value); setPage(0); }} className="h-9 bg-background pl-9 text-xs" /></div>

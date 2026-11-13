@@ -52,7 +52,7 @@ export default function CampaignMessagePreview({
           </div>
         </div>
 
-        <CampaignActionLinks link={campaign.campaignLink} phone={campaign.campaignNumber} />
+        <CampaignActionLinks link={campaign.campaignLink} phone={campaign.campaignNumber} linkName={campaign.campaignLinkName} />
 
         <div className="flex flex-wrap items-start justify-between gap-2 text-[11px] leading-5 text-muted-foreground">
           <span className="tabular-nums shrink-0">
