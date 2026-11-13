@@ -94,15 +94,10 @@ export async function getOrCreateConversation(req, res) {
             });
             await conversation.populate("reseller", "username email dp_img role");
             isNew = true;
-            void notifyRole("Super Admin", "SUPPORT_CONVERSATION_UPDATED", { conversationId: conversation._id });
-
-            // Notify assigned reseller
-            if (resellerId) {
-                notifyUser(resellerId, "SUPPORT_CONVERSATION_CREATED", {
-                    conversationId: conversation._id,
-                    subject: conversation.subject,
-                    userId: user._id,
-                });
+        } else if (conversation.nextSequenceNumber <= 1 && !conversation.latestActivity?.messageText) {
+            if (req.body.subject && req.body.subject.trim() && conversation.subject !== req.body.subject.trim()) {
+                conversation.subject = req.body.subject.trim();
+                await conversation.save();
             }
         }
 
@@ -125,12 +120,21 @@ export async function listConversations(req, res) {
         const { role, _id } = req.user;
         const { status, isEscalated, page = 1, limit = 20 } = req.query;
 
-        const filter = {};
+        const filter = {
+            "latestActivity.messageText": { $exists: true, $ne: "" },
+        };
         if (role === "User") {
             filter.user = _id;
         } else if (role === "Reseller") {
             filter.reseller = _id;
         } // Super Admin has universal access
+
+        // Clean up stale abandoned empty drafts in background
+        void supportConversationModel.deleteMany({
+            "latestActivity.messageText": { $in: ["", null] },
+            nextSequenceNumber: { $lte: 1 },
+            createdAt: { $lt: new Date(Date.now() - 15 * 60 * 1000) },
+        }).catch(() => {});
 
         if (status && ["open", "resolved", "reopened"].includes(status)) {
             filter.status = status;
@@ -333,7 +337,20 @@ export async function sendMessage(req, res) {
         try {
             await emitSupportEvent(id, "SUPPORT_MESSAGE_RECEIVED", message);
             const payload = { conversationId: id };
-            await Promise.all([notifyUser(conversation.user, "SUPPORT_CONVERSATION_UPDATED", payload), notifyUser(conversation.reseller, "SUPPORT_CONVERSATION_UPDATED", payload), notifyRole("Super Admin", "SUPPORT_CONVERSATION_UPDATED", payload)]);
+            const isFirstMessage = updatedConversation.nextSequenceNumber === 2;
+            const notifyPromises = [
+                notifyUser(conversation.user, "SUPPORT_CONVERSATION_UPDATED", payload),
+                notifyUser(conversation.reseller, "SUPPORT_CONVERSATION_UPDATED", payload),
+                notifyRole("Super Admin", "SUPPORT_CONVERSATION_UPDATED", payload),
+            ];
+            if (isFirstMessage && conversation.reseller) {
+                notifyPromises.push(notifyUser(conversation.reseller, "SUPPORT_CONVERSATION_CREATED", {
+                    conversationId: id,
+                    subject: conversation.subject,
+                    userId: conversation.user,
+                }));
+            }
+            await Promise.all(notifyPromises);
         } catch (error) { console.error("Support delivery:", error.message); }
         return res.status(201).json({ success: true, data: sanitizeMessage(message, user.role) });
     } catch (error) {
@@ -531,7 +548,9 @@ export async function getAdminInbox(req, res) {
         }
 
         const { filter = "escalated", page = 1, limit = 25 } = req.query;
-        const query = {};
+        const query = {
+            "latestActivity.messageText": { $exists: true, $ne: "" },
+        };
 
         if (filter === "escalated") {
             query["escalation.isEscalated"] = true;
