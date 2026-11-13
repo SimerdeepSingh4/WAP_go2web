@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { toast } from "@/components/ui/toast";
 import { PageHeading, QueryState, SearchBox, DataTable, Pager } from "../../dashboard/components/shared";
 import { useAdminQuery, useAdminMutation } from "../hooks/useAdmin";
-import { number, dateTime } from "../../../lib/format";
+import { dateTime } from "../../../lib/format";
 import api from "@/api/client";
 import { useSearchParams } from "react-router";
 import { useContactFolderPage, useContactFolderDetail } from "../hooks/useContactFolders";

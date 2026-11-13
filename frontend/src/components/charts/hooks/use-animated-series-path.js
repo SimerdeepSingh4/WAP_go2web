@@ -78,6 +78,8 @@ export function useAnimatedSeriesPath({
     settledYScale,
     dataKey,
     curve,
+    targetPoints,
+    settledYDomainKey,
   });
   // Synced in a layout effect declared before the tween effect (not during
   // render) so `renderFrame(0)` and every animation frame see this commit's
@@ -91,6 +93,8 @@ export function useAnimatedSeriesPath({
       settledYScale,
       dataKey,
       curve,
+      targetPoints,
+      settledYDomainKey,
     };
   });
   const computeLatestTarget = (settled = false) => {
@@ -121,6 +125,7 @@ export function useAnimatedSeriesPath({
   // otherwise the new target flashes for a frame before the tween starts.
   // biome-ignore lint/correctness/useExhaustiveDependencies: scales/targets are read live via latestRef; only a new data signature should restart the tween
   useLayoutEffect(() => {
+    const { targetPoints, settledYDomainKey, curve } = latestRef.current;
     const dataChanged = prevDataSignatureRef.current !== dataSignature;
     prevDataSignatureRef.current = dataSignature;
     const yDomainChanged =

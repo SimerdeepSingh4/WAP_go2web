@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
 import { FormError } from "@/features/dashboard/components/shared";
-import { Sparkles, Calendar, Check, Globe, AlertCircle, Clock } from "lucide-react";
-import { dateTime } from "@/lib/format";
+import { Sparkles, Check, Globe, Clock } from "lucide-react";
 
 export default function WhiteLabelAccessDialog({ open, onClose, account, onSuccess }) {
   const queryClient = useQueryClient();

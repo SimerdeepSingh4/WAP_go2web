@@ -1,5 +1,4 @@
-// biome-ignore-all lint/correctness/useExhaustiveDependencies: usePathStrokeMetrics intentionally accepts caller-controlled deps
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function findPathLengthAtX(path, pathLength, targetX) {
   if (!path || pathLength === 0) {
@@ -43,9 +42,20 @@ export function usePathStrokeMetrics(
   enabled = true
 ) {
   const [metrics, setMetrics] = useState(EMPTY_METRICS);
+  const measuredInputs = useRef(null);
 
+  // Callers supply the current inputs as an array. Compare its members before
+  // measuring so a newly allocated list does not trigger expensive DOM work.
   useEffect(() => {
     const path = pathRef.current;
+    const inputs = [enabled, path, ...deps];
+    const previous = measuredInputs.current;
+    if (
+      previous &&
+      previous.length === inputs.length &&
+      inputs.every((value, index) => Object.is(value, previous[index]))
+    ) return;
+    measuredInputs.current = inputs;
     if (!(enabled && path)) {
       return;
     }
@@ -56,7 +66,7 @@ export function usePathStrokeMetrics(
         ? prev
         : { pathD: d, pathLength: len }
     );
-  }, [enabled, ...deps]);
+  }, [pathRef, enabled, deps]);
 
   return metrics;
 }

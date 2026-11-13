@@ -63,7 +63,7 @@ export default function CreateCampaignPage() {
   const [shareProfileDp, setShareProfileDp] = useState(false);
   const [messageBody, setMessageBody] = useState("");
   const recipientTracking = useRecipientTracking();
-  const { rawRecipients, change: setRawRecipients, audit: recipientAudit } = recipientTracking;
+  const { rawRecipients, change: setRawRecipients, audit: recipientAudit, restore: restoreRecipients } = recipientTracking;
   const [scheduleType, setScheduleType] = useState("now"); // "now" | "later"
   const [scheduledTime, setScheduledTime] = useState("");
   const [formError, setFormError] = useState("");
@@ -89,7 +89,7 @@ export default function CreateCampaignPage() {
         setCampaignNumber(draft.campaignNumber || "");
         setShareProfileDp(draft.shareProfileDp === true);
         setMessageBody(draft.messageBody || "");
-        recipientTracking.restore(draft.rawRecipients || "", draft.recipientTracking);
+        restoreRecipients(draft.rawRecipients || "", draft.recipientTracking);
         setScheduleType(draft.scheduleType || "now");
         setScheduledTime(draft.scheduledTime || "");
         const restoredMedia = { image: null, video: null, pdf: null };
@@ -113,7 +113,7 @@ export default function CreateCampaignPage() {
     });
 
     return () => { active = false; };
-  }, [draftKey]);
+  }, [draftKey, restoreRecipients]);
 
   // Revoke object URLs when replaced or on unmount
   useEffect(() => () => { if (media.image?.preview) URL.revokeObjectURL(media.image.preview); }, [media.image]);

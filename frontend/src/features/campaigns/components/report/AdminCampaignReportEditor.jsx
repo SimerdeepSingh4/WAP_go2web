@@ -1,5 +1,5 @@
 import CampaignReference from "@/features/campaigns/components/CampaignReference";
-﻿import { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, CheckCircle2, Loader2, Pencil, RefreshCw } from "lucide-react";

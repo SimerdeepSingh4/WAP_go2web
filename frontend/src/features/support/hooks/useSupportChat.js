@@ -42,7 +42,7 @@ export function useSupportChat(conversationId, currentUser) {
     }).catch(error => {
       if (!controller.signal.aborted && revision === generation.current) setState(previous => ({ ...previous, loading: false, error }));
     });
-    return () => { controller.abort(); ++generation.current; activeId.current = null; };
+    return () => { controller.abort(); generation.current = revision + 1; activeId.current = null; };
   }, [conversationId, accountId, reload]);
 
   useEffect(() => {

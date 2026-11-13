@@ -1,8 +1,8 @@
-import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
+import { createContext, useContext, useEffect, useCallback, useMemo } from "react";
 import { resolveBranding } from "../services/branding.api.js";
 import { applyBrandingToDOM } from "../lib/themeHelper";
 import { useAuthContext } from "@/features/auth/context/auth.context.jsx";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const DEFAULT_BRANDING = {
     isWhiteLabeled: false,
@@ -26,8 +26,6 @@ export function BrandingProvider({ children }) {
     const queryClient = useQueryClient();
     const auth = useAuthContext();
     const user = auth?.user;
-    const [subdomainBranding, setSubdomainBranding] = useState(null);
-    const [isLoading, setIsLoading] = useState(true);
 
     const detectSubdomain = useCallback(() => {
         if (typeof window === "undefined") return null;
@@ -58,28 +56,27 @@ export function BrandingProvider({ children }) {
         return null;
     }, []);
 
-    const fetchBranding = useCallback(async () => {
-        try {
-            const subdomain = detectSubdomain();
-            if (subdomain) {
-                const res = await resolveBranding({ subdomain });
-                if (res) {
-                    setSubdomainBranding(res);
-                }
-            } else {
-                setSubdomainBranding(null);
+    const subdomain = detectSubdomain();
+    const { data: subdomainBranding = null, isPending, refetch } = useQuery({
+        queryKey: ["subdomain-branding", subdomain],
+        enabled: Boolean(subdomain),
+        queryFn: async () => {
+            try {
+                return await resolveBranding({ subdomain }) || null;
+            } catch (err) {
+                console.warn("Could not resolve subdomain branding:", err);
+                return null;
             }
-        } catch (err) {
-            console.warn("Could not resolve subdomain branding:", err);
-            setSubdomainBranding(null);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [detectSubdomain]);
-
-    useEffect(() => {
-        fetchBranding();
-    }, [fetchBranding]);
+        },
+        retry: false,
+        staleTime: Infinity,
+        refetchOnWindowFocus: false,
+    });
+    const isLoading = Boolean(subdomain && isPending);
+    const fetchBranding = useCallback(async () => {
+        if (subdomain) await refetch();
+        else queryClient.setQueryData(["subdomain-branding", subdomain], null);
+    }, [subdomain, refetch, queryClient]);
 
     // Compute effective branding:
     // Priority:
@@ -125,12 +122,12 @@ export function BrandingProvider({ children }) {
                 whiteLabel: { ...current.whiteLabel, ...newBranding },
             } : current);
         }
-        setSubdomainBranding((prev) => ({
+        queryClient.setQueryData(["subdomain-branding", subdomain], (prev) => ({
             ...prev,
             ...newBranding,
             isWhiteLabeled: true,
         }));
-    }, [queryClient, user?.role, user?.whiteLabel?.isActive]);
+    }, [queryClient, user, subdomain]);
 
     const value = useMemo(
         () => ({

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { ShieldBan } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useBranding } from "@/features/branding/context/BrandingContext";

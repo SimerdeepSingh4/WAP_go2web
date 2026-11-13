@@ -11,7 +11,7 @@
  * Adapted for this project's JavaScript and shadcn theme tokens.
  */
 import { animate, motion, useMotionValue, useMotionValueEvent, useReducedMotion, useTransform } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 const range = (count, format) => Array.from({
   length: count
@@ -97,7 +97,7 @@ export default function WheelPicker({
   // column changed in the meantime, merging into that render's `value`
   // would undo it, so merge into the latest selection instead.
   const latestValue = useRef(value);
-  latestValue.current = value;
+  useLayoutEffect(() => { latestValue.current = value; }, [value]);
   const select = (columnId, optionValue) => {
     const current = latestValue.current;
     if (current[columnId] === optionValue) {
@@ -345,12 +345,9 @@ function WheelColumnView({
     goTo,
     clampIndex
   });
-  wheel.current = {
-    loop,
-    count,
-    goTo,
-    clampIndex
-  };
+  useLayoutEffect(() => {
+    wheel.current = { loop, count, goTo, clampIndex };
+  });
   useEffect(() => {
     const node = columnRef.current;
     if (!node) {

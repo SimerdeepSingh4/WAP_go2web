@@ -19,7 +19,7 @@ export default function NotificationBell({ base }) {
   const bell = useRef(null);
   const previousCount = useRef(null);
   useEffect(() => {
-    if (!query.data) return;
+    if (!query.isSuccess) return;
     const increased = previousCount.current !== null && count > previousCount.current;
     previousCount.current = count;
     if ((!increased && !attentionCount) || reduced) return;

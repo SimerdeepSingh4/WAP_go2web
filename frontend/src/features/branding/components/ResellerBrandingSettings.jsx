@@ -62,24 +62,25 @@ export default function ResellerBrandingSettings() {
   });
   const [error, setError] = useState("");
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [formBranding, setFormBranding] = useState(null);
+  const { primaryColor, secondaryColor, accentColor } = form;
 
   useEffect(() => {
     if (!branding?.enabled || branding.isExpired) return;
-    applyBrandColors(form);
+    applyBrandColors({ primaryColor, secondaryColor, accentColor });
     return () => applyBrandColors(branding);
-  }, [form.primaryColor, form.secondaryColor, form.accentColor, branding]);
+  }, [primaryColor, secondaryColor, accentColor, branding]);
 
-  useEffect(() => {
-    if (branding) {
-      setForm({
-        subdomain: branding.subdomain || "",
-        brandName: branding.brandName || "",
-        primaryColor: branding.primaryColor || "",
-        secondaryColor: branding.secondaryColor || "",
-        accentColor: branding.accentColor || "",
-      });
-    }
-  }, [branding]);
+  if (branding && branding !== formBranding) {
+    setFormBranding(branding);
+    setForm({
+      subdomain: branding.subdomain || "",
+      brandName: branding.brandName || "",
+      primaryColor: branding.primaryColor || "",
+      secondaryColor: branding.secondaryColor || "",
+      accentColor: branding.accentColor || "",
+    });
+  }
 
   const saveMutation = useMutation({
     mutationFn: updateResellerBranding,

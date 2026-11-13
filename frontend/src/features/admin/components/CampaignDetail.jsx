@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FileText, Pencil, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -53,21 +53,25 @@ export default function CampaignDetail({ id, initialReport, initialStatus, onClo
   const campaign = query.data?.data;
   const summary = campaign?.campaignSummary;
   const reported = campaign && published(campaign);
-  const operational = Boolean(campaign);
 
   const isFinalized = Boolean(
     campaign && ["stopped", "completed", "sent", "failed"].includes(campaign.status)
   );
 
-  useEffect(() => {
-    if (initialStatus && campaign) {
-      if (isFinalized) {
-        setShowWarningModal(true);
-      } else {
-        setAction("status");
-      }
+  const hasCampaign = Boolean(campaign);
+  const [appliedStatusRequest, setAppliedStatusRequest] = useState(null);
+  if (
+    !appliedStatusRequest ||
+    appliedStatusRequest.initialStatus !== initialStatus ||
+    appliedStatusRequest.hasCampaign !== hasCampaign ||
+    appliedStatusRequest.isFinalized !== isFinalized
+  ) {
+    setAppliedStatusRequest({ initialStatus, hasCampaign, isFinalized });
+    if (initialStatus && hasCampaign) {
+      if (isFinalized) setShowWarningModal(true);
+      else setAction("status");
     }
-  }, [initialStatus, Boolean(campaign), isFinalized]);
+  }
 
   const handleStatusClick = () => {
     if (isFinalized) {

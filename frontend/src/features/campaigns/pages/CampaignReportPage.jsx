@@ -1,9 +1,8 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import api from "@/api/client";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { Button } from "@/components/ui/button";
 import { number } from "@/lib/format";
 import { toast } from "@/components/ui/toast";
 
@@ -133,9 +132,11 @@ export default function CampaignReportPage() {
     setBaseline(snapshot(init.categories, init.adminNotes, init.status));
   }, [campaign, isAdmin]);
 
-  useEffect(() => {
+  const [loadedCampaign, setLoadedCampaign] = useState(null);
+  if (campaign && !isAdmin && campaign !== loadedCampaign) {
+    setLoadedCampaign(campaign);
     resetFromCampaign();
-  }, [resetFromCampaign]);
+  }
 
   const isDirty = useMemo(
     () => isAdmin && baseline !== "" && snapshot(categories, adminNotes, campaignStatus) !== baseline,

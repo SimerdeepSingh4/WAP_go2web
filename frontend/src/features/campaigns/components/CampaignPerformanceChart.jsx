@@ -1,4 +1,3 @@
-import React from "react";
 import { AreaChart, Area, XAxis, Grid, ReferenceArea, ChartTooltip } from "@/components/charts";
 import { curveNatural } from "d3-shape";
 
@@ -29,7 +28,6 @@ export default function CampaignPerformanceChart({
   primaryLabel = "Revenue",
   secondaryKey = "costs",
   secondaryLabel = "Costs",
-  formatValue = (val) => `$${Number(val).toLocaleString()}`,
   y1 = 14000,
   y2 = 19000,
 }) {

@@ -41,11 +41,13 @@ function fixture(url, method) {
   const path = new URL(url).pathname.replace(/^.*\/api/, '');
   const user = { ...(role === 'User' ? owner : reseller), role, id: role === 'User' ? 'user-1' : 'reseller-1', isPreview: preview, originalAdmin: preview ? { role: 'Super Admin' } : null };
   if (path === '/auth/me') return { user };
+  if (path === '/notifications') return { items: [], unreadCount: 0, attentionCount: 0 };
   if (method !== 'GET' && method !== 'OPTIONS') { mutations.push({ path, method }); return { success: true, message: 'Test server accepted the request', data: campaigns[0] }; }
   if (path === '/credits/balance') return { wallet: { balance: 1000, ratePerMsg: 2.5, isLocked: mode === 'locked', expiresAt: null } };
   if (path === '/users/me') return { user };
   if (path === '/users') return { users: mode === 'empty' ? [] : [owner, reseller, { ...reseller, _id: 'admin-1', role: 'Super Admin' }] };
   if (path === '/campaigns') return { data: mode === 'empty' ? [] : campaigns };
+  if (/^\/campaigns\/[^/]+\/tracked-numbers$/.test(path)) return { data: { rows: [], totalUserCampaigns: 1, baseline: true, submitted: true, username: owner.username } };
   if (path.startsWith('/campaigns/')) return { data: campaigns.find(c => path.endsWith(c._id)) || campaigns[0] };
   if (path === '/credits/transactions') return { transactions: mode === 'empty' ? [] : [{ _id: 'tx-1', type: 'ALLOCATE', amount: 1000, fromUser: reseller, toUser: owner, performedBy: reseller, balanceAfterTo: 1000, createdAt: '2026-11-03T06:00:00Z', notes: 'Test allocation' }], pagination: { total: mode === 'empty' ? 0 : 1, totalPages: 1 } };
   if (path === '/auth/sessions') return { sessions: [{ id: 'session-1', userAgent: 'Test browser on Windows', isCurrentDevice: true, ip: '127.0.0.1', createdAt: '2026-11-03T06:00:00Z' }, { id: 'session-2', userAgent: 'Test browser on mobile', isCurrentDevice: false }], activeCount: 2, maxAllowedDevices: 3 };
@@ -70,7 +72,7 @@ try {
     if (msg.method === 'Fetch.requestPaused') {
       const { requestId, request } = msg.params;
       try {
-        if (request.url.startsWith(origin)) { await send('Fetch.continueRequest', { requestId }); return; }
+        if (request.url.startsWith(origin) && !new URL(request.url).pathname.startsWith('/api/')) { await send('Fetch.continueRequest', { requestId }); return; }
         if (!request.url.includes('/api/')) { await send('Fetch.failRequest', { requestId, errorReason: 'BlockedByClient' }); return; }
         const isAuth = request.url.includes('/auth/me');
         if (mode === 'loading' && !isAuth) await delay(1200);
@@ -98,13 +100,13 @@ try {
   }
   async function check(name, fn) { try { await fn(); results.push({ name, passed: true }); } catch (error) { results.push({ name, passed: false, error: error.message }); failures.push(`${name}: ${error.message}`); } }
   const routes = {
-    'Super Admin': ['/admin', '/admin/campaigns', '/admin/reports', '/admin/resellers', '/admin/users', '/admin/administrators', '/admin/credits', '/admin/activity', '/admin/settings', '/admin/contacts', '/admin/campaigns/create'],
+    'Super Admin': ['/admin', '/admin/campaigns', '/admin/reports', '/admin/resellers', '/admin/users', '/admin/administrators', '/admin/credits', '/admin/activity', '/admin/settings', '/admin/contacts', '/admin/campaigns/campaign-0'],
     Reseller: ['/reseller', '/reseller/users', '/reseller/campaigns', '/reseller/reports', '/reseller/credits', '/reseller/activity', '/reseller/settings', '/reseller/campaigns/create'],
     User: ['/user', '/user/campaigns', '/user/credits', '/user/activity', '/user/settings', '/user/campaigns/create'],
   };
   for (const [r, paths] of Object.entries(routes)) {
     role = r;
-    for (const width of (process.argv.includes('--targeted') ? [768] : [320, 390, 768, 1280])) for (const path of (process.argv.includes('--targeted') ? paths.filter(p => p.endsWith('/create') || p.endsWith('/settings')) : paths)) await check(`${r} ${path} @${width}`, async () => {
+    for (const width of (process.argv.includes('--targeted') ? [768] : [320, 390, 768, 1280])) for (const path of (process.argv.includes('--targeted') ? paths.filter(p => p.endsWith('/create') || p.endsWith('/settings') || p === '/admin/campaigns/campaign-0') : paths)) await check(`${r} ${path} @${width}`, async () => {
       await navigate(path, width);
       const dimensions = await evaluate(`({width:innerWidth,scroll:document.documentElement.scrollWidth,heading:document.querySelector('h1')?.textContent,main:Boolean(document.querySelector('main')),errors:document.body.innerText.includes('Unexpected Application Error')})`);
       assert(dimensions.main && !dimensions.errors, 'Page failed to render');
@@ -127,7 +129,7 @@ try {
     await click('Back to edit'); assert.equal(await evaluate("document.querySelector('#title').value"), 'Review test'); await click('Review campaign');
     failSubmit = true; await click('Submit campaign'); await waitFor("document.body.innerText.includes('Test service unavailable')"); failSubmit = false; await click('Submit campaign'); await waitFor("location.pathname==='/user/campaigns'");
   });
-  await check('Credit request review and confirmation', async () => { await navigate('/user/credits?request=new',390); await setValue('#request-amount', '50'); await click('Review request'); await click('Submit request'); await waitFor("!document.querySelector('[role=dialog]')"); assert(mutations.some(m=>m.path==='/credits/request')); });
+  await check('Credit request review and confirmation', async () => { await navigate('/user/credits?request=new',390); await setValue('#request-amount', '50'); await click('Review request'); await click('Submit request'); await waitFor("!new URLSearchParams(location.search).has('request') && ![...document.querySelectorAll('[role=dialog]')].some(dialog => dialog.textContent.includes('Review credit request'))"); assert(mutations.some(m=>m.path==='/credits/request')); });
   for (const state of ['empty','error','loading']) await check(`${state} state`, async () => { mode=state; await navigate('/user/campaigns'); await waitFor(state==='empty'?"document.body.innerText.includes('No campaigns yet')":state==='error'?"document.body.innerText.includes('Unable to load')":"Boolean(document.querySelector('[aria-label=\"Loading records\"]'))"); });
   mode='normal';
   await check('Preview blocks submission', async () => { preview=true; await navigate('/user/campaigns/create'); assert(await evaluate("[...document.querySelectorAll('button')].find(b=>b.textContent.includes('Review campaign'))?.disabled")); preview=false; });

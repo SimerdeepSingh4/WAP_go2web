@@ -20,8 +20,14 @@ import "./support.css";
 const ACCEPT = "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,audio/wav,audio/x-wav,application/pdf,text/plain,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.pdf,.txt,.csv,.docx,.xlsx";
 const FILE_EXTENSION = /\.(jpe?g|png|webp|gif|mp4|mov|wav|pdf|txt|csv|docx|xlsx)$/i;
 
+// Called on submission only; keep the retry ID outside render calculations.
+function createClientMessageId() {
+  return window.crypto?.randomUUID?.() || `message-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 function ChatPanel({ conversationId, user, onChanged, onBack, onStart, onDeleted }) {
   const chat = useSupportChat(conversationId, user);
+  const { markRead } = chat;
   const location = useLocation();
   const navigate = useNavigate();
   const initialContext = user.role === "User" ? location.state?.supportDraft : null;
@@ -53,8 +59,8 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart, onDeleted
   const lastSequence = chat.messages.at(-1)?.sequenceNumber || 0;
   useLayoutEffect(() => {
     if (nearBottom.current && scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight;
-    if (nearBottom.current && !chat.loading) void chat.markRead();
-  }, [lastSequence, chat.messages.length, chat.loading, chat.markRead]);
+    if (nearBottom.current && !chat.loading) void markRead();
+  }, [lastSequence, chat.messages.length, chat.loading, markRead]);
   useLayoutEffect(() => {
     const snapshot = historyScroll.current, viewport = scroller.current;
     if (!snapshot || !viewport || chat.loadingOlder) return;
@@ -76,10 +82,10 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart, onDeleted
     return () => { observer.disconnect(); viewport.removeEventListener("scrollend", finishJump); };
   }, [conversationId]);
   useEffect(() => {
-    const visible = () => { if (nearBottom.current && !chat.loading) void chat.markRead(); };
+    const visible = () => { if (nearBottom.current && !chat.loading) void markRead(); };
     document.addEventListener("visibilitychange", visible);
     return () => document.removeEventListener("visibilitychange", visible);
-  }, [chat.markRead, chat.loading]);
+  }, [markRead, chat.loading]);
   const status = useMutation({ mutationFn: next => supportApi.updateStatus(conversationId, next), onSuccess: () => { void chat.refresh(); onChanged(); }, onError: error => toast.add({ title: error.message, type: "error" }) });
   const escalation = useMutation({ mutationFn: () => supportApi.requestEscalation(conversationId, reason.trim()), onSuccess: () => { setEscalating(false); setReason(""); void chat.refresh(); onChanged(); toast.add({ title: "Super Admin assistance requested", type: "success" }); }, onError: error => toast.add({ title: error.message, type: "error" }) });
   const deletion = useMutation({
@@ -112,14 +118,14 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart, onDeleted
     }
     uploadLock.current = false; if (alive.current) setUploading(false);
   }
-  async function send(event) {
+  async function handleSend(event) {
     event.preventDefault();
     if (blocked || deletion.isPending || chat.sending || uploading || submissionLock.current || (!messageText && !attachments.length)) return;
     if (messageText.length > SUPPORT_TEXT_LIMIT) { setSendError("Keep your message and references within 4,000 characters."); return; }
     submissionLock.current = true; setSendError("");
     const body = { text: messageText, attachmentIds: attachments.map(item => item._id) };
     const fingerprint = JSON.stringify(body);
-    const clientMessageId = retry.current?.fingerprint === fingerprint ? retry.current.id : (window.crypto?.randomUUID?.() || `message-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    const clientMessageId = retry.current?.fingerprint === fingerprint ? retry.current.id : createClientMessageId();
     retry.current = { fingerprint, id: clientMessageId };
     try {
       const message = await chat.sendMessage({ ...body, clientMessageId });
@@ -203,7 +209,7 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart, onDeleted
       {showLatest && <Button type="button" variant="outline" size="sm" className="support-jump-latest" onClick={jumpToLatest}><ArrowDown />Latest messages</Button>}
     </div>
     {sendError && <div className="support-error" role="alert"><AlertCircle /><span>{sendError}</span></div>}
-    <form onSubmit={send} className="support-composer">
+    <form onSubmit={handleSend} className="support-composer">
       {blocked && <p className="support-composer-notice">{user.isPreview ? "Messaging is unavailable in preview mode." : "Your account has expired. Messaging is unavailable."}</p>}
       {resolved && !blocked && <p className="support-composer-notice"><CheckCheck />Resolved. Sending a message will reopen this conversation.</p>}
       <div className="support-composer-box">

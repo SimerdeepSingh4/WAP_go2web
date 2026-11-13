@@ -303,15 +303,14 @@ const BarInner = memo(function BarInner({
       const categoryValue = barXAccessor(d);
       const bandPos = barScale(categoryValue) ?? 0;
 
-      let x = 0;
-      let y = 0;
+      let x;
+      let y;
       let barHeight;
       let barW;
 
       if (isHorizontal) {
         // Horizontal bars: category on y-axis, value on x-axis
         const valuePos = scale(value) ?? 0;
-        barW = valuePos; // Width is the value position (grows from left)
         barHeight = barWidth;
 
         if (stacked && stackOffsets) {

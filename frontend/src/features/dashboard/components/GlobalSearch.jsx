@@ -8,8 +8,12 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 
 export default function GlobalSearch() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const location = useLocation();
+  return <GlobalSearchInput key={`${user?.id || user?._id || "guest"}:${location.key}`} user={user} />;
+}
+
+function GlobalSearchInput({ user }) {
+  const navigate = useNavigate();
   const input = useRef(null);
   const wrapper = useRef(null);
   const popup = useRef(null);
@@ -36,7 +40,6 @@ export default function GlobalSearch() {
     const timer = setTimeout(() => setDebounced(term), 250);
     return () => clearTimeout(timer);
   }, [term]);
-  useEffect(() => { setOpen(false); setValue(""); setActive(-1); }, [location.key, accountId]);
   useEffect(() => {
     function outside(event) {
       if (!wrapper.current?.contains(event.target) && !popup.current?.contains(event.target)) setOpen(false);

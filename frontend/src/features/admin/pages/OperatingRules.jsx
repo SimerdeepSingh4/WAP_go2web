@@ -197,7 +197,7 @@ export default function OperatingRules() {
   }
 
   function onTabKeyDown(event, index) {
-    let next = index;
+    let next;
     if (["ArrowRight", "ArrowDown"].includes(event.key)) next = (index + 1) % TABS.length;
     else if (["ArrowLeft", "ArrowUp"].includes(event.key)) next = (index - 1 + TABS.length) % TABS.length;
     else if (event.key === "Home") next = 0;

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { emptyRecipientActivity, recordRecipientPaste, recordRecipientChange, restoreRecipientActivity, updateRecipientMarks, recipientMarkTokens, recipientNumberFlags } from "../lib/recipientInputAudit";
 
 export default function useRecipientTracking() {
@@ -6,7 +6,7 @@ export default function useRecipientTracking() {
   const current = useRef(state);
   const pastePending = useRef(false);
   const selection = useRef(null);
-  function commit(next) { current.current = next; setState(next); }
+  const commit = useCallback(next => { current.current = next; setState(next); }, []);
   function change(text) {
     text = text.replace(/\r\n?/g, "\n");
     const before = current.current;
@@ -22,11 +22,11 @@ export default function useRecipientTracking() {
     // A canceled or no-op paste must not suppress a later manual input.
     setTimeout(() => { pastePending.current = false; }, 0);
   }
-  function restore(text, saved) {
+  const restore = useCallback((text, saved) => {
     text = text.replace(/\r\n?/g, "\n");
     const flags = new Map(saved?.numberFlags || []);
     commit({ text, rows: recipientMarkTokens(text).map((row, index) => ({ ...row, source: flags.get(index + 1) === 2 ? "edited" : flags.get(index + 1) === 1 ? "manual" : saved?.hasPasted ? "pasted" : "unknown" })), sourceMemory: Array.isArray(saved?.sourceMemory) ? saved.sourceMemory : [], activity: restoreRecipientActivity(saved, text) });
-  }
+  }, [commit]);
   function appendFile(content) {
     const before = current.current;
     const text = (before.text ? before.text + "\n" + content : content).replace(/\r\n?/g, "\n");

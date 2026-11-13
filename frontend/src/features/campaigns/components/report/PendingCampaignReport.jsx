@@ -1,6 +1,6 @@
 import CampaignReference from "@/features/campaigns/components/CampaignReference";
 import SupportHelpButton from "@/features/support/components/SupportHelpButton";
-﻿import { Link } from "react-router";
+import { Link } from "react-router";
 import { ArrowLeft, Check, Clock, FileBarChart2, RefreshCw, RotateCcw, Users, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/features/dashboard/components/shared";
