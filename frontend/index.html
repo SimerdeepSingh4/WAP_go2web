@@ -1,10 +1,28 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="light">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/webp" href="https://res.cloudinary.com/dyfjy8kmv/image/upload/v1793689940/Navy_Blue_Bird_Chat_Logo_n0udpf.webp" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Promotion</title>
+    <script>
+      (function() {
+        try {
+          var key = "promotion-theme";
+          var preference = localStorage.getItem(key);
+          var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+          var isDark = preference === "dark" || (preference !== "light" && prefersDark);
+          var theme = isDark ? "dark" : "light";
+          document.documentElement.classList.remove("light", "dark");
+          document.documentElement.classList.add(theme);
+          document.documentElement.style.colorScheme = theme;
+        } catch (e) {
+          document.documentElement.classList.remove("dark");
+          document.documentElement.classList.add("light");
+          document.documentElement.style.colorScheme = "light";
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

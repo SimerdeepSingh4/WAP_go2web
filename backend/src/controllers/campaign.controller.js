@@ -21,6 +21,7 @@ import { campaignContactRows, restoreOriginalCampaignEntries } from "../../../sh
 import { sanitizeRecipientInputAudit } from "../helpers/recipient-input-audit.js";
 import { normalizeAccountPhone } from "../helpers/account-phone.js";
 import { campaignMediaCategory } from "../helpers/campaign-media.js";
+import { campaignRecipientError, campaignRecipientLines } from "../../../shared/campaignRecipients.js";
 
 const REPORT_CATEGORIES = [
     "whatsapp_successful",
@@ -467,7 +468,7 @@ export const createCampaign = async (req, res) => {
             try {
                 recipients = JSON.parse(recipients);
             } catch {
-                recipients = recipients.split(/[\n,;\t]+/).map((s) => s.trim()).filter(Boolean);
+                recipients = campaignRecipientLines(recipients).map(({ value }) => value);
             }
         }
         if (!Array.isArray(recipients) && recipients) {
@@ -511,6 +512,21 @@ export const createCampaign = async (req, res) => {
                 message: `${missingFields.join(", ")} ${missingFields.length === 1 ? "is" : "are"} required`,
                 missingFields,
                 success: false,
+            });
+        }
+
+        const invalidEntries = recipients.flatMap((recipient, index) => {
+            const message = campaignRecipientError(typeof recipient === "string" ? recipient : recipient?.phoneNumber);
+            return message ? [{ lineNumber: index + 1, message }] : [];
+        });
+        if (invalidEntries.length) {
+            await mongoSession.abortTransaction();
+            mongoSession.endSession();
+            return res.status(400).json({
+                success: false,
+                message: "Every recipient must contain exactly 12 digits, start with 91, and be entered one per line without spaces, commas or +.",
+                invalidCount: invalidEntries.length,
+                invalidEntries: invalidEntries.slice(0, 10),
             });
         }
 
@@ -657,14 +673,8 @@ export const createCampaign = async (req, res) => {
 
         for (const r of recipients) {
             const rawPhone = typeof r === "string" ? r : r.phoneNumber || "";
-            // Keep digits only
-            const clean = String(rawPhone).replace(/\D/g, "");
-
-            // International phone format validation (E.164: 10 to 15 digits)
-            if (clean.length < 10 || clean.length > 15) {
-                invalidList.push(String(rawPhone).trim());
-                continue;
-            }
+            // The entire batch was validated before media uploads or billing.
+            const clean = rawPhone;
 
             if (seenNumbers.has(clean)) {
                 duplicatesList.push(clean);

@@ -78,6 +78,7 @@ export const createContact = async (req, res) => {
             company: (company || "").trim(),
             tags: Array.isArray(tags) ? tags : typeof tags === "string" ? tags.split(",").map(t => t.trim()).filter(Boolean) : [],
             groupId: groupId || null,
+            savedToContacts: req.user.role === "Super Admin",
         }));
 
         const createdContacts = await contactModel.insertMany(docsToInsert);
@@ -190,6 +191,7 @@ export const importContactsFromFile = async (req, res) => {
         const duplicatesList = [];
         const invalidList = [];
         const docsToInsert = [];
+        const importedNumbers = new Set();
 
         // Check existing numbers for this user in target group to prevent duplicates
         const existingFilter = { userId: req.user._id };
@@ -208,6 +210,7 @@ export const importContactsFromFile = async (req, res) => {
             }
 
             // Duplicate in file
+            importedNumbers.add(cleanPhone);
             if (seenNumbersInFile.has(cleanPhone)) {
                 duplicatesList.push(cleanPhone);
                 continue;
@@ -243,6 +246,7 @@ export const importContactsFromFile = async (req, res) => {
                 tags,
                 customFields,
                 groupId: targetGroupId,
+                savedToContacts: req.user.role === "Super Admin",
             });
         }
 
@@ -251,6 +255,13 @@ export const importContactsFromFile = async (req, res) => {
         if (docsToInsert.length > 0) {
             const inserted = await contactModel.insertMany(docsToInsert, { ordered: false });
             insertedCount = inserted.length;
+        }
+
+        if (req.user.role === "Super Admin" && importedNumbers.size) {
+            await contactModel.updateMany(
+                { ...existingFilter, phoneNumber: { $in: [...importedNumbers] } },
+                { $set: { savedToContacts: true } },
+            );
         }
 
         // 6. Update Group totalContacts count
@@ -301,6 +312,10 @@ export const exportContactsToCSV = async (req, res) => {
 
         if (req.user.role === "Super Admin") {
             if (req.query.owned === "true") filter.userId = req.user._id;
+            if (req.query.saved === "true") {
+                filter.userId = req.user._id;
+                filter.$or = [{ adminSaved: true }, { savedToContacts: true }];
+            }
         } else if (req.user.role === "Reseller") {
             const clientUsers = await userModel.find({ resellerId: req.user._id }).select("_id");
             const clientIds = clientUsers.map((u) => u._id);
@@ -371,6 +386,10 @@ export const getContacts = async (req, res) => {
 
         if (req.user.role === "Super Admin") {
             if (req.query.owned === "true") filter.userId = req.user._id;
+            if (req.query.saved === "true") {
+                filter.userId = req.user._id;
+                filter.$or = [{ adminSaved: true }, { savedToContacts: true }];
+            }
         } else if (req.user.role === "Reseller") {
             const clientUsers = await userModel.find({ resellerId: req.user._id }).select("_id");
             const clientIds = clientUsers.map((u) => u._id);

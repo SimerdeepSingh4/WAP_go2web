@@ -56,6 +56,11 @@ export async function saveContactFolder(adminId, body = {}) {
         );
     }
     const existing = await contactModel.find({ groupId: folder._id }).select("phoneNumber").lean();
+    const selected = new Set(numbers);
+    const existingIds = existing.filter((contact) => selected.has(normalizeTrackedPhone(contact.phoneNumber))).map((contact) => contact._id);
+    if (existingIds.length) {
+        await contactModel.updateMany({ _id: { $in: existingIds }, userId: adminId }, { $set: { savedToContacts: true } });
+    }
     const seen = new Set(existing.map((contact) => normalizeTrackedPhone(contact.phoneNumber)));
     const pending = numbers.filter((number) => !seen.has(number));
     let addedCount = 0;
@@ -63,7 +68,7 @@ export async function saveContactFolder(adminId, body = {}) {
         try {
             const result = await contactModel.bulkWrite(pending.map((phoneNumber) => ({ updateOne: {
                 filter: { groupId: folder._id, phoneNumber },
-                update: { $setOnInsert: { userId: adminId, groupId: folder._id, phoneNumber, adminSaved: true } },
+                update: { $set: { savedToContacts: true }, $setOnInsert: { userId: adminId, groupId: folder._id, phoneNumber, adminSaved: true } },
                 upsert: true,
             } })), { ordered: false });
             addedCount = result.upsertedCount;

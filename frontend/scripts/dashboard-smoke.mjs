@@ -69,6 +69,9 @@ try {
     const msg = JSON.parse(e.data);
     if (msg.id) { const p = pending.get(msg.id); if (!p) return; clearTimeout(p.timeout); pending.delete(msg.id); msg.error ? p.reject(Error(msg.error.message)) : p.resolve(msg.result); return; }
     if (msg.method === 'Runtime.exceptionThrown') runtimeErrors.push(msg.params.exceptionDetails.exception?.description || msg.params.exceptionDetails.text);
+    if (msg.method === 'Page.javascriptDialogOpening' && msg.params.type === 'beforeunload') {
+      await send('Page.handleJavaScriptDialog', { accept: true });
+    }
     if (msg.method === 'Fetch.requestPaused') {
       const { requestId, request } = msg.params;
       try {
@@ -95,6 +98,7 @@ try {
     await send('Page.navigate', { url: target });
     await waitFor(`(location.href === ${JSON.stringify(target)} || ${JSON.stringify(path === '/admin' && role === 'User')} && location.pathname === '/user') && document.readyState !== 'loading'`);
     await waitFor("Boolean(document.querySelector('h1'))");
+    await waitFor("!document.querySelector('[data-tour-loading=\"true\"]')");
     if (mode !== 'loading') await waitFor("!document.querySelector('[aria-label=\"Loading records\"]')");
     await delay(120);
   }
@@ -119,13 +123,76 @@ try {
     console.log(`${r}: layout checks complete`);
   }
   role = 'User';
+  await check('Campaign foreground accents remain readable with dark and pale reseller colors in both themes', async () => {
+    await navigate('/user/campaigns/create'); await setValue('#recipients', '919876543210');
+    const contrast = await evaluate(`(() => {
+      const root = document.documentElement;
+      window.__campaignThemeSnapshot = {className:root.className,style:root.style.cssText,branded:root.dataset.branded};
+      const canvas = document.createElement('canvas'); canvas.width=canvas.height=1;
+      const context = canvas.getContext('2d', {willReadFrequently:true});
+      const pixel = () => [...context.getImageData(0,0,1,1).data].slice(0,3);
+      const fill = color => {context.fillStyle=color;context.fillRect(0,0,1,1);};
+      const rgb = color => {context.clearRect(0,0,1,1);fill(color);return pixel();};
+      const background = element => {const layers=[];for(let node=element;node;node=node.parentElement)layers.unshift(getComputedStyle(node).backgroundColor);context.clearRect(0,0,1,1);fill('#fff');layers.forEach(fill);return pixel();};
+      const luminance = values => {const [r,g,b]=values.map(v=>{v/=255;return v<=0.04045?v/12.92:((v+0.055)/1.055)**2.4;});return .2126*r+.7152*g+.0722*b;};
+      const selectors=['.campaign-cost-amount','.campaign-cost-icon','.campaign-form-section [data-slot="card-title"] > svg','[role="radio"][aria-checked="true"] svg','.campaign-cost-checklist li[data-complete="true"] small'];
+      const results=[];
+      for(const dark of [false,true]) for(const brand of ['#000000','#1f2937','#000080','#ffffff','#ffff00','#00875a']) {
+        root.classList.toggle('dark',dark);root.dataset.branded='true';root.style.setProperty('--brand-primary',brand);root.style.setProperty('--brand-secondary',brand);root.style.setProperty('--brand-accent',brand);root.style.setProperty('--brand-button-text',brand==='#ffffff'||brand==='#ffff00'?'#1f1a1a':'#fff');
+        for(const selector of selectors) {const element=document.querySelector(selector);if(!element)throw Error('Missing '+selector);const ink=luminance(rgb(getComputedStyle(element).color));const surface=luminance(background(element));results.push({dark,brand,selector,ratio:(Math.max(ink,surface)+.05)/(Math.min(ink,surface)+.05)});}
+      }
+      root.classList.add('dark');root.style.setProperty('--brand-primary','#1f2937');root.style.setProperty('--brand-button-text','#fff');document.querySelector('#create-summary').scrollIntoView({block:'center'});
+      return results;
+    })()`);
+    try {
+      assert(contrast.every(item=>item.ratio>=4.5), JSON.stringify(contrast.filter(item=>item.ratio<4.5)));
+      const shot=await send('Page.captureScreenshot',{format:'png'});await writeFile(join(output,'campaign-dark-brand.png'),Buffer.from(shot.data,'base64'));
+    } finally {
+      await evaluate("(()=>{const snapshot=window.__campaignThemeSnapshot;const root=document.documentElement;root.className=snapshot.className;root.style.cssText=snapshot.style;if(snapshot.branded===undefined)delete root.dataset.branded;else root.dataset.branded=snapshot.branded;delete window.__campaignThemeSnapshot;})()");
+    }
+  });
   await check('User detail is read-only', async () => { await navigate('/user/campaigns?campaign=campaign-0', 390); await waitFor("Boolean(document.querySelector('[role=dialog]'))"); const text=await evaluate('document.body.innerText'); assert(!text.includes('Change status') && !text.includes('Publish report')); });
   await check('Mobile navigation', async () => { await navigate('/user', 390); await evaluate("document.querySelector('[aria-label=\"Toggle navigation\"]').click()"); await waitFor("Boolean(document.querySelector('[role=dialog]'))"); await click('Campaigns'); await waitFor("location.pathname==='/user/campaigns'"); });
+  await check('Recipient input blocks extra digits, characters and invalid paste while allowing replacement and new lines', async () => {
+    await navigate('/user/campaigns/create'); await setValue('#recipients', '919876543210');
+    await evaluate("(()=>{const input=document.querySelector('#recipients');input.focus();input.setSelectionRange(input.value.length,input.value.length);})()");
+    await send('Input.insertText', {text:'3'});
+    assert.equal(await evaluate("document.querySelector('#recipients').value"), '919876543210');
+    await send('Input.insertText', {text:'A'});
+    assert.equal(await evaluate("document.querySelector('#recipients').value"), '919876543210');
+    const blocked = await evaluate("(()=>{const input=document.querySelector('#recipients');const clipboardData=new DataTransfer();clipboardData.setData('text/plain','+919876543211');const event=new ClipboardEvent('paste',{clipboardData,bubbles:true,cancelable:true});input.dispatchEvent(event);return event.defaultPrevented;})()");
+    assert(blocked, 'Invalid paste must be rejected');
+    await evaluate("document.querySelector('#recipients').setSelectionRange(11,12)"); await send('Input.insertText', {text:'9'});
+    assert.equal(await evaluate("document.querySelector('#recipients').value"), '919876543219');
+    await send('Input.insertText', {text:'\n919876543211'});
+    assert.equal(await evaluate("document.querySelector('#recipients').value"), '919876543219\n919876543211');
+  });
+  await check('Recipient prefix warnings and incomplete lines block review; invalid files keep the existing list', async () => {
+    await navigate('/user/campaigns/create'); await setValue('#title', 'Recipient validation');
+    await evaluate("(()=>{const e=document.querySelector('.ql-editor');e.innerHTML='<p>Validation test</p>';e.dispatchEvent(new Event('input',{bubbles:true}));})()");
+    const invalid = '91987654321\n449876543210';
+    await setValue('#recipients', invalid);
+    await waitFor("document.querySelector('#recipients-errors')?.innerText.includes('Line 2: Must start with 91')");
+    await click('Review campaign');
+    await waitFor("document.querySelector('#recipients').getAttribute('aria-invalid')==='true'");
+    assert.equal(await evaluate("document.querySelector('#recipients').value"), invalid);
+    const errors = await evaluate("document.querySelector('#recipients-errors').innerText");
+    assert(errors.includes('Line 1: Has 11 digits') && errors.includes('Line 2: Must start with 91'));
+    assert(!await evaluate("[...document.querySelectorAll('[role=dialog]')].some(dialog=>dialog.textContent.includes('Submit campaign'))"));
+    await evaluate("(()=>{const input=document.querySelector('[aria-label=\"Upload recipients file\"]');const files=new DataTransfer();files.items.add(new File(['+919876543210\\n919876543211,919876543212'],'recipients.csv',{type:'text/csv'}));input.files=files.files;input.dispatchEvent(new Event('change',{bubbles:true}));})()");
+    await waitFor("document.querySelector('#recipients-input-error')?.innerText.includes('Only digits are allowed')");
+    assert.equal(await evaluate("document.querySelector('#recipients').value"), invalid);
+    await setValue('#recipients', '919876543210\n919876543211'); await click('Review campaign');
+    await waitFor("[...document.querySelectorAll('[role=dialog]')].some(dialog=>dialog.textContent.includes('Submit campaign'))");
+    assert.equal(await evaluate("document.querySelector('#recipients').getAttribute('aria-invalid')"), 'false');
+    await click('Back to edit');
+  });
   await check('Campaign review, failed submit recovery, success redirect', async () => {
     await navigate('/user/campaigns/create'); await setValue('#title', 'Review test'); await setValue('#description', 'Test submission'); await setValue('#recipients', '919876543210\n919876543211');
     await evaluate("(()=>{const e=document.querySelector('.ql-editor');e.innerHTML='<p>Test message</p>';e.dispatchEvent(new Event('input',{bubbles:true}));})()");
-    await click('Review campaign'); await waitFor("Boolean(document.querySelector('[role=dialog]'))");
-    assert((await evaluate("document.querySelector('[role=dialog]').innerText")).includes('5 credits'), 'Review must use 2.5 credits per recipient');
+    await click('Review campaign'); await waitFor("Boolean(document.querySelector('.campaign-review-dialog'))");
+    const review = await evaluate("document.querySelector('.campaign-review-dialog').innerText");
+    assert(review.includes('5 credits'), `Review must charge 5 credits for two recipients: ${review}`);
     await click('Back to edit'); assert.equal(await evaluate("document.querySelector('#title').value"), 'Review test'); await click('Review campaign');
     failSubmit = true; await click('Submit campaign'); await waitFor("document.body.innerText.includes('Test service unavailable')"); failSubmit = false; await click('Submit campaign'); await waitFor("location.pathname==='/user/campaigns'");
   });

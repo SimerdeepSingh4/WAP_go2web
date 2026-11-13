@@ -47,6 +47,9 @@ const contactSchema = new mongoose.Schema(
             index: true,
         },
         adminSaved: { type: Boolean, default: false },
+        // Persistent provenance; adminSaved is cleared when leaving the
+        // per-folder unique index after a folder is deleted.
+        savedToContacts: { type: Boolean, default: false },
     },
     {
         timestamps: true,

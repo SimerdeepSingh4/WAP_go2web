@@ -1,5 +1,6 @@
 /* CRM-inspired neutral surfaces and emerald accents, shared by every role. */
-:root {
+:root,
+.light {
   color-scheme: light;
   --palette-teal: #00bc7d;
   --palette-mint: #a4f4cf;
@@ -14,6 +15,7 @@
   --popover: var(--card);
   --popover-foreground: var(--foreground);
   --primary: #00875a;
+  --primary-text: var(--primary);
   --primary-hover: #007a50;
   --primary-foreground: #ffffff;
   --secondary: #f5f5f5;
@@ -175,6 +177,8 @@
 /* Brand inputs drive the entire accent system, including portalled UI. */
 html[data-branded="true"] {
   --primary: var(--brand-primary);
+  /* Brand fills and readable foreground accents serve different purposes. */
+  --primary-text: color-mix(in srgb, var(--brand-primary) 30%, var(--foreground));
   --primary-hover: color-mix(in srgb, var(--brand-primary) 88%, #000);
   --primary-foreground: var(--brand-button-text);
   --brand-highlight: color-mix(in srgb, var(--brand-primary) 80%, #000);

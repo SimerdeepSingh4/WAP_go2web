@@ -1,3 +1,5 @@
+import { campaignRecipientError, campaignRecipientLines } from "../../../../../shared/campaignRecipients.js";
+
 // Keep estimates aligned with createCampaign in the existing server controller.
 export function campaignEstimate({ role, ratePerMsg, balance, recipients }) {
   const unlimited = role === "Super Admin";
@@ -7,23 +9,31 @@ export function campaignEstimate({ role, ratePerMsg, balance, recipients }) {
 }
 
 export function splitRecipientInput(raw) {
-  return raw.split(/[\r\n,;\t]+/).flatMap((value) => {
-    const trimmed = value.trim();
-    // Preserve spaces inside a formatted phone, but split a line containing
-    // several complete numbers instead of concatenating them into one number.
-    return trimmed.replace(/\D/g, "").length > 15 ? trimmed.split(/\s+/) : [trimmed];
-  }).filter(Boolean);
+  return campaignRecipientLines(raw).map(({ value }) => value);
+}
+
+// Editing permits incomplete numbers and any prefix, but never extra digits or
+// non-digit characters. Validate the whole edit so paste cannot truncate a phone.
+export function recipientEditError(raw) {
+  const lines = raw.split(/\r\n?|\n/);
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+    if (/[^0-9]/.test(line)) return { lineNumber: index + 1, message: "Only digits are allowed, with one number per line." };
+    if (line.length > 12) return { lineNumber: index + 1, message: "A number cannot contain more than 12 digits." };
+  }
+  return null;
 }
 
 export function parseRecipients(raw) {
   const valid = [], seen = new Set();
-  let invalidCount = 0, duplicatesCount = 0;
-  const tokens = splitRecipientInput(raw);
-  for (const token of tokens) {
-    const phone = token.replace(/\D/g, "");
-    if (phone.length < 10 || phone.length > 15) invalidCount++;
+  let duplicatesCount = 0;
+  const invalidEntries = [];
+  const lines = campaignRecipientLines(raw);
+  for (const { value: phone, lineNumber } of lines) {
+    const message = campaignRecipientError(phone);
+    if (message) invalidEntries.push({ lineNumber, message });
     else if (seen.has(phone)) duplicatesCount++;
     else { seen.add(phone); valid.push(phone); }
   }
-  return { validRecipients: valid, invalidCount, duplicatesCount, enteredCount: tokens.length };
+  return { validRecipients: valid, invalidCount: invalidEntries.length, invalidEntries, duplicatesCount, enteredCount: lines.length };
 }

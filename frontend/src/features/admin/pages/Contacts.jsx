@@ -39,7 +39,8 @@ export default function Contacts() {
   const [importResult, setImportResult] = useState(null);
   const fileInputRef = useRef(null);
 
-  const contactsQuery = useAdminQuery("contacts", { owned: "true", ...(activeFolderId ? { groupId: activeFolderId } : {}) }, !showingFolders);
+  const contactFilters = { owned: "true", ...(activeFolderId ? { groupId: activeFolderId } : { saved: "true" }) };
+  const contactsQuery = useAdminQuery("contacts", contactFilters, !showingFolders);
   const deleteMutation = useAdminMutation("deleteContact", "Contact removed", () => { setDeleting(null); queryClient.invalidateQueries({ queryKey: ["contact-folders"] }); });
   const deleteFolderMutation = useAdminMutation("deleteFolder", "Folder deleted", () => {
     if (activeFolderId === deletingFolder?._id) setParams({});
@@ -112,7 +113,7 @@ export default function Contacts() {
 
   const handleExportCSV = async () => {
     try {
-      const response = await api.get("/contacts/export", { responseType: "blob", params: { owned: "true", ...(activeFolderId ? { groupId: activeFolderId } : {}) } });
+      const response = await api.get("/contacts/export", { responseType: "blob", params: contactFilters });
       const blob = new Blob([response.data], { type: "text/csv;charset=utf-8;" });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");

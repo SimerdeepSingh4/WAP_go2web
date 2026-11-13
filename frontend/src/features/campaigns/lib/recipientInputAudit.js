@@ -19,9 +19,8 @@ export function restoreRecipientActivity(saved, text) {
 
 export function recipientMarkTokens(text) {
   const rows = [];
-  for (const chunk of text.matchAll(/[^\r\n,;\t]+/g)) {
-    const parts = chunk[0].replace(/\D/g, "").length > 15 ? [...chunk[0].matchAll(/\S+/g)] : [{ 0: chunk[0].trim(), index: chunk[0].search(/\S/) }];
-    for (const part of parts) if (part[0]) rows.push({ value: part[0], start: chunk.index + part.index, end: chunk.index + part.index + part[0].length });
+  for (const chunk of text.matchAll(/[^\r\n]+/g)) {
+    if (chunk[0].trim()) rows.push({ value: chunk[0], start: chunk.index, end: chunk.index + chunk[0].length });
   }
   return rows;
 }

@@ -16,7 +16,7 @@
 .campaign-dialog-header > div { min-width: 0; }
 .campaign-dialog-header [data-slot="dialog-title"] { margin-top: 3px; font-size: 17px; font-weight: 600; line-height: 1.4; letter-spacing: -0.35px; }
 .campaign-dialog-header [data-slot="dialog-description"] { margin-top: 6px; color: var(--muted-foreground); font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
-.campaign-dialog-icon { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; border: 1px solid var(--muted); border-radius: 11px; background: var(--background); color: var(--primary); }
+.campaign-dialog-icon { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; border: 1px solid var(--muted); border-radius: 11px; background: var(--background); color: var(--primary-text); }
 .campaign-dialog-icon svg { width: 18px; height: 18px; stroke-width: 1.7; }
 .campaign-dialog-footer { display: flex; flex-direction: row; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin: 0; border-top: 1px solid var(--muted); border-radius: 0; padding: 18px 0 0; background: transparent; }
 .campaign-dialog-footer [data-slot="button"] { height: auto; min-height: 40px; padding-inline: 15px; font-size: 12px; white-space: normal; }
@@ -35,12 +35,12 @@
 .campaign-schedule-field > label, .campaign-schedule-field > span { color: var(--foreground); font-size: 12px; font-weight: 550; }
 .campaign-schedule-field input { width: 100%; min-width: 0; height: 38px; background: var(--card); font-size: 13px; font-variant-numeric: tabular-nums; }
 .campaign-schedule-field > p { margin: 0; color: var(--muted-foreground); font-size: 10px; }
-.campaign-schedule-timezone { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--border); border-radius: 7px; padding: 9px 10px; background: var(--card); color: var(--primary); font-size: 11px; line-height: 1.5; }
+.campaign-schedule-timezone { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--border); border-radius: 7px; padding: 9px 10px; background: var(--card); color: var(--primary-text); font-size: 11px; line-height: 1.5; }
 .campaign-schedule-timezone > span { overflow-wrap: anywhere; }
 .campaign-schedule-timezone svg { width: 13px; height: 13px; flex-shrink: 0; color: var(--muted-foreground); }
 .campaign-schedule-footer { align-items: center; justify-content: space-between; }
 .campaign-schedule-footer-actions { display: flex; gap: 8px; flex-shrink: 0; }
-.campaign-schedule-summary { display: flex; min-width: 0; flex: 1 1 180px; align-items: flex-start; gap: 7px; margin: 0; color: var(--primary); font-size: 11px; line-height: 1.6; }
+.campaign-schedule-summary { display: flex; min-width: 0; flex: 1 1 180px; align-items: flex-start; gap: 7px; margin: 0; color: var(--primary-text); font-size: 11px; line-height: 1.6; }
 .campaign-schedule-summary svg { width: 13px; height: 13px; flex-shrink: 0; }
 .campaign-schedule-summary-invalid { color: var(--destructive); }
 .campaign-review-details { min-width: 0; overflow: hidden; margin: 0; border: 1px solid var(--muted); border-radius: 12px; }
@@ -51,9 +51,9 @@
 .campaign-review-details dt { color: var(--muted-foreground); font-size: 12px; line-height: 1.65; }
 .campaign-review-details dd { min-width: 0; margin: 0; color: var(--foreground); font-size: 12px; font-weight: 500; line-height: 1.65; text-align: right; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .campaign-review-details > div[data-highlight="true"] { background: var(--background); }
-.campaign-review-details > div[data-highlight="true"] dd { color: var(--primary); font-weight: 650; }
+.campaign-review-details > div[data-highlight="true"] dd { color: var(--primary-text); font-weight: 650; }
 .campaign-review-message { min-width: 0; border: 1px solid var(--background); border-radius: 11px; padding: 13px 15px; background: var(--background); }
-.campaign-review-message h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; color: var(--primary); font-size: 11px; font-weight: 550; }
+.campaign-review-message h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; color: var(--primary-text); font-size: 11px; font-weight: 550; }
 .campaign-review-message h3 svg { width: 13px; height: 13px; }
 .campaign-review-message p { max-height: 120px; overflow-y: auto; margin: 0; color: var(--muted-foreground); font-size: 12px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
 .campaign-review-note { display: flex; align-items: flex-start; gap: 7px; margin: 0; color: var(--muted-foreground); font-size: 11px; line-height: 1.7; }

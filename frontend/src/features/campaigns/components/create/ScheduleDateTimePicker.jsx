@@ -45,7 +45,7 @@ export default function ScheduleDateTimePicker({ value, onChange, invalid }) {
         }}
         className="h-auto min-h-12 w-full justify-start gap-3 px-3 py-2.5 text-left"
       >
-        <CalendarDays className="size-4 text-primary" />
+        <CalendarDays className="size-4 text-primary-text" />
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-medium">{validSelected ? selected.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" }) : "Choose date and time"}</span>
           <span className="block text-xs font-normal text-muted-foreground">{validSelected ? selected.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false }) : "Select a day and set the send time"}</span>

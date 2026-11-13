@@ -161,7 +161,7 @@ export default function CampaignMediaUploader({
         totalMediaCount > 0 && (
           <Badge
             variant="outline"
-            className="text-xs bg-primary/5 text-primary border-primary/20 tabular-nums"
+            className="text-xs bg-primary-text/5 text-primary-text border-primary-text/20 tabular-nums"
           >
             {totalMediaCount} attached
           </Badge>
@@ -201,7 +201,7 @@ export default function CampaignMediaUploader({
               type="checkbox"
               checked={Boolean(shareProfileDp)}
               onChange={(e) => onToggleShareProfileDp && onToggleShareProfileDp(e.target.checked)}
-              className="size-4 rounded border-input text-primary focus:ring-primary cursor-pointer"
+              className="size-4 rounded border-input text-primary-text focus:ring-primary cursor-pointer"
             />
             <span className="text-xs font-medium text-foreground select-none">
               Share DP

@@ -306,7 +306,7 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
           size="sm"
           nativeButton={false}
           render={<Link to={`${base}/campaigns`} />}
-          className="campaign-detail-back gap-1.5 text-xs text-muted-foreground"
+          className="campaign-detail-back gap-2 text-xs text-muted-foreground"
         >
           <ArrowLeft className="size-3.5" />
           Back to campaigns

@@ -35,14 +35,14 @@ export default function CampaignDeliverySettings({
                 onClick={() => onScheduleTypeChange(o.key)}
                 className={`flex items-start gap-2.5 p-3 rounded-lg border text-left cursor-pointer transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/20 ${
                   active
-                    ? "border-primary/40 bg-primary/[0.03]"
+                    ? "border-primary-text/70 bg-primary-text/[0.06]"
                     : "border-border bg-card hover:bg-muted/30"
                 }`}
               >
                 <div
                   className={`grid size-7 shrink-0 place-items-center rounded-md ${
                     active
-                      ? "bg-primary/10 text-primary"
+                      ? "bg-primary-text/10 text-primary-text"
                       : "bg-muted text-muted-foreground"
                   }`}
                 >

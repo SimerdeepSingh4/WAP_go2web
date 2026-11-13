@@ -167,6 +167,7 @@ export const deleteGroup = async (req, res) => {
 
         // Ungrouped numbers leave the per-folder unique index. This preserves
         // numbers shared by two folders when both folders are deleted.
+        await contactModel.updateMany({ groupId: group._id, adminSaved: true }, { $set: { savedToContacts: true } });
         await contactModel.updateMany({ groupId: group._id }, { $set: { groupId: null, adminSaved: false } });
         group.isDeleted = true;
         group.deletedAt = new Date();

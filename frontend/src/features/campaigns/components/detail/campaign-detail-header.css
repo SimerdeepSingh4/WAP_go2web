@@ -1,5 +1,5 @@
 .campaign-detail-heading { display:grid; min-width:0; gap:20px; }
-.campaign-detail-heading .campaign-detail-back { min-height:32px; height:auto; padding:4px 0; }
+.campaign-detail-heading .campaign-detail-back { min-height:32px; height:auto; padding:6px 12px; }
 .campaign-detail-heading-layout { display:flex; flex-wrap:wrap; align-items:flex-start; justify-content:space-between; gap:20px; }
 .campaign-detail-heading-copy { display:grid; flex:1 1 320px; min-width:0; gap:12px; }
 .campaign-detail-heading-copy h1 { margin:0; overflow-wrap:anywhere; line-height:1.3; }

@@ -67,6 +67,7 @@ export default function CreateCampaignPage() {
   const [scheduleType, setScheduleType] = useState("now"); // "now" | "later"
   const [scheduledTime, setScheduledTime] = useState("");
   const [formError, setFormError] = useState("");
+  const [validateRecipients, setValidateRecipients] = useState(false);
   const [dropActive, setDropActive] = useState(false);
   const [draftReady, setDraftReady] = useState(() => !draftKey);
   const draftSaveTimer = useRef(null);
@@ -145,7 +146,7 @@ export default function CreateCampaignPage() {
   const charCount = messageText.length;
   const isOverCharacterLimit = charCount > CHARACTER_LIMIT;
 
-  const { validRecipients, duplicatesCount, invalidCount, enteredCount } = useMemo(() => parseRecipients(rawRecipients), [rawRecipients]);
+  const { validRecipients, duplicatesCount, invalidCount, invalidEntries, enteredCount } = useMemo(() => parseRecipients(rawRecipients), [rawRecipients]);
   const totalRecipients = enteredCount;
   const estimate = campaignEstimate({ role: user?.role, ratePerMsg: wallet.ratePerMsg, balance: currentBalance, recipients: totalRecipients });
   const estimatedCost = estimate.cost;
@@ -161,7 +162,7 @@ export default function CreateCampaignPage() {
   const checks = [
     { ok: Boolean(campaignTitle.trim()), label: "Campaign title" },
     { ok: (Boolean(messageText) || totalMediaCount > 0) && !isOverCharacterLimit, label: "Message or attachment" },
-    { ok: validRecipients.length > 0, label: isAdmin ? "At least one valid recipient" : "Recipient numbers added" },
+    { ok: validRecipients.length > 0 && invalidCount === 0, label: "Valid recipient numbers" },
     { ok: Boolean(scheduleValid), label: scheduleType === "later" ? "Future schedule time" : "Delivery timing" },
     { ok: !hasInsufficientCredits && !isLocked, label: "Enough credits" },
   ];
@@ -251,8 +252,12 @@ export default function CreateCampaignPage() {
     reader.onload = (event) => {
       const content = event.target?.result;
       if (typeof content === "string") {
-        recipientTracking.appendFile(content);
-        toast.add({ title: "Numbers imported", description: file.name, type: "success" });
+        setValidateRecipients(true);
+        if (!recipientTracking.appendFile(content)) {
+          toast.add({ title: "File not added", description: "Use digits only and no more than 12 digits per line. Your existing numbers are unchanged.", type: "error" });
+          return;
+        }
+        toast.add({ title: "Recipients file loaded", description: file.name, type: "success" });
       }
     };
     reader.onerror = () => toast.add({ title: "Couldn't read that file", type: "error" });
@@ -293,6 +298,7 @@ export default function CreateCampaignPage() {
   const handleSubmit = (e) => {
     e.preventDefault();
     setFormError("");
+    setValidateRecipients(true);
     if (submitting.current || createCampaignMutation.isPending) return;
     if (user?.isPreview) return setFormError("Exit account preview to submit a campaign.");
     if (!isAdmin && !balanceQuery.isSuccess) return setFormError("Load your credit balance before continuing.");
@@ -316,7 +322,8 @@ export default function CreateCampaignPage() {
     if (!messageText && totalMediaCount === 0) return setFormError("Please provide message content or attach media (image, video, or PDF).");
     if (isOverCharacterLimit) return setFormError(`Message exceeds the maximum limit of ${CHARACTER_LIMIT} characters (currently ${charCount}). Please shorten it.`);
     if (/\{\{[\s\S]*?\}\}/.test(messageBody)) return setFormError("Dynamic variables like {{...}} are not allowed. Please enter static text only.");
-    if (validRecipients.length === 0) return setFormError("Please provide at least one valid recipient phone number.");
+    if (invalidCount > 0) return setFormError(`Correct ${invalidCount} invalid recipient ${invalidCount === 1 ? "line" : "lines"}. Every number must contain exactly 12 digits, start with 91, and be on its own line.`);
+    if (validRecipients.length === 0) return setFormError("Add at least one 12-digit recipient number starting with 91.");
     if (hasInsufficientCredits) return setFormError(`Insufficient credits. You need ${estimatedCost} credits but currently hold ${currentBalance}.`);
 
     const formData = new FormData();
@@ -461,10 +468,13 @@ export default function CreateCampaignPage() {
               readRecipientsFile(e.dataTransfer.files?.[0]);
             }}
             onReadFile={readRecipientsFile}
-            totalRecipients={totalRecipients}
+            totalRecipients={validRecipients.length}
             duplicatesCount={duplicatesCount}
             invalidCount={invalidCount}
-            showValidation={isAdmin}
+            invalidEntries={invalidEntries}
+            inputError={recipientTracking.inputError}
+            onBlur={() => setValidateRecipients(true)}
+            showValidation={validateRecipients}
           />
           <CampaignDeliverySettings
             scheduleType={scheduleType}

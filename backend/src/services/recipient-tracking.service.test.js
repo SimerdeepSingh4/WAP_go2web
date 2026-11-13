@@ -10,7 +10,7 @@ import contactModel from "../models/contact.model.js";
 import { campaignTracking, trackingCampaign } from "./recipient-tracking.service.js";
 import { saveContactFolder, saveCampaignContactFolder } from "./contact-folder.service.js";
 import { getGroups, getGroupById, deleteGroup } from "../controllers/group.controller.js";
-import { getContacts } from "../controllers/contact.controller.js";
+import { getContacts, createContact, importContactsFromFile, exportContactsToCSV } from "../controllers/contact.controller.js";
 import { normalizeTrackedPhone, parseTrackedPhones } from "../helpers/recipient-tracking.js";
 import { addTrackedNumbers, getTrackedNumbers, saveTrackedContacts, saveFolderContacts, updateTrackedNote } from "../controllers/recipient-tracking.controller.js";
 
@@ -49,9 +49,9 @@ before(async () => {
 
 after(async () => { await mongoose.disconnect(); await mongo?.stop(); });
 
-const invoke = async (handler, body = {}, user = admin, id = campaigns[4]._id.toString(), phoneNumber, query = {}) => {
+const invoke = async (handler, body = {}, user = admin, id = campaigns[4]._id.toString(), phoneNumber, query = {}, file) => {
     let status = 200, value;
-    await handler({ user, params: { id, phoneNumber }, body, query }, { status(code) { status = code; return this; }, json(data) { value = data; return this; } });
+    await handler({ user, params: { id, phoneNumber }, body, query, file }, { status(code) { status = code; return this; }, json(data) { value = data; return this; }, setHeader() { return this; }, send(data) { value = data; return this; } });
     return { status, body: value };
 };
 
@@ -273,6 +273,54 @@ test("deleting folders preserves shared numbers without unique-index conflicts",
     const contacts = await contactModel.find({ userId: admin._id, phoneNumber }).lean();
     assert.equal(contacts.length, 2);
     assert(contacts.every((contact) => contact.groupId === null && contact.adminSaved === false));
+    const saved = await invoke(getContacts, {}, admin, undefined, undefined, { saved: "true" });
+    assert.equal(saved.body.data.filter((contact) => contact.phoneNumber === phoneNumber).length, 2);
+});
+
+test("saved contact list and CSV exclude unrelated report records but retain explicit saves, manual additions and imports", async () => {
+    const viewer = { _id: oid(), role: "Super Admin" };
+    await userModel.collection.insertOne({ _id: viewer._id, username: "Contact viewer", email: "contact-viewer@example.test", role: "Super Admin" });
+    const reportNumber = "917458963214", promotedNumber = "918563217978";
+    await contactModel.create([
+        { userId: viewer._id, phoneNumber: reportNumber, tags: ["Delivered / Valid Numbers"] },
+        { userId: viewer._id, phoneNumber: promotedNumber, tags: ["Not on WhatsApp Numbers"] },
+        { userId: admin._id, phoneNumber: "919810000001", savedToContacts: true },
+        { userId: viewer._id, phoneNumber: "919810000002", adminSaved: true },
+    ]);
+    const folder = await saveContactFolder(viewer._id, { newFolderName: "Saved contacts", phoneNumbers: ["919810000003"] });
+    assert.equal((await invoke(createContact, { phoneNumber: "919810000004" }, viewer)).status, 201);
+    const imported = await invoke(importContactsFromFile, {}, viewer, undefined, undefined, {}, {
+        buffer: Buffer.from(`Phone,Name\n919810000005,Imported\n${promotedNumber},Explicitly imported again\n`), originalname: "contacts.csv",
+    });
+    assert.equal(imported.status, 200);
+    assert.equal(imported.body.summary.importedCount, 1);
+    const query = { owned: "true", saved: "true" };
+    const saved = await invoke(getContacts, {}, viewer, undefined, undefined, query);
+    const expected = [promotedNumber, "919810000002", "919810000003", "919810000004", "919810000005"].sort();
+    assert.deepEqual(saved.body.data.map((contact) => contact.phoneNumber).sort(), expected);
+    const csv = await invoke(exportContactsToCSV, {}, viewer, undefined, undefined, query);
+    assert.equal(csv.status, 200);
+    assert(!csv.body.includes(reportNumber));
+    assert(!csv.body.includes("919810000001"));
+    for (const phone of expected) assert(csv.body.includes(phone));
+    const legacy = await invoke(getContacts, {}, viewer, undefined, undefined, { owned: "true" });
+    assert(legacy.body.data.some((contact) => contact.phoneNumber === reportNumber), "Filtering must not delete historical contacts");
+    await invoke(deleteGroup, {}, viewer, String(folder.folder._id));
+    const afterDelete = await invoke(getContacts, {}, viewer, undefined, undefined, query);
+    assert(afterDelete.body.data.some((contact) => contact.phoneNumber === "919810000003"));
+});
+
+test("explicitly saving an existing formatted number marks only the selected contact for All numbers", async () => {
+    const folder = await groupModel.create({ userId: admin._id, name: "Legacy selections", description: "Legacy report contacts" });
+    await contactModel.create([
+        { userId: admin._id, groupId: folder._id, phoneNumber: "+91 98100 00006" },
+        { userId: admin._id, groupId: folder._id, phoneNumber: "919810000007" },
+    ]);
+    const saved = await saveContactFolder(admin._id, { groupId: String(folder._id), phoneNumbers: ["919810000006"] });
+    assert.equal(saved.addedCount, 0);
+    assert.equal(saved.skippedCount, 1);
+    const list = await invoke(getContacts, {}, admin, undefined, undefined, { saved: "true", groupId: String(folder._id) });
+    assert.deepEqual(list.body.data.map((contact) => contact.phoneNumber), ["+91 98100 00006"]);
 });
 
 test("folder pagination covers all folders and searches names, resellers and numbers across pages", async () => {
