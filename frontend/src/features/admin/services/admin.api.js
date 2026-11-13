@@ -29,4 +29,5 @@ export const adminActions = {
   report: async ({ id, ...body }) => (await api.patch(`/campaigns/${id}/metrics`, body)).data,
   importContacts: async (formData) => (await api.post("/contacts/import-file", formData, { headers: { "Content-Type": "multipart/form-data" } })).data,
   deleteContact: async (id) => (await api.delete(`/contacts/${id}`)).data,
+  deleteFolder: async (id) => (await api.delete(`/groups/${id}`)).data,
 };

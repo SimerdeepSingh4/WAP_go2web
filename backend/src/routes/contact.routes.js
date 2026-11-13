@@ -6,12 +6,14 @@ import {
     importContactsFromFile,
     exportContactsToCSV,
 } from "../controllers/contact.controller.js";
-import { protect, blockInPreviewMode } from "../middlewares/auth.middleware.js";
+import { protect, authorizeRoles, blockInPreviewMode } from "../middlewares/auth.middleware.js";
+import { saveFolderContacts } from "../controllers/recipient-tracking.controller.js";
 import { uploadDocument } from "../middlewares/upload.middleware.js";
 
 const contactRouter = Router();
 
 contactRouter.use(protect);
+contactRouter.post("/save-to-folder", authorizeRoles("Super Admin"), blockInPreviewMode("Saving folder contacts"), saveFolderContacts);
 
 // Standard Contact CRUD
 contactRouter.post("/", blockInPreviewMode("Contact creation"), createContact);

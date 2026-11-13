@@ -10,7 +10,7 @@ import CampaignLoadError from "../components/detail/CampaignLoadError";
 import CampaignDetailMetrics from "../components/detail/CampaignDetailMetrics";
 import CampaignMessagePreview from "../components/detail/CampaignMessagePreview";
 import CampaignAttachmentsView from "../components/detail/CampaignAttachmentsView";
-import CampaignRecipientsTable from "../components/detail/CampaignRecipientsTable";
+import CampaignRecipientReview from "../components/detail/CampaignRecipientReview";
 import ImageLightbox from "../components/detail/ImageLightbox";
 import { messageTextFromHtml } from "../lib/messageText";
 
@@ -122,7 +122,7 @@ export default function CampaignDetailPage() {
       </div>
 
       {/* Recipients Table with Excel Export */}
-      <CampaignRecipientsTable key={campaign._id} campaign={campaign} />
+      <CampaignRecipientReview key={campaign._id} campaign={campaign} />
 
       {/* Lightbox */}
       <ImageLightbox

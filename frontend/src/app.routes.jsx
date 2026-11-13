@@ -29,6 +29,7 @@ import ImpersonationHandoff from "./features/auth/pages/ImpersonationHandoff.jsx
 const AdminLayout = lazy(() => import("./features/admin/components/AdminLayout.jsx"));
 const AdminOverview = lazy(() => import("./features/admin/pages/Overview.jsx"));
 const AdminCampaigns = lazy(() => import("./features/admin/pages/Campaigns.jsx"));
+const AdminContacts = lazy(() => import("./features/admin/pages/Contacts.jsx"));
 const Administrators = lazy(() => import("./features/admin/pages/Administrators.jsx"));
 const AdminAuditLog = lazy(() => import("./features/admin/pages/AuditLog.jsx"));
 const AdminAccounts = lazy(() => import("./features/admin/pages/Accounts.jsx"));
@@ -140,7 +141,7 @@ export const router = createBrowserRouter([
       { path: "campaigns/:id", element: <CampaignDetailPage /> },
       { path: "campaigns/:id/report/create", element: <CreateCampaignReportPage /> },
       { path: "campaigns/:id/report", element: <CampaignReportPage /> },
-      { path: "contacts", element: <Navigate to="/admin" replace /> },
+      { path: "contacts", element: <AdminContacts /> },
       { path: "reports", element: <Navigate to="/admin/campaigns?status=unreported" replace /> },
       { path: "administrators", element: <Administrators /> },
       { path: "audit", element: <AdminAuditLog /> },

@@ -300,7 +300,7 @@ export const exportContactsToCSV = async (req, res) => {
         }
 
         if (req.user.role === "Super Admin") {
-            // Super Admin can export all or filtered
+            if (req.query.owned === "true") filter.userId = req.user._id;
         } else if (req.user.role === "Reseller") {
             const clientUsers = await userModel.find({ resellerId: req.user._id }).select("_id");
             const clientIds = clientUsers.map((u) => u._id);
@@ -370,7 +370,7 @@ export const getContacts = async (req, res) => {
         }
 
         if (req.user.role === "Super Admin") {
-            // Super Admin sees all contacts
+            if (req.query.owned === "true") filter.userId = req.user._id;
         } else if (req.user.role === "Reseller") {
             const clientUsers = await userModel.find({ resellerId: req.user._id }).select("_id");
             const clientIds = clientUsers.map((u) => u._id);

@@ -25,12 +25,17 @@ import {
     blockInPreviewMode,
 } from "../middlewares/auth.middleware.js";
 import { uploadDocument, uploadFiles } from "../middlewares/upload.middleware.js";
+import { getTrackedNumbers, addTrackedNumbers, saveTrackedContacts, updateTrackedNote } from "../controllers/recipient-tracking.controller.js";
 const campaignRouter = Router();
 
 campaignRouter.use(protect);
 
 campaignRouter.post("/", blockInPreviewMode("Campaign creation"), uploadFiles, creditRequest, createCampaign);
 campaignRouter.get("/", getCampaigns);
+campaignRouter.get("/:id/tracked-numbers", authorizeRoles("Super Admin"), blockInPreviewMode("Recipient tracking"), getTrackedNumbers);
+campaignRouter.post("/:id/tracked-numbers", authorizeRoles("Super Admin"), blockInPreviewMode("Recipient tracking"), addTrackedNumbers);
+campaignRouter.post("/:id/tracked-numbers/contacts", authorizeRoles("Super Admin"), blockInPreviewMode("Saving tracked contacts"), saveTrackedContacts);
+campaignRouter.patch("/:id/tracked-numbers/:phoneNumber", authorizeRoles("Super Admin"), blockInPreviewMode("Editing tracked notes"), updateTrackedNote);
 campaignRouter.get("/:id/recipient-report", downloadRecipientReport);
 campaignRouter.get("/:id/export-recipients", exportCampaignRecipients);
 campaignRouter.get("/:id/documents/:documentId", downloadCampaignDocument);

@@ -1,19 +1,37 @@
-import { useState, useRef } from "react";
-import { UploadCloud, Download, Trash2, Users, FileSpreadsheet, CheckCircle2, AlertCircle, RefreshCw, Plus } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, UploadCloud, Download, Trash2, CheckCircle2, AlertCircle, RefreshCw, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
-import { PageHeading, QueryState, SearchBox, DataTable } from "../components/shared";
+import { PageHeading, QueryState, SearchBox, DataTable, Pager } from "../components/shared";
 import { useAdminQuery, useAdminMutation } from "../hooks/useAdmin";
 import { number, dateTime } from "../lib/format";
 import api from "@/api/client";
+import { useSearchParams } from "react-router";
+import { useContactFolderPage, useContactFolderDetail } from "../hooks/useContactFolders";
+import ContactFolderEditor from "../components/ContactFolderEditor";
+import ContactFolderCard from "../components/ContactFolderCard";
 
 export default function Contacts() {
+  const queryClient = useQueryClient();
+  const [params, setParams] = useSearchParams();
+  const activeFolderId = params.get("folder") || "";
+  const showingFolders = !activeFolderId && params.get("view") !== "all";
+  const [folderEditor, setFolderEditor] = useState(null);
   const [deleting, setDeleting] = useState(null);
+  const [deletingFolder, setDeletingFolder] = useState(null);
   const [search, setSearch] = useState("");
+  const [folderPage, setFolderPage] = useState(1);
+  const [folderSearch, setFolderSearch] = useState("");
+  useEffect(() => {
+    const timer = window.setTimeout(() => setFolderSearch(search.trim()), 250);
+    return () => window.clearTimeout(timer);
+  }, [search]);
+  const foldersQuery = useContactFolderPage(folderPage, folderSearch, showingFolders);
+  const folderDetailQuery = useContactFolderDetail(activeFolderId);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [file, setFile] = useState(null);
   const [groupName, setGroupName] = useState("");
@@ -21,11 +39,24 @@ export default function Contacts() {
   const [importResult, setImportResult] = useState(null);
   const fileInputRef = useRef(null);
 
-  const contactsQuery = useAdminQuery("contacts");
-  const deleteMutation = useAdminMutation("deleteContact", "Contact removed", () => setDeleting(null));
+  const contactsQuery = useAdminQuery("contacts", { owned: "true", ...(activeFolderId ? { groupId: activeFolderId } : {}) }, !showingFolders);
+  const deleteMutation = useAdminMutation("deleteContact", "Contact removed", () => { setDeleting(null); queryClient.invalidateQueries({ queryKey: ["contact-folders"] }); });
+  const deleteFolderMutation = useAdminMutation("deleteFolder", "Folder deleted", () => {
+    if (activeFolderId === deletingFolder?._id) setParams({});
+    setDeletingFolder(null);
+    queryClient.invalidateQueries({ queryKey: ["contact-folders"] });
+  });
 
   const contacts = contactsQuery.data?.contacts || contactsQuery.data?.data || [];
+  const activeFolder = folderDetailQuery.data;
+  const folderTitle = activeFolder?.sourceUserId?.username || activeFolder?.name;
+  const visibleFolders = foldersQuery.data?.data || [];
+  const folderPagination = foldersQuery.data?.pagination;
+  const changeSearch = (value) => { setSearch(value); setFolderPage(1); };
+  const openFolder = (id) => { setSearch(""); setFolderEditor(null); setParams({ folder: id }); };
+  const backToFolders = () => { setSearch(""); setFolderEditor(null); setParams({}); };
   const rows = contacts.filter((c) => {
+    if (activeFolderId && String(c.groupId?._id || c.groupId || "") !== activeFolderId) return false;
     const text = `${c.name || ""} ${c.phoneNumber || ""} ${c.email || ""} ${c.company || ""} ${c.groupId?.name || ""}`.toLowerCase();
     return text.includes(search.toLowerCase());
   });
@@ -48,7 +79,9 @@ export default function Contacts() {
     const formData = new FormData();
     formData.append("file", file);
     if (groupName.trim()) {
-      formData.append("groupName", groupName.trim());
+      formData.append("newGroupName", groupName.trim());
+    } else if (activeFolderId) {
+      formData.append("groupId", activeFolderId);
     }
 
     if (isImporting) return;
@@ -58,10 +91,12 @@ export default function Contacts() {
         headers: { "Content-Type": "multipart/form-data" },
       });
       setImportResult(response.data);
+      if (response.data.summary?.group?.id) openFolder(response.data.summary.group.id);
       contactsQuery.refetch();
+      queryClient.invalidateQueries({ queryKey: ["contact-folders"] });
       toast.add({
         title: "Import completed",
-        description: `Successfully imported ${response.data.importedCount || 0} contacts.`,
+        description: `Successfully imported ${response.data.summary?.importedCount || 0} contacts.`,
         type: "success",
       });
     } catch (err) {
@@ -77,7 +112,7 @@ export default function Contacts() {
 
   const handleExportCSV = async () => {
     try {
-      const response = await api.get("/contacts/export", { responseType: "blob" });
+      const response = await api.get("/contacts/export", { responseType: "blob", params: { owned: "true", ...(activeFolderId ? { groupId: activeFolderId } : {}) } });
       const blob = new Blob([response.data], { type: "text/csv;charset=utf-8;" });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -107,7 +142,7 @@ export default function Contacts() {
     },
     {
       key: "phone",
-      label: "Phone (E.164)",
+      label: "Phone number",
       sort: (c) => c.phoneNumber,
       render: (c) => <span className="tabular-nums font-mono text-xs">{c.phoneNumber}</span>,
     },
@@ -118,7 +153,7 @@ export default function Contacts() {
     },
     {
       key: "group",
-      label: "Group / Tag",
+      label: "Folder / Tag",
       render: (c) => (
         <div className="flex flex-wrap gap-1">
           {c.groupId ? (
@@ -162,15 +197,16 @@ export default function Contacts() {
 
   return (
     <>
+      {!showingFolders && <button type="button" onClick={backToFolders} className="mb-1 inline-flex w-fit items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft className="size-3.5" />Contact folders</button>}
       <PageHeading
-        title="Contacts"
-        description="Search contacts, import a recipient list or export your directory."
+        title={showingFolders ? "Contacts" : activeFolderId ? folderTitle || "Contact folder" : "All numbers"}
+        description={showingFolders ? "Numbers saved by you, organized by campaign owner." : activeFolder?.sourceUserId ? `Saved numbers from ${folderTitle}'s campaigns.` : "Saved contact numbers."}
         action={
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" onClick={handleExportCSV} disabled={!contacts.length}>
+            {!showingFolders && <Button variant="outline" onClick={handleExportCSV} disabled={!rows.length}>
               <Download className="size-4 mr-1" />
               Export CSV
-            </Button>
+            </Button>}
             <Button onClick={() => setIsImportOpen(true)}>
               <UploadCloud className="size-4 mr-1" />
               Import contacts
@@ -179,28 +215,56 @@ export default function Contacts() {
         }
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <SearchBox value={search} onChange={setSearch} label="Search name, phone, email, group..." />
-        {search && (
-          <Button variant="ghost" onClick={() => setSearch("")}>
-            Clear
-          </Button>
-        )}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+        <div className="flex flex-wrap items-center gap-2"><SearchBox value={search} onChange={changeSearch} label={showingFolders ? "Search users, resellers or saved numbers" : "Search saved numbers"} />{search && <Button size="xs" variant="ghost" onClick={() => changeSearch("")}>Clear</Button>}</div>
+        <div className="flex flex-wrap items-center gap-1">
+          {showingFolders && <Button variant="ghost" size="sm" onClick={() => { setSearch(""); setParams({ view: "all" }); }}>All numbers</Button>}
+          {showingFolders && <Button variant="ghost" size="sm" onClick={() => setFolderEditor("folder")}><Plus className="size-3.5" />Create folder</Button>}
+          <Button variant="ghost" size="sm" onClick={() => setFolderEditor("contacts")}><Plus className="size-3.5" />Add numbers</Button>
+        </div>
       </div>
+      {folderEditor && <ContactFolderEditor key={`${folderEditor}:${activeFolderId}`} folderOnly={folderEditor === "folder"} manualInput={folderEditor === "contacts"} initialFolderId={activeFolderId} onClose={() => setFolderEditor(null)} onSaved={(folder) => openFolder(folder._id)} />}
 
-      <QueryState
+      {showingFolders ? <QueryState query={foldersQuery} empty={!visibleFolders.length} emptyTitle={search ? "No matching folders" : "No saved folders yet"} emptyDescription={search ? "Try a user's name or a phone number." : "Save numbers from a campaign to create a folder named after that user."}>
+        <section aria-label="Saved contact folders" className="grid grid-cols-[repeat(auto-fill,minmax(0,min(100%,300px)))] gap-8 py-4">
+          {visibleFolders.map((folder) => <ContactFolderCard key={folder._id} title={folder.sourceUserId?.username || folder.name}
+            subtitle={folder.sourceUserId?.email || (folder.sourceUserId ? "Saved campaign numbers" : "Admin contact list")}
+            resellerName={folder.sourceUserId?.role === "Reseller" ? folder.sourceUserId.username : folder.sourceUserId?.resellerId?.username}
+            hasSourceUser={Boolean(folder.sourceUserId)}
+            count={folder.totalContacts || 0} previewNumbers={folder.previewNumbers || []} onOpen={() => openFolder(folder._id)}
+            onDelete={() => { deleteFolderMutation.reset(); setDeletingFolder(folder); }} />)}
+        </section>
+        {folderPagination && <Pager page={folderPagination.page} totalPages={folderPagination.totalPages} total={folderPagination.total} onChange={setFolderPage} disabled={foldersQuery.isFetching} />}
+      </QueryState> : <QueryState
         query={contactsQuery}
         empty={!contacts.length}
         emptyTitle="No contacts found"
-        emptyDescription="Import a CSV or Excel file to populate your recipient audience."
+        emptyDescription="Add numbers manually, import a file, or save tracked numbers from a campaign."
       >
         <DataTable
+          key={activeFolderId || "all"}
           caption="Recipient Contacts Table"
           rows={rows}
-          columns={columns}
+          columns={activeFolderId ? columns.filter((column) => column.key !== "group") : columns}
           emptyTitle="No matching contacts"
         />
-      </QueryState>
+      </QueryState>}
+
+      <Dialog open={Boolean(deleting)} onOpenChange={(open) => { if (!open && !deleteMutation.isPending) setDeleting(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Remove contact?</DialogTitle><DialogDescription>Remove {deleting?.phoneNumber} from Contacts. Campaign recipients and the tracked list will remain unchanged.</DialogDescription></DialogHeader>
+          {deleteMutation.isError && <p role="alert" className="text-sm text-destructive">{deleteMutation.error.message}</p>}
+          <DialogFooter><Button variant="outline" disabled={deleteMutation.isPending} onClick={() => setDeleting(null)}>Cancel</Button><Button variant="destructive" disabled={deleteMutation.isPending} onClick={() => deleteMutation.mutate(deleting._id)}>{deleteMutation.isPending ? "Removing…" : "Remove contact"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(deletingFolder)} onOpenChange={(open) => { if (!open && !deleteFolderMutation.isPending) setDeletingFolder(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>Delete folder?</DialogTitle><DialogDescription>Delete the folder {deletingFolder?.sourceUserId?.username || deletingFolder?.name}? Its saved numbers will remain available under All numbers.</DialogDescription></DialogHeader>
+          {deleteFolderMutation.isError && <p role="alert" className="text-sm text-destructive">{deleteFolderMutation.error.message}</p>}
+          <DialogFooter><Button variant="outline" disabled={deleteFolderMutation.isPending} onClick={() => setDeletingFolder(null)}>Cancel</Button><Button variant="destructive" disabled={deleteFolderMutation.isPending} onClick={() => deleteFolderMutation.mutate(deletingFolder._id)}>{deleteFolderMutation.isPending ? "Deleting..." : "Delete folder"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Import File Dialog */}
       <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
@@ -208,7 +272,7 @@ export default function Contacts() {
           <DialogHeader>
             <DialogTitle>Import Audience Contacts</DialogTitle>
             <DialogDescription>
-              Upload a <strong>.csv</strong> or <strong>.xlsx</strong> file. Columns like Name, Phone, Email, Company, and Tags are automatically detected and sanitized to E.164.
+              Upload a <strong>.csv</strong> or <strong>.xlsx</strong> file. Columns like Name, Phone, Email, Company, and Tags are automatically detected.
             </DialogDescription>
           </DialogHeader>
 
@@ -238,7 +302,7 @@ export default function Contacts() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="group-name">Target Group / Tag (Optional)</Label>
+              <Label htmlFor="group-name">New folder name (optional)</Label>
               <Input
                 id="group-name"
                 placeholder="e.g. VIP Customers, Diwali 2026 Promo"
@@ -246,7 +310,7 @@ export default function Contacts() {
                 onChange={(e) => setGroupName(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                Attaches an audience tag to all valid contacts in this batch.
+                Creates a folder for this import. Leave blank to use the selected folder.
               </p>
             </div>
 
@@ -255,14 +319,14 @@ export default function Contacts() {
                 <p className="font-semibold text-sm flex items-center gap-1.5 text-emerald-800">
                   <CheckCircle2 className="size-4" /> Import Complete
                 </p>
-                <p><strong>{importResult.importedCount}</strong> new contacts added.</p>
-                {importResult.duplicatesCount > 0 && (
-                  <p><strong>{importResult.duplicatesCount}</strong> duplicate numbers skipped.</p>
+                <p><strong>{importResult.summary?.importedCount}</strong> new contacts added.</p>
+                {importResult.summary?.duplicateCount > 0 && (
+                  <p><strong>{importResult.summary.duplicateCount}</strong> duplicate numbers skipped.</p>
                 )}
-                {importResult.invalidCount > 0 && (
+                {importResult.summary?.invalidCount > 0 && (
                   <p className="text-amber-800">
                     <AlertCircle className="size-3.5 inline mr-1" />
-                    <strong>{importResult.invalidCount}</strong> invalid phone numbers discarded.
+                    <strong>{importResult.summary.invalidCount}</strong> invalid phone numbers discarded.
                   </p>
                 )}
               </div>

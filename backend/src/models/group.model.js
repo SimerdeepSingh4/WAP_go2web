@@ -14,6 +14,8 @@ const groupSchema = new mongoose.Schema(
             maxLength: [100, "Group name cannot be bigger than 100 characters"],
             trim: true,
         },
+        adminFolder: { type: Boolean, default: false },
+        sourceUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
         description: {
             type: String,
             required: [true, "Group description is required"],
@@ -38,6 +40,8 @@ const groupSchema = new mongoose.Schema(
     }
 );
 
+groupSchema.index({ userId: 1, name: 1 }, { unique: true, partialFilterExpression: { adminFolder: true, isDeleted: false } });
+groupSchema.index({ userId: 1, sourceUserId: 1 }, { unique: true, partialFilterExpression: { sourceUserId: { $type: "objectId" }, isDeleted: false } });
 const groupModel = mongoose.model("Group", groupSchema);
 
 export default groupModel;

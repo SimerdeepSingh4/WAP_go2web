@@ -20,6 +20,7 @@ const navigation = {
   "Super Admin": [
     ["Overview", "", LayoutDashboard],
     ["Campaigns", "/campaigns", Megaphone],
+    ["Contacts", "/contacts", Users],
     ["Super admins", "/administrators", Users],
     ["Resellers", "/resellers", Building2],
     ["Users", "/users", Users],

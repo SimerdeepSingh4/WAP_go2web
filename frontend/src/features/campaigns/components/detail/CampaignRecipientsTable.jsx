@@ -1,4 +1,5 @@
 import RecipientNumberHighlight, { recipientMarkMap } from "./RecipientNumberHighlight";
+import TrackedNumberBadges from "./TrackedNumberBadges";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import RecipientActivityButton from "./RecipientActivityButton";
 import { useState, useMemo, useDeferredValue } from "react";
@@ -58,18 +59,18 @@ export function getStatusBadge(status) {
   }
 }
 
-export default function CampaignRecipientsTable({ campaign }) {
+export default function CampaignRecipientsTable({ campaign, trackedRows, focusedPhone = "", onClearFocus, embedded = false }) {
   const { user } = useAuth();
   const inputAudit = user?.role === "Super Admin" ? campaign.recipientInputAudit : null;
   const numberMarks = useMemo(() => recipientMarkMap(inputAudit), [inputAudit]);
   const [search, setSearch] = useState("");
-  const deferredSearch = useDeferredValue(search);
+  const deferredSearch = useDeferredValue(focusedPhone || search);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(10);
   const [isExporting, setIsExporting] = useState(false);
   const [copiedNumber, setCopiedNumber] = useState(null);
   const allRecipients = useMemo(() => buildCampaignContacts(campaign), [campaign]);
-  const filtered = useMemo(() => allRecipients.filter((row) => row.phoneNumber.toLowerCase().includes(deferredSearch.trim().toLowerCase())), [allRecipients, deferredSearch]);
+  const filtered = useMemo(() => allRecipients.filter((row) => focusedPhone ? row.phoneNumber.replace(/\D/g, "") === focusedPhone : row.phoneNumber.toLowerCase().includes(deferredSearch.trim().toLowerCase())), [allRecipients, deferredSearch, focusedPhone]);
   const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const current = Math.min(page, pages - 1);
   const start = current * pageSize;
@@ -96,23 +97,27 @@ export default function CampaignRecipientsTable({ campaign }) {
     finally { setIsExporting(false); }
   };
   return (
-    <section data-tour="campaign-recipients" aria-label="Campaign contacts" className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-4 sm:px-5">
+    <section data-tour="campaign-recipients" aria-label="Campaign contacts" className={embedded ? "min-w-0 overflow-hidden" : "min-w-0 overflow-hidden rounded-xl border border-border bg-card"}>
+      <header className={`flex min-h-16 flex-wrap items-center justify-between gap-3 border-b border-border ${embedded ? "py-3" : "px-4 py-4 sm:px-5"}`}>
         <div className="flex min-w-0 items-center gap-3">
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground"><Users className="size-4" /></span>
-          <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="text-sm font-semibold">Campaign contacts</h2><span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground tabular-nums">{number(allRecipients.length)}</span></div><p className="mt-1 text-[11px] text-muted-foreground">Submitted contacts and published delivery status.</p></div>
+          {!embedded && <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground"><Users className="size-4" /></span>}
+          <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="text-sm font-semibold">{embedded ? "Recipients" : "Campaign contacts"}</h2><span className={embedded ? "text-xs font-normal text-muted-foreground tabular-nums" : "rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground tabular-nums"}>{number(allRecipients.length)}</span></div>{!embedded && <p className="mt-1 text-[11px] text-muted-foreground">Submitted contacts and published delivery status.</p>}</div>
         </div>
-        <div className="flex flex-wrap items-center gap-2"><RecipientActivityButton activity={inputAudit} /><Button type="button" variant="outline" size="sm" disabled={isExporting || !allRecipients.length} onClick={download} className="gap-1.5 text-xs">{isExporting ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}Download Excel</Button></div>
+        <div className="flex flex-wrap items-center gap-2"><RecipientActivityButton activity={inputAudit} /><Button type="button" variant={embedded ? "ghost" : "outline"} size="sm" disabled={isExporting || !allRecipients.length} onClick={download} className="gap-1.5 text-xs">{isExporting ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}Download Excel</Button></div>
       </header>
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/15 px-4 py-3 sm:px-5">
-        <div className="relative w-full sm:max-w-xs"><Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" /><Input type="search" aria-label="Search campaign contacts" placeholder="Search phone number..." value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }} className="h-9 bg-background pl-9 text-xs" /></div>
+      <div className={`flex flex-wrap items-center justify-between gap-3 border-b border-border py-3 ${embedded ? "" : "bg-muted/15 px-4 sm:px-5"}`}>
+        <div className="relative w-full sm:max-w-xs"><Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" /><Input type="search" aria-label="Search campaign contacts" placeholder="Search phone number..." value={focusedPhone || search} onChange={(event) => { onClearFocus?.(); setSearch(event.target.value); setPage(0); }} className="h-9 bg-background pl-9 text-xs" /></div>
+        {focusedPhone && <Button size="sm" variant="ghost" onClick={() => { onClearFocus?.(); setSearch(""); setPage(0); }}>Show all recipients</Button>}
         <label className="flex items-center gap-2 text-xs text-muted-foreground">Rows per page<select aria-label="Contacts per page" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(0); }} className="h-8 rounded-lg border border-input bg-background px-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30">{[10, 25, 50, 100].map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
       </div>
       <p className="recipient-scroll-hint">Swipe sideways to see all contact details and copy actions.</p><Table className="recipient-comparison min-w-[370px] table-fixed [&_th]:px-3! [&_td]:px-3! [&_td]:py-2.5! [&_th]:py-3!">
         <TableHeader className="bg-muted/40"><TableRow className="hover:bg-transparent"><TableHead className="recipient-index w-12 text-center text-[11px]">#</TableHead><TableHead className="recipient-phone text-[11px]">Phone number</TableHead><TableHead className="w-28 text-[11px] sm:w-36">Status</TableHead><TableHead className="w-12 text-center"><span className="sr-only">Copy</span></TableHead></TableRow></TableHeader>
-        <TableBody>{rows.length ? rows.map((row) => <TableRow key={row.rowNumber} className="hover:bg-muted/25"><TableCell className="recipient-index text-center text-[11px] text-muted-foreground tabular-nums">{row.rowNumber}</TableCell><TableCell data-input-risk={numberMarks.get(row.rowNumber)} className="recipient-phone break-all font-mono text-xs font-medium">{row.phoneNumber}{numberMarks.has(row.rowNumber) && <div className="mt-1"><RecipientNumberHighlight mark={numberMarks.get(row.rowNumber)} /></div>}</TableCell><TableCell>{getStatusBadge(row.status)}</TableCell><TableCell className="text-center"><Button type="button" size="icon-xs" variant="ghost" aria-label={`Copy phone number ${row.phoneNumber}`} onClick={() => copyNumber(row.phoneNumber)} className="text-muted-foreground hover:text-foreground">{copiedNumber === row.phoneNumber ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}</Button></TableCell></TableRow>) : <TableRow><TableCell colSpan={4} className="py-10! text-center text-xs text-muted-foreground">{search ? "No contacts match your search." : "No contacts available."}</TableCell></TableRow>}</TableBody>
+        <TableBody>{rows.length ? rows.map((row) => {
+          const tracked = user?.role === "Super Admin" ? trackedRows?.get(row.phoneNumber.replace(/\D/g, "")) : undefined;
+          return <TableRow key={row.rowNumber} className="hover:bg-muted/25"><TableCell className="recipient-index text-center text-[11px] text-muted-foreground tabular-nums">{row.rowNumber}</TableCell><TableCell data-input-risk={numberMarks.get(row.rowNumber)} className={`recipient-phone break-all font-mono text-xs font-medium ${tracked ? "border-l-2 border-l-amber-500/60" : ""}`}>{row.phoneNumber}{numberMarks.has(row.rowNumber) && <div className="mt-1"><RecipientNumberHighlight mark={numberMarks.get(row.rowNumber)} /></div>}<TrackedNumberBadges row={tracked} /></TableCell><TableCell>{getStatusBadge(row.status)}</TableCell><TableCell className="text-center"><Button type="button" size="icon-xs" variant="ghost" aria-label={`Copy phone number ${row.phoneNumber}`} onClick={() => copyNumber(row.phoneNumber)} className="text-muted-foreground hover:text-foreground">{copiedNumber === row.phoneNumber ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}</Button></TableCell></TableRow>;
+        }) : <TableRow><TableCell colSpan={4} className="py-10! text-center text-xs text-muted-foreground">{search || focusedPhone ? "No contacts match your search." : "No contacts available."}</TableCell></TableRow>}</TableBody>
       </Table>
-      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-muted/15 px-4 py-3 sm:px-5">
+      <footer className={`flex flex-wrap items-center justify-between gap-3 border-t border-border py-3 ${embedded ? "" : "bg-muted/15 px-4 sm:px-5"}`}>
         <p aria-live="polite" className="text-[11px] text-muted-foreground">{filtered.length ? number(start + 1) : 0}&ndash;{number(Math.min(start + pageSize, filtered.length))} of {number(filtered.length)} contacts{search && filtered.length !== allRecipients.length ? ` (${number(allRecipients.length)} total)` : ""}</p>
         <nav aria-label="Contact pagination" className="flex items-center gap-1"><Button type="button" size="icon-xs" variant="outline" aria-label="First contact page" disabled={current === 0} onClick={() => setPage(0)}><ChevronsLeft /></Button><Button type="button" size="icon-xs" variant="outline" aria-label="Previous contact page" disabled={current === 0} onClick={() => setPage(current - 1)}><ChevronLeft /></Button><span className="px-2 text-[11px] text-muted-foreground tabular-nums">Page {current + 1} of {pages}</span><Button type="button" size="icon-xs" variant="outline" aria-label="Next contact page" disabled={current >= pages - 1} onClick={() => setPage(current + 1)}><ChevronRight /></Button><Button type="button" size="icon-xs" variant="outline" aria-label="Last contact page" disabled={current >= pages - 1} onClick={() => setPage(pages - 1)}><ChevronsRight /></Button></nav>
       </footer>

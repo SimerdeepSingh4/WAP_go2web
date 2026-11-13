@@ -46,6 +46,7 @@ const contactSchema = new mongoose.Schema(
             default: null,
             index: true,
         },
+        adminSaved: { type: Boolean, default: false },
     },
     {
         timestamps: true,
@@ -55,6 +56,9 @@ const contactSchema = new mongoose.Schema(
 // Compound index for fast lookup of a user's contacts
 contactSchema.index({ userId: 1, groupId: 1 });
 contactSchema.index({ userId: 1, phoneNumber: 1 });
+// Only new admin saves participate, so legacy duplicate contacts do not prevent
+// creating the index. It also protects retries from multiple open admin tabs.
+contactSchema.index({ groupId: 1, phoneNumber: 1 }, { unique: true, partialFilterExpression: { adminSaved: true } });
 
 const contactModel = mongoose.model("Contact", contactSchema);
 

@@ -19,11 +19,12 @@ import { useAdminQuery } from "../hooks/useAdmin";
 import { QueryState, StatusBadge } from "./shared";
 import { dateTime, number, ownerName, published, statusLabels, validateReport } from "../lib/format";
 import ActionForm from "./ActionForm";
-import { CampaignMessage, CampaignMedia, CampaignRecipients } from "@/components/dashboard/CampaignContent";
+import { CampaignMessage, CampaignMedia } from "@/components/dashboard/CampaignContent";
 import CampaignActionLinks from "@/components/dashboard/CampaignActionLinks";
 import api from "@/api/client";
 import { toast } from "@/components/ui/toast";
 import UserAvatar from "@/components/dashboard/UserAvatar";
+import CampaignRecipientReview from "@/features/campaigns/components/detail/CampaignRecipientReview";
 
 export default function CampaignDetail({ id, initialReport, initialStatus, onClose }) {
   const query = useAdminQuery("campaign", { id });
@@ -185,7 +186,7 @@ export default function CampaignDetail({ id, initialReport, initialStatus, onClo
                     <CampaignActionLinks link={campaign.campaignLink} phone={campaign.campaignNumber} />
                   </section>
 
-                  <CampaignRecipients campaign={campaign} />
+                  <CampaignRecipientReview key={campaign._id} campaign={campaign} />
 
                   <section className="space-y-3 border-t pt-5">
                     <div className="flex flex-wrap items-center justify-between gap-2">
