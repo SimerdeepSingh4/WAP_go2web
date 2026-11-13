@@ -59,6 +59,7 @@ const userSchema = new mongoose.Schema(
             type: Date,
             default: null,
         },
+        accessReason: { type: String, trim: true, default: "", maxlength: 1000 },
         ratePerMsg: {
             type: Number,
             default: 12, // default 12 paise per message

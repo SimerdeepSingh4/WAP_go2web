@@ -1,5 +1,4 @@
 import { useRef, useState } from "react";
-import { ShieldBan } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useBranding } from "@/features/branding/context/BrandingContext";
 
@@ -108,7 +107,6 @@ export default function LoginPage({ onLogin, panelName: propPanelName }) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [isAccountBlocked, setIsAccountBlocked] = useState(false);
   const errorRef = useRef(null);
 
   const { login, isLoggingIn } = useAuth();
@@ -118,7 +116,6 @@ export default function LoginPage({ onLogin, panelName: propPanelName }) {
     if (isLoggingIn) return;
 
     setErrorMsg("");
-    setIsAccountBlocked(false);
 
     try {
       const data = await login({
@@ -135,40 +132,9 @@ export default function LoginPage({ onLogin, panelName: propPanelName }) {
         requestAnimationFrame(() => errorRef.current?.focus());
       }
     } catch (err) {
-      if (err.isAccountBlocked) {
-        setIsAccountBlocked(true);
-        return;
-      }
       setErrorMsg(err.message || "Unable to sign in. Check your details and try again.");
       requestAnimationFrame(() => errorRef.current?.focus());
     }
-  }
-
-  if (isAccountBlocked) {
-    return (
-      <main className="grid min-h-screen place-items-center bg-background px-5 py-12">
-        <section className="w-full max-w-md border-t-4 border-destructive bg-card p-7 shadow-sm sm:p-9">
-          <div className="mb-5 grid size-12 place-items-center rounded-full bg-destructive/10 text-destructive">
-            <ShieldBan className="size-6" />
-          </div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-destructive">Account access paused</p>
-          <h1 className="mt-2 text-2xl font-semibold text-foreground">Your account is blocked</h1>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            {identifier.trim() ? `${identifier.trim()}, ` : ""}your account has been blocked by your account administrator. Contact them to restore access.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              setIsAccountBlocked(false);
-              setPassword("");
-            }}
-            className="mt-6 min-h-11 w-full rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-          >
-            Return to sign in
-          </button>
-        </section>
-      </main>
-    );
   }
 
   const inputClasses =

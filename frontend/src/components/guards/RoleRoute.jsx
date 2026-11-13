@@ -64,10 +64,6 @@ export default function RoleRoute({ allowedRoles = [], children }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (!user.isPreview && user.isExpired) {
-    return <Navigate to="/account-expired" replace />;
-  }
-
   const originalRole = user.isPreview ? user.originalAdmin?.role : null;
 
   // Check role with hierarchy inheritance and preview check

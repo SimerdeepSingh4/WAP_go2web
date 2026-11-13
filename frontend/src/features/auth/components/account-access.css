@@ -1,0 +1,24 @@
+.account-access-banner { display:flex; align-items:center; gap:14px; padding:16px 24px; border-bottom:1px solid var(--status-danger-border); background:var(--status-danger-bg); color:var(--status-danger-text); }
+.account-access-banner-icon { display:grid; width:36px; height:36px; flex-shrink:0; place-items:center; border:1px solid var(--status-danger-border); border-radius:10px; }
+.account-access-banner-icon svg { width:19px; height:19px; }
+.account-access-banner-copy { flex:1; min-width:0; }
+.account-access-banner-copy strong { display:flex; flex-wrap:wrap; align-items:center; gap:9px; font-size:13px; font-weight:650; }
+.account-access-banner-copy p { margin-top:4px; font-size:12px; line-height:1.65; }
+.account-access-banner-actions { display:flex; flex-shrink:0; flex-wrap:wrap; gap:8px; }
+.account-access-banner-actions [data-slot=button] { min-height:34px; font-size:11px; }
+.account-access-banner-actions [data-slot=button]:first-child { border-color:var(--status-danger-border); background:transparent; color:var(--status-danger-text); }
+.account-access-banner-actions [data-slot=button]:last-child { background:var(--status-danger-text); color:var(--status-danger-bg); }
+.account-access-banner-actions [data-slot=button]:hover { filter:brightness(.94); }
+.portal-inset:has(> .account-access-banner):has(> .portal-main > .support-page) { height:100dvh; min-height:0; overflow:hidden; }
+.portal-inset:has(> .account-access-banner) > .portal-topbar,.account-access-banner { flex-shrink:0; }
+.portal-inset:has(> .account-access-banner) > .portal-main:has(> .support-page) { flex:1; min-height:0; overflow:hidden; }
+.portal-inset:has(> .account-access-banner) > .portal-main > .support-page { height:100%; min-height:0; }
+.account-readonly-content { display:contents; border:0; min-width:0; margin:0; padding:0; }
+.account-readonly-content :disabled { cursor:not-allowed; }
+.account-readonly-content button:not([data-slot=button]) { cursor:not-allowed; opacity:.5; }
+.account-access-dialog { gap:20px; padding:24px; }
+.account-access-dialog-icon { display:grid; width:40px; height:40px; margin-bottom:6px; place-items:center; border:1px solid var(--status-danger-border); border-radius:12px; background:var(--status-danger-bg); color:var(--status-danger-text); }
+.account-access-dialog-icon svg { width:20px; height:20px; }
+.account-access-reason { white-space:pre-wrap; overflow-wrap:anywhere; padding:16px; border:1px solid var(--border); border-radius:10px; background:var(--surface-subtle); font-size:13px; line-height:1.8; }
+@media(max-width:1100px) { .account-access-banner { flex-wrap:wrap; padding:16px 20px; }.account-access-banner-actions { margin-left:50px; } }
+@media(max-width:479px) { .account-access-banner { gap:10px; padding:14px 16px; }.account-access-banner-icon { align-self:flex-start; width:30px; height:30px; }.account-access-banner-actions { width:100%; margin-left:0; }.account-access-banner-actions [data-slot=button] { flex:1; }.account-access-banner-copy p { font-size:11px; }.account-access-dialog { padding:20px; } }

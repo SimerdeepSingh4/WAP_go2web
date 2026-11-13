@@ -1,10 +1,11 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthContext } from "@/features/auth/context/auth.context.jsx";
 import { toast } from "@/components/ui/toast";
 import { syncPushAccount, clearPushOwner } from "@/features/notifications/services/push";
 import { clearCurrentSessionToken, getSessionToken } from "@/api/sessionToken";
+import { accountRestriction } from "../../../../../shared/accountAccess.js";
 
 const SocketContext = createContext(null);
 
@@ -14,10 +15,17 @@ export const SocketProvider = ({ children }) => {
     const preview = Boolean(user?.isPreview);
     const queryClient = useQueryClient();
     const [connectedSocket, setConnectedSocket] = useState(null);
+    const restriction = accountRestriction(user);
+    const notificationRestriction = useRef(restriction);
+
+    useEffect(() => {
+        notificationRestriction.current = restriction;
+        if (!accountId || preview || restriction) void clearPushOwner().catch(() => {});
+        else void syncPushAccount(accountId).catch(() => {});
+    }, [accountId, preview, restriction]);
 
     useEffect(() => {
         if (!accountId) { void clearPushOwner().catch(() => {}); return; }
-        if (!preview) void syncPushAccount(accountId).catch(() => {});
         const socket = io(import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? "http://localhost:3000" : (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000")), {
             auth: { token: getSessionToken() }, withCredentials: true,
             transports: ["websocket", "polling"], reconnectionAttempts: Infinity,
@@ -29,7 +37,7 @@ export const SocketProvider = ({ children }) => {
             for (const key of ["admin", "reseller", "user", "myWalletBalance", "myBalance", "creditTransactions", "managedUsers", "clientUsers", "dashboardStats"]) queryClient.invalidateQueries({ queryKey: [key] });
         };
         const visibility = () => socket.emit("NOTIFICATION_VISIBILITY", { visible: document.visibilityState === "visible" });
-        socket.on("connect", () => { setConnectedSocket(socket); refreshNotifications(); refreshAccounts(); refreshSupport(); visibility(); });
+        socket.on("connect", () => { setConnectedSocket(socket); void queryClient.invalidateQueries({ queryKey: ["authUser"] }); refreshNotifications(); refreshAccounts(); refreshSupport(); visibility(); });
         socket.on("disconnect", () => setConnectedSocket(null));
         socket.on("NOTIFICATIONS_CHANGED", refreshNotifications);
         for (const event of ["SUPPORT_CONVERSATION_UPDATED", "SUPPORT_CONVERSATION_ASSIGNED", "SUPPORT_CONVERSATION_REVOKED"]) socket.on(event, refreshSupport);
@@ -42,6 +50,7 @@ export const SocketProvider = ({ children }) => {
             void refreshNotifications();
         });
         socket.on("NOTIFICATION_CREATED", (data) => {
+            if (notificationRestriction.current) return;
             const toastId = data.toastId || `notification-${data.id}`;
             if (document.visibilityState === "visible") {
                 toast.add({ id: toastId, title: data.title, type: "info" });
@@ -82,7 +91,11 @@ export const SocketProvider = ({ children }) => {
         // Existing socket events keep business screens current. Persistent
         // notifications own the toast so the same event is not shown twice.
         socket.on("WALLET_UPDATED", refreshAccounts);
-        socket.on("ACCOUNT_ACCESS_CHANGED", () => {
+        socket.on("ACCOUNT_ACCESS_CHANGED", (access) => {
+            if (access?.status) {
+                notificationRestriction.current = accountRestriction(access);
+                queryClient.setQueryData(["authUser"], current => current ? { ...current, ...access } : current);
+            }
             queryClient.invalidateQueries({ queryKey: ["authUser"] });
             refreshAccounts();
         });

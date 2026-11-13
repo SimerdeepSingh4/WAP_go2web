@@ -2,6 +2,7 @@ import { useMutation, useMutationState, useQuery, useQueryClient } from "@tansta
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { toast } from "@/components/ui/toast";
 import api from "@/api/client";
+import { accountRestriction } from "../../../../../shared/accountAccess.js";
 
 export function useNotifications(params = {}) {
   const { user } = useAuth();
@@ -9,14 +10,14 @@ export function useNotifications(params = {}) {
   return useQuery({
     queryKey: ["notifications", accountId, "list", params],
     queryFn: async ({ signal }) => (await api.get("/notifications", { params, signal })).data,
-    enabled: Boolean(accountId) && !user?.isExpired,
+    enabled: Boolean(accountId) && !accountRestriction(user),
     staleTime: 10000, refetchInterval: 60000,
   });
 }
 
 export function useNotificationPreferences() {
   const { user } = useAuth();
-  return useQuery({ queryKey: ["notifications", user?.id || user?._id, "preferences"], queryFn: async () => (await api.get("/notifications/preferences")).data, enabled: Boolean(user) && !user.isExpired });
+  return useQuery({ queryKey: ["notifications", user?.id || user?._id, "preferences"], queryFn: async () => (await api.get("/notifications/preferences")).data, enabled: Boolean(user) && !accountRestriction(user) });
 }
 
 export function useNotificationAction() {

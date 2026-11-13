@@ -16,6 +16,7 @@ import SupportEmptyState from "../components/SupportEmptyState";
 import SupportAttachMenu from "../components/SupportAttachMenu";
 import { buildSupportText, SUPPORT_REFERENCE_LIMIT, SUPPORT_TEXT_LIMIT } from "../lib/references";
 import "./support.css";
+import { accountRestriction } from "../../../../../shared/accountAccess.js";
 
 const ACCEPT = "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,audio/wav,audio/x-wav,application/pdf,text/plain,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.pdf,.txt,.csv,.docx,.xlsx";
 const FILE_EXTENSION = /\.(jpe?g|png|webp|gif|mp4|mov|wav|pdf|txt|csv|docx|xlsx)$/i;
@@ -30,7 +31,7 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart, onDeleted
   const { markRead } = chat;
   const location = useLocation();
   const navigate = useNavigate();
-  const initialContext = user.role === "User" ? location.state?.supportDraft : null;
+  const initialContext = location.state?.supportDraft;
   const [draft, setDraft] = useState(() => initialContext?.text || "");
   const [attachments, setAttachments] = useState([]);
   const [references, setReferences] = useState(() => initialContext?.references || []);
@@ -45,9 +46,14 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart, onDeleted
   const messageList = useRef(null), scroller = useRef(null), fileInput = useRef(null), retry = useRef(null), uploadLock = useRef(false), submissionLock = useRef(false), alive = useRef(true), nearBottom = useRef(true), jumpingToLatest = useRef(false);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   useEffect(() => {
-    if (conversationId && initialContext) navigate({ pathname: location.pathname, search: location.search }, { replace: true, state: { ...location.state, supportDraft: null } });
+    if (!conversationId || !initialContext) return;
+    setDraft(initialContext.text || "");
+    setReferences(initialContext.references || []);
+    draftInput.current?.focus();
+    navigate({ pathname: location.pathname, search: location.search }, { replace: true, state: { ...location.state, supportDraft: null } });
   }, [conversationId, initialContext, navigate, location.pathname, location.search, location.state]);
-  const blocked = Boolean(user.isPreview || user.isExpired);
+  const blocked = Boolean(user.isPreview);
+  const restricted = Boolean(accountRestriction(user));
   const messageText = buildSupportText(draft, references);
   const referenceText = buildSupportText("", references);
   const draftLimit = SUPPORT_TEXT_LIMIT - referenceText.length - (references.length ? 2 : 0);
@@ -176,8 +182,9 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart, onDeleted
   }
   if (!conversationId) return <div className="support-chat"><SupportEmptyState role={user.role} onStart={onStart} blocked={blocked} /></div>;
   const conversation = chat.conversation;
-  const participant = user.role === "User" ? conversation?.reseller : conversation?.user;
-  const participantLabel = user.role === "User" ? `${participant?.username || "Your Admin"} · ${participant?.displayRole || "Admin"}` : `${participant?.username || "User"} · ${conversation?.reseller?.username || "Admin"}`;
+  const requester = user.role === "User" || String(conversation?.user?._id || conversation?.user) === String(user.id || user._id);
+  const participant = requester ? conversation?.reseller : conversation?.user;
+  const participantLabel = requester ? `${participant?.username || "Your Admin"} · ${participant?.displayRole || "Admin"}` : `${participant?.username || "User"} · ${conversation?.reseller?.username || "Admin"}`;
   const resolved = conversation?.status === "resolved";
   const needsAdmin = conversation?.escalation?.isEscalated && !conversation.escalation.resolvedAt;
   const unavailable = blocked || deletion.isPending || chat.sending || chat.loading || Boolean(chat.error);
@@ -186,10 +193,10 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart, onDeleted
       <Button type="button" variant="ghost" size="icon-sm" className="support-mobile-back" aria-label="Back to conversations" onClick={onBack}><ArrowLeft /></Button>
       <SupportAvatar name={participant?.username} specialist={user.role === "User" && participant?.displayRole === "Super Admin"} />
       <div className="support-chat-heading"><div className="support-chat-title"><h2>{conversation?.subject || "Loading conversation…"}</h2><span className="support-status" data-resolved={resolved || undefined}>{resolved ? <CheckCheck /> : <span />}{resolved ? "Resolved" : "Open"}</span></div><p>{participantLabel}</p></div>
-      {user.role !== "User" && <div className="support-chat-actions">
-        {user.role === "Reseller" && <Button size="sm" variant="outline" disabled={blocked || escalation.isPending || chat.loading || !conversation || needsAdmin} onClick={() => setEscalating(true)}><ShieldCheck />{needsAdmin ? "Requested" : "Request Super Admin"}</Button>}
-        <Button size="sm" variant="outline" disabled={blocked || deletion.isPending || status.isPending || chat.loading || !conversation} onClick={() => status.mutate(resolved ? "reopened" : "resolved")}>{status.isPending ? <Loader2 className="animate-spin" /> : resolved ? <RefreshCw /> : <Check />}{resolved ? "Reopen" : "Resolve"}</Button>
-        {user.role === "Super Admin" && <Button type="button" size="sm" variant="destructive" disabled={unavailable || uploading || status.isPending || !conversation} onClick={() => { deletion.reset(); setDeleting(true); }}><Trash2 />Delete chat</Button>}
+      {!requester && <div className="support-chat-actions">
+        {user.role === "Reseller" && <Button size="sm" variant="outline" disabled={blocked || restricted || escalation.isPending || chat.loading || !conversation || needsAdmin} onClick={() => setEscalating(true)}><ShieldCheck />{needsAdmin ? "Requested" : "Request Super Admin"}</Button>}
+        <Button size="sm" variant="outline" disabled={blocked || restricted || deletion.isPending || status.isPending || chat.loading || !conversation} onClick={() => status.mutate(resolved ? "reopened" : "resolved")}>{status.isPending ? <Loader2 className="animate-spin" /> : resolved ? <RefreshCw /> : <Check />}{resolved ? "Reopen" : "Resolve"}</Button>
+        {user.role === "Super Admin" && <Button type="button" size="sm" variant="destructive" disabled={restricted || unavailable || uploading || status.isPending || !conversation} onClick={() => { deletion.reset(); setDeleting(true); }}><Trash2 />Delete chat</Button>}
       </div>}
     </header>
     {needsAdmin && <div className="support-assistance-banner" role="status"><ShieldCheck /><div><strong>{user.role === "Super Admin" ? "Your assistance is needed" : user.role === "User" ? "A little extra help is on the way" : "Super Admin assistance requested"}</strong><p>{user.role === "Super Admin" ? conversation.escalation.reason : user.role === "User" ? "Your Admin has requested extra assistance. You can keep chatting here." : "The team has been notified. Keep the conversation going here."}</p></div>{user.role === "Super Admin" && <span className="support-important">Important</span>}</div>}
@@ -294,7 +301,7 @@ export default function SupportChatPage() {
     events.forEach(event => socket.on(event, refreshInbox)); socket.on("SUPPORT_CONVERSATION_REVOKED", revoked); socket.on("SUPPORT_CONVERSATION_DELETED", deleted); socket.on("connect", refreshInbox);
     return () => { events.forEach(event => socket.off(event, refreshInbox)); socket.off("SUPPORT_CONVERSATION_REVOKED", revoked); socket.off("SUPPORT_CONVERSATION_DELETED", deleted); socket.off("connect", refreshInbox); };
   }, [socket, accountId, client, conversationId, setParams, removeConversation]);
-  const blocked = Boolean(user.isPreview || user.isExpired);
+  const blocked = Boolean(user.isPreview);
   const filters = [["ongoing", "Open"], ...(user.role !== "User" ? [["escalated", user.role === "Super Admin" ? "Needs you" : "Escalated"]] : []), ["resolved", "Resolved"], ["all", "All"]];
   return <div className="support-page">
     <header className="support-page-header">

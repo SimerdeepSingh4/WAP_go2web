@@ -1,11 +1,15 @@
 import { Input as InputPrimitive } from "@base-ui/react/input"
 import { cn } from "cn"
+import { useContext } from "react";
+import { ReadOnlyContext } from "@/features/auth/context/read-only.context";
 
 function Input({
   className,
   type,
+  disabled,
   ...props
 }) {
+  const readOnly = useContext(ReadOnlyContext);
   return (
     <InputPrimitive
       type={type}
@@ -15,6 +19,7 @@ function Input({
         className
       )}
       {...props}
+      disabled={disabled || Boolean(readOnly?.restriction)}
     />
   )
 }

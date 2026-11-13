@@ -7,8 +7,28 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useNotifications, useNotificationAction } from "../hooks/useNotifications";
 import NotificationListItem from "./NotificationListItem";
+import RestrictedNotifications from "./RestrictedNotifications";
+import { accountRestriction } from "../../../../../shared/accountAccess.js";
 
 export default function NotificationBell({ base }) {
+  const { user } = useAuth();
+  const restriction = accountRestriction(user);
+  return restriction ? <RestrictedNotificationBell base={base} restriction={restriction} /> : <ActiveNotificationBell base={base} />;
+}
+
+function RestrictedNotificationBell({ base, restriction }) {
+  const [open, setOpen] = useState(false);
+  return <Popover.Root open={open} onOpenChange={setOpen} modal={false}>
+    <Popover.Trigger className="portal-notification-btn relative" aria-label="Notifications"><Bell className="size-4.5" aria-hidden="true" /></Popover.Trigger>
+    <Popover.Portal><Popover.Positioner align="end" sideOffset={10} positionMethod="fixed" className="z-50"><Popover.Popup className="w-100 max-w-[calc(100vw-1rem)] overflow-hidden rounded-[28px] border border-border bg-popover p-2 text-popover-foreground shadow-xl outline-none">
+      <div className="flex items-center gap-2 px-3 pb-3 pt-2"><Bell className="size-[18px]" aria-hidden="true" /><Popover.Title className="text-sm font-semibold">Notifications</Popover.Title></div>
+      <div className="rounded-2xl bg-muted/50"><RestrictedNotifications restriction={restriction} /></div>
+      <Link to={`${base}/notifications`} onClick={() => setOpen(false)} className="mt-1 flex items-center gap-1.5 rounded-xl px-3 py-3 text-xs font-medium outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring">View all notifications<ArrowUpRight className="size-3.5" aria-hidden="true" /></Link>
+    </Popover.Popup></Popover.Positioner></Popover.Portal>
+  </Popover.Root>;
+}
+
+function ActiveNotificationBell({ base }) {
   const [open, setOpen] = useState(false);
   const { user } = useAuth();
   const query = useNotifications({ limit: 6 });
