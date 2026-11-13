@@ -47,7 +47,8 @@ export default function Campaigns({ reports = false }) {
   const deleteMutation = useAdminMutation("deleteCampaign", "Campaign deleted successfully", () => setCampaignToDelete(null));
   const today = dateFromKey(campaignDay(new Date()));
   const search = params.get("search") || "";
-  const status = params.get("status") || "all";
+  const defaultStatus = reports ? "all" : "pending";
+  const status = params.get("status") || defaultStatus;
   const selectedDateKey = params.get("date") || "";
   const rangeFromKey = params.get("from") || selectedDateKey;
   const rangeToKey = params.get("to") || selectedDateKey;
@@ -57,7 +58,7 @@ export default function Campaigns({ reports = false }) {
   };
   const hasCompleteRange = Boolean(selectedRange.from && selectedRange.to);
   const hasDateFilter = Boolean(selectedDateKey || params.has("from") || params.has("to"));
-  const hasFilters = Boolean(search || status !== "all" || hasDateFilter);
+  const hasFilters = Boolean(search || status !== defaultStatus || hasDateFilter);
   const reducedMotion = useReducedMotion();
   const selected = params.get("campaign");
 
@@ -80,14 +81,20 @@ export default function Campaigns({ reports = false }) {
       })
     : all;
 
+  // Published, completed campaigns leave the work queue but remain in history.
+  const campaignQueue = datedCampaigns.filter((campaign) =>
+    !(["completed", "sent"].includes(campaign.status) && published(campaign))
+  );
+
   // Metrics counts
-  const totalCount = datedCampaigns.length;
+  const totalCount = reports ? datedCampaigns.length : campaignQueue.length;
   const pendingCount = datedCampaigns.filter(waiting).length;
   const ongoingCount = datedCampaigns.filter((c) => c.status === "ongoing").length;
   const completedCount = datedCampaigns.filter((c) => ["completed", "sent"].includes(c.status)).length;
+  const failedCount = datedCampaigns.filter((c) => c.status === "failed").length;
   const needsReportCount = datedCampaigns.filter(needsReport).length;
 
-  const rows = datedCampaigns.filter((c) => {
+  const rows = (reports || status === "completed" ? datedCampaigns : campaignQueue).filter((c) => {
     const matches = `${c.campaignTitle} CMP-${c._id} ${ownerName(c.userId)} ${c.userId?.email || ""}`
       .toLowerCase()
       .includes(search.toLowerCase());
@@ -237,11 +244,12 @@ export default function Campaigns({ reports = false }) {
         { label: "Published", val: "published", count: datedCampaigns.filter(published).length },
       ]
     : [
-        { label: "All", val: "all", count: totalCount },
         { label: "Awaiting review", val: "pending", count: pendingCount },
         { label: "Ongoing", val: "ongoing", count: ongoingCount },
         { label: "Completed", val: "completed", count: completedCount },
+        { label: "Failed", val: "failed", count: failedCount },
         { label: "Needs report", val: "unreported", count: needsReportCount },
+        { label: "All", val: "all", count: totalCount },
       ];
 
   return (
@@ -275,7 +283,7 @@ export default function Campaigns({ reports = false }) {
           return (
             <button
               key={tab.val}
-              onClick={() => update("status", tab.val === "all" ? "" : tab.val)}
+              onClick={() => update("status", tab.val === defaultStatus ? "" : tab.val)}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                 isCurrent
                   ? "bg-primary text-primary-foreground shadow-xs"

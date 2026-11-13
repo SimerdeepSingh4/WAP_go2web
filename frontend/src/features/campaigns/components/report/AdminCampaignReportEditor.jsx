@@ -49,6 +49,7 @@ export default function AdminCampaignReportEditor({ campaign, base, onRefresh, i
       queryClient.invalidateQueries({ queryKey: ["campaign-detail", campaign._id] });
       queryClient.invalidateQueries({ queryKey: ["campaigns"] });
       queryClient.invalidateQueries({ queryKey: ["admin-campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["admin"] });
       toast.add({ title: "Report published", description: "The campaign owner can now view this report.", type: "success" });
     },
     onError: (error) => {

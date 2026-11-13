@@ -2149,7 +2149,11 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
             campaignId: campaign._id, newBalance: refundInfo.newBalance, delta: refundInfo.netRefundDelta,
             reason: refundInfo.netRefundDelta > 0 ? "REFUND" : "DEDUCT",
         });
-        if (saveMode === "publish") notifyUser(campaign.userId, "CAMPAIGN_UPDATED", { campaignId: campaign._id, reportUpdated: true });
+        if (saveMode === "publish") {
+            const update = { campaignId: campaign._id, status: campaign.status, reportUpdated: true };
+            notifyUser(campaign.userId, "CAMPAIGN_UPDATED", update);
+            notifyRole("Super Admin", "CAMPAIGN_UPDATED", update);
+        }
 
         const viewData = campaign.toObject ? campaign.toObject() : { ...campaign };
         viewData.recipientEntries = entries;
