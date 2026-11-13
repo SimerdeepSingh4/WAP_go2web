@@ -4,7 +4,6 @@ import campaignModel from "../models/campaign.model.js";
 import userModel from "../models/user.model.js";
 import walletModel from "../models/wallet.model.js";
 import transactionModel from "../models/transaction.model.js";
-import sharp from "sharp";
 import fs from "fs";
 import path from "path";
 import cloudinary, { isCloudinaryConfigured } from "../config/cloudinary.config.js";
@@ -21,6 +20,8 @@ import { campaignContactRows, restoreOriginalCampaignEntries } from "../../../sh
 import { sanitizeRecipientInputAudit } from "../helpers/recipient-input-audit.js";
 import { normalizeAccountPhone } from "../helpers/account-phone.js";
 import { campaignMediaCategory } from "../helpers/campaign-media.js";
+import { getAccountMediaUploadLimits } from "../services/media-upload-limits.service.js";
+import { uploadCampaignMedia } from "../helpers/campaign-upload.js";
 import { campaignRecipientError, campaignRecipientLines } from "../../../shared/campaignRecipients.js";
 
 const REPORT_CATEGORIES = [
@@ -586,11 +587,11 @@ export const createCampaign = async (req, res) => {
         }
 
         // 2. Validate the complete batch before uploading any media to Cloudinary.
-        const IMG_MAX_SIZE = parseInt(process.env.IMG_MAX_SIZE_MB || "5") * 1024 * 1024; // default 5 MB
+        const mediaLimits = req.campaignMediaUploadLimits || await getAccountMediaUploadLimits(req.user);
+        const IMG_MAX_SIZE = mediaLimits.imageMB * 1024 * 1024;
         const AUDIO_MAX_SIZE = parseInt(process.env.AUDIO_MAX_SIZE_MB || "7") * 1024 * 1024; // default 7 MB
-        const userVideoLimitMB = Number(req.user?.maxVideoSizeMB) || parseInt(process.env.VIDEO_MAX_SIZE_MB || "9");
-        const VIDEO_MAX_SIZE = userVideoLimitMB * 1024 * 1024; // default 9 MB or per-user limit configured by Super Admin
-        const DOC_MAX_SIZE = parseInt(process.env.DOC_MAX_SIZE_MB || "5") * 1024 * 1024; // default 5 MB, matching the campaign form
+        const VIDEO_MAX_SIZE = mediaLimits.videoMB * 1024 * 1024;
+        const DOC_MAX_SIZE = mediaLimits.pdfMB * 1024 * 1024;
         const fieldLimits = { images: IMG_MAX_SIZE, audio: AUDIO_MAX_SIZE, video: VIDEO_MAX_SIZE, documents: DOC_MAX_SIZE };
         for (const [field, files] of Object.entries(req.files || {})) {
             const category = campaignMediaCategory(field);
@@ -622,76 +623,12 @@ export const createCampaign = async (req, res) => {
                 throw new Error("Campaign attachments require Cloudinary. Configure CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET, and set USE_CLOUDINARY=true on the backend.");
             }
 
-            // Prepare buffers (compress every image into WebP format using sharp before storage)
-            const processedFiles = await Promise.all(
-                fileList.map(async (file) => {
-                    const isImage = field === "images" || ["jpg", "jpeg", "png", "webp"].includes(file.detectedType?.ext);
-                    if (isImage) {
-                        // Sharp: auto-orient EXIF, constraint max dimensions, encode to WebP with optimal compression
-                        const webpBuffer = await sharp(file.buffer)
-                            .rotate()
-                            .resize({ width: 1920, withoutEnlargement: true })
-                            .webp({ quality: 80, effort: 4 })
-                            .toBuffer();
-
-                        return {
-                            buffer: webpBuffer,
-                            isImage: true,
-                            ext: "webp",
-                            mimetype: "image/webp",
-                            size: webpBuffer.length,
-                            originalname: file.originalname,
-                        };
-                    }
-                    return {
-                        buffer: file.buffer,
-                        isImage: false,
-                        ext: file.detectedType?.ext || path.extname(file.originalname || "").replace(".", ""),
-                        mimetype: file.mimetype,
-                        size: file.size,
-                        originalname: file.originalname,
-                    };
-                })
-            );
-
-            // Upload to Cloudinary with explicit webp formatting for images
-            const uploads = await Promise.all(
-                processedFiles.map((item) =>
-                    new Promise((resolve, reject) => {
-                        const resourceType = field === "documents" ? "raw" : item.isImage ? "image" : "video";
-                        const publicId = field === "documents"
-                            ? `${crypto.randomUUID()}.${item.ext || "pdf"}`
-                            : crypto.randomUUID();
-
-                        const uploadStream = cloudinary.uploader.upload_stream(
-                            {
-                                folder: `campaigns/${field}`,
-                                resource_type: resourceType,
-                                type: "upload",
-                                format: item.isImage ? "webp" : undefined,
-                                public_id: publicId,
-                                use_filename: false,
-                                overwrite: false,
-                            },
-                            (error, result) => {
-                                if (error) {
-                                    console.error(`Cloudinary upload failed for ${field}:`, error);
-                                    reject(error);
-                                } else {
-                                    uploadedMediaTrackers.push({
-                                        url: result.secure_url,
-                                        publicId: result.public_id || publicId,
-                                        resourceType,
-                                    });
-                                    resolve({ url: result.secure_url, filename: item.originalname, mimetype: item.mimetype, size: item.size });
-                                }
-                            }
-                        );
-                        uploadStream.end(item.buffer);
-                    })
-                )
-            );
-            return uploads;
+            const uploads = await Promise.allSettled(fileList.map(file =>
+                uploadCampaignMedia(file, field, cloudinary, tracker => uploadedMediaTrackers.push(tracker))
+            ));
+            const failed = uploads.find(upload => upload.status === "rejected");
+            if (failed) throw failed.reason;
+            return uploads.map(upload => upload.value);
         };
 
         // Upload all media fields concurrently with error handling
@@ -700,12 +637,15 @@ export const createCampaign = async (req, res) => {
         let video = [];
         let documents = [];
         try {
-            [images, audio, video, documents] = await Promise.all([
+            const uploads = await Promise.allSettled([
                 uploadField("images"),
                 uploadField("audio"),
                 uploadField("video"),
                 uploadField("documents"),
             ]);
+            const failed = uploads.find(upload => upload.status === "rejected");
+            if (failed) throw failed.reason;
+            [images, audio, video, documents] = uploads.map(upload => upload.value);
         } catch (uploadErr) {
             console.error("Media upload error:", uploadErr);
             for (const item of uploadedMediaTrackers) {

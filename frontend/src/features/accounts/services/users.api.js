@@ -1,4 +1,5 @@
 import apiClient from "../../../api/client.js";
+import { leaveAccountContext } from "@/api/sessionToken";
 
 export async function fetchUsers(resellerId) {
     const url = resellerId ? `/users?resellerId=${resellerId}` : "/users";
@@ -28,11 +29,13 @@ export async function startFullAccessImpersonation(userId) {
 
 export async function exitPreview() {
     const response = await apiClient.post("/users/exit-preview");
+    leaveAccountContext();
     return response.data;
 }
 
 export async function exitFullAccessImpersonation(token) {
-    const config = token ? { headers: { Authorization: `Bearer ${token}` } } : undefined;
-    const response = await apiClient.post("/users/exit-impersonation", null, config);
+    const config = token ? { headers: { Authorization: `Bearer ${token}` }, accountContextOverride: "impersonation" } : undefined;
+    const response = await apiClient.post("/users/exit-impersonation", {}, config);
+    if (!token) leaveAccountContext();
     return response.data;
 }

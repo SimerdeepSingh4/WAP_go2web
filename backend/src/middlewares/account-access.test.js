@@ -24,7 +24,7 @@ test("middleware preserves read access and rejects workspace changes for both re
   for (const status of ["blocked", "expired"]) {
     account = { _id: userId, role: "User", status };
     let next = false;
-    const request = { headers: { authorization: `Bearer ${token}` }, method: "GET", baseUrl: "/api/campaigns", path: "/" };
+    const request = { cookies: { token }, headers: {}, method: "GET", baseUrl: "/api/campaigns", path: "/" };
     const read = response();
     await protect(request, read, () => { next = true; });
     assert.equal(next, true);
@@ -50,7 +50,8 @@ test("blocked users can authenticate into their read-only workspace", async t =>
   assert.equal(res.code, 200);
   assert.equal(res.body.user.status, "blocked");
   assert.equal(res.body.user.isBlocked, true);
-  assert.ok(res.body.token);
+  assert.equal(res.body.token, undefined);
+  assert.equal(res.body.currentSession.id, session._id);
 });
 
 function event(socket, name, predicate = () => true) {
@@ -94,7 +95,7 @@ test("WebSockets deliver block, expiry, restoration, and scheduled expiry withou
   const server = createServer();
   const sockets = initSocket(server);
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
-  const socket = connect(`http://127.0.0.1:${server.address().port}`, { auth: { token }, transports: ["websocket"], reconnection: false });
+  const socket = connect(`http://127.0.0.1:${server.address().port}`, { extraHeaders: { Cookie: `token=${token}` }, transports: ["websocket"], reconnection: false });
   try {
     await event(socket, "connect");
     const connection = socket.id;

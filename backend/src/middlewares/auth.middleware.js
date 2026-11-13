@@ -1,7 +1,4 @@
-import jwt from "jsonwebtoken";
-import crypto from "crypto";
-import config from "../config/config.js";
-import sessionModel from "../models/session.model.js";
+import { authenticateBrowserSession, requestSessionCredentials } from "../helpers/browser-session.js";
 import userModel from "../models/user.model.js";
 import { auditAuthenticatedRequest, auditContext } from "../services/audit.service.js";
 import { randomUUID } from "node:crypto";
@@ -36,46 +33,7 @@ export function hasRolePermission(userRole, allowedRoles) {
  */
 export async function protect(req, res, next) {
     try {
-        let token;
-        if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
-            token = req.headers.authorization.split(" ")[1];
-        } else if (req.cookies && req.cookies.token) {
-            token = req.cookies.token;
-        }
-
-        if (!token) {
-            return res.status(401).json({
-                message: "Authentication required. No session token provided.",
-                success: false,
-            });
-        }
-
-        // Verify JWT format and signature
-        let decoded;
-        try {
-            decoded = jwt.verify(token, config.JWT_SECRET);
-        } catch (err) {
-            return res.status(401).json({
-                message: "Invalid or expired session token.",
-                success: false,
-            });
-        }
-
-        // Hash token to verify session existence in DB
-        const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-
-        const session = await sessionModel.findOne({
-            tokenHash,
-            expiresAt: { $gt: new Date() },
-        });
-
-        if (!session) {
-            return res.status(401).json({
-                message: "Session is invalid or logged out (e.g. limit of 3 devices exceeded). Please log in again.",
-                success: false,
-                isLoggedOut: true,
-            });
-        }
+        const { token, decoded, session, parentSession } = await authenticateBrowserSession(requestSessionCredentials(req));
 
         const user = await userModel.findById(session.userId).select("-password");
         if (!user) {
@@ -104,6 +62,7 @@ export async function protect(req, res, next) {
 
         req.user = user;
         req.session = session;
+        req.parentSession = parentSession;
         req.token = token;
         req.accountExpired = accountExpired;
         req.accountReadOnly = Boolean(restriction);
@@ -114,9 +73,11 @@ export async function protect(req, res, next) {
         req.auditRequestId ||= randomUUID();
         return auditContext.run({ req }, () => auditAuthenticatedRequest(req, res, next));
     } catch (error) {
-        return res.status(500).json({
-            message: "Authentication error",
+        return res.status(error.statusCode || 500).json({
+            message: error.statusCode ? error.message : "Authentication error",
             success: false,
+            code: error.code,
+            isLoggedOut: error.statusCode === 401,
         });
     }
 }

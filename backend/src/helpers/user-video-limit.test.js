@@ -2,13 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import userModel from "../models/user.model.js";
 
-test("user model defaults maxVideoSizeMB to 9", () => {
+test("legacy user video limit defaults to 3 MB", () => {
     const user = new userModel({
         username: "testuser",
         email: "testuser@example.com",
         password: "password123",
     });
-    assert.equal(user.maxVideoSizeMB, 9);
+    assert.equal(user.maxVideoSizeMB, 3);
+    assert.deepEqual(user.mediaUploadLimits.toObject(), { imageMB: null, videoMB: null, pdfMB: null });
 });
 
 test("user model rejects negative or zero maxVideoSizeMB", () => {

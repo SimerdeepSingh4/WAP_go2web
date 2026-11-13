@@ -12,7 +12,8 @@ import { campaignEstimate, parseRecipients, splitRecipientInput } from "../lib/s
 import CreateCampaignHeader from "../components/create/CreateCampaignHeader";
 import CampaignDetailsSection from "../components/create/CampaignDetailsSection";
 import CampaignMessageEditor, { CHARACTER_LIMIT } from "../components/create/CampaignMessageEditor";
-import CampaignMediaUploader, { MEDIA_KINDS, MB, formatFileSize } from "../components/create/CampaignMediaUploader";
+import CampaignMediaUploader, { mediaKindsForLimits, MB, formatFileSize } from "../components/create/CampaignMediaUploader";
+import useMediaUploadLimits from "../hooks/useMediaUploadLimits";
 import CampaignRecipientsInput from "../components/create/CampaignRecipientsInput";
 import CampaignDeliverySettings from "../components/create/CampaignDeliverySettings";
 import CampaignCostSummary from "../components/create/CampaignCostSummary";
@@ -38,6 +39,8 @@ function htmlToText(html) {
 export default function CreateCampaignPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const uploadLimits = useMediaUploadLimits();
+  const mediaKinds = mediaKindsForLimits(uploadLimits.effective);
   const queryClient = useQueryClient();
 
   const [reviewPayload, setReviewPayload] = useState(null);
@@ -216,7 +219,11 @@ export default function CreateCampaignPage() {
 
   /* ---- Media ---- */
   const selectMedia = (kind, file) => {
-    const cfg = MEDIA_KINDS[kind];
+    if (uploadLimits.isPending || uploadLimits.isError) {
+      toast.add({ title: "Upload limits are unavailable", description: "Please refresh and try again.", type: "error" });
+      return;
+    }
+    const cfg = mediaKinds[kind];
     if (!cfg.types.includes(file.type) && !(kind === "pdf" && /\.pdf$/i.test(file.name))) {
       toast.add({ title: `Unsupported ${cfg.label.toLowerCase()} type`, description: `Allowed: ${cfg.hint}.`, type: "error" });
       return;
@@ -301,6 +308,10 @@ export default function CreateCampaignPage() {
     setValidateRecipients(true);
     if (submitting.current || createCampaignMutation.isPending) return;
     if (user?.isPreview) return setFormError("Exit account preview to submit a campaign.");
+    if (Object.values(media).some(Boolean) && !uploadLimits.isSuccess) return setFormError("Load the upload limits before continuing.");
+    for (const [kind, attachment] of Object.entries(media)) {
+      if (attachment && attachment.size > mediaKinds[kind].max) return setFormError(`${mediaKinds[kind].label} exceeds your ${mediaKinds[kind].max / MB} MB limit. Choose a smaller file.`);
+    }
     if (!isAdmin && !balanceQuery.isSuccess) return setFormError("Load your credit balance before continuing.");
     if (scheduleType === "later" && !scheduleValid) return setFormError("Choose a future date and time.");
     if (canAddCampaignLink && campaignLink.trim()) {
@@ -441,6 +452,7 @@ export default function CreateCampaignPage() {
           />
 
           <CampaignMediaUploader
+            mediaKinds={mediaKinds}
             media={media}
             onSelectMedia={selectMedia}
             onRemoveMedia={removeMedia}

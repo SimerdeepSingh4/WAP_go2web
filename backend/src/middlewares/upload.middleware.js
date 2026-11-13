@@ -1,6 +1,8 @@
 import multer from "multer";
 import path from "path";
 import { checkCampaignMediaName, validateCampaignMedia } from "../helpers/campaign-media.js";
+import { getAccountMediaUploadLimits } from "../services/media-upload-limits.service.js";
+import { campaignMediaLimitBytes } from "../../../shared/mediaUploadLimits.js";
 
 // In-Memory Storage: buffers files directly in RAM for zero disk-cleanup overhead
 const storage = multer.memoryStorage();
@@ -38,6 +40,16 @@ class BoundedMemoryStorage {
         const onData = (chunk) => {
             fileSize += chunk.length;
             req._aggregateUploadBytes += chunk.length;
+
+            const fileLimit = campaignMediaLimitBytes(file.fieldname, req.campaignMediaUploadLimits || {});
+            if (fileLimit && fileSize > fileLimit && !aborted) {
+                aborted = true;
+                file.stream.removeListener("data", onData);
+                file.stream.destroy();
+                const error = new multer.MulterError("LIMIT_FILE_SIZE", file.fieldname);
+                error.message = `${file.originalname} exceeds the ${fileLimit / 1024 / 1024} MB upload limit.`;
+                return cb(error);
+            }
 
             if (req._aggregateUploadBytes > this.maxTotalBytes && !aborted) {
                 aborted = true;
@@ -106,7 +118,12 @@ const parseMedia = mediaUpload.fields([
     { name: "pdf", maxCount: 1 },
 ]);
 
-export function uploadFiles(req, res, next) {
+export async function uploadFiles(req, res, next) {
+    try {
+        req.campaignMediaUploadLimits = await getAccountMediaUploadLimits(req.user);
+    } catch {
+        return res.status(503).json({ success: false, message: "Upload limits are temporarily unavailable. Please retry." });
+    }
     // 1. Pre-buffering total request size guard (Content-Length check)
     const declaredLength = Number(req.headers["content-length"]);
     if (Number.isFinite(declaredLength) && declaredLength > MAX_TOTAL_UPLOAD_BYTES) {
@@ -183,7 +200,7 @@ export function uploadFiles(req, res, next) {
                 if (error.code === "LIMIT_FILE_SIZE") {
                     return res.status(413).json({
                         success: false,
-                        message: "Media file too large. Exceeds allowable size limit.",
+                        message: error.message || "Media file too large. Exceeds allowable size limit.",
                         code: error.code,
                     });
                 }

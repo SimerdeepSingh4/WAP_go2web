@@ -11,8 +11,10 @@ import { Card } from "@/components/ui/card";
 import { toast } from "@/components/ui/toast";
 import OperatingTimePicker from "../components/OperatingTimePicker";
 import { validateOperatingWindow } from "../lib/operatingTime";
-import { getSessions, logoutSession, logoutAll } from "@/features/auth/services/auth.api.js";
+import { getSessions, logoutSession } from "@/features/auth/services/auth.api.js";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { dateTime, number } from "../../../lib/format";
+import { CampaignMediaSettings } from "../components/MediaUploadLimits";
 
 const STORAGE_KEY = "admin_platform_settings";
 const DEFAULT_SETTINGS = {
@@ -121,6 +123,7 @@ function validateSettings(settings) {
 }
 
 export default function OperatingRules() {
+  const { logoutAll } = useAuth();
   const [initialSettings] = useState(readSettings);
   const [settings, setSettings] = useState(initialSettings);
   const [savedSettings, setSavedSettings] = useState(initialSettings);
@@ -156,7 +159,6 @@ export default function OperatingRules() {
   });
   const logoutAllMutation = useMutation({
     mutationFn: logoutAll,
-    onSuccess: () => { sessionStorage.removeItem("authToken"); sessionStorage.removeItem("impersonationToken"); localStorage.removeItem("token"); window.dispatchEvent(new CustomEvent("auth:unauthorized")); },
     onError: (error) => toast.add({ title: "Could not sign out devices", description: error?.response?.data?.message || error?.message, type: "error" }),
   });
   const activeSessions = sessionsQuery.data?.sessions || [];
@@ -208,11 +210,12 @@ export default function OperatingRules() {
   }
 
   return (
+    <>
+    <header className="portal-page-heading">
+      <div className="portal-heading-copy"><p className="portal-eyebrow">Workspace preferences</p><h1>Settings</h1><p>Manage campaign uploads, device access, and default credit settings.</p></div>
+    </header>
+    <CampaignMediaSettings />
     <form className="portal-settings" noValidate onSubmit={handleSave}>
-      <header className="portal-page-heading">
-        <div className="portal-heading-copy"><p className="portal-eyebrow">Workspace preferences</p><h1>Operating rules</h1><p>Manage campaign limits, device access, and default credit settings.</p></div>
-        <span className="portal-local-badge"><Laptop aria-hidden="true" />Browser preferences</span>
-      </header>
       <div className="portal-settings-notice"><Info aria-hidden="true" /><span>These preferences are saved in this browser only and do not update server rules. Device sign-out actions apply immediately.</span></div>
       <dl className="portal-settings-summary">
         <div><dt>Daily campaign limit</dt><dd>{settings.dailyCampaignLimit === "" ? "—" : number(settings.dailyCampaignLimit)} / account</dd></div>
@@ -310,5 +313,6 @@ export default function OperatingRules() {
         <div className="portal-savebar-actions"><Button type="button" variant="outline" onClick={handleReset}><RotateCcw aria-hidden="true" />Restore defaults</Button><Button type="submit" disabled={!dirty}><Save aria-hidden="true" />Save changes</Button></div>
       </div>
     </form>
+    </>
   );
 }

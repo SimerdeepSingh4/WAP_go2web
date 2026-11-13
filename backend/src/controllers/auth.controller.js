@@ -7,6 +7,7 @@ import userModel from "../models/user.model.js";
 import sessionModel from "../models/session.model.js";
 import walletModel from "../models/wallet.model.js";
 import { notifySession, notifyUser, notifyRole } from "../services/socket.service.js";
+import { authenticateBrowserSession, requestSessionCredentials, revokeBrowserSessions, sessionCookieOptions, tokenHash as hashSessionToken } from "../helpers/browser-session.js";
 
 const MAX_CONCURRENT_DEVICES = 3;
 
@@ -48,6 +49,12 @@ export async function resolveUserWhiteLabel(user) {
  * If 3 devices are already logged in, the oldest device session is removed (logged out).
  */
 async function createDeviceSession(user, req, res) {
+    // Replacing this browser's account must also close its old sockets/delegations.
+    const previous = req.cookies?.token ? await sessionModel.findOne({ tokenHash: hashSessionToken(req.cookies.token) }) : null;
+    if (previous) {
+        const closed = await revokeBrowserSessions([previous._id]);
+        for (const session of closed) notifySession(String(session._id), "SESSION_EXPIRED", { reason: "The account signed into this browser changed.", forceLogout: true });
+    }
     // 1. Remove any already expired sessions for cleanliness
     await sessionModel.deleteMany({
         userId: user._id,
@@ -58,6 +65,7 @@ async function createDeviceSession(user, req, res) {
     const activeSessions = await sessionModel
         .find({
             userId: user._id,
+            parentSessionId: null,
             expiresAt: { $gt: new Date() },
         })
         .sort({ createdAt: 1 });
@@ -68,10 +76,10 @@ async function createDeviceSession(user, req, res) {
         const sessionsToEvict = activeSessions.slice(0, excessCount);
         const sessionIdsToEvict = sessionsToEvict.map((s) => s._id);
 
-        await sessionModel.deleteMany({ _id: { $in: sessionIdsToEvict } });
+        const closed = await revokeBrowserSessions(sessionIdsToEvict);
 
         // Instantly notify evicted devices to log them out
-        for (const s of sessionsToEvict) {
+        for (const s of closed) {
             notifySession(s._id.toString(), "SESSION_EXPIRED", {
                 reason: `Logged out: Device limit of ${MAX_CONCURRENT_DEVICES} reached by a new login.`,
                 forceLogout: true,
@@ -105,9 +113,7 @@ async function createDeviceSession(user, req, res) {
 
     // 5. Set session cookie
     res.cookie("token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
+        ...sessionCookieOptions(),
         maxAge: 24 * 60 * 60 * 1000,
     });
 
@@ -166,10 +172,10 @@ export async function register(req, res) {
             }
         }
 
-        let customMaxVideoSizeMB = 9;
+        let customMaxVideoSizeMB = 3;
         if (req.user?.role === "Super Admin" && req.body.maxVideoSizeMB !== undefined && req.body.maxVideoSizeMB !== null && req.body.maxVideoSizeMB !== "") {
             const parsedVideoSize = Number(req.body.maxVideoSizeMB);
-            if (!isNaN(parsedVideoSize) && parsedVideoSize >= 1) {
+            if (Number.isFinite(parsedVideoSize) && parsedVideoSize >= 1 && parsedVideoSize <= 100) {
                 customMaxVideoSizeMB = parsedVideoSize;
             }
         }
@@ -195,6 +201,7 @@ export async function register(req, res) {
             resellerId: assignedReseller,
             ratePerMsg: customRate,
             maxVideoSizeMB: customMaxVideoSizeMB,
+            mediaUploadLimits: req.user?.role === "Super Admin" && req.body.maxVideoSizeMB != null && req.body.maxVideoSizeMB !== "" ? { videoMB: customMaxVideoSizeMB } : undefined,
             expiresAt: accountExpiry,
             createdBy: req.user?._id || null,
         });
@@ -265,13 +272,13 @@ export async function login(req, res) {
             });
         }
 
-        const { token } = await createDeviceSession(user, req, res);
+        const { session } = await createDeviceSession(user, req, res);
         const whiteLabel = await resolveUserWhiteLabel(user);
 
         return res.status(200).json({
             message: "Login successful",
             success: true,
-            token,
+            currentSession: { id: session._id },
             user: {
                 id: user._id,
                 username: user.username,
@@ -299,25 +306,18 @@ export async function login(req, res) {
 
 export async function logout(req, res) {
     try {
-        let token;
-        if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
-            token = req.headers.authorization.split(" ")[1];
-        } else if (req.cookies && req.cookies.token) {
-            token = req.cookies.token;
+        let auth;
+        try { auth = await authenticateBrowserSession(requestSessionCredentials(req)); }
+        catch (error) { if (error.statusCode !== 401) throw error; }
+        if (auth) {
+            const { session } = auth;
+            const closed = await revokeBrowserSessions([session._id]);
+            for (const ended of closed) notifySession(String(ended._id), "SESSION_EXPIRED", { reason: "You have signed out." });
+            notifyUser(session.userId.toString(), "SESSIONS_CHANGED", { action: "logout", sessionId: session._id.toString() });
+            notifyRole("Super Admin", "SESSIONS_CHANGED", { action: "logout", sessionId: session._id.toString() });
         }
 
-        if (token) {
-            const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-            const session = await sessionModel.findOne({ tokenHash });
-            if (session) {
-                await sessionModel.deleteOne({ _id: session._id });
-                notifySession(session._id.toString(), "SESSION_EXPIRED", { reason: "You have signed out." });
-                notifyUser(session.userId.toString(), "SESSIONS_CHANGED", { action: "logout", sessionId: session._id.toString() });
-                notifyRole("Super Admin", "SESSIONS_CHANGED", { action: "logout", sessionId: session._id.toString() });
-            }
-        }
-
-        res.clearCookie("token");
+        if (!req.headers["x-account-context"]) res.clearCookie("token", sessionCookieOptions());
 
         return res.status(200).json({
             message: "Logged out successfully",
@@ -325,8 +325,9 @@ export async function logout(req, res) {
         });
     } catch (error) {
         console.error("Logout error:", error);
-        return res.status(500).json({
-            message: "Internal server error",
+        return res.status(error.statusCode || 500).json({
+            message: error.statusCode ? error.message : "Internal server error",
+            code: error.code,
             success: false,
         });
     }
@@ -337,12 +338,12 @@ export async function logoutAll(req, res) {
         const sessions = await sessionModel.find({ userId: req.user._id });
         const sessionIds = sessions.map((s) => s._id.toString());
 
-        await sessionModel.deleteMany({ userId: req.user._id });
-        res.clearCookie("token");
+        const closed = await revokeBrowserSessions(sessionIds);
+        if (!req.isPreview && !req.isImpersonation) res.clearCookie("token", sessionCookieOptions());
 
         // Realtime: notify each evicted device session
-        for (const sId of sessionIds) {
-            notifySession(sId, "SESSION_EXPIRED", {
+        for (const ended of closed) {
+            notifySession(String(ended._id), "SESSION_EXPIRED", {
                 reason: "All devices have been logged out.",
                 forceLogout: true,
             });
@@ -384,12 +385,11 @@ export async function logoutSession(req, res) {
             });
         }
 
-        await sessionModel.deleteOne({ _id: sessionId });
+        const closed = await revokeBrowserSessions([sessionId]);
 
         // Instantly notify the disconnected device via its dedicated socket room
-        notifySession(sessionId.toString(), "SESSION_EXPIRED", {
-            reason: "This device was disconnected from another browser or administrator.",
-            forceLogout: true,
+        for (const ended of closed) notifySession(String(ended._id), "SESSION_EXPIRED", {
+            reason: "This device was disconnected from another browser or administrator.", forceLogout: true,
         });
 
         // Notify user & Super Admin that active sessions changed
@@ -403,8 +403,8 @@ export async function logoutSession(req, res) {
         });
 
         // If the session being deleted is the current one, also clear cookie
-        if (req.session && req.session._id && req.session._id.toString() === sessionId) {
-            res.clearCookie("token");
+        if (req.session && req.session._id && req.session._id.toString() === sessionId && !req.isPreview && !req.isImpersonation) {
+            res.clearCookie("token", sessionCookieOptions());
         }
 
         return res.status(200).json({
@@ -533,10 +533,10 @@ export async function changePassword(req, res) {
 
         if (otherSessions.length > 0) {
             const otherIds = otherSessions.map((s) => s._id);
-            await sessionModel.deleteMany({ _id: { $in: otherIds } });
+            const closed = await revokeBrowserSessions(otherIds);
 
             // Instantly notify evicted devices via their dedicated socket room
-            for (const s of otherSessions) {
+            for (const s of closed) {
                 notifySession(s._id.toString(), "SESSION_EXPIRED", {
                     reason: "Password was changed. Please log in with your new password.",
                     forceLogout: true,

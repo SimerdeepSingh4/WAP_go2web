@@ -1,6 +1,7 @@
 import { notificationHooks } from "../helpers/notification-hooks.js";
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
+import { DEFAULT_MEDIA_UPLOAD_LIMITS, MAX_MEDIA_UPLOAD_MB } from "../../../shared/mediaUploadLimits.js";
 
 const userSchema = new mongoose.Schema(
     {
@@ -66,10 +67,14 @@ const userSchema = new mongoose.Schema(
             min: [0, "Rate per message cannot be negative"],
         },
         maxVideoSizeMB: {
+            // Legacy API field; campaign uploads use mediaUploadLimits below.
             type: Number,
-            default: 9,
+            default: 3,
             min: [1, "Max video size must be at least 1 MB"],
         },
+        mediaUploadLimits: Object.fromEntries(Object.keys(DEFAULT_MEDIA_UPLOAD_LIMITS).map(key => [key, {
+            type: Number, default: null, min: 1, max: MAX_MEDIA_UPLOAD_MB,
+        }])),
         featureAccess: {
             campaignDp: { type: Boolean, default: false },
             campaignNumber: { type: Boolean, default: false },

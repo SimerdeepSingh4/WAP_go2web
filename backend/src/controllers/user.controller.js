@@ -47,6 +47,7 @@ export async function getUsers(req, res) {
             return {
                 ...user.toObject(),
                 maxVideoSizeMB: user.maxVideoSizeMB ?? 9,
+                mediaUploadLimits: user.mediaUploadLimits,
                 wallet: w
                     ? {
                           balance: w.balance ?? 0,
@@ -345,10 +346,10 @@ export async function createUser(req, res) {
             }
         }
 
-        let customMaxVideoSizeMB = 9;
+        let customMaxVideoSizeMB = 3;
         if (req.user.role === "Super Admin" && req.body.maxVideoSizeMB !== undefined && req.body.maxVideoSizeMB !== null && req.body.maxVideoSizeMB !== "") {
             const parsedVideoSize = Number(req.body.maxVideoSizeMB);
-            if (!isNaN(parsedVideoSize) && parsedVideoSize >= 1) {
+            if (Number.isFinite(parsedVideoSize) && parsedVideoSize >= 1 && parsedVideoSize <= 100) {
                 customMaxVideoSizeMB = parsedVideoSize;
             }
         }
@@ -374,6 +375,7 @@ export async function createUser(req, res) {
             resellerId: assignedReseller,
             ratePerMsg: customRate,
             maxVideoSizeMB: customMaxVideoSizeMB,
+            mediaUploadLimits: req.user.role === "Super Admin" && req.body.maxVideoSizeMB != null && req.body.maxVideoSizeMB !== "" ? { videoMB: customMaxVideoSizeMB } : undefined,
             expiresAt: accountExpiry,
             createdBy: req.user._id,
         });
@@ -496,10 +498,11 @@ export async function updateUserAccess(req, res) {
                 return res.status(403).json({ message: "Only Super Admin can manage video upload limits.", success: false });
             }
             const parsedVideoSize = Number(req.body.maxVideoSizeMB);
-            if (!Number.isFinite(parsedVideoSize) || parsedVideoSize < 1) {
-                return res.status(400).json({ message: "Max video size must be at least 1 MB.", success: false });
+            if (!Number.isFinite(parsedVideoSize) || parsedVideoSize < 1 || parsedVideoSize > 100) {
+                return res.status(400).json({ message: "Max video size must be between 1 and 100 MB.", success: false });
             }
             updates.maxVideoSizeMB = parsedVideoSize;
+            updates.mediaUploadLimits = { ...targetUser.mediaUploadLimits?.toObject?.() || targetUser.mediaUploadLimits || {}, videoMB: parsedVideoSize };
         }
 
         if (status === "expired") {
@@ -877,6 +880,7 @@ export async function deleteUser(req, res) {
  */
 export async function impersonateUser(req, res) {
     try {
+        if (req.isPreview || req.isImpersonation) return res.status(403).json({ success: false, message: "Exit account access before opening another account." });
         const { id } = req.params;
         const targetUser = await userModel.findById(id);
 
@@ -899,19 +903,17 @@ export async function impersonateUser(req, res) {
             });
         }
 
-        const originalAdminToken = req.token;
-
         // Generate temporary preview session token
         const token = jwt.sign(
             {
                 userId: targetUser._id.toString(),
                 nonce: crypto.randomBytes(16).toString("hex"),
                 isPreview: true,
+                parentSessionId: String(req.session._id),
                 originalAdmin: {
                     id: req.user._id.toString(),
                     username: req.user.username,
                     role: req.user.role,
-                    token: originalAdminToken,
                 },
             },
             config.JWT_SECRET,
@@ -921,25 +923,20 @@ export async function impersonateUser(req, res) {
         const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
         const expiresAt = new Date(Date.now() + 4 * 60 * 60 * 1000);
 
-        await sessionModel.create({
+        const accessSession = await sessionModel.create({
             userId: targetUser._id,
+            parentSessionId: req.session._id,
             tokenHash,
             ip: req.ip || req.headers["x-forwarded-for"] || "preview-session",
             userAgent: `Preview Mode by ${req.user.role} (${req.user.username})`,
             expiresAt,
         });
 
-        res.cookie("token", token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
-            maxAge: 4 * 60 * 60 * 1000,
-        });
-
         return res.status(200).json({
             success: true,
             message: `Entered preview mode for ${targetUser.username}`,
             token,
+            currentSession: { id: accessSession._id },
             isPreview: true,
             user: {
                 id: targetUser._id,
@@ -966,6 +963,7 @@ export async function impersonateUser(req, res) {
 
 export async function startFullAccessImpersonation(req, res) {
     try {
+        if (req.isPreview || req.isImpersonation) return res.status(403).json({ success: false, message: "Exit account access before opening another account." });
         const { id } = req.params;
         const targetUser = await userModel.findById(id).select("-password");
 
@@ -988,6 +986,7 @@ export async function startFullAccessImpersonation(req, res) {
                 userId: targetUser._id.toString(),
                 nonce: crypto.randomBytes(16).toString("hex"),
                 isImpersonation: true,
+                parentSessionId: String(req.session._id),
                 originalAdmin: {
                     id: req.user._id.toString(),
                     username: req.user.username,
@@ -1000,8 +999,9 @@ export async function startFullAccessImpersonation(req, res) {
         const expiresAt = new Date(Date.now() + 4 * 60 * 60 * 1000);
         const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
-        await sessionModel.create({
+        const accessSession = await sessionModel.create({
             userId: targetUser._id,
+            parentSessionId: req.session._id,
             tokenHash,
             ip: req.ip || req.headers["x-forwarded-for"] || null,
             userAgent: `Full access as ${targetUser.role}; started by Super Admin ${req.user.username}`,
@@ -1011,6 +1011,7 @@ export async function startFullAccessImpersonation(req, res) {
         return res.status(200).json({
             success: true,
             token,
+            currentSession: { id: accessSession._id },
             expiresAt,
             user: {
                 id: targetUser._id,
@@ -1055,34 +1056,25 @@ export async function exitFullAccessImpersonation(req, res) {
  */
 export async function exitPreviewMode(req, res) {
     try {
-        if (!req.isPreview || !req.originalAdmin?.token) {
+        if (!req.isPreview || !req.parentSession) {
             return res.status(400).json({
                 message: "Not currently in preview mode.",
                 success: false,
             });
         }
 
-        const originalToken = req.originalAdmin.token;
-
         // Clean up temporary preview session
         const currentTokenHash = crypto.createHash("sha256").update(req.token).digest("hex");
         await sessionModel.deleteOne({ tokenHash: currentTokenHash });
         notifySession(req.session._id, "SESSION_CLOSED");
-
-        res.cookie("token", originalToken, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
-            maxAge: 24 * 60 * 60 * 1000,
-        });
 
         const adminUser = await userModel.findById(req.originalAdmin.id).select("-password");
 
         return res.status(200).json({
             success: true,
             message: "Exited preview mode. Restored your manager account.",
-            token: originalToken,
             user: adminUser,
+            currentSession: { id: req.parentSession._id },
         });
     } catch (error) {
         console.error("ExitPreviewMode error:", error);
@@ -1218,10 +1210,11 @@ export async function updateUser(req, res) {
                 return res.status(403).json({ message: "Only Super Admin can manage video upload limits.", success: false });
             }
             const parsedVideoSize = Number(req.body.maxVideoSizeMB);
-            if (!Number.isFinite(parsedVideoSize) || parsedVideoSize < 1) {
-                return res.status(400).json({ message: "Max video size must be at least 1 MB.", success: false });
+            if (!Number.isFinite(parsedVideoSize) || parsedVideoSize < 1 || parsedVideoSize > 100) {
+                return res.status(400).json({ message: "Max video size must be between 1 and 100 MB.", success: false });
             }
             targetUser.maxVideoSizeMB = parsedVideoSize;
+            targetUser.mediaUploadLimits.videoMB = parsedVideoSize;
         }
 
         await targetUser.save();

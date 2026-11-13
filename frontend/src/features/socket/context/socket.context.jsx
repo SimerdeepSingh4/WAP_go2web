@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuthContext } from "@/features/auth/context/auth.context.jsx";
 import { toast } from "@/components/ui/toast";
 import { syncPushAccount, clearPushOwner } from "@/features/notifications/services/push";
-import { clearCurrentSessionToken, getSessionToken } from "@/api/sessionToken";
+import { clearCurrentSessionToken, getSessionRequestScope, isSessionRequestCurrent, isSessionControlInProgress } from "@/api/sessionToken";
 import { accountRestriction } from "../../../../../shared/accountAccess.js";
 
 const SocketContext = createContext(null);
@@ -13,6 +13,7 @@ export const SocketProvider = ({ children }) => {
     const { user } = useAuthContext();
     const accountId = user?.id || user?._id;
     const preview = Boolean(user?.isPreview);
+    const delegated = preview || Boolean(user?.isImpersonation);
     const queryClient = useQueryClient();
     const [connectedSocket, setConnectedSocket] = useState(null);
     const restriction = accountRestriction(user);
@@ -20,14 +21,16 @@ export const SocketProvider = ({ children }) => {
 
     useEffect(() => {
         notificationRestriction.current = restriction;
+        if (delegated) return;
         if (!accountId || preview || restriction) void clearPushOwner().catch(() => {});
         else void syncPushAccount(accountId).catch(() => {});
-    }, [accountId, preview, restriction]);
+    }, [accountId, preview, delegated, restriction]);
 
     useEffect(() => {
         if (!accountId) { void clearPushOwner().catch(() => {}); return; }
+        const scope = getSessionRequestScope();
         const socket = io(import.meta.env.VITE_BACKEND_URL || (import.meta.env.DEV ? "http://localhost:3000" : (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000")), {
-            auth: { token: getSessionToken() }, withCredentials: true,
+            auth: { token: scope.token, context: scope.context, accountId, sessionId: user.sessionId }, withCredentials: true,
             transports: ["websocket", "polling"], reconnectionAttempts: Infinity,
             reconnectionDelay: 1000, reconnectionDelayMax: 15000,
         });
@@ -39,6 +42,9 @@ export const SocketProvider = ({ children }) => {
         const visibility = () => socket.emit("NOTIFICATION_VISIBILITY", { visible: document.visibilityState === "visible" });
         socket.on("connect", () => { setConnectedSocket(socket); void queryClient.invalidateQueries({ queryKey: ["authUser"] }); refreshNotifications(); refreshAccounts(); refreshSupport(); visibility(); });
         socket.on("disconnect", () => setConnectedSocket(null));
+        socket.on("connect_error", error => {
+            if (!isSessionControlInProgress() && isSessionRequestCurrent(scope) && /session|manager|signed.in|authentication|changed/i.test(error.message)) window.dispatchEvent(new CustomEvent("auth:unauthorized"));
+        });
         socket.on("NOTIFICATIONS_CHANGED", refreshNotifications);
         for (const event of ["SUPPORT_CONVERSATION_UPDATED", "SUPPORT_CONVERSATION_ASSIGNED", "SUPPORT_CONVERSATION_REVOKED"]) socket.on(event, refreshSupport);
         socket.on("SUPPORT_CONVERSATION_CREATED", () => {
@@ -91,6 +97,11 @@ export const SocketProvider = ({ children }) => {
         // Existing socket events keep business screens current. Persistent
         // notifications own the toast so the same event is not shown twice.
         socket.on("WALLET_UPDATED", refreshAccounts);
+        socket.on("MEDIA_UPLOAD_LIMITS_CHANGED", () => {
+            queryClient.invalidateQueries({ queryKey: ["media-upload-limits"] });
+            queryClient.invalidateQueries({ queryKey: ["admin"] });
+            queryClient.invalidateQueries({ queryKey: ["reseller"] });
+        });
         socket.on("ACCOUNT_ACCESS_CHANGED", (access) => {
             if (access?.status) {
                 notificationRestriction.current = accountRestriction(access);
@@ -109,7 +120,8 @@ export const SocketProvider = ({ children }) => {
             queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
         });
         socket.on("SESSION_EXPIRED", (data) => {
-            void clearPushOwner().catch(() => {});
+            if (isSessionControlInProgress() || !isSessionRequestCurrent(scope)) return;
+            if (!delegated) void clearPushOwner().catch(() => {});
             const signedOut = data?.reason === "You have signed out.";
             toast.add({
                 title: signedOut ? "Signed out successfully" : "Please sign in again",
@@ -119,8 +131,6 @@ export const SocketProvider = ({ children }) => {
                 type: "info",
             });
             clearCurrentSessionToken();
-            queryClient.setQueryData(["authUser"], null);
-            queryClient.removeQueries({ queryKey: ["notifications"] });
             window.dispatchEvent(new CustomEvent("auth:unauthorized"));
         });
         const storage = (event) => { if (event.key === "notification-sync") refreshNotifications(); };
@@ -135,7 +145,7 @@ export const SocketProvider = ({ children }) => {
             window.removeEventListener("storage", storage);
             navigator.serviceWorker?.removeEventListener("message", pushed);
         };
-    }, [accountId, preview, queryClient]);
+    }, [accountId, user?.sessionId, preview, delegated, queryClient]);
 
     return <SocketContext.Provider value={{ socket: connectedSocket }}>{children}</SocketContext.Provider>;
 };

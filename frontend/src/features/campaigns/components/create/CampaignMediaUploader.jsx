@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SectionCard } from "./CampaignDetailsSection";
 import { resolveUserImageUrl } from "@/features/accounts/lib/profileImage";
+import { DEFAULT_MEDIA_UPLOAD_LIMITS } from "../../../../../../shared/mediaUploadLimits.js";
 
 export const MB = 1024 * 1024;
 
@@ -13,7 +14,7 @@ export const MEDIA_KINDS = {
     hint: "PNG, JPG, WebP",
     accept: "image/png,image/jpeg,image/webp",
     types: ["image/png", "image/jpeg", "image/webp"],
-    max: 5 * MB,
+    max: DEFAULT_MEDIA_UPLOAD_LIMITS.imageMB * MB,
     icon: ImageIcon,
     tone: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
   },
@@ -22,7 +23,7 @@ export const MEDIA_KINDS = {
     hint: "MP4, MOV, WebM",
     accept: "video/mp4,video/quicktime,video/webm",
     types: ["video/mp4", "video/quicktime", "video/webm"],
-    max: 9 * MB,
+    max: DEFAULT_MEDIA_UPLOAD_LIMITS.videoMB * MB,
     icon: VideoIcon,
     tone: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
   },
@@ -31,7 +32,7 @@ export const MEDIA_KINDS = {
     hint: "PDF only",
     accept: "application/pdf,.pdf",
     types: ["application/pdf"],
-    max: 5 * MB,
+    max: DEFAULT_MEDIA_UPLOAD_LIMITS.pdfMB * MB,
     icon: FileText,
     tone: "bg-red-500/10 text-red-600 dark:text-red-400",
   },
@@ -42,6 +43,12 @@ export function formatFileSize(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < MB) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / MB).toFixed(1)} MB`;
+}
+
+export function mediaKindsForLimits(limits) {
+  return Object.fromEntries(Object.entries(MEDIA_KINDS).map(([kind, config]) => [kind, {
+    ...config, max: limits[{ image: "imageMB", video: "videoMB", pdf: "pdfMB" }[kind]] * MB,
+  }]));
 }
 
 function MediaSlot({ kind, config, value, onSelect, onRemove }) {
@@ -145,11 +152,12 @@ export default function CampaignMediaUploader({
   shareProfileDp,
   onToggleShareProfileDp,
   userProfileDp,
+  mediaKinds = MEDIA_KINDS,
 }) {
   const isDpSharingAvailable = Boolean(canShareProfileDp);
   const profileDpUrl = resolveUserImageUrl(userProfileDp);
   const totalMediaCount = Object.values(media).filter(Boolean).length + (isDpSharingAvailable && shareProfileDp ? 1 : 0);
-  const mediaKinds = Object.keys(MEDIA_KINDS);
+  const mediaKindNames = Object.keys(mediaKinds);
 
   return (
     <SectionCard
@@ -169,11 +177,11 @@ export default function CampaignMediaUploader({
       }
     >
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-        {mediaKinds.map((kind) => (
+        {mediaKindNames.map((kind) => (
           <MediaSlot
             key={kind}
             kind={kind}
-            config={MEDIA_KINDS[kind]}
+            config={mediaKinds[kind]}
             value={media[kind]}
             onSelect={onSelectMedia}
             onRemove={onRemoveMedia}

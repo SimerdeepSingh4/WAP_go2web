@@ -1,8 +1,7 @@
 import { Navigate, Link, useNavigate } from "react-router";
 import { useAuth } from "../../features/auth/hooks/useAuth.js";
 import { exitPreview } from "../../features/accounts/services/users.api.js";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { setSessionToken } from "../../api/sessionToken.js";
+import { useMutation } from "@tanstack/react-query";
 
 /**
  * Checks if a user's role has permission, considering role hierarchy & preview mode:
@@ -31,20 +30,14 @@ export function hasRolePermission(userRole, allowedRoles = [], originalRole = nu
 }
 
 export default function RoleRoute({ allowedRoles = [], children }) {
-  const { user, isLoading } = useAuth();
-  const queryClient = useQueryClient();
+  const { user, isLoading, checkAuth } = useAuth();
   const navigate = useNavigate();
 
   const exitMutation = useMutation({
     mutationFn: exitPreview,
-    onSuccess: (data) => {
-      if (data.token) {
-        setSessionToken(data.token);
-      }
-      queryClient.setQueryData(["authUser"], data.user);
-      queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
-      queryClient.invalidateQueries({ queryKey: ["clientUsers"] });
-      navigate(data.user?.role === "Super Admin" ? "/admin" : "/reseller");
+    onSuccess: async () => {
+      await checkAuth();
+      navigate("/", { replace: true });
     },
     onError: (err) => {
       alert(`Could not exit preview: ${err.message}`);

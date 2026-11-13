@@ -137,3 +137,15 @@ backend/
 ## Audit trail for manual record management
 
 Campaigns remain manual records. Account, campaign, and credit changes are recorded in a signed audit trail. See [audit setup and verification](ENTERPRISE_SECURITY.md). Keep the signing key persistent across restarts.
+
+## Campaign upload limits and optimization
+
+Images, videos and PDFs default to 3 MB each. Super Admin can save platform defaults in Settings and set independent account overrides from Users or Resellers → Upload limits. Clearing an override follows the platform default. These limits apply to the original uploaded file and are enforced while parsing multipart uploads and again before storage. Existing attachments remain available.
+
+- `GET /api/settings/media-limits` returns platform defaults and the current account's effective limits.
+- `PUT /api/settings/media-limits` saves platform defaults (Super Admin only).
+- `PATCH /api/users/:id/media-limits` saves or clears user/reseller overrides (Super Admin only).
+
+The payload is `{ "mediaUploadLimits": { "imageMB": 3, "videoMB": 3, "pdfMB": 3 } }`. Values range from 1 to 100 MB; account overrides may be `null` to inherit. The existing aggregate request ceiling still applies.
+
+Sharp converts campaign images to WebP before upload, preserving aspect ratio within 1920 × 1920 pixels. Cloudinary applies incoming automatic-quality H.264/AAC MP4 transformations to videos before storing them; file metadata records the resulting size. PDFs remain raw documents with their contents intact. Cloudinary PDF optimization requires separate account enablement and a different asset type, so it is not enabled by this workflow. No local FFmpeg or PDF tools are required.

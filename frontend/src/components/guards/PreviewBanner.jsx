@@ -1,44 +1,37 @@
 import { useAuth } from "../../features/auth/hooks/useAuth.js";
-import { exitPreview } from "../../features/accounts/services/users.api.js";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { exitPreview, exitFullAccessImpersonation } from "../../features/accounts/services/users.api.js";
+import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
-import { setSessionToken } from "../../api/sessionToken.js";
 
 export default function PreviewBanner() {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
+  const { user, checkAuth } = useAuth();
   const navigate = useNavigate();
 
   const exitMutation = useMutation({
-    mutationFn: exitPreview,
-    onSuccess: (data) => {
-      if (data.token) {
-        setSessionToken(data.token);
-      }
-      queryClient.setQueryData(["authUser"], data.user);
-      queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
-      queryClient.invalidateQueries({ queryKey: ["clientUsers"] });
-      navigate(data.user?.role === "Super Admin" ? "/admin" : "/reseller");
+    mutationFn: () => user?.isImpersonation ? exitFullAccessImpersonation() : exitPreview(),
+    onSuccess: async () => {
+      await checkAuth();
+      navigate("/", { replace: true });
     },
     onError: (err) => {
       alert(`Error exiting preview: ${err.message}`);
     },
   });
 
-  if (!user?.isPreview) return null;
+  if (!user?.isPreview && !user?.isImpersonation) return null;
 
   return (
     <aside
-      aria-label="Account Preview Status Banner"
+      aria-label="Account access status"
       className="bg-amber-400 text-stone-900 px-4 py-2.5 text-xs font-medium flex flex-wrap items-center justify-between gap-3 shadow-xs z-50 sticky top-0 border-b border-amber-500/20"
     >
       <div className="flex items-center gap-2.5">
         <span className="font-bold uppercase tracking-wider text-[10px] bg-stone-900 text-amber-300 px-2 py-0.5 rounded">
-          Preview Mode
+          {user.isPreview ? "Preview Mode" : "Admin account access"}
         </span>
         <span>
-          Viewing client account: <strong>{user.username}</strong> ({user.email}).
-          Sensitive actions (like password changes or account deletion) are disabled.
+          {user.isPreview ? "Viewing" : "Acting as"} client account: <strong>{user.username}</strong> ({user.email}).
+          {user.isPreview ? " Sensitive actions are disabled." : " Actions are recorded under your administrator account."}
         </span>
       </div>
 
@@ -47,7 +40,7 @@ export default function PreviewBanner() {
         disabled={exitMutation.isPending}
         className="px-3.5 py-1 bg-stone-900 text-amber-300 hover:bg-stone-800 rounded font-semibold text-xs cursor-pointer transition-colors disabled:opacity-50"
       >
-        {exitMutation.isPending ? "Restoring..." : "Exit Preview Mode ✕"}
+        {exitMutation.isPending ? "Restoring..." : "Exit account access"}
       </button>
     </aside>
   );

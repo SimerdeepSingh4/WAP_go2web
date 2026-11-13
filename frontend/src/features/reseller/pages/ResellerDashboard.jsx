@@ -3,10 +3,10 @@ import { Link, useNavigate } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../auth/hooks/useAuth.js";
 import { fetchUsers, createClientUser, accessUserAccount } from "../../accounts/services/users.api.js";
-import { setSessionToken } from "@/api/sessionToken";
+import { setPreviewToken } from "@/api/sessionToken";
 
 export default function ResellerDashboard() {
-  const { user } = useAuth();
+  const { user, checkAuth } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -45,12 +45,9 @@ export default function ResellerDashboard() {
   // Mutation to access / switch into user account
   const accessMutation = useMutation({
     mutationFn: accessUserAccount,
-    onSuccess: (data) => {
-      if (data.token) {
-        setSessionToken(data.token);
-      }
-      queryClient.setQueryData(["authUser"], data.user);
-      queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
+    onSuccess: async (data) => {
+      setPreviewToken(data.token);
+      await checkAuth();
       navigate("/");
     },
     onError: (err) => {

@@ -21,8 +21,10 @@ import enterpriseRouter from "./routes/enterprise.routes.js";
 import healthRouter from "./routes/health.routes.js";
 import brandingRouter from "./routes/branding.routes.js";
 import supportRouter from "./routes/support.routes.js";
+import settingsRouter from "./routes/settings.routes.js";
 import { auditRequestContext } from "./services/audit.service.js";
 import { uploadsStatic } from "./middlewares/uploads-static.middleware.js";
+import { isTrustedOrigin, protectBrowserRequest } from "./middlewares/browser-request.middleware.js";
 
 const app = express();
 if (process.env.TRUST_PROXY) app.set("trust proxy", process.env.TRUST_PROXY.split(",").map((entry) => entry.trim()).filter(Boolean));
@@ -30,23 +32,8 @@ if (process.env.TRUST_PROXY) app.set("trust proxy", process.env.TRUST_PROXY.spli
 // Do not serve requests or start workers until the refund index is ready.
 await connectToDB();
 
-const allowedOrigins = [
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "http://localhost:3000",
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:5174",
-    process.env.CLIENT_URL,
-].filter(Boolean);
-
 app.use(cors({
-    origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin) || origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) {
-            callback(null, true);
-        } else {
-            callback(null, true);
-        }
-    },
+    origin: (origin, callback) => callback(null, isTrustedOrigin(origin)),
     credentials: true,
 }));
 app.use(helmet({
@@ -58,6 +45,7 @@ app.use(express.json({ limit: "50mb" }));
 app.use(morgan("dev"));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use("/api", protectBrowserRequest);
 
 app.use("/uploads", uploadsStatic(path.join(process.cwd(), "uploads")));
 
@@ -74,6 +62,7 @@ app.use("/api/search", searchRouter);
 app.use("/api/enterprise", enterpriseRouter);
 app.use("/api/branding", brandingRouter);
 app.use("/api/support", supportRouter);
+app.use("/api/settings", settingsRouter);
 
 // Public Health & Keep-Alive endpoints (No auth required)
 app.use("/health", healthRouter);

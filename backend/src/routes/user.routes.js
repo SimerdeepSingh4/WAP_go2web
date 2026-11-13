@@ -21,6 +21,7 @@ import {
 import { protect, authorizeRoles, blockInPreviewMode } from "../middlewares/auth.middleware.js";
 import { uploadProfileImage } from "../middlewares/upload.middleware.js";
 import { searchAccountOptions } from "../controllers/account-picker.controller.js";
+import { updateAccountMediaUploadLimits } from "../controllers/media-upload-limits.controller.js";
 
 const userRouter = Router();
 
@@ -45,6 +46,7 @@ userRouter.post("/", authorizeRoles("Reseller", "Super Admin"), createUser);
 
 // Only Super Admin can change account role (strictly between Reseller and User)
 userRouter.patch("/:id/role", authorizeRoles("Super Admin"), updateUserRole);
+userRouter.patch("/:id/media-limits", authorizeRoles("Super Admin"), blockInPreviewMode("Account upload limit updates"), updateAccountMediaUploadLimits);
 
 // Only Super Admin can grant, revoke, or set expiry for white-label access on Resellers
 userRouter.patch("/:id/white-label-access", authorizeRoles("Super Admin"), updateWhiteLabelAccess);

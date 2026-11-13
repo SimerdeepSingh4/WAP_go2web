@@ -32,8 +32,16 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useResellerMutation } from "../hooks/useReseller";
 import UserAvatar from "@/features/accounts/components/UserAvatar";
+import useMediaUploadLimits from "@/features/campaigns/hooks/useMediaUploadLimits";
+import { resolveMediaUploadLimits } from "../../../../../shared/mediaUploadLimits.js";
+
+function accountUploadSummary(account, defaults) {
+  const limits = resolveMediaUploadLimits(account.mediaUploadLimits, defaults);
+  return `Image ${limits.imageMB} MB / Video ${limits.videoMB} MB / PDF ${limits.pdfMB} MB`;
+}
 
 function UserDetail({ account, onClose, onAction }) {
+  const uploadLimits = useMediaUploadLimits();
   const balance = useResellerQuery("balance", { id: account._id });
 
   return (
@@ -60,7 +68,7 @@ function UserDetail({ account, onClose, onAction }) {
               ["Phone", account.phone || "Not provided"],
               ["Role", account.role || "User"],
               ["Rate", `${number(account.ratePerMsg)} credits / recipient`],
-              ["Max video size", `${account.maxVideoSizeMB ?? 9} MB`],
+              ["Campaign upload limits", accountUploadSummary(account, uploadLimits.defaults)],
               ["Account expiry", account.expiresAt ? `${dateTime(account.expiresAt)}${account.isExpired ? " (Expired)" : ""}` : "No expiry"],
               ["Created", dateTime(account.createdAt)],
             ].map(([label, value]) => (
@@ -210,12 +218,6 @@ export default function ResellerUsers() {
       label: "Credits / recipient",
       sort: (a) => a.ratePerMsg,
       render: (a) => <span className="tabular-nums">{number(a.ratePerMsg)}</span>,
-    },
-    {
-      key: "maxVideoSize",
-      label: "Max video",
-      sort: (a) => a.maxVideoSizeMB ?? 9,
-      render: (a) => <span className="tabular-nums font-semibold text-xs">{a.maxVideoSizeMB ?? 9} MB</span>,
     },
     {
       key: "accountExpiry",

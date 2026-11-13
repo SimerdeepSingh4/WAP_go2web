@@ -1,7 +1,6 @@
 import { Server } from "socket.io";
-import jwt from "jsonwebtoken";
-import crypto from "crypto";
-import config from "../config/config.js";
+import { authenticateBrowserSession, cookieTokenFromHeaders } from "../helpers/browser-session.js";
+import { isTrustedOrigin } from "../middlewares/browser-request.middleware.js";
 import sessionModel from "../models/session.model.js";
 import userModel from "../models/user.model.js";
 import supportConversationModel from "../models/supportConversation.model.js";
@@ -84,6 +83,7 @@ async function loadAccess(auth) {
     if (auth.userId) filter.userId = auth.userId;
     const session = await sessionModel.findOne(filter);
     if (!session) throw new Error("Session was revoked or expired.");
+    if (session.parentSessionId && !await sessionModel.exists({ _id: session.parentSessionId, expiresAt: { $gt: new Date() } })) throw new Error("Manager session ended.");
     const user = await userModel.findById(session.userId).select("_id role resellerId status expiresAt accessReason");
     if (!user || !["active", "blocked", "expired"].includes(user.status)) {
         throw new Error("Account is unavailable.");
@@ -141,21 +141,6 @@ function endRoom(room, payload = {}, silent = false) {
     io.in(room).disconnectSockets(true);
 }
 
-function parseCookie(cookieStr, name) {
-    if (!cookieStr) return null;
-    const match = cookieStr.match(new RegExp(`(^|;\\s*)${name}=([^;]+)`));
-    return match ? decodeURIComponent(match[2]) : null;
-}
-
-const allowedOrigins = [
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "http://localhost:3000",
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:5174",
-    process.env.CLIENT_URL,
-].filter(Boolean);
-
 /**
  * Initialize Socket.IO server attached to HTTP server.
  * @param {import("http").Server} httpServer
@@ -163,13 +148,7 @@ const allowedOrigins = [
 export function initSocket(httpServer) {
     io = new Server(httpServer, {
         cors: {
-            origin: (origin, callback) => {
-                if (!origin || allowedOrigins.includes(origin) || origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:")) {
-                    callback(null, true);
-                } else {
-                    callback(null, true);
-                }
-            },
+            origin: (origin, callback) => callback(null, isTrustedOrigin(origin)),
             credentials: true,
         },
         pingTimeout: 60000,
@@ -178,34 +157,15 @@ export function initSocket(httpServer) {
     // ── Authentication Middleware ─────────────────────────────────
     io.use(async (socket, next) => {
         try {
-            // Extract token from auth payload, authorization header, or cookie
-            let token = socket.handshake.auth?.token;
-
-            if (!token && socket.handshake.headers?.authorization) {
-                const parts = socket.handshake.headers.authorization.split(" ");
-                if (parts.length === 2 && /^Bearer$/i.test(parts[0])) {
-                    token = parts[1];
-                }
-            }
-
-            if (!token && socket.handshake.headers?.cookie) {
-                token = parseCookie(socket.handshake.headers.cookie, "token");
-            }
-
-            if (!token) {
-                return next(new Error("Authentication error: No session token provided."));
-            }
-
-            // Verify JWT
-            let decoded;
-            try {
-                decoded = jwt.verify(token, config.JWT_SECRET);
-            } catch (err) {
-                return next(new Error("Authentication error: Invalid or expired token."));
-            }
-
-            const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-            const auth = { tokenHash, userId: decoded.userId || decoded.id, tokenExpiresAt: decoded.exp * 1000 };
+            const access = await authenticateBrowserSession({
+                cookieToken: cookieTokenFromHeaders(socket.handshake.headers),
+                bearerToken: socket.handshake.auth?.token,
+                context: socket.handshake.auth?.context,
+                expectedAccountId: socket.handshake.auth?.accountId,
+                expectedSessionId: socket.handshake.auth?.sessionId,
+            });
+            const { decoded } = access;
+            const auth = { tokenHash: access.session.tokenHash, userId: decoded.userId || decoded.id, tokenExpiresAt: decoded.exp * 1000 };
             const { user, session, deadline } = await boundedAccess(auth);
             socket.user = user;
             socket.sessionId = session._id.toString();
@@ -214,8 +174,8 @@ export function initSocket(httpServer) {
             socket.data.accessDeadline = deadline;
             return next();
         } catch (error) {
-            console.error("Socket authentication error:", error);
-            return next(new Error("Internal server error during socket authentication."));
+            if (!error.statusCode) console.error("Socket authentication error:", error);
+            return next(new Error(error.statusCode ? error.message : "Internal server error during socket authentication."));
         }
     });
 

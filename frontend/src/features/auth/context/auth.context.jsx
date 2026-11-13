@@ -1,15 +1,36 @@
-import { createContext, useContext, useEffect } from "react";
+import { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getMe, login as loginApi, register as registerApi, logout as logoutApi, logoutAll as logoutAllApi } from "../services/auth.api.js";
-import { clearCurrentSessionToken, setSessionToken } from "@/api/sessionToken";
+import { getMe, sessionUser, login as loginApi, register as registerApi, logout as logoutApi, logoutAll as logoutAllApi } from "../services/auth.api.js";
+import { clearCurrentSessionToken, getAccountContext, getSessionToken, leaveAccountContext, invalidateSessionRequests, rememberVerifiedSession, publishBrowserSessionChange, subscribeBrowserSessionChanges } from "@/api/sessionToken";
 import { toast } from "@/components/ui/toast";
 import { isSessionRejection } from "../lib/sessionFailure";
 import AuthConnectionNotice from "../components/AuthConnectionNotice";
 
 export const AuthContext = createContext(null);
+const identityKey = user => user ? `${user.id || user._id}:${user.sessionId || ""}:${Boolean(user.isPreview)}:${Boolean(user.isImpersonation)}` : "";
 
 export const AuthProvider = ({ children }) => {
     const queryClient = useQueryClient();
+    const previousIdentity = useRef(undefined);
+    const syncing = useRef(false);
+    const [transitioning, setTransitioning] = useState(false);
+    const [workspaceGeneration, setWorkspaceGeneration] = useState(0);
+    const clearWorkspace = useCallback(async () => {
+        await queryClient.cancelQueries({ predicate: query => query.queryKey[0] !== "authUser" });
+        queryClient.removeQueries({ predicate: query => query.queryKey[0] !== "authUser" });
+        queryClient.getMutationCache().clear();
+    }, [queryClient]);
+    const applyIdentity = useCallback(async next => {
+        const key = identityKey(next);
+        if (previousIdentity.current !== undefined && previousIdentity.current !== key) {
+            invalidateSessionRequests();
+            await clearWorkspace();
+            setWorkspaceGeneration(value => value + 1);
+        }
+        previousIdentity.current = key;
+        rememberVerifiedSession(next);
+        return next;
+    }, [clearWorkspace]);
 
     // 1. Fetch current authenticated user via TanStack Query
     const {
@@ -21,15 +42,15 @@ export const AuthProvider = ({ children }) => {
         refetch: checkAuth,
     } = useQuery({
         queryKey: ["authUser"],
-        queryFn: async () => {
+        queryFn: async ({ signal }) => {
             try {
-                const response = await getMe();
+                const response = await getMe(signal);
                 if (!response.user) throw new Error("Session verification returned an incomplete response.");
-                return response.user;
+                return await applyIdentity(sessionUser(response));
             } catch (err) {
                 if (isSessionRejection(err, true)) {
                     clearCurrentSessionToken();
-                    return null;
+                    return await applyIdentity(null);
                 }
                 // React Query retains the last verified user when a refresh fails.
                 throw err;
@@ -40,17 +61,17 @@ export const AuthProvider = ({ children }) => {
         refetchInterval: 30000,
     });
 
-    const user = authData ?? null;
+    const identityPending = previousIdentity.current !== undefined && identityKey(authData) !== previousIdentity.current;
+    const user = transitioning || identityPending ? null : authData ?? null;
 
     // 2. Login Mutation
     const loginMutation = useMutation({
         mutationFn: (credentials) => loginApi(credentials),
-        onSuccess: (data) => {
-            if (data.token) {
-                setSessionToken(data.token);
-            }
-            // Update query cache with logged-in user
-            queryClient.setQueryData(["authUser"], data.user);
+        onSuccess: async (data) => {
+            leaveAccountContext();
+            publishBrowserSessionChange("login");
+            const next = await applyIdentity(sessionUser(data));
+            queryClient.setQueryData(["authUser"], next);
             queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
             if (data?.user?.username) {
                 toast.add({
@@ -64,50 +85,51 @@ export const AuthProvider = ({ children }) => {
     // 3. Register Mutation
     const registerMutation = useMutation({
         mutationFn: (credentials) => registerApi(credentials),
-        onSuccess: (data) => {
-            if (data.token) {
-                setSessionToken(data.token);
-            }
-            queryClient.setQueryData(["authUser"], data.user);
+        onSuccess: () => {
+            // Registration creates a managed account; it never signs in as it.
+            queryClient.invalidateQueries({ queryKey: ["admin"] });
             queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
         },
     });
 
-    // 4. Logout Mutation
+    const finishLogout = async () => {
+        if (!getAccountContext()) publishBrowserSessionChange("logout");
+        clearCurrentSessionToken();
+        const next = await applyIdentity(null);
+        queryClient.setQueryData(["authUser"], next);
+    };
+
+    // A failed network request cannot clear an HttpOnly cookie, so keep the
+    // verified session until the server confirms sign-out.
     const logoutMutation = useMutation({
         mutationFn: logoutApi,
-        onSuccess: () => {
-            clearCurrentSessionToken();
-            queryClient.setQueryData(["authUser"], null);
-            queryClient.removeQueries({ queryKey: ["activeSessions"] });
-        },
-        onError: () => {
-            // Even if server request fails, clear local session
-            clearCurrentSessionToken();
-            queryClient.setQueryData(["authUser"], null);
-        },
+        onSuccess: finishLogout,
     });
 
     // 5. Logout All Devices Mutation
     const logoutAllMutation = useMutation({
         mutationFn: logoutAllApi,
-        onSuccess: () => {
-            clearCurrentSessionToken();
-            queryClient.setQueryData(["authUser"], null);
-            queryClient.removeQueries({ queryKey: ["activeSessions"] });
-        },
-        onError: () => {
-            clearCurrentSessionToken();
-            queryClient.setQueryData(["authUser"], null);
-        },
+        onSuccess: finishLogout,
     });
 
     // 5. Listen for auto-logout (e.g. 1st device evicted when 4th logs in)
     useEffect(() => {
-        const handleUnauthorized = () => {
-            clearCurrentSessionToken();
+        const synchronize = async (browserChange = false) => {
+            if (syncing.current) return;
+            syncing.current = true;
+            setTransitioning(true);
+            invalidateSessionRequests();
+            if (getAccountContext() && browserChange) clearCurrentSessionToken();
+            await queryClient.cancelQueries();
+            await clearWorkspace();
             queryClient.setQueryData(["authUser"], null);
+            try { await queryClient.refetchQueries({ queryKey: ["authUser"], exact: true }); }
+            finally { syncing.current = false; setTransitioning(false); }
         };
+        const handleUnauthorized = () => { void synchronize(); };
+        const handleBrowserChange = () => { void synchronize(true); };
+        const recheck = () => { if (document.visibilityState !== "hidden") void queryClient.invalidateQueries({ queryKey: ["authUser"] }); };
+        const unsubscribe = subscribeBrowserSessionChanges(handleBrowserChange);
 
         const handleAccountExpired = (event) => {
             queryClient.setQueryData(["authUser"], (current) => current ? ({
@@ -121,12 +143,21 @@ export const AuthProvider = ({ children }) => {
         };
 
         window.addEventListener("auth:unauthorized", handleUnauthorized);
+        window.addEventListener("auth:session-changed", handleBrowserChange);
+        window.addEventListener("focus", recheck);
+        window.addEventListener("pageshow", recheck);
+        document.addEventListener("visibilitychange", recheck);
         window.addEventListener("auth:access-changed", handleAccountExpired);
         return () => {
             window.removeEventListener("auth:unauthorized", handleUnauthorized);
+            window.removeEventListener("auth:session-changed", handleBrowserChange);
+            window.removeEventListener("focus", recheck);
+            window.removeEventListener("pageshow", recheck);
+            document.removeEventListener("visibilitychange", recheck);
+            unsubscribe();
             window.removeEventListener("auth:access-changed", handleAccountExpired);
         };
-    }, [queryClient]);
+    }, [queryClient, clearWorkspace]);
 
     useEffect(() => {
         if (!user?.expiresAt || user.isExpired) return undefined;
@@ -148,7 +179,8 @@ export const AuthProvider = ({ children }) => {
 
     const value = {
         user,
-        isLoading,
+        isLoading: isLoading || transitioning || identityPending,
+        workspaceGeneration,
         isFetching,
         authError,
         isAuthenticated: !!user,
@@ -166,8 +198,10 @@ export const AuthProvider = ({ children }) => {
     };
 
     const connectionIssue = Boolean(authError || isPaused);
+    const contextEnded = getAccountContext() && !user && !isLoading && !transitioning;
+    if (transitioning || identityPending) return <main role="status" className="grid min-h-svh place-items-center bg-background text-sm">Updating your browser session…</main>;
     return <AuthContext.Provider value={value}>
-        {connectionIssue && !user ? <AuthConnectionNotice fullPage retrying={isFetching && !isPaused} onRetry={() => checkAuth()} /> : children}
+        {contextEnded && !getSessionToken() ? <main className="grid min-h-svh place-items-center bg-background p-6"><div className="max-w-md space-y-4 text-center"><h1 className="text-lg font-semibold">Account access ended</h1><p className="text-sm text-muted-foreground">Your manager session changed or this account access session ended.</p><button className="rounded-md border px-4 py-2 text-sm" onClick={() => { leaveAccountContext(); window.location.replace("/"); }}>Return to signed-in account</button></div></main> : connectionIssue && !user ? <AuthConnectionNotice fullPage retrying={isFetching && !isPaused} onRetry={() => checkAuth()} /> : <div className="contents" key={workspaceGeneration}>{children}</div>}
         {connectionIssue && user && <AuthConnectionNotice retrying={isFetching && !isPaused} onRetry={() => checkAuth()} />}
     </AuthContext.Provider>;
 };

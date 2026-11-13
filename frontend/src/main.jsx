@@ -5,8 +5,10 @@ import "./index.css";
 import "./features/dashboard/components/dashboard.css";
 import App from "./App.jsx";
 import { initializeTheme } from "./features/branding/context/ThemeProvider";
+import { initializeSessionState } from "./api/sessionToken";
 
 initializeTheme();
+initializeSessionState();
 
 // Auto-recover from stale deployment chunks (avoids "Failed to fetch dynamically imported module")
 window.addEventListener("vite:preloadError", (event) => {

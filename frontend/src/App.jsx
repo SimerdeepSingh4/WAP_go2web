@@ -6,6 +6,16 @@ import { BrandingProvider } from "./features/branding/context/BrandingContext";
 import { SocketProvider } from "./features/socket/context/socket.context.jsx";
 import { router } from "./app.routes.jsx";
 import { Toaster } from "./components/ui/toast";
+import { useEffect } from "react";
+import { useAuthContext } from "./features/auth/context/auth.context.jsx";
+
+function SessionRouter() {
+  const { workspaceGeneration } = useAuthContext();
+  useEffect(() => {
+    if (workspaceGeneration) void router.navigate("/", { replace: true });
+  }, [workspaceGeneration]);
+  return <RouterProvider router={router} />;
+}
 
 const App = () => {
   return (
@@ -15,7 +25,7 @@ const App = () => {
           <BrandingProvider>
             <Toaster>
               <SocketProvider>
-                <RouterProvider router={router} />
+                <SessionRouter />
               </SocketProvider>
             </Toaster>
           </BrandingProvider>

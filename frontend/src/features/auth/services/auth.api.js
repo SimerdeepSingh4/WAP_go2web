@@ -1,5 +1,10 @@
 import apiClient from "../../../api/client.js";
 import { clearPushOwner } from "@/features/notifications/services/push";
+import { getAccountContext, runSessionControl } from "@/api/sessionToken";
+
+export function sessionUser(response) {
+    return response.user ? { ...response.user, sessionId: response.currentSession?.id || response.user.sessionId } : null;
+}
 
 export async function register(username, email, password) {
     const payload = typeof username === "object"
@@ -27,18 +32,18 @@ export async function login(credentials, password) {
         };
     }
 
-    const response = await apiClient.post("/auth/login", payload);
+    const response = await runSessionControl(() => apiClient.post("/auth/login", payload, { sessionControl: true }));
     return response.data;
 }
 
 export async function logout() {
-    await clearPushOwner().catch(() => {});
-    const response = await apiClient.post("/auth/logout");
+    if (!getAccountContext()) await clearPushOwner().catch(() => {});
+    const response = await runSessionControl(() => apiClient.post("/auth/logout", {}, { sessionControl: true }));
     return response.data;
 }
 
-export async function getMe() {
-    const response = await apiClient.get("/auth/me");
+export async function getMe(signal) {
+    const response = await apiClient.get("/auth/me", { signal });
     return response.data;
 }
 
@@ -48,8 +53,8 @@ export async function getSessions() {
 }
 
 export async function logoutAll() {
-    await clearPushOwner().catch(() => {});
-    const response = await apiClient.post("/auth/logout-all");
+    if (!getAccountContext()) await clearPushOwner().catch(() => {});
+    const response = await runSessionControl(() => apiClient.post("/auth/logout-all", {}, { sessionControl: true }));
     return response.data;
 }
 

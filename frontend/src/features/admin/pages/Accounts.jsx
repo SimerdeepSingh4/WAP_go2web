@@ -28,6 +28,8 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { PageHeading, QueryState, SearchBox, FilterSelect, StatusBadge, DataTable } from "../../dashboard/components/shared";
 import ActionForm from "../components/ActionForm";
 import WhiteLabelAccessDialog from "../components/WhiteLabelAccessDialog";
+import { AccountMediaLimitsDialog, mediaUploadSummary } from "../components/MediaUploadLimits";
+import useMediaUploadLimits from "@/features/campaigns/hooks/useMediaUploadLimits";
 import { useAdminQuery } from "../hooks/useAdmin";
 import { number, dateTime } from "../../../lib/format";
 import { toast } from "@/components/ui/toast";
@@ -47,6 +49,7 @@ import UserAvatar from "@/features/accounts/components/UserAvatar";
 import { resolveUserImageUrl } from "@/features/accounts/lib/profileImage";
 
 function AccountDetail({ account, onClose, onAction }) {
+  const uploadLimits = useMediaUploadLimits();
   const [showAudit, setShowAudit] = useState(false);
   const [downloadingDp, setDownloadingDp] = useState(false);
   const [dpImage, setDpImage] = useState(account.dp_img || "");
@@ -157,7 +160,7 @@ function AccountDetail({ account, onClose, onAction }) {
               ["Company", account.companyName || "Not provided"],
               ["Phone", account.phone || "Not provided"],
               ["Rate", `${number(account.ratePerMsg)} credits / recipient`],
-              ["Max video size", `${account.maxVideoSizeMB ?? 9} MB`],
+              ["Campaign upload limits", mediaUploadSummary(account, uploadLimits.defaults)],
               ["Account expiry", account.expiresAt ? `${dateTime(account.expiresAt)}${account.isExpired ? " (Expired)" : ""}` : "No expiry"],
               ["Assigned reseller", account.resellerId?.username || "—"],
               ["Created", dateTime(account.createdAt)],
@@ -303,6 +306,7 @@ function AccountDetail({ account, onClose, onAction }) {
 }
 
 export default function Accounts({ role }) {
+  const uploadLimits = useMediaUploadLimits();
   const query = useAdminQuery("accounts");
   const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
@@ -446,15 +450,9 @@ export default function Accounts({ role }) {
         ]),
     {
       key: "rate",
-      label: "Credits per recipient",
+      label: "Credits / recipient",
       sort: (a) => a.ratePerMsg,
       render: (a) => <span className="tabular-nums font-semibold">{number(a.ratePerMsg)}</span>,
-    },
-    {
-      key: "maxVideoSize",
-      label: "Max video",
-      sort: (a) => a.maxVideoSizeMB ?? 9,
-      render: (a) => <span className="tabular-nums font-semibold text-xs">{a.maxVideoSizeMB ?? 9} MB</span>,
     },
     {
       key: "accountExpiry",
@@ -496,6 +494,10 @@ export default function Accounts({ role }) {
             <DropdownMenuItem disabled={query.isPending} onClick={() => setModal({ type: "edit", account: a })}>
               <Pencil className="size-4 mr-2" />
               Edit account
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={query.isPending} onClick={() => setModal({ type: "mediaLimits", account: a })}>
+              <Upload className="size-4 mr-2" />
+              Upload limits
             </DropdownMenuItem>
             <DropdownMenuItem disabled={query.isPending} onClick={() => setModal({ type: "accountAccess", account: a })}>
               <Lock className="size-4 mr-2" />
@@ -627,6 +629,8 @@ export default function Accounts({ role }) {
         </AlertDialog>
       )}
 
+      {modal?.type === "mediaLimits" && <AccountMediaLimitsDialog account={modal.account} onClose={() => setModal(null)} />}
+
       {modal?.type === "create" && (
         <ActionForm
           title={`Add ${role.toLowerCase()}`}
@@ -638,7 +642,7 @@ export default function Accounts({ role }) {
           action="createAccount"
           successMessage={`${role} account created`}
           onClose={() => setModal(null)}
-          initialValues={{ username: "", email: "", phone: "", companyName: "", password: "", ratePerMsg: "", maxVideoSizeMB: "9", resellerId: "", expiresAt: "" }}
+          initialValues={{ username: "", email: "", phone: "", companyName: "", password: "", ratePerMsg: "", resellerId: "", expiresAt: "" }}
           fields={[
             { key: "username", label: "Account name", required: true, maxLength: 100 },
             { key: "email", label: "Email", type: "email", required: true },
@@ -646,7 +650,6 @@ export default function Accounts({ role }) {
             { key: "phone", label: "Phone number (optional)", type: "tel", maxLength: 40, hint: "Include the country code, e.g. +919876543210." },
             { key: "password", label: "Initial password", type: "password", required: true, hint: "Use at least 8 characters." },
             { key: "ratePerMsg", label: "Rate (credits / recipient)", type: "number", min: 0.01, step: 0.01, required: true },
-            { key: "maxVideoSizeMB", label: "Max video size (MB)", type: "number", min: 1, step: 1, hint: "Default is 9 MB." },
             {
               key: "expiresAt",
               label: "Account expiry date (optional)",
@@ -672,7 +675,6 @@ export default function Accounts({ role }) {
             password: v.password,
             role,
             ratePerMsg: Number(v.ratePerMsg),
-            maxVideoSizeMB: Number(v.maxVideoSizeMB) || 9,
             expiresAt: v.expiresAt || null,
             ...(role === "User" && v.resellerId ? { resellerId: v.resellerId } : {}),
           })}
@@ -682,7 +684,6 @@ export default function Accounts({ role }) {
               <p>{v.email}</p>{v.companyName && <p>Company: {v.companyName}</p>}{v.phone && <p>Phone: {v.phone}</p>}
               <p>Role: {role}</p>
               <p>Rate: {number(Number(v.ratePerMsg))} credits / recipient</p>
-              <p>Max video size: {v.maxVideoSizeMB || 9} MB</p>
               <p>Expiry: {v.expiresAt || "No expiry"}</p>
               {role === "User" && <p>Reseller: {resellers.find((a) => a._id === v.resellerId)?.username || "Direct (None)"}</p>}
             </>
@@ -705,7 +706,6 @@ export default function Accounts({ role }) {
             companyName: modal.account.companyName || "",
             password: "",
             ratePerMsg: String(modal.account.ratePerMsg ?? 12),
-            maxVideoSizeMB: String(modal.account.maxVideoSizeMB ?? 9),
             status: modal.account.status === "expired" || (modal.account.isExpired && modal.account.status === "active") ? "expired" : modal.account.status || "active",
             expiresAt: modal.account.expiresAt ? new Date(modal.account.expiresAt).toISOString().slice(0, 10) : "",
             resellerId: modal.account.resellerId?._id || modal.account.resellerId || "",
@@ -717,7 +717,6 @@ export default function Accounts({ role }) {
             { key: "phone", label: "Phone number (optional)", type: "tel", maxLength: 40, hint: "Include the country code, e.g. +919876543210." },
             { key: "password", label: "New password (optional)", type: "password", hint: "Leave blank to keep existing password. If setting new, min 8 characters." },
             { key: "ratePerMsg", label: "Rate (credits / recipient)", type: "number", min: 0.01, step: 0.01, required: true },
-            { key: "maxVideoSizeMB", label: "Max video size (MB)", type: "number", min: 1, step: 1, hint: "Default is 9 MB." },
             {
               key: "status",
               label: "Account status",
@@ -752,7 +751,6 @@ export default function Accounts({ role }) {
             companyName: (v.companyName || "").trim(),
             ...(v.password && v.password.trim() ? { password: v.password.trim() } : {}),
             ratePerMsg: Number(v.ratePerMsg),
-            maxVideoSizeMB: Number(v.maxVideoSizeMB) || 9,
             status: v.status,
             expiresAt: v.expiresAt || null,
             ...(role === "User" ? { resellerId: v.resellerId || null } : {}),
@@ -762,7 +760,6 @@ export default function Accounts({ role }) {
               <p className="font-medium text-foreground">{v.username}</p>
               <p className="text-xs text-muted-foreground">{v.email}</p>{v.companyName && <p className="text-xs">Company: {v.companyName}</p>}{v.phone && <p className="text-xs">Phone: {v.phone}</p>}
               <p className="text-xs">Rate: <strong>{number(Number(v.ratePerMsg))} credits / recipient</strong></p>
-              <p className="text-xs">Max video size: <strong>{v.maxVideoSizeMB || 9} MB</strong></p>
               <p className="text-xs">Status: <strong>{v.status}</strong></p>
               <p className="text-xs">Expiry: <strong>{v.expiresAt || "No expiry"}</strong></p>
               {v.password?.trim() && <p className="text-xs">Password: <strong>Will be updated</strong></p>}
@@ -853,7 +850,6 @@ export default function Accounts({ role }) {
             status: modal.account.status === "expired" || (modal.account.isExpired && modal.account.status === "active") ? "expired" : modal.account.status || "active",
             accessReason: modal.account.accessReason || "",
             expiresAt: modal.account.expiresAt ? new Date(modal.account.expiresAt).toISOString().slice(0, 10) : "",
-            maxVideoSizeMB: String(modal.account.maxVideoSizeMB ?? 9),
             allowCampaignDp: modal.account.featureAccess?.campaignDp === true,
             allowCampaignNumber: modal.account.featureAccess?.campaignNumber === true,
             allowCampaignLink: modal.account.featureAccess?.campaignLink === true,
