@@ -1,18 +1,19 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getMe, sessionUser, login as loginApi, register as registerApi, logout as logoutApi, logoutAll as logoutAllApi } from "../services/auth.api.js";
-import { clearCurrentSessionToken, getAccountContext, getSessionToken, leaveAccountContext, invalidateSessionRequests, rememberVerifiedSession, publishBrowserSessionChange, subscribeBrowserSessionChanges } from "@/api/sessionToken";
+import { clearCurrentSessionToken, getAccountContext, getSessionToken, leaveAccountContext, invalidateSessionRequests, rememberVerifiedSession, publishBrowserSessionChange, subscribeBrowserSessionChanges, browserSessionRevision } from "@/api/sessionToken";
 import { toast } from "@/components/ui/toast";
 import { isSessionRejection } from "../lib/sessionFailure";
 import AuthConnectionNotice from "../components/AuthConnectionNotice";
 
 export const AuthContext = createContext(null);
-const identityKey = user => user ? `${user.id || user._id}:${user.sessionId || ""}:${Boolean(user.isPreview)}:${Boolean(user.isImpersonation)}` : "";
+const identityKey = user => user ? `${user.id || user._id}:${user.sessionId || ""}:${user.role}:${Boolean(user.isPreview)}:${Boolean(user.isImpersonation)}` : "";
 
 export const AuthProvider = ({ children }) => {
     const queryClient = useQueryClient();
     const previousIdentity = useRef(undefined);
     const syncing = useRef(false);
+    const syncAgain = useRef(false);
     const [transitioning, setTransitioning] = useState(false);
     const [workspaceGeneration, setWorkspaceGeneration] = useState(0);
     const clearWorkspace = useCallback(async () => {
@@ -115,15 +116,22 @@ export const AuthProvider = ({ children }) => {
     // 5. Listen for auto-logout (e.g. 1st device evicted when 4th logs in)
     useEffect(() => {
         const synchronize = async (browserChange = false) => {
-            if (syncing.current) return;
+            if (syncing.current) { syncAgain.current = true; return; }
             syncing.current = true;
             setTransitioning(true);
-            invalidateSessionRequests();
-            if (getAccountContext() && browserChange) clearCurrentSessionToken();
-            await queryClient.cancelQueries();
-            await clearWorkspace();
-            queryClient.setQueryData(["authUser"], null);
-            try { await queryClient.refetchQueries({ queryKey: ["authUser"], exact: true }); }
+            try {
+                do {
+                    syncAgain.current = false;
+                    const revision = browserSessionRevision();
+                    invalidateSessionRequests();
+                    if (getAccountContext() && browserChange) clearCurrentSessionToken();
+                    await queryClient.cancelQueries();
+                    await clearWorkspace();
+                    queryClient.setQueryData(["authUser"], null);
+                    await queryClient.refetchQueries({ queryKey: ["authUser"], exact: true });
+                    if (browserSessionRevision() !== revision) syncAgain.current = true;
+                } while (syncAgain.current);
+            }
             finally { syncing.current = false; setTransitioning(false); }
         };
         const handleUnauthorized = () => { void synchronize(); };

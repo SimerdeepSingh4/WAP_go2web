@@ -24,7 +24,7 @@ test("middleware preserves read access and rejects workspace changes for both re
   for (const status of ["blocked", "expired"]) {
     account = { _id: userId, role: "User", status };
     let next = false;
-    const request = { cookies: { token }, headers: {}, method: "GET", baseUrl: "/api/campaigns", path: "/" };
+    const request = { cookies: { token }, headers: { "x-expected-account": userId, "x-expected-session": session._id }, method: "GET", baseUrl: "/api/campaigns", path: "/" };
     const read = response();
     await protect(request, read, () => { next = true; });
     assert.equal(next, true);

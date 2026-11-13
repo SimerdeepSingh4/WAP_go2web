@@ -138,6 +138,16 @@ backend/
 
 Campaigns remain manual records. Account, campaign, and credit changes are recorded in a signed audit trail. See [audit setup and verification](ENTERPRISE_SECURITY.md). Keep the signing key persistent across restarts.
 
+
+
+## Browser sessions
+
+Ordinary browser authentication uses the shared `token` cookie (`HttpOnly`, `SameSite=Strict`, and `Secure` in production). Login replaces this browser's previous session, and logout revokes it for every tab. Ordinary Bearer tokens are no longer accepted as an alternate identity. Separate browser profiles have independent cookies. Keep `CLIENT_URL` set to the trusted frontend origin in production; multiple origins can be comma-separated.
+
+Browser mutations send `X-App-Request: 1`; untrusted origins and requests without this header are rejected. Tabs send their verified account/session IDs so a stale form cannot execute as a newly signed-in account. The frontend synchronizes through BroadcastChannel and storage events, clears account caches on transitions, and rechecks the session on focus.
+
+Explicit preview and Super Admin account access use a separate tab token plus `X-Account-Context`. Their sessions are bound to the manager's normal cookie session; they do not overwrite it. Missing or expired access tokens close account access without cookie fallback. Ending the manager session also revokes dependent access sessions. Existing ordinary cookies continue working, while obsolete tokens in browser storage are discarded on reload; existing access tabs should be reopened.
+
 ## Campaign upload limits and optimization
 
 Images, videos and PDFs default to 3 MB each. Super Admin can save platform defaults in Settings and set independent account overrides from Users or Resellers → Upload limits. Clearing an override follows the platform default. These limits apply to the original uploaded file and are enforced while parsing multipart uploads and again before storage. Existing attachments remain available.

@@ -1,6 +1,6 @@
 import { Server } from "socket.io";
 import { authenticateBrowserSession, cookieTokenFromHeaders } from "../helpers/browser-session.js";
-import { isTrustedOrigin } from "../middlewares/browser-request.middleware.js";
+import { isTrustedOrigin, isTrustedSocketOrigin } from "../middlewares/browser-request.middleware.js";
 import sessionModel from "../models/session.model.js";
 import userModel from "../models/user.model.js";
 import supportConversationModel from "../models/supportConversation.model.js";
@@ -83,7 +83,14 @@ async function loadAccess(auth) {
     if (auth.userId) filter.userId = auth.userId;
     const session = await sessionModel.findOne(filter);
     if (!session) throw new Error("Session was revoked or expired.");
-    if (session.parentSessionId && !await sessionModel.exists({ _id: session.parentSessionId, expiresAt: { $gt: new Date() } })) throw new Error("Manager session ended.");
+    let parentDeadline = Infinity;
+    if (session.parentSessionId) {
+        const parent = await sessionModel.findOne({ _id: session.parentSessionId, expiresAt: { $gt: new Date() } });
+        if (!parent) throw new Error("Manager session ended.");
+        const manager = await userModel.findById(parent.userId).select("role status expiresAt");
+        if (!manager || manager.status !== "active" || manager.role !== auth.parentRole || (manager.expiresAt && manager.expiresAt <= new Date())) throw new Error("Manager access changed.");
+        parentDeadline = Math.min(new Date(parent.expiresAt).getTime(), manager.expiresAt ? new Date(manager.expiresAt).getTime() : Infinity);
+    }
     const user = await userModel.findById(session.userId).select("_id role resellerId status expiresAt accessReason");
     if (!user || !["active", "blocked", "expired"].includes(user.status)) {
         throw new Error("Account is unavailable.");
@@ -92,7 +99,7 @@ async function loadAccess(auth) {
         throw new Error("Account permissions changed. Please sign in again.");
     }
     // Account restrictions keep read access; only session/token expiry ends it.
-    const deadline = Math.min(auth.tokenExpiresAt, new Date(session.expiresAt).getTime());
+    const deadline = Math.min(auth.tokenExpiresAt, new Date(session.expiresAt).getTime(), parentDeadline);
     if (!Number.isFinite(deadline) || deadline <= Date.now()) throw new Error("Session expired.");
     return { user, session, deadline };
 }
@@ -152,6 +159,7 @@ export function initSocket(httpServer) {
             credentials: true,
         },
         pingTimeout: 60000,
+        allowRequest: (req, callback) => callback(null, isTrustedSocketOrigin(req)),
     });
 
     // ── Authentication Middleware ─────────────────────────────────
@@ -165,7 +173,7 @@ export function initSocket(httpServer) {
                 expectedSessionId: socket.handshake.auth?.sessionId,
             });
             const { decoded } = access;
-            const auth = { tokenHash: access.session.tokenHash, userId: decoded.userId || decoded.id, tokenExpiresAt: decoded.exp * 1000 };
+            const auth = { tokenHash: access.session.tokenHash, userId: decoded.userId || decoded.id, tokenExpiresAt: decoded.exp * 1000, parentRole: decoded.originalAdmin?.role };
             const { user, session, deadline } = await boundedAccess(auth);
             socket.user = user;
             socket.sessionId = session._id.toString();

@@ -18,3 +18,10 @@ export function protectBrowserRequest(req, res, next) {
     }
     return next();
 }
+
+export function isTrustedSocketOrigin(req) {
+    const origin = req.headers.origin;
+    if (isTrustedOrigin(origin)) return true;
+    try { const url = new URL(origin); return url.protocol === "https:" && url.host === req.headers.host; }
+    catch { return false; }
+}
