@@ -454,7 +454,11 @@ export default function CreateCampaignPage() {
             fileInputRef={fileInputRef}
             rawRecipients={rawRecipients}
             onRawRecipientsChange={setRawRecipients}
-            onRecipientsPaste={recipientTracking.onPaste}
+            onRecipientsPaste={(e) => {
+                recipientTracking.onPaste(e);
+                // Show validation after paste so invalid entries are highlighted (but paste is never blocked)
+                setTimeout(() => setValidateRecipients(true), 0);
+              }}
             onRecipientsBeforeInput={recipientTracking.onBeforeInput}
             dropActive={dropActive}
             onDragOver={(e) => {
@@ -473,7 +477,10 @@ export default function CreateCampaignPage() {
             invalidCount={invalidCount}
             invalidEntries={invalidEntries}
             inputError={recipientTracking.inputError}
-            onBlur={() => setValidateRecipients(true)}
+            onBlur={() => {
+              recipientTracking.clearInputError?.();
+              setValidateRecipients(true);
+            }}
             showValidation={validateRecipients}
           />
           <CampaignDeliverySettings

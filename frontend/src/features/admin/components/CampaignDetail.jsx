@@ -166,10 +166,11 @@ export default function CampaignDetail({ id, initialReport, initialStatus, onClo
   {ownerName(campaign.userId)}
   {campaign.profileDp || campaign.userId?.dp_img ? (
     <a
-      href={`/api/campaigns/${campaign._id}/profile-dp`}
-      download="profile-dp.jpg"
-      aria-label="Download profile picture"
-      title="Download profile picture"
+      href={campaign.profileDp || campaign.userId?.dp_img}
+      target="_blank"
+      rel="noreferrer"
+      aria-label="View profile picture"
+      title="View profile picture"
       className="ml-2 flex items-center gap-1 text-muted-foreground hover:text-foreground"
     >
       <Download className="size-4" />
