@@ -1,6 +1,13 @@
 import api from "../../../api/client";
 const get = async (path, params, signal) => (await api.get(`/support${path}`, { params, signal, timeout: 30000 })).data;
 export const supportApi = {
+  getContext: (id, signal) => get(`/conversations/${id}/context`, undefined, signal),
+  getTransactions: (id, reference, signal) => get(`/conversations/${id}/transactions`, reference ? { reference } : undefined, signal),
+  getLedger: (id, signal) => get(`/conversations/${id}/ledger`, undefined, signal),
+  walletAction: async (id, body) => (await api.post(`/support/conversations/${id}/wallet-action`, body, { timeout: 30000 })).data,
+  accessAction: async (id, body) => (await api.post(`/support/conversations/${id}/access-action`, body, { timeout: 30000 })).data,
+  allocateCredits: async (body) => (await api.post("/credits/allocate", body, { timeout: 30000 })).data,
+  requestCredits: async (body) => (await api.post("/credits/request", body, { timeout: 30000 })).data,
   getOrCreateConversation: async (subject, options = {}) => (await api.post("/support/conversations", { subject, ...options }, { timeout: 30000 })).data,
   listConversations: (params, signal) => get("/conversations", params, signal),
   getAdminInbox: (params, signal) => get("/admin/inbox", params, signal),

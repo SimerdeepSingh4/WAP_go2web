@@ -20,6 +20,8 @@ import {
 } from "../services/support-media.service.js";
 import { notifyUser, notifyRole, emitSupportEvent } from "../services/socket.service.js";
 import { accountRestriction } from "../../../shared/accountAccess.js";
+import { hasConversationAccess } from "../helpers/support-access.js";
+export { hasConversationAccess } from "../helpers/support-access.js";
 
 /**
  * Access check helper:
@@ -27,14 +29,6 @@ import { accountRestriction } from "../../../shared/accountAccess.js";
  * - Reseller can access conversations where reseller == user._id
  * - User can access conversations where user == user._id
  */
-export function hasConversationAccess(conversation, user) {
-    if (!conversation || !user) return false;
-    if (user.role === "Super Admin") return true;
-    if (user.role === "Reseller" && String(conversation.reseller?._id || conversation.reseller) === String(user._id)) return true;
-    if (String(conversation.user?._id || conversation.user) === String(user._id)) return true;
-    return false;
-}
-
 async function inboxConversations(conversations, viewer) {
     if (!conversations.length) return [];
     const unread = await supportMessageModel.aggregate([

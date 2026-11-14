@@ -1,0 +1,20 @@
+.gradient-chat-input { position:relative; width:100%; min-width:0; margin-inline:auto; }
+.gradient-chat-card { position:relative; padding:4px; border:1px solid var(--border); border-radius:24px; background:var(--background); box-shadow:0 10px 20px -6px rgb(0 0 0 / .1); transition:border-color .18s,box-shadow .18s; }
+.gradient-chat-card:focus-within { border-color:color-mix(in oklab,var(--ring) 45%,var(--border)); box-shadow:0 10px 20px -6px rgb(0 0 0 / .1),0 0 0 2px color-mix(in oklab,var(--ring) 8%,transparent); }
+.gradient-chat-content { position:relative; z-index:2; display:flex; min-width:0; flex-direction:column; gap:8px; padding:6px; border-radius:24px; background:var(--background); }
+.gradient-chat-row { display:flex; min-width:0; align-items:center; justify-content:space-between; gap:12px; }
+.gradient-chat-adornment { display:flex; flex-shrink:0; align-items:center; }
+.gradient-chat-input .gradient-chat-row textarea { display:block; width:0; min-width:0; min-height:40px; max-height:144px; flex:1; resize:none; padding:10px 0; border:0; border-radius:0; background:transparent; color:var(--foreground); box-shadow:none; outline:none; font-family:inherit; font-size:14px; font-weight:400; line-height:20px; scrollbar-width:thin; }
+.gradient-chat-input .gradient-chat-row textarea::placeholder { color:var(--muted-foreground); }
+.gradient-chat-input .gradient-chat-row textarea:focus-visible { outline:none; box-shadow:none; }
+.gradient-chat-input .gradient-chat-row textarea:disabled { cursor:not-allowed; opacity:.55; }
+.gradient-chat-input .gradient-chat-row [data-slot="button"] { display:flex; width:40px; min-width:40px; height:40px; min-height:40px; flex-shrink:0; align-items:center; justify-content:center; gap:0; margin:0; padding:0; border-radius:12px; }
+.gradient-chat-input .gradient-chat-row [data-slot="button"] > svg { width:20px; height:20px; }
+.gradient-chat-input .gradient-chat-send { transition:background .18s,box-shadow .18s,transform .18s; }
+.gradient-chat-input .gradient-chat-send:active:not(:disabled) { transform:scale(.95); }
+.gradient-chat-content > .support-pending-references,.gradient-chat-content > .support-pending-attachments { margin:0; padding:2px; }
+@media(max-width:767px) {
+  .gradient-chat-input .gradient-chat-row textarea { font-size:16px; }
+  .gradient-chat-row { gap:9px; }
+}
+@media(prefers-reduced-motion:reduce) { .gradient-chat-card,.gradient-chat-send { transition:none; } }
