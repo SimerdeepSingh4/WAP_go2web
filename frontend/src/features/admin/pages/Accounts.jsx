@@ -308,7 +308,6 @@ function AccountDetail({ account, onClose, onAction }) {
 }
 
 export default function Accounts({ role }) {
-  const uploadLimits = useMediaUploadLimits();
   const query = useAdminQuery("accounts");
   const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();

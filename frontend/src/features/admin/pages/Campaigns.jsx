@@ -12,7 +12,6 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { PageHeading, QueryState, DataTable, StatusBadge } from "../../dashboard/components/shared";
 import { useAdminQuery } from "../hooks/useAdmin";
 import { number, dateTime, ownerName, needsReport, published, waiting } from "../../../lib/format";
-import { resolveUserImageUrl } from "@/features/accounts/lib/profileImage";
 import CampaignDetail from "../components/CampaignDetail";
 import UserAvatar from "@/features/accounts/components/UserAvatar";
 

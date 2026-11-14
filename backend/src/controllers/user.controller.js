@@ -11,6 +11,7 @@ import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import cloudinary, { isCloudinaryConfigured } from "../config/cloudinary.config.js";
 import { syncResellerReassignment } from "../helpers/support-reassignment.helper.js";
+import { getDefaultRatePerMsg, calculateDefaultExpiry } from "../services/platform-settings.service.js";
 
 /**
  * Get all users accessible by current user:
@@ -355,7 +356,8 @@ export async function createUser(req, res) {
             assignedRole = role || "User";
         }
 
-        let customRate = 12; // default ratePerMsg
+        const platformRate = await getDefaultRatePerMsg();
+        let customRate = platformRate;
         if (req.body.ratePerMsg !== undefined && req.body.ratePerMsg !== null && req.body.ratePerMsg !== "") {
             const parsed = Number(req.body.ratePerMsg);
             if (!isNaN(parsed) && parsed >= 0) {
@@ -388,6 +390,8 @@ export async function createUser(req, res) {
                 }
                 accountExpiry = parsedExpiry;
             }
+        } else {
+            accountExpiry = await calculateDefaultExpiry();
         }
 
         const newUser = await userModel.create({
@@ -412,6 +416,7 @@ export async function createUser(req, res) {
                 userId: newUser._id,
                 balance: 0,
                 resellerId: assignedReseller,
+                expiresAt: accountExpiry,
             });
         } catch (walletErr) {
             console.error("Auto-wallet creation error on createUser:", walletErr);

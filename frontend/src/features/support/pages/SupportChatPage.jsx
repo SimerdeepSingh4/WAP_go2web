@@ -1,7 +1,7 @@
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ArrowDown, ArrowLeft, ArrowUpRight, Check, CheckCheck, ChevronLeft, ChevronRight, Eye, Hash, Headset, Inbox, Loader2, MessageCircle, Paperclip, Plus, RefreshCw, Search, Send, ShieldCheck, Trash2, X } from "lucide-react";
+import { AlertCircle, ArrowDown, ArrowLeft, Check, CheckCheck, ChevronLeft, ChevronRight, Eye, Hash, Headset, Inbox, Loader2, MessageCircle, Paperclip, Plus, RefreshCw, Search, Send, ShieldCheck, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import GradientChatInput from "@/components/ui/gradient-chat-input";
