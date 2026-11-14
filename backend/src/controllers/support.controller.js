@@ -35,6 +35,87 @@ export function hasConversationAccess(conversation, user) {
     return false;
 }
 
+export const SUPPORT_RETENTION_DAYS = 7;
+export const SUPPORT_RETENTION_MS = SUPPORT_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+
+export function isConversationExpired(conversation) {
+    if (!conversation) return false;
+    const cutoff = Date.now() - SUPPORT_RETENTION_MS;
+    const mostRecent = Math.max(
+        new Date(conversation.latestActivity?.sentAt || 0).getTime(),
+        new Date(conversation.updatedAt || conversation.createdAt || 0).getTime()
+    );
+    return mostRecent < cutoff;
+}
+
+/**
+ * Automatically purge support chats:
+ * 1. Stale abandoned empty drafts older than 15 minutes.
+ * 2. Conversations inactive for more than 7 days (1 week retention policy).
+ * Removes conversation records, messages, attachments, and disk storage files.
+ */
+export async function purgeExpiredSupportChats() {
+    try {
+        const cutoff7Days = new Date(Date.now() - SUPPORT_RETENTION_MS);
+        const cutoff15Mins = new Date(Date.now() - 15 * 60 * 1000);
+
+        // 1. Abandoned drafts
+        const abandonedDrafts = await supportConversationModel.find({
+            "latestActivity.messageText": { $in: ["", null] },
+            nextSequenceNumber: { $lte: 1 },
+            createdAt: { $lt: cutoff15Mins },
+        }).select("_id").lean();
+
+        // 2. Expired conversations: no update or message within the last 7 days
+        const expiredConversations = await supportConversationModel.find({
+            updatedAt: { $lt: cutoff7Days },
+            $or: [
+                { "latestActivity.sentAt": { $lt: cutoff7Days } },
+                { "latestActivity.sentAt": null },
+                { "latestActivity.sentAt": { $exists: false } },
+            ],
+        }).select("_id").lean();
+
+        const targets = [...abandonedDrafts, ...expiredConversations];
+        if (!targets.length) return;
+
+        const targetIds = [...new Set(targets.map(t => String(t._id)))];
+
+        // Retrieve attachment storage references for disk cleanup
+        const attachments = await supportAttachmentModel.find({
+            conversationId: { $in: targetIds },
+        }).select("storageReference").lean();
+
+        await Promise.all([
+            supportMessageModel.deleteMany({ conversationId: { $in: targetIds } }),
+            supportAttachmentModel.deleteMany({ conversationId: { $in: targetIds } }),
+            supportConversationModel.deleteMany({ _id: { $in: targetIds } }),
+        ]);
+
+        if (attachments.length > 0) {
+            void Promise.allSettled(
+                attachments.map(att => removeSupportMedia(att.storageReference))
+            ).catch(err => console.error("Support attachment disk cleanup error:", err));
+        }
+
+        if (expiredConversations.length > 0) {
+            console.log(`[Support Retention] Automatically purged ${expiredConversations.length} conversation(s) older than 7 days.`);
+        }
+    } catch (error) {
+        console.error("purgeExpiredSupportChats error:", error.message);
+    }
+}
+
+// Background cleanup timer: run every 1 hour
+setInterval(() => {
+    void purgeExpiredSupportChats();
+}, 60 * 60 * 1000).unref();
+
+// Run once shortly after startup
+setTimeout(() => {
+    void purgeExpiredSupportChats();
+}, 5000).unref();
+
 async function inboxConversations(conversations, viewer) {
     if (!conversations.length) return [];
     const unread = await supportMessageModel.aggregate([
@@ -59,15 +140,20 @@ export async function getOrCreateConversation(req, res) {
         const restriction = recovery ? accountRestriction(user) : null;
         if (recovery && !restriction) return res.status(400).json({ success: false, message: "Your account access has already been restored." });
         const topic = recovery ? `account-${restriction}` : "general";
-        if (user.role !== "User" && !recovery) {
+        if (user.role !== "User" && user.role !== "Reseller" && !recovery) {
             return res.status(400).json({
                 success: false,
-                message: "Conversations can only be initiated by Users. Resellers and Admins respond to existing threads.",
+                message: "Conversations can only be initiated by Users and Resellers.",
             });
         }
 
         if (req.body.subject !== undefined && (typeof req.body.subject !== "string" || !req.body.subject.trim() || req.body.subject.trim().length > 150)) return res.status(400).json({ message: "Provide a subject up to 150 characters." });
-        const subject = recovery ? `Account ${restriction}` : (req.body.subject || "Customer Support").trim();
+        const defaultSubject = user.role === "Reseller" ? "Chat with Super Admin" : "Customer Support";
+        const subject = recovery ? `Account ${restriction}` : (req.body.subject || defaultSubject).trim();
+        const initialMessage = typeof req.body.message === "string" ? req.body.message.trim() : "";
+        if (initialMessage && initialMessage.length > 4000) {
+            return res.status(400).json({ success: false, message: "Message cannot exceed 4,000 characters." });
+        }
         // Determine assigned reseller from user record
         let resellerId = user.role === "User" ? user.resellerId : null;
         if (!resellerId) {
@@ -76,11 +162,17 @@ export async function getOrCreateConversation(req, res) {
         }
 
         if (!resellerId) return res.status(503).json({ message: "No support administrator is available. Please contact your account manager." });
+        
+        // Trigger background cleanup of expired chats
+        void purgeExpiredSupportChats();
+
+        const retentionCutoff = new Date(Date.now() - SUPPORT_RETENTION_MS);
         let conversation = await supportConversationModel.findOne({
             user: user._id,
             topic: recovery ? topic : { $nin: ["account-expired", "account-blocked"] },
             status: { $in: ["open", "reopened"] },
-        }).populate("reseller", "username email dp_img role");
+            updatedAt: { $gte: retentionCutoff },
+        }).populate("reseller", "username email dp_img role").populate("user", "username email dp_img role");
 
         let isNew = false;
         if (!conversation) {
@@ -90,18 +182,88 @@ export async function getOrCreateConversation(req, res) {
                 subject,
                 topic,
                 status: "open",
+                nextSequenceNumber: initialMessage ? 2 : 1,
+                latestActivity: {
+                    messageText: initialMessage ? initialMessage.slice(0, 150) : "",
+                    sentAt: new Date(),
+                    senderRole: user.role,
+                },
                 events: [
                     {
                         eventType: "created",
                         actor: user._id,
                         actorRole: user.role,
-                        note: "Conversation initiated by user",
+                        note: user.role === "Reseller" ? "Conversation initiated by reseller" : "Conversation initiated by user",
                         timestamp: new Date(),
                     },
                 ],
             });
             await conversation.populate("reseller", "username email dp_img role");
+            await conversation.populate("user", "username email dp_img role");
             isNew = true;
+
+            if (initialMessage) {
+                const clientMessageId = req.body.clientMessageId || `init-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+                const createdMsg = await supportMessageModel.create({
+                    conversationId: conversation._id,
+                    sender: user._id,
+                    senderRole: user.role,
+                    clientMessageId,
+                    sequenceNumber: 1,
+                    text: initialMessage,
+                    attachments: [],
+                });
+                await createdMsg.populate("sender", "username email dp_img");
+
+                try {
+                    await emitSupportEvent(conversation._id, "SUPPORT_MESSAGE_RECEIVED", createdMsg);
+                    const payload = { conversationId: String(conversation._id) };
+                    await Promise.all([
+                        notifyUser(conversation.user, "SUPPORT_CONVERSATION_UPDATED", payload),
+                        notifyUser(conversation.reseller, "SUPPORT_CONVERSATION_UPDATED", payload),
+                        notifyRole("Super Admin", "SUPPORT_CONVERSATION_UPDATED", payload),
+                        notifyUser(conversation.reseller, "SUPPORT_CONVERSATION_CREATED", {
+                            conversationId: String(conversation._id),
+                            subject: conversation.subject,
+                            userId: conversation.user,
+                        }),
+                    ]);
+                } catch (error) { console.error("Initial message delivery:", error.message); }
+            }
+        } else if (initialMessage) {
+            const clientMessageId = req.body.clientMessageId || `msg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            const nextSeq = conversation.nextSequenceNumber;
+            conversation.nextSequenceNumber += 1;
+            conversation.latestActivity = {
+                messageText: initialMessage.slice(0, 150),
+                sentAt: new Date(),
+                senderRole: user.role,
+            };
+            if (conversation.status === "resolved") {
+                conversation.status = "reopened";
+            }
+            await conversation.save();
+
+            const createdMsg = await supportMessageModel.create({
+                conversationId: conversation._id,
+                sender: user._id,
+                senderRole: user.role,
+                clientMessageId,
+                sequenceNumber: nextSeq,
+                text: initialMessage,
+                attachments: [],
+            });
+            await createdMsg.populate("sender", "username email dp_img");
+
+            try {
+                await emitSupportEvent(conversation._id, "SUPPORT_MESSAGE_RECEIVED", createdMsg);
+                const payload = { conversationId: String(conversation._id) };
+                await Promise.all([
+                    notifyUser(conversation.user, "SUPPORT_CONVERSATION_UPDATED", payload),
+                    notifyUser(conversation.reseller, "SUPPORT_CONVERSATION_UPDATED", payload),
+                    notifyRole("Super Admin", "SUPPORT_CONVERSATION_UPDATED", payload),
+                ]);
+            } catch (error) { console.error("Message delivery:", error.message); }
         } else if (conversation.nextSequenceNumber <= 1 && !conversation.latestActivity?.messageText) {
             if (conversation.subject !== subject) {
                 conversation.subject = subject;
@@ -128,8 +290,10 @@ export async function listConversations(req, res) {
         const { role, _id } = req.user;
         const { status, isEscalated, page = 1, limit = 20 } = req.query;
 
+        const retentionCutoff = new Date(Date.now() - SUPPORT_RETENTION_MS);
         const filter = {
             "latestActivity.messageText": { $exists: true, $ne: "" },
+            updatedAt: { $gte: retentionCutoff },
         };
         if (role === "User") {
             filter.user = _id;
@@ -137,12 +301,8 @@ export async function listConversations(req, res) {
             filter.$or = [{ reseller: _id }, { user: _id }];
         } // Super Admin has universal access
 
-        // Clean up stale abandoned empty drafts in background
-        void supportConversationModel.deleteMany({
-            "latestActivity.messageText": { $in: ["", null] },
-            nextSequenceNumber: { $lte: 1 },
-            createdAt: { $lt: new Date(Date.now() - 15 * 60 * 1000) },
-        }).catch(() => {});
+        // Clean up stale abandoned empty drafts and expired chats in background
+        void purgeExpiredSupportChats();
 
         if (status && ["open", "resolved", "reopened"].includes(status)) {
             filter.status = status;
@@ -163,7 +323,7 @@ export async function listConversations(req, res) {
                 .sort({ updatedAt: -1 })
                 .skip(skip)
                 .limit(pageLimit)
-                .populate("user", "username email dp_img")
+                .populate("user", "username email dp_img role")
                 .populate("reseller", "username email dp_img role"),
         ]);
 
@@ -235,11 +395,11 @@ export async function getConversationById(req, res) {
         }
 
         const conversation = await supportConversationModel.findById(id)
-            .populate("user", "username email dp_img")
+            .populate("user", "username email dp_img role")
             .populate("reseller", "username email dp_img role");
 
-        if (!conversation || !hasConversationAccess(conversation, req.user)) {
-            return res.status(404).json({ success: false, message: "Conversation not found or access denied." });
+        if (!conversation || !hasConversationAccess(conversation, req.user) || isConversationExpired(conversation)) {
+            return res.status(404).json({ success: false, message: "Conversation not found or has expired." });
         }
 
         return res.status(200).json({
@@ -262,8 +422,8 @@ export async function getConversationMessages(req, res) {
         const { beforeSequence, afterSequence, limit = 50 } = req.query;
 
         const conversation = await supportConversationModel.findById(id);
-        if (!conversation || !hasConversationAccess(conversation, req.user)) {
-            return res.status(403).json({ success: false, message: "Unauthorized." });
+        if (!conversation || !hasConversationAccess(conversation, req.user) || isConversationExpired(conversation)) {
+            return res.status(403).json({ success: false, message: "Unauthorized or conversation has expired." });
         }
 
         const query = { conversationId: conversation._id };
@@ -381,8 +541,8 @@ export async function markAsRead(req, res) {
         const user = req.user;
 
         const conversation = await supportConversationModel.findById(id);
-        if (!conversation || !hasConversationAccess(conversation, user)) {
-            return res.status(403).json({ success: false, message: "Unauthorized." });
+        if (!conversation || !hasConversationAccess(conversation, user) || isConversationExpired(conversation)) {
+            return res.status(403).json({ success: false, message: "Unauthorized or conversation has expired." });
         }
 
         const requested = sequenceNumber === undefined ? conversation.nextSequenceNumber - 1 : Number(sequenceNumber);
@@ -418,15 +578,17 @@ export async function updateStatus(req, res) {
         const { id } = req.params;
         const { status } = req.body;
         const user = req.user;
-        if (user.role === "User") return res.status(403).json({ message: "Your Admin manages resolution. Send a message to reopen the conversation." });
 
         if (!["open", "resolved", "reopened"].includes(status)) {
             return res.status(400).json({ success: false, message: "Invalid status value." });
         }
 
         const conversation = await supportConversationModel.findById(id);
-        if (!conversation || !hasConversationAccess(conversation, user)) {
-            return res.status(403).json({ success: false, message: "Unauthorized." });
+        if (!conversation || !hasConversationAccess(conversation, user) || isConversationExpired(conversation)) {
+            return res.status(403).json({ success: false, message: "Unauthorized or conversation has expired." });
+        }
+        if (String(conversation.user?._id || conversation.user) === String(user._id)) {
+            return res.status(403).json({ message: "Your Admin manages resolution. Send a message to reopen the conversation." });
         }
 
         conversation.status = status;
@@ -485,7 +647,7 @@ export async function requestEscalation(req, res) {
         // Super Admin receives the same important alert after signing in.
         await mongoose.connection.transaction(async session => {
             conversation = await supportConversationModel.findById(id).session(session);
-            if (!hasConversationAccess(conversation, user)) {
+            if (!hasConversationAccess(conversation, user) || isConversationExpired(conversation)) {
                 throw Object.assign(new Error("Unauthorized."), { status: 403 });
             }
             const requestedAt = new Date();
@@ -556,8 +718,11 @@ export async function getAdminInbox(req, res) {
         }
 
         const { filter = "escalated", page = 1, limit = 25 } = req.query;
+        void purgeExpiredSupportChats();
+        const retentionCutoff = new Date(Date.now() - SUPPORT_RETENTION_MS);
         const query = {
             "latestActivity.messageText": { $exists: true, $ne: "" },
+            updatedAt: { $gte: retentionCutoff },
         };
 
         if (filter === "escalated") {
@@ -579,7 +744,7 @@ export async function getAdminInbox(req, res) {
                 .sort({ "escalation.requestedAt": -1, updatedAt: -1 })
                 .skip(skip)
                 .limit(pageLimit)
-                .populate("user", "username email dp_img")
+                .populate("user", "username email dp_img role")
                 .populate("reseller", "username email dp_img role"),
         ]);
 
@@ -614,8 +779,8 @@ export async function uploadAttachment(req, res) {
         }
 
         const conversation = await supportConversationModel.findById(id);
-        if (!conversation || !hasConversationAccess(conversation, user)) {
-            return res.status(403).json({ success: false, message: "Unauthorized." });
+        if (!conversation || !hasConversationAccess(conversation, user) || isConversationExpired(conversation)) {
+            return res.status(403).json({ success: false, message: "Unauthorized or conversation has expired." });
         }
 
         const { clientDuration } = req.body;
@@ -683,8 +848,8 @@ export async function serveAttachment(req, res) {
         }
 
         const conversation = await supportConversationModel.findById(attachment.conversationId);
-        if (!conversation || !hasConversationAccess(conversation, req.user)) {
-            return res.status(403).json({ success: false, message: "Access denied to this media file." });
+        if (!conversation || !hasConversationAccess(conversation, req.user) || isConversationExpired(conversation)) {
+            return res.status(403).json({ success: false, message: "Access denied or conversation has expired." });
         }
 
         const filePath = path.join(SUPPORT_STORAGE_DIR, attachment.storageReference);

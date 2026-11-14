@@ -75,5 +75,7 @@ const supportConversationSchema = new mongoose.Schema(
 supportConversationSchema.index({ user: 1, status: 1 });
 supportConversationSchema.index({ reseller: 1, status: 1 });
 supportConversationSchema.index({ "escalation.isEscalated": 1, updatedAt: -1 });
+supportConversationSchema.index({ updatedAt: -1 });
+supportConversationSchema.index({ "latestActivity.sentAt": -1 });
 
 export default mongoose.model("SupportConversation", supportConversationSchema);

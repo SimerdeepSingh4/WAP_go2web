@@ -13,14 +13,22 @@ export function SupportAvatar({ name, specialist = false, className = "" }) {
   return <span className={`support-avatar ${className}`} data-specialist={specialist || undefined} aria-hidden="true">{specialist ? <ShieldCheck /> : initials}</span>;
 }
 
-export default function SupportConversationItem({ conversation, selected, role, onSelect }) {
-  const name = role === "User" ? conversation.reseller?.username || "Your Admin" : conversation.user?.username || "User";
+export default function SupportConversationItem({ conversation, selected, role, currentUserId, onSelect }) {
+  const isRequester = role === "User" || String(conversation.user?._id || conversation.user) === String(currentUserId);
+  const name = isRequester ? (conversation.reseller?.username || "Super Admin") : (conversation.user?.username || "User");
+  const isResellerClient = !isRequester && conversation.user?.role === "Reseller";
   const escalated = conversation.escalation?.isEscalated && !conversation.escalation.resolvedAt;
   const resolved = conversation.status === "resolved";
   return <button type="button" className="support-conversation" aria-current={selected ? "true" : undefined} onClick={onSelect}>
-    <SupportAvatar name={name} specialist={role === "User" && conversation.reseller?.displayRole === "Super Admin"} />
+    <SupportAvatar name={name} specialist={isRequester && conversation.reseller?.displayRole === "Super Admin"} />
     <span className="support-conversation-copy">
-      <span className="support-conversation-line"><strong>{name}</strong><time dateTime={conversation.latestActivity?.sentAt || conversation.createdAt}>{inboxTime(conversation.latestActivity?.sentAt || conversation.createdAt)}</time></span>
+      <span className="support-conversation-line">
+        <strong className="flex items-center gap-1.5 truncate">
+          {name}
+          {isResellerClient && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-medium text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">Reseller</span>}
+        </strong>
+        <time dateTime={conversation.latestActivity?.sentAt || conversation.createdAt}>{inboxTime(conversation.latestActivity?.sentAt || conversation.createdAt)}</time>
+      </span>
       <span className="support-conversation-subject">{conversation.subject}</span>
       <span className="support-conversation-line"><span className="support-conversation-preview">{conversation.latestActivity?.messageText || "New conversation. Say hello."}</span>{conversation.unreadCount > 0 && <span className="support-unread-count" aria-label={`${conversation.unreadCount} unread messages`}>{conversation.unreadCount > 99 ? "99+" : conversation.unreadCount}</span>}</span>
       {(escalated || resolved) && <span className="support-conversation-state" data-escalated={escalated || undefined}>{escalated ? <><ShieldCheck />{role === "User" ? "Extra assistance requested" : "Needs Super Admin"}</> : <><CheckCheck />Resolved</>}</span>}

@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, UploadCloud, Download, Trash2, CheckCircle2, AlertCircle, RefreshCw, Plus } from "lucide-react";
+import { ArrowLeft, UploadCloud, Download, Trash2, CheckCircle2, AlertCircle, RefreshCw, Plus, Copy, User, Calendar, Users, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
-import { PageHeading, QueryState, SearchBox, DataTable, Pager } from "../../dashboard/components/shared";
+import { QueryState, DataTable, Pager } from "../../dashboard/components/shared";
 import { useAdminQuery, useAdminMutation } from "../hooks/useAdmin";
 import { dateTime } from "../../../lib/format";
 import api from "@/api/client";
@@ -135,9 +135,16 @@ export default function Contacts() {
       label: "Name",
       sort: (c) => c.name || "",
       render: (c) => (
-        <div>
-          <p className="font-medium">{c.name || "—"}</p>
-          {c.company && <p className="text-xs text-muted-foreground">{c.company}</p>}
+        <div className="flex items-center gap-2.5">
+          <div className="size-7 rounded-full bg-muted/90 border border-border/70 flex items-center justify-center shrink-0 text-muted-foreground font-semibold text-[11px]">
+            {c.name ? c.name.charAt(0).toUpperCase() : <User className="size-3.5 text-muted-foreground/60" />}
+          </div>
+          <div className="min-w-0">
+            <p className="font-medium text-xs text-foreground leading-tight">
+              {c.name || <span className="text-muted-foreground/50 font-normal italic">No name</span>}
+            </p>
+            {c.company && <p className="text-[11px] text-muted-foreground truncate">{c.company}</p>}
+          </div>
         </div>
       ),
     },
@@ -145,12 +152,34 @@ export default function Contacts() {
       key: "phone",
       label: "Phone number",
       sort: (c) => c.phoneNumber,
-      render: (c) => <span className="tabular-nums font-mono text-xs">{c.phoneNumber}</span>,
+      render: (c) => (
+        <div className="inline-flex items-center gap-1.5 group/phone">
+          <span className="tabular-nums font-mono text-xs font-semibold text-foreground tracking-tight">
+            {c.phoneNumber}
+          </span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard?.writeText(c.phoneNumber);
+              toast.add({ title: "Phone number copied", type: "success" });
+            }}
+            title="Copy phone number"
+            className="opacity-0 group-hover/phone:opacity-100 hover:text-foreground text-muted-foreground transition-opacity p-0.5 rounded hover:bg-muted"
+          >
+            <Copy className="size-3" />
+          </button>
+        </div>
+      ),
     },
     {
       key: "email",
       label: "Email",
-      render: (c) => <span className="text-muted-foreground text-xs">{c.email || "—"}</span>,
+      render: (c) => (
+        <span className={`text-xs ${c.email ? "text-foreground/80 font-normal" : "text-muted-foreground/50"}`}>
+          {c.email || "—"}
+        </span>
+      ),
     },
     {
       key: "group",
@@ -176,7 +205,12 @@ export default function Contacts() {
       key: "createdAt",
       label: "Added",
       sort: (c) => new Date(c.createdAt).getTime(),
-      render: (c) => <span className="text-xs text-muted-foreground">{dateTime(c.createdAt)}</span>,
+      render: (c) => (
+        <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+          <Calendar className="size-3 text-muted-foreground/50" />
+          {dateTime(c.createdAt)}
+        </span>
+      ),
     },
     {
       key: "actions",
@@ -185,43 +219,145 @@ export default function Contacts() {
       render: (c) => (
         <Button
           variant="ghost"
-          size="icon-sm"
-          className="text-muted-foreground hover:text-destructive"
+          size="icon-xs"
+          className="size-7 text-muted-foreground/70 hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
           onClick={() => { deleteMutation.reset(); setDeleting(c); }}
           aria-label={`Delete ${c.name || c.phoneNumber}`}
+          title="Remove contact"
         >
-          <Trash2 className="size-4" />
+          <Trash2 className="size-3.5" />
         </Button>
       ),
     },
   ];
 
   return (
-    <>
-      {!showingFolders && <button type="button" onClick={backToFolders} className="mb-1 inline-flex w-fit items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft className="size-3.5" />Contact folders</button>}
-      <PageHeading
-        title={showingFolders ? "Contacts" : activeFolderId ? folderTitle || "Contact folder" : "All numbers"}
-        description={showingFolders ? "Numbers saved by you, organized by campaign owner." : activeFolder?.sourceUserId ? `Saved numbers from ${folderTitle}'s campaigns.` : "Saved contact numbers."}
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            {!showingFolders && <Button variant="outline" onClick={handleExportCSV} disabled={!rows.length}>
-              <Download className="size-4 mr-1" />
-              Export CSV
-            </Button>}
-            <Button onClick={() => setIsImportOpen(true)}>
-              <UploadCloud className="size-4 mr-1" />
-              Import contacts
-            </Button>
-          </div>
-        }
-      />
+    <div className="flex flex-col gap-3 sm:gap-3.5 max-w-full -mt-2 sm:-mt-3">
+      {!showingFolders && (
+        <div className="flex items-center gap-1.5 -mb-1">
+          <button
+            type="button"
+            onClick={backToFolders}
+            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors -ml-1 group"
+          >
+            <ArrowLeft className="size-3.5 transition-transform group-hover:-translate-x-0.5" />
+            <span>Contact folders</span>
+          </button>
+          <span className="text-muted-foreground/30 text-xs">/</span>
+          <span className="text-xs text-foreground font-semibold truncate max-w-[240px]">
+            {folderTitle || "Folder"}
+          </span>
+        </div>
+      )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
-        <div className="flex flex-wrap items-center gap-2"><SearchBox value={search} onChange={changeSearch} label={showingFolders ? "Search users, resellers or saved numbers" : "Search saved numbers"} />{search && <Button size="xs" variant="ghost" onClick={() => changeSearch("")}>Clear</Button>}</div>
-        <div className="flex flex-wrap items-center gap-1">
-          {showingFolders && <Button variant="ghost" size="sm" onClick={() => { setSearch(""); setParams({ view: "all" }); }}>All numbers</Button>}
-          {showingFolders && <Button variant="ghost" size="sm" onClick={() => setFolderEditor("folder")}><Plus className="size-3.5" />Create folder</Button>}
-          <Button variant="ghost" size="sm" onClick={() => setFolderEditor("contacts")}><Plus className="size-3.5" />Add numbers</Button>
+      {/* Header section */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-0.5">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+              {showingFolders ? "Contacts" : activeFolderId ? folderTitle || "Contact folder" : "All numbers"}
+            </h1>
+            {!showingFolders && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <Users className="size-3" />
+                {rows.length} {rows.length === 1 ? "contact" : "contacts"}
+              </span>
+            )}
+            {activeFolder?.sourceUserId?.role && (
+              <span className="inline-flex items-center rounded-md bg-secondary px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+                {activeFolder.sourceUserId.role}
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground">
+            {showingFolders
+              ? "Numbers saved by you, organized by campaign owner."
+              : activeFolder?.sourceUserId
+              ? `Saved numbers from ${folderTitle}'s campaigns.`
+              : "Saved contact numbers."}
+          </p>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {!showingFolders && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportCSV}
+              disabled={!rows.length}
+              className="h-8.5 gap-1.5 text-xs font-medium"
+            >
+              <Download className="size-3.5" />
+              Export CSV
+            </Button>
+          )}
+          <Button
+            size="sm"
+            onClick={() => setIsImportOpen(true)}
+            className="h-8.5 gap-1.5 text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+          >
+            <UploadCloud className="size-3.5" />
+            Import contacts
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setFolderEditor("contacts")}
+            className="h-8.5 gap-1.5 text-xs font-medium"
+          >
+            <Plus className="size-3.5" />
+            Add numbers
+          </Button>
+        </div>
+      </div>
+
+      {/* Toolbar: Search & View Switches */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-border/70 pb-3">
+        <div className="flex flex-1 items-center gap-2 min-w-[240px] max-w-sm">
+          <div className="relative w-full">
+            <Search className="pointer-events-none absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+            <Input
+              className="h-8.5 pl-8 pr-8 text-xs bg-card"
+              placeholder={showingFolders ? "Search users, resellers or saved numbers..." : "Search saved numbers, names, emails..."}
+              value={search}
+              onChange={(e) => changeSearch(e.target.value)}
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => changeSearch("")}
+                className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground p-0.5"
+                title="Clear search"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          {showingFolders && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8.5 text-xs"
+              onClick={() => { setSearch(""); setParams({ view: "all" }); }}
+            >
+              All numbers
+            </Button>
+          )}
+          {showingFolders && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8.5 gap-1 text-xs"
+              onClick={() => setFolderEditor("folder")}
+            >
+              <Plus className="size-3.5" />
+              Create folder
+            </Button>
+          )}
         </div>
       </div>
       {folderEditor && <ContactFolderEditor key={`${folderEditor}:${activeFolderId}`} folderOnly={folderEditor === "folder"} manualInput={folderEditor === "contacts"} initialFolderId={activeFolderId} onClose={() => setFolderEditor(null)} onSaved={(folder) => openFolder(folder._id)} />}
@@ -248,6 +384,7 @@ export default function Contacts() {
           rows={rows}
           columns={activeFolderId ? columns.filter((column) => column.key !== "group") : columns}
           emptyTitle="No matching contacts"
+          compact={true}
         />
       </QueryState>}
 
@@ -351,7 +488,7 @@ export default function Contacts() {
           </form>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }
 

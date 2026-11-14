@@ -184,14 +184,16 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart, onDeleted
   const conversation = chat.conversation;
   const requester = user.role === "User" || String(conversation?.user?._id || conversation?.user) === String(user.id || user._id);
   const participant = requester ? conversation?.reseller : conversation?.user;
-  const participantLabel = requester ? `${participant?.username || "Your Admin"} · ${participant?.displayRole || "Admin"}` : `${participant?.username || "User"} · ${conversation?.reseller?.username || "Admin"}`;
+  const participantLabel = requester
+    ? `${participant?.username || (user.role === "Reseller" ? "Super Admin" : "Your Admin")} · ${participant?.displayRole || (user.role === "Reseller" ? "Super Admin" : "Admin")}`
+    : `${participant?.username || "User"}${participant?.role === "Reseller" ? " · Reseller" : ` · ${conversation?.reseller?.username || "Admin"}`}`;
   const resolved = conversation?.status === "resolved";
   const needsAdmin = conversation?.escalation?.isEscalated && !conversation.escalation.resolvedAt;
   const unavailable = blocked || deletion.isPending || chat.sending || chat.loading || Boolean(chat.error);
   return <div className="support-chat" aria-label="Selected conversation">
     <header className="support-chat-header">
       <Button type="button" variant="ghost" size="icon-sm" className="support-mobile-back" aria-label="Back to conversations" onClick={onBack}><ArrowLeft /></Button>
-      <SupportAvatar name={participant?.username} specialist={user.role === "User" && participant?.displayRole === "Super Admin"} />
+      <SupportAvatar name={participant?.username} specialist={requester && participant?.displayRole === "Super Admin"} />
       <div className="support-chat-heading"><div className="support-chat-title"><h2>{conversation?.subject || "Loading conversation…"}</h2><span className="support-status" data-resolved={resolved || undefined}>{resolved ? <CheckCheck /> : <span />}{resolved ? "Resolved" : "Open"}</span></div><p>{participantLabel}</p></div>
       {!requester && <div className="support-chat-actions">
         {user.role === "Reseller" && <Button size="sm" variant="outline" disabled={blocked || restricted || escalation.isPending || chat.loading || !conversation || needsAdmin} onClick={() => setEscalating(true)}><ShieldCheck />{needsAdmin ? "Requested" : "Request Super Admin"}</Button>}
@@ -200,7 +202,16 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart, onDeleted
       </div>}
     </header>
     {needsAdmin && <div className="support-assistance-banner" role="status"><ShieldCheck /><div><strong>{user.role === "Super Admin" ? "Your assistance is needed" : user.role === "User" ? "A little extra help is on the way" : "Super Admin assistance requested"}</strong><p>{user.role === "Super Admin" ? conversation.escalation.reason : user.role === "User" ? "Your Admin has requested extra assistance. You can keep chatting here." : "The team has been notified. Keep the conversation going here."}</p></div>{user.role === "Super Admin" && <span className="support-important">Important</span>}</div>}
-    {user.role === "Super Admin" && !needsAdmin && <div className="support-viewing-note"><Eye /><span>You’re viewing this conversation. Reply when you’re ready to help.</span></div>}
+    {user.role === "Super Admin" && !needsAdmin && (
+      <div className="support-viewing-note">
+        <Eye />
+        <span>
+          {conversation?.user?.role === "Reseller"
+            ? "Direct conversation with Reseller. Reply to assist them."
+            : "You’re viewing this conversation. Reply when you’re ready to help."}
+        </span>
+      </div>
+    )}
     {chat.error && <div role="alert" className="support-error"><AlertCircle /><span>{chat.error.message}</span><button type="button" onClick={chat.refresh}>Try again</button></div>}
     <div className="support-message-area">
       <div ref={scroller} className="support-messages" role="region" tabIndex={0} aria-label="Conversation messages" aria-busy={chat.loading} onScroll={handleMessageScroll} onWheel={cancelJump} onTouchStart={cancelJump} onPointerDown={cancelJump} onKeyDown={cancelJump}>
@@ -225,7 +236,7 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart, onDeleted
         <label htmlFor="support-chat-draft" className="sr-only">Write a message</label><textarea ref={draftInput} id="support-chat-draft" value={draft} onChange={event => setDraft(event.target.value)} disabled={unavailable} maxLength={draftLimit} rows={1} placeholder={user.role === "User" ? "Write your message…" : "Write a helpful reply…"} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
         <div className="support-composer-footer"><div className="flex min-w-0 items-center gap-2"><input ref={fileInput} type="file" className="sr-only" multiple accept={ACCEPT} aria-label="Attach support files" disabled={unavailable || uploading} onChange={upload} /><SupportAttachMenu disabled={unavailable || uploading} uploading={uploading} filesDisabled={attachments.length >= 5} referencesDisabled={references.length >= SUPPORT_REFERENCE_LIMIT} onFiles={() => fileInput.current?.click()} onAddReference={addReference} /><span className="support-draft-count" aria-live="polite">{messageText.length > 3500 ? `${messageText.length.toLocaleString()} / 4,000` : attachments.length ? `${attachments.length} / 5 files` : ""}</span></div><Button type="submit" size="sm" className="support-send-button" aria-label={chat.sending ? "Sending message" : "Send message"} disabled={unavailable || uploading || (!messageText && !attachments.length)}>{chat.sending ? <Loader2 className="animate-spin" /> : <Send />}<span>{chat.sending ? "Sending…" : "Send message"}</span></Button></div>
       </div>
-      <div className="support-composer-hint justify-end"><span><kbd>Enter</kbd> to send<span className="support-shift-hint"> · <kbd>Shift + Enter</kbd> for a new line</span></span></div>
+      <div className="support-composer-hint justify-between"><span>Chats are stored for 1 week</span><span><kbd>Enter</kbd> to send<span className="support-shift-hint"> · <kbd>Shift + Enter</kbd> for a new line</span></span></div>
     </form>
     <Dialog open={deleting && user.role === "Super Admin"} onOpenChange={open => { if (!deletion.isPending) setDeleting(open); }}>
       <DialogContent showCloseButton={!deletion.isPending} className="gap-5 rounded-2xl p-5 sm:max-w-sm">
@@ -257,7 +268,7 @@ export default function SupportChatPage() {
   const [filter, setFilter] = useState("ongoing");
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
-  const [subject, setSubject] = useState("");
+  const [initialMessageText, setInitialMessageText] = useState("");
   const listParams = { page, limit: 20, search: deferredSearch, ...(user.role === "Super Admin" ? { filter } : { status: filter === "escalated" ? "ongoing" : ["ongoing", "resolved"].includes(filter) ? filter : undefined, isEscalated: filter === "escalated" ? "true" : undefined }) };
   const list = useQuery({ queryKey: ["support", accountId, "inbox", listParams], queryFn: ({ signal }) => user.role === "Super Admin" ? supportApi.getAdminInbox(listParams, signal) : supportApi.listConversations(listParams, signal), enabled: Boolean(accountId), refetchInterval: 15000 });
   const escalatedQuery = useQuery({
@@ -288,7 +299,21 @@ export default function SupportChatPage() {
   }, [client, accountId, setParams]);
   const select = id => setParams(previous => { const next = new URLSearchParams(previous); next.set("conversation", id); return next; }, { replace: true });
   const backToInbox = () => setParams(previous => { const next = new URLSearchParams(previous); next.delete("conversation"); return next; }, { replace: true });
-  const start = useMutation({ mutationFn: () => supportApi.getOrCreateConversation(subject.trim()), onSuccess: response => { setCreating(false); setSubject(""); setFilter("ongoing"); setPage(1); select(response.data._id); refresh(); }, onError: error => toast.add({ title: error.message, type: "error" }) });
+  const start = useMutation({
+    mutationFn: () => supportApi.getOrCreateConversation(
+      user.role === "Reseller" ? "Chat with Super Admin" : "Customer Support",
+      { message: initialMessageText.trim() }
+    ),
+    onSuccess: response => {
+      setCreating(false);
+      setInitialMessageText("");
+      setFilter("ongoing");
+      setPage(1);
+      select(response.data._id);
+      refresh();
+    },
+    onError: error => toast.add({ title: error.message, type: "error" })
+  });
   useEffect(() => {
     if (!conversationId && list.data?.data?.length && window.matchMedia("(min-width: 1024px)").matches) setParams(previous => { const next = new URLSearchParams(previous); next.set("conversation", list.data.data[0]._id); return next; }, { replace: true });
   }, [conversationId, list.data, setParams]);
@@ -305,8 +330,12 @@ export default function SupportChatPage() {
   const filters = [["ongoing", "Open"], ...(user.role !== "User" ? [["escalated", user.role === "Super Admin" ? "Needs you" : "Escalated"]] : []), ["resolved", "Resolved"], ["all", "All"]];
   return <div className="support-page">
     <header className="support-page-header">
-      <div className="support-page-heading"><div className="flex items-center gap-3"><span className="support-page-icon"><Headset /></span><div><h1>{user.role === "User" ? "Your support space" : "Support inbox"}</h1>{user.role === "User" ? <p>A question, an issue, or a little guidance. Your Admin is just a message away.</p> : user.role === "Super Admin" ? <p>Keep an eye on conversations. Step in where it matters.</p> : null}</div></div></div>
-      {user.role === "User" ? <Button disabled={blocked || start.isPending} onClick={() => setCreating(true)} className="support-new-chat"><Plus />New chat</Button> : <span className="support-workspace-role"><ShieldCheck />{user.role === "Super Admin" ? "Super Admin workspace" : "Reseller workspace"}</span>}
+      <div className="support-page-heading"><div className="flex items-center gap-3"><span className="support-page-icon"><Headset /></span><div><h1>{user.role === "User" ? "Your support space" : "Support inbox"}</h1>{user.role === "User" ? <p>A question, an issue, or a little guidance. Your Admin is just a message away.</p> : user.role === "Super Admin" ? <p>Keep an eye on conversations. Step in where it matters.</p> : <p>Help your clients or reach Super Admin for assistance.</p>}</div></div></div>
+      <div className="flex items-center gap-2">
+        {user.role === "Reseller" && <span className="support-workspace-role"><ShieldCheck />Reseller workspace</span>}
+        {user.role === "Super Admin" && <span className="support-workspace-role"><ShieldCheck />Super Admin workspace</span>}
+        {user.role !== "Super Admin" && <Button disabled={blocked || start.isPending} onClick={() => setCreating(true)} className="support-new-chat"><Plus />{user.role === "Reseller" ? "Chat with Super Admin" : "New chat"}</Button>}
+      </div>
     </header>
     <section className="support-layout" aria-label="Support inbox" data-conversation-selected={Boolean(conversationId)}>
       <aside className="support-inbox" aria-label="Conversations">
@@ -315,8 +344,8 @@ export default function SupportChatPage() {
         <div className="support-conversations" aria-busy={list.isFetching}>
           {list.isPending && <div className="support-inbox-skeleton" role="status"><span className="sr-only">Loading conversations…</span>{[1, 2, 3].map(item => <div key={item}><span /><span /></div>)}</div>}
           {list.isError && <div role="alert" className="support-inbox-empty"><AlertCircle /><h3>Couldn’t load conversations</h3><p>{list.error.message}</p><Button type="button" size="sm" variant="outline" onClick={() => list.refetch()}>Try again</Button></div>}
-          {list.data?.data?.map(conversation => <SupportConversationItem key={conversation._id} conversation={conversation} selected={conversationId === String(conversation._id)} role={user.role} onSelect={() => select(String(conversation._id))} />)}
-          {list.isSuccess && !list.data?.data?.length && <div className="support-inbox-empty"><span className="support-inbox-empty-icon">{search ? <Search /> : filter === "resolved" ? <CheckCheck /> : <Inbox />}</span><h3>{search ? "No matches just yet" : filter === "escalated" ? "Nothing needs extra help" : filter === "resolved" ? "No resolved conversations" : "A clear inbox"}</h3><p>{search ? "Try a different subject or clear your search." : user.role === "User" ? "Need a hand? Start a conversation and your Admin will take it from there." : "Conversations will appear here when a user reaches out."}</p>{search ? <Button type="button" variant="outline" size="sm" onClick={() => { setSearch(""); setPage(1); }}>Clear search</Button> : user.role === "User" && <Button type="button" size="sm" variant="outline" disabled={blocked} onClick={() => setCreating(true)}><Plus />Start a conversation</Button>}</div>}
+          {list.data?.data?.map(conversation => <SupportConversationItem key={conversation._id} conversation={conversation} selected={conversationId === String(conversation._id)} role={user.role} currentUserId={accountId} onSelect={() => select(String(conversation._id))} />)}
+          {list.isSuccess && !list.data?.data?.length && <div className="support-inbox-empty"><span className="support-inbox-empty-icon">{search ? <Search /> : filter === "resolved" ? <CheckCheck /> : <Inbox />}</span><h3>{search ? "No matches just yet" : filter === "escalated" ? "Nothing needs extra help" : filter === "resolved" ? "No resolved conversations" : "A clear inbox"}</h3><p>{search ? "Try a different subject or clear your search." : user.role === "User" ? "Need a hand? Start a conversation and your Admin will take it from there." : "Conversations will appear here when a user reaches out."}</p>{search ? <Button type="button" variant="outline" size="sm" onClick={() => { setSearch(""); setPage(1); }}>Clear search</Button> : user.role !== "Super Admin" && <Button type="button" size="sm" variant="outline" disabled={blocked} onClick={() => setCreating(true)}><Plus />{user.role === "Reseller" ? "Chat with Super Admin" : "Start a conversation"}</Button>}</div>}
         </div>
         <footer className="support-inbox-footer"><span>{list.data ? `${list.data.total} conversation${list.data.total === 1 ? "" : "s"}` : "Your conversations"}</span>{(list.data?.total > 20 || page > 1) && <div className="flex items-center gap-2"><Button type="button" size="icon-xs" variant="ghost" disabled={page <= 1 || list.isFetching} aria-label="Previous conversations" onClick={() => setPage(value => value - 1)}><ChevronLeft /></Button><span>{page} / {Math.max(1, Math.ceil((list.data?.total || 0) / 20))}</span><Button type="button" size="icon-xs" variant="ghost" disabled={list.isFetching || !list.data || page * 20 >= list.data.total} aria-label="Next conversations" onClick={() => setPage(value => value + 1)}><ChevronRight /></Button></div>}<span className="support-inbox-footer-icon"><MessageCircle /></span></footer>
       </aside>
@@ -327,19 +356,30 @@ export default function SupportChatPage() {
         <DialogHeader className="support-start-dialog-header">
           <span className="support-dialog-icon"><MessageCircle aria-hidden="true" /></span>
           <div>
-            <DialogTitle>{user.role === "User" ? "Start a conversation" : "Let’s start a conversation"}</DialogTitle>
-            <DialogDescription>{user.role === "User" ? "A question, an issue, or a little guidance. Your Admin is just a message away." : "Tell us what you need help with. Your Admin will see your message and can bring in extra help if needed."}</DialogDescription>
+            <DialogTitle>{user.role === "Reseller" ? "Chat with Super Admin" : user.role === "User" ? "Start a conversation" : "Let’s start a conversation"}</DialogTitle>
+            <DialogDescription>{user.role === "Reseller" ? "Have a question, technical issue, or need credit assistance? Start a direct chat with Super Admin." : user.role === "User" ? "A question, an issue, or a little guidance. Your Admin is just a message away." : "Tell us what you need help with. Your Admin will see your message and can bring in extra help if needed."}</DialogDescription>
           </div>
         </DialogHeader>
         <form className="support-start-dialog-form" onSubmit={event => { event.preventDefault(); start.mutate(); }}>
           <div className="support-dialog-field">
-            <label htmlFor="support-conversation-subject">What’s on your mind?</label>
-            <Input id="support-conversation-subject" autoFocus required maxLength={150} value={subject} onChange={event => setSubject(event.target.value)} placeholder="e.g. A question about my campaign" aria-describedby="support-start-note" disabled={start.isPending} />
+            <label htmlFor="support-conversation-message">What’s on your mind?</label>
+            <textarea
+              id="support-conversation-message"
+              className="support-reason-input min-h-[100px] w-full resize-none rounded-lg border border-border bg-background p-3 text-sm focus-visible:outline-2 focus-visible:outline-ring"
+              autoFocus
+              required
+              maxLength={4000}
+              rows={4}
+              value={initialMessageText}
+              onChange={event => setInitialMessageText(event.target.value)}
+              placeholder={user.role === "Reseller" ? "Write your message to Super Admin…" : "Write your message here…"}
+              disabled={start.isPending}
+            />
           </div>
-          <p id="support-start-note" className="support-dialog-note"><Inbox aria-hidden="true" /><span>Already have an open conversation? We’ll take you right back to it.</span></p>
+          <p id="support-start-note" className="support-dialog-note"><Inbox aria-hidden="true" /><span>This message will be sent directly to start the conversation.</span></p>
           <div className="support-dialog-actions">
             <Button type="button" variant="outline" disabled={start.isPending} onClick={() => setCreating(false)}>Cancel</Button>
-            <Button type="submit" disabled={blocked || !subject.trim() || start.isPending}>{start.isPending ? <Loader2 className="animate-spin" /> : <ArrowUpRight />}{start.isPending ? "Opening…" : "Start conversation"}</Button>
+            <Button type="submit" disabled={blocked || !initialMessageText.trim() || start.isPending}>{start.isPending ? <Loader2 className="animate-spin" /> : <Send className="size-4" />}<span>{start.isPending ? "Sending…" : "Send message"}</span></Button>
           </div>
         </form>
       </DialogContent>

@@ -3,7 +3,7 @@ import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { useSearchParams, Link } from "react-router";
 import { Popover } from "@base-ui/react/popover";
-import { MoreHorizontal, Eye, FileText, RefreshCw, CalendarDays, X, Trash2, Download } from "lucide-react";
+import { MoreHorizontal, Eye, FileText, RefreshCw, CalendarDays, X, Trash2, Download, Image as ImageIcon, Video, MessageSquare, Users, CheckCircle2, Clock } from "lucide-react";
 import CampaignDeleteDialog from "@/features/campaigns/components/CampaignDeleteDialog";
 import { useAdminMutation } from "../hooks/useAdmin";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,55 @@ function dateFromKey(value) {
 function dateKey(date) {
   if (!date) return "";
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function MessageTypeBadge({ type }) {
+  const norm = (type || "").toLowerCase();
+  if (norm === "image") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/60">
+        <ImageIcon className="size-2.5 text-blue-600 dark:text-blue-400" />
+        Image
+      </span>
+    );
+  }
+  if (norm === "video") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium bg-purple-50 text-purple-700 dark:bg-purple-950/50 dark:text-purple-300 border border-purple-200/60 dark:border-purple-900/60">
+        <Video className="size-2.5 text-purple-600 dark:text-purple-400" />
+        Video
+      </span>
+    );
+  }
+  if (norm === "document" || norm === "pdf") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200/60 dark:border-amber-900/60">
+        <FileText className="size-2.5 text-amber-600 dark:text-amber-400" />
+        Document
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium bg-muted text-muted-foreground border border-border/50">
+      <MessageSquare className="size-2.5 text-muted-foreground" />
+      {norm ? norm.charAt(0).toUpperCase() + norm.slice(1) : "Text"}
+    </span>
+  );
+}
+
+function formatSubmitted(value) {
+  if (!value || Number.isNaN(new Date(value).getTime())) return "—";
+  const str = dateTime(value);
+  const parts = str.split(", ");
+  if (parts.length === 2) {
+    return (
+      <div className="flex flex-col text-xs leading-tight">
+        <span className="font-medium text-foreground/85">{parts[0]}</span>
+        <span className="text-[11px] text-muted-foreground">{parts[1]}</span>
+      </div>
+    );
+  }
+  return <span className="text-xs text-muted-foreground">{str}</span>;
 }
 
 export default function Campaigns({ reports = false }) {
@@ -111,32 +160,38 @@ export default function Campaigns({ reports = false }) {
   });
 
   const columns = [
-    { key: "campaignId", label: "Campaign ID", render: campaign => <CampaignReference campaign={campaign} compact /> },
+    {
+      key: "campaignId",
+      label: "Campaign ID",
+      className: "w-28 whitespace-nowrap",
+      render: campaign => <CampaignReference campaign={campaign} compact />
+    },
     {
       key: "title",
       label: "Campaign",
+      className: "w-full min-w-[200px]",
       sort: (c) => c.campaignTitle,
       render: (c) => (
-        <div className="max-w-64">
+        <div className="min-w-0 flex flex-col gap-1">
           <Link
             to={`/admin/campaigns/${c._id}`}
-            className="truncate text-left font-medium hover:underline text-foreground block w-full"
+            className="truncate text-left font-semibold hover:underline text-foreground block text-xs hover:text-primary transition-colors"
           >
             {c.campaignTitle}
           </Link>
-          <span className="text-xs text-muted-foreground">
-            {c.messageType ? `${c.messageType.toUpperCase()} Message` : "Standard"}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <MessageTypeBadge type={c.messageType} />
+          </div>
         </div>
       ),
     },
     {
       key: "owner",
       label: "Account",
-      className: "min-w-56",
+      className: "min-w-[160px] whitespace-nowrap",
       sort: (c) => ownerName(c.userId),
       render: (c) => (
-        <div className="flex w-48 max-w-full items-center gap-2">
+        <div className="flex items-center gap-2 whitespace-nowrap">
           <div className="relative shrink-0">
             <UserAvatar user={c.userId} className="size-7" />
             {(c.profileDp || c.userId?.dp_img) && (
@@ -145,15 +200,19 @@ export default function Campaigns({ reports = false }) {
                 download="profile-dp.jpg"
                 aria-label="Download profile picture"
                 title="Download DP"
-                className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm hover:text-foreground hover:bg-muted transition-colors"
+                className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-xs hover:text-foreground hover:bg-muted transition-colors"
               >
                 <Download className="size-2.5" />
               </a>
             )}
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="overflow-hidden text-ellipsis whitespace-nowrap font-medium text-xs" title={ownerName(c.userId)}>{ownerName(c.userId)}</p>
-            <p className="text-xs text-muted-foreground whitespace-nowrap">{c.userId?.role || "—"}</p>
+          <div className="min-w-0 whitespace-nowrap">
+            <p className="font-medium text-xs text-foreground whitespace-nowrap truncate max-w-[140px]" title={ownerName(c.userId)}>
+              {ownerName(c.userId)}
+            </p>
+            <p className="text-[11px] text-muted-foreground capitalize whitespace-nowrap">
+              {c.userId?.role || "—"}
+            </p>
           </div>
         </div>
       ),
@@ -161,13 +220,19 @@ export default function Campaigns({ reports = false }) {
     {
       key: "audience",
       label: "Recipients",
-      className: "text-right",
+      className: "w-28 whitespace-nowrap",
       sort: (c) => c.totalRecipients,
-      render: (c) => <span className="tabular-nums font-semibold">{number(c.totalRecipients)}</span>,
+      render: (c) => (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-muted/70 text-foreground border border-border/60 tabular-nums">
+          <Users className="size-3 text-muted-foreground" />
+          {number(c.totalRecipients)}
+        </span>
+      ),
     },
     {
       key: "status",
       label: "Status",
+      className: "w-28 whitespace-nowrap",
       render: (c) => (
         <div className="flex items-center gap-1.5">
           <StatusBadge status={c.status} />
@@ -177,13 +242,16 @@ export default function Campaigns({ reports = false }) {
     {
       key: "report",
       label: "Report",
+      className: "w-36 whitespace-nowrap",
       render: (c) =>
         published(c) ? (
-          <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+            <CheckCircle2 className="size-3" />
             Published ({number(c.campaignSummary.delivered)})
           </span>
         ) : (
-          <span className="text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded">
+          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full border border-border/50">
+            <Clock className="size-3" />
             Awaiting report
           </span>
         ),
@@ -193,21 +261,23 @@ export default function Campaigns({ reports = false }) {
           {
             key: "created",
             label: "Submitted",
+            className: "w-36 whitespace-nowrap",
             sort: (c) => new Date(c.createdAt).getTime(),
-            render: (c) => <span className="text-xs text-muted-foreground">{dateTime(c.createdAt)}</span>,
+            render: (c) => formatSubmitted(c.createdAt),
           },
         ]
       : [
           {
             key: "delivered",
             label: "Delivered",
-            className: "text-right",
+            className: "w-28 whitespace-nowrap",
             render: (c) => (published(c) ? number(c.campaignSummary.delivered) : "—"),
           },
         ]),
     {
       key: "actions",
       label: <span className="sr-only">Actions</span>,
+      className: "w-12 text-right",
       render: (c) => (
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -384,6 +454,7 @@ export default function Campaigns({ reports = false }) {
           caption={reports ? "Campaign performance reports" : "Campaign list"}
           rows={rows}
           columns={columns}
+          compact={true}
         />
       </QueryState>
 

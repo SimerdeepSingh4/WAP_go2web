@@ -1,7 +1,7 @@
 import api from "../../../api/client";
 const get = async (path, params, signal) => (await api.get(`/support${path}`, { params, signal, timeout: 30000 })).data;
 export const supportApi = {
-  getOrCreateConversation: async (subject, options = {}) => (await api.post("/support/conversations", { subject, ...options }, { timeout: 30000 })).data,
+  getOrCreateConversation: async (subjectOrPayload, options = {}) => (await api.post("/support/conversations", typeof subjectOrPayload === "object" ? subjectOrPayload : { subject: subjectOrPayload, ...options }, { timeout: 30000 })).data,
   listConversations: (params, signal) => get("/conversations", params, signal),
   getAdminInbox: (params, signal) => get("/admin/inbox", params, signal),
   getConversationById: (id, signal) => get(`/conversations/${id}`, undefined, signal),

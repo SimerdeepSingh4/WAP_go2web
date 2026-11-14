@@ -18,7 +18,7 @@ export default function PreviewBanner() {
     },
   });
 
-  if (!user?.isPreview && !user?.isImpersonation) return null;
+  if (!user?.isPreview || user?.isImpersonation) return null;
 
   return (
     <aside

@@ -425,6 +425,37 @@ export default function Accounts({ role }) {
               number(accounts.filter((u) => u.role === "User" && (u.resellerId?._id || u.resellerId) === a._id).length),
           },
           {
+            key: "status",
+            label: "Status",
+            render: (a) => <StatusBadge status={a.isExpired ? "expired" : a.status} />,
+          },
+        ]),
+    {
+      key: "rate",
+      label: "Credits",
+      sort: (a) => a.ratePerMsg,
+      render: (a) => <span className="tabular-nums font-semibold">{number(a.ratePerMsg)}</span>,
+    },
+    {
+      key: "accountExpiry",
+      label: "Account expiry",
+      render: (a) => (
+        <span className={a.isExpired ? "text-xs font-medium text-destructive" : "text-xs text-muted-foreground"}>
+          {a.expiresAt ? dateTime(a.expiresAt) : "No expiry"}
+          {a.isExpired ? " · Expired" : ""}
+        </span>
+      ),
+    },
+    ...(role === "User"
+      ? [
+          {
+            key: "status",
+            label: "Status",
+            render: (a) => <StatusBadge status={a.isExpired ? "expired" : a.status} />,
+          },
+        ]
+      : [
+          {
             key: "whiteLabel",
             label: "White-Label",
             render: (a) => {
@@ -448,27 +479,6 @@ export default function Accounts({ role }) {
             },
           },
         ]),
-    {
-      key: "rate",
-      label: "Credits / recipient",
-      sort: (a) => a.ratePerMsg,
-      render: (a) => <span className="tabular-nums font-semibold">{number(a.ratePerMsg)}</span>,
-    },
-    {
-      key: "accountExpiry",
-      label: "Account expiry",
-      render: (a) => (
-        <span className={a.isExpired ? "text-xs font-medium text-destructive" : "text-xs text-muted-foreground"}>
-          {a.expiresAt ? dateTime(a.expiresAt) : "No expiry"}
-          {a.isExpired ? " · Expired" : ""}
-        </span>
-      ),
-    },
-    {
-      key: "status",
-      label: "Status",
-      render: (a) => <StatusBadge status={a.isExpired ? "expired" : a.status} />,
-    },
     {
       key: "actions",
       label: <span className="sr-only">Actions</span>,

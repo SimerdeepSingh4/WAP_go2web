@@ -268,7 +268,7 @@ export default function Credits({ activity = false }) {
     },
     {
       key: "reseller",
-      label: "Assigned reseller",
+      label: "Reseller",
       render: (a) =>
         a.role === "User" ? (
           <span className="text-xs text-muted-foreground">{a.resellerId?.username || "Direct (Admin)"}</span>
@@ -295,7 +295,7 @@ export default function Credits({ activity = false }) {
     },
     {
       key: "rate",
-      label: "Rate / recipient",
+      label: "Rate",
       sort: (a) => a.ratePerMsg,
       render: (a) => <span className="tabular-nums text-xs">{number(a.ratePerMsg)}</span>,
     },
@@ -319,37 +319,40 @@ export default function Credits({ activity = false }) {
     },
     {
       key: "actions",
-      label: <span className="sr-only">Actions</span>,
+      label: "Actions",
       className: "text-right",
       render: (a) => (
         <div className="flex items-center justify-end gap-1.5">
           <Button
-            size="sm"
+            size="icon-sm"
             variant="outline"
-            className="h-7 text-xs gap-1 px-2.5"
+            className="size-7 text-foreground"
             onClick={() => update("allocate", a._id)}
+            title="Add credits"
+            aria-label={`Add credits to ${a.username}`}
           >
-            <Plus className="size-3" />
-            Add credits
+            <Plus className="size-3.5" />
           </Button>
           <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 text-xs gap-1 px-2 text-amber-700 hover:text-amber-800"
+            size="icon-sm"
+            variant="outline"
+            className="size-7 text-amber-700 hover:text-amber-800 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/30"
             onClick={() => {
               setReclaimAccount(a);
               setReclaimOpen(true);
             }}
+            title="Reclaim credits"
+            aria-label={`Reclaim credits from ${a.username}`}
           >
-            <RotateCcw className="size-3" />
-            Reclaim
+            <RotateCcw className="size-3.5" />
           </Button>
           <Button
-            size="sm"
-            variant="ghost"
-            className="h-7 text-xs px-2 text-muted-foreground hover:text-foreground"
+            size="icon-sm"
+            variant="outline"
+            className="size-7 text-muted-foreground hover:text-foreground"
             render={<Link to={`/admin/activity?account=${a._id}`} />}
             title="View transactions for this account"
+            aria-label={`View transactions for ${a.username}`}
           >
             <ReceiptText className="size-3.5" />
           </Button>

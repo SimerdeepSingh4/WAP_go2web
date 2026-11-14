@@ -215,7 +215,7 @@ export default function ResellerUsers() {
     },
     {
       key: "rate",
-      label: "Credits / recipient",
+      label: "Credits",
       sort: (a) => a.ratePerMsg,
       render: (a) => <span className="tabular-nums">{number(a.ratePerMsg)}</span>,
     },

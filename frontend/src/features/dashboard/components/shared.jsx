@@ -77,7 +77,7 @@ export function Pager({ page, totalPages, total, onChange, disabled }) {
 }
 
 // Lists currently arrive unpaginated from the API; paginate and sort the complete result.
-export function DataTable({ rows, columns, emptyTitle = "No matching records", pageSize = 10, caption, paginated = true, mobile }) {
+export function DataTable({ rows, columns, emptyTitle = "No matching records", pageSize = 10, caption, paginated = true, mobile, compact = false, className = "" }) {
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState(null);
   const sortId = useId();
@@ -94,7 +94,7 @@ export function DataTable({ rows, columns, emptyTitle = "No matching records", p
     setSort(key ? { key, direction: sort?.key === key ? -sort.direction : 1 } : null);
     setPage(1);
   }
-  return <div data-tour="records" className="responsive-data-table min-w-0 overflow-hidden rounded-lg border bg-card">
+  return <div data-tour="records" className={`responsive-data-table min-w-0 overflow-hidden rounded-xl border bg-card shadow-xs ${className}`}>
     {rows.length > 0 && sortable.length > 0 && <div className="mobile-table-sort">
       <label htmlFor={sortId}>Sort by</label>
       <select id={sortId} value={sortColumn?.key || ""} onChange={(event) => { setSort(event.target.value ? { key: event.target.value, direction: 1 } : null); setPage(1); }}>
@@ -106,10 +106,10 @@ export function DataTable({ rows, columns, emptyTitle = "No matching records", p
     <MobileTableRows rows={visibleRows} columns={columns} caption={caption} mobile={mobile} />
     <div className="responsive-table-desktop max-w-full overflow-x-auto" role="region" aria-label={caption} tabIndex={0}>
       <Table><caption className="sr-only">{caption}</caption>
-        <TableHeader><TableRow className="bg-muted/60 hover:bg-muted/60">{columns.map((column) => <TableHead key={column.key} className={column.className} aria-sort={sort?.key === column.key ? sort.direction === 1 ? "ascending" : "descending" : undefined}>
-          {column.sort ? <button className="inline-flex items-center gap-1.5 py-3 text-xs font-medium" onClick={() => changeSort(column.key)}>{column.label}<ArrowUpDown className="size-3" aria-hidden="true" /></button> : column.label}
+        <TableHeader><TableRow className="bg-muted/50 hover:bg-muted/50">{columns.map((column) => <TableHead key={column.key} className={`${compact ? "py-2 px-3 text-xs font-semibold" : "py-3"} ${column.className || ""}`} aria-sort={sort?.key === column.key ? sort.direction === 1 ? "ascending" : "descending" : undefined}>
+          {column.sort ? <button className={`inline-flex items-center gap-1.5 ${compact ? "py-0.5" : "py-3"} text-xs font-medium`} onClick={() => changeSort(column.key)}>{column.label}<ArrowUpDown className="size-3" aria-hidden="true" /></button> : column.label}
         </TableHead>)}</TableRow></TableHeader>
-        <TableBody>{visibleRows.map((row, index) => <TableRow key={row._id || row.id || row.rowNumber || index}>{columns.map((column) => <TableCell key={column.key} className={`py-3.5 ${column.className || ""}`}>{column.render(row)}</TableCell>)}</TableRow>)}</TableBody>
+        <TableBody>{visibleRows.map((row, index) => <TableRow key={row._id || row.id || row.rowNumber || index} className="hover:bg-muted/40 transition-colors">{columns.map((column) => <TableCell key={column.key} className={`${compact ? "py-2 px-3 text-xs" : "py-3.5"} ${column.className || ""}`}>{column.render(row)}</TableCell>)}</TableRow>)}</TableBody>
       </Table>
     </div>
     {!rows.length && <Empty className="py-10"><EmptyHeader><EmptyTitle>{emptyTitle}</EmptyTitle><EmptyDescription>Try another search or clear the filters.</EmptyDescription></EmptyHeader></Empty>}
