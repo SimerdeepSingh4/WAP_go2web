@@ -324,7 +324,7 @@ export async function logout(req, res) {
             success: true,
         });
     } catch (error) {
-        console.error("Logout error:", error);
+        if (!error.statusCode) console.error("Logout error:", error);
         return res.status(error.statusCode || 500).json({
             message: error.statusCode ? error.message : "Internal server error",
             code: error.code,

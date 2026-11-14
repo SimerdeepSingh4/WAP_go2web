@@ -1,9 +1,10 @@
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ArrowDown, ArrowLeft, ArrowUpRight, Check, CheckCheck, ChevronLeft, ChevronRight, Eye, Hash, Headset, Inbox, Loader2, MessageCircle, Paperclip, Plus, RefreshCw, Search, Send, ShieldCheck, Trash2, X } from "lucide-react";
+import { AlertCircle, ArrowDown, ArrowLeft, ArrowUpRight, Check, CheckCheck, ChevronLeft, ChevronRight, Eye, Hash, Headset, Inbox, Loader2, MessageCircle, Paperclip, Plus, RefreshCw, Search, ShieldCheck, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import GradientChatInput from "@/components/ui/gradient-chat-input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -14,6 +15,7 @@ import SupportMessage from "../components/SupportMessage";
 import SupportConversationItem, { SupportAvatar } from "../components/SupportConversationItem";
 import SupportEmptyState from "../components/SupportEmptyState";
 import SupportAttachMenu from "../components/SupportAttachMenu";
+import SupportQuickActions from "../components/SupportQuickActions";
 import { buildSupportText, SUPPORT_REFERENCE_LIMIT, SUPPORT_TEXT_LIMIT } from "../lib/references";
 import "./support.css";
 import { accountRestriction } from "../../../../../shared/accountAccess.js";
@@ -180,6 +182,19 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart, onDeleted
     retry.current = null;
     return true;
   }
+  function prepareSupportReply(text) {
+    if (blocked || chat.sending || uploading || chat.loading || chat.error) return false;
+    const next = [draft.trim(), text].filter(Boolean).join("\n\n");
+    if (buildSupportText(next, references).length > SUPPORT_TEXT_LIMIT) {
+      toast.add({ title: "Shorten your draft before adding these details", type: "error" });
+      return false;
+    }
+    setDraft(next);
+    retry.current = null;
+    setSendError("");
+    draftInput.current?.focus();
+    return true;
+  }
   if (!conversationId) return <div className="support-chat"><SupportEmptyState role={user.role} onStart={onStart} blocked={blocked} /></div>;
   const conversation = chat.conversation;
   const requester = user.role === "User" || String(conversation?.user?._id || conversation?.user) === String(user.id || user._id);
@@ -190,7 +205,11 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart, onDeleted
   const resolved = conversation?.status === "resolved";
   const needsAdmin = conversation?.escalation?.isEscalated && !conversation.escalation.resolvedAt;
   const unavailable = blocked || deletion.isPending || chat.sending || chat.loading || Boolean(chat.error);
-  return <div className="support-chat" aria-label="Selected conversation">
+  const activity = chat.entranceSequence === null ? [] : chat.messages.filter(message => message.sequenceNumber > chat.entranceSequence).slice(-4).map(message => ({
+    id: message._id,
+    sender: String(message.senderIdentity?.id || message.sender?._id || message.sender) === String(user.id || user._id) ? "user" : "bot",
+  }));
+  return <SupportQuickActions conversation={conversation} user={user} disabled={unavailable || uploading} needsAdmin={needsAdmin} onDraft={prepareSupportReply} onEscalate={text => { setReason(text); setEscalating(true); }} onChanged={() => { void chat.refresh(); onChanged(); }}><div className="support-chat" aria-label="Selected conversation">
     <header className="support-chat-header">
       <Button type="button" variant="ghost" size="icon-sm" className="support-mobile-back" aria-label="Back to conversations" onClick={onBack}><ArrowLeft /></Button>
       <SupportAvatar name={participant?.username} specialist={requester && participant?.displayRole === "Super Admin"} />
@@ -230,13 +249,15 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart, onDeleted
     <form onSubmit={handleSend} className="support-composer">
       {blocked && <p className="support-composer-notice">{user.isPreview ? "Messaging is unavailable in preview mode." : "Your account has expired. Messaging is unavailable."}</p>}
       {resolved && !blocked && <p className="support-composer-notice"><CheckCheck />Resolved. Sending a message will reopen this conversation.</p>}
-      <div className="support-composer-box">
+      <input ref={fileInput} type="file" className="sr-only" multiple accept={ACCEPT} aria-label="Attach support files" disabled={unavailable || uploading} onChange={upload} />
+      <GradientChatInput value={draft} onValueChange={setDraft} inputRef={draftInput} inputId="support-chat-draft" maxLength={draftLimit}
+        placeholder={user.role === "User" ? "Write your message…" : "Write a helpful reply…"}
+        disabled={unavailable || uploading} sending={chat.sending} canSend={Boolean(messageText || attachments.length)} activity={activity}
+        startAdornment={<SupportAttachMenu iconOnly disabled={unavailable || uploading} uploading={uploading} filesDisabled={attachments.length >= 5} referencesDisabled={references.length >= SUPPORT_REFERENCE_LIMIT} onFiles={() => fileInput.current?.click()} onAddReference={addReference} />}>
         {references.length > 0 && <ul className="support-pending-references" aria-label="References to send">{references.map((reference, index) => <li key={`${reference.type}:${reference.label}:${reference.value}`}><Hash aria-hidden="true" /><span><strong>{reference.label}</strong><code title={reference.value}>{reference.value}</code></span><button type="button" disabled={chat.sending || uploading} aria-label={`Remove ${reference.label} ${reference.value}`} onClick={() => { setReferences(previous => previous.filter((_, itemIndex) => itemIndex !== index)); retry.current = null; }}><X /></button></li>)}</ul>}
         {attachments.length > 0 && <ul className="support-pending-attachments" aria-label="Attachments to send">{attachments.map(file => <li key={file._id}><Paperclip /><span>{file.originalName}</span><button type="button" disabled={chat.sending || uploading} aria-label={`Remove ${file.originalName}`} onClick={() => { setAttachments(previous => previous.filter(item => item._id !== file._id)); retry.current = null; }}><X /></button></li>)}</ul>}
-        <label htmlFor="support-chat-draft" className="sr-only">Write a message</label><textarea ref={draftInput} id="support-chat-draft" value={draft} onChange={event => setDraft(event.target.value)} disabled={unavailable} maxLength={draftLimit} rows={1} placeholder={user.role === "User" ? "Write your message…" : "Write a helpful reply…"} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
-        <div className="support-composer-footer"><div className="flex min-w-0 items-center gap-2"><input ref={fileInput} type="file" className="sr-only" multiple accept={ACCEPT} aria-label="Attach support files" disabled={unavailable || uploading} onChange={upload} /><SupportAttachMenu disabled={unavailable || uploading} uploading={uploading} filesDisabled={attachments.length >= 5} referencesDisabled={references.length >= SUPPORT_REFERENCE_LIMIT} onFiles={() => fileInput.current?.click()} onAddReference={addReference} /><span className="support-draft-count" aria-live="polite">{messageText.length > 3500 ? `${messageText.length.toLocaleString()} / 4,000` : attachments.length ? `${attachments.length} / 5 files` : ""}</span></div><Button type="submit" size="sm" className="support-send-button" aria-label={chat.sending ? "Sending message" : "Send message"} disabled={unavailable || uploading || (!messageText && !attachments.length)}>{chat.sending ? <Loader2 className="animate-spin" /> : <Send />}<span>{chat.sending ? "Sending…" : "Send message"}</span></Button></div>
-      </div>
-      <div className="support-composer-hint justify-between"><span>Chats are stored for 1 week</span><span><kbd>Enter</kbd> to send<span className="support-shift-hint"> · <kbd>Shift + Enter</kbd> for a new line</span></span></div>
+      </GradientChatInput>
+      <div className="support-composer-hint"><span className="support-draft-count" aria-live="polite">{messageText.length > 3500 ? `${messageText.length.toLocaleString()} / 4,000` : attachments.length ? `${attachments.length} / 5 files` : ""}</span><span><kbd>Enter</kbd> to send<span className="support-shift-hint"> · <kbd>Shift + Enter</kbd> for a new line</span></span></div>
     </form>
     <Dialog open={deleting && user.role === "Super Admin"} onOpenChange={open => { if (!deletion.isPending) setDeleting(open); }}>
       <DialogContent showCloseButton={!deletion.isPending} className="gap-5 rounded-2xl p-5 sm:max-w-sm">
@@ -253,7 +274,7 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart, onDeleted
       </DialogContent>
     </Dialog>
     <Dialog open={escalating} onOpenChange={open => { if (!escalation.isPending) setEscalating(open); }}><DialogContent className="support-dialog"><span className="support-dialog-icon"><ShieldCheck /></span><DialogHeader><DialogTitle>Bring in a little extra help</DialogTitle><DialogDescription>Request Super Admin assistance in this conversation. They’ll receive an important notification with your reason.</DialogDescription></DialogHeader><form onSubmit={event => { event.preventDefault(); escalation.mutate(); }} className="space-y-5"><label className="block space-y-2 text-xs font-medium"><span>What do you need help with?</span><textarea className="support-reason-input" placeholder="Share the issue and what you’ve tried so far…" value={reason} onChange={event => setReason(event.target.value)} maxLength={2000} required disabled={escalation.isPending} /></label><div className="support-dialog-actions"><Button type="button" variant="outline" disabled={escalation.isPending} onClick={() => setEscalating(false)}>Cancel</Button><Button disabled={!reason.trim() || escalation.isPending} type="submit">{escalation.isPending ? <Loader2 className="animate-spin" /> : <ShieldCheck />}{escalation.isPending ? "Requesting…" : "Request assistance"}</Button></div></form></DialogContent></Dialog>
-  </div>;
+  </div></SupportQuickActions>;
 }
 
 export default function SupportChatPage() {

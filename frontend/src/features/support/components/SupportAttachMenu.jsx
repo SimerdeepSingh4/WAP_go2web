@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FileUp, Hash, Loader2, Megaphone, Paperclip, Receipt } from "lucide-react";
+import { FileUp, Hash, Loader2, Megaphone, Paperclip, Plus, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,7 +11,7 @@ const TYPES = {
   other: { label: "Other reference", Icon: Hash, placeholder: "Paste the reference number or ID" },
 };
 
-export default function SupportAttachMenu({ disabled, uploading, filesDisabled, referencesDisabled, onFiles, onAddReference }) {
+export default function SupportAttachMenu({ disabled, uploading, filesDisabled, referencesDisabled, onFiles, onAddReference, iconOnly = false }) {
   const [type, setType] = useState(null);
   const [value, setValue] = useState("");
   const [label, setLabel] = useState("");
@@ -26,10 +26,10 @@ export default function SupportAttachMenu({ disabled, uploading, filesDisabled, 
 
   return <>
     <DropdownMenu>
-      <DropdownMenuTrigger disabled={disabled} aria-label={uploading ? "Uploading attachments" : "Attach files or a reference"} render={<Button type="button" variant="ghost" size="sm" className="support-attach-trigger" />}>
-        {uploading ? <Loader2 className="animate-spin" /> : <Paperclip />}<span>{uploading ? "Uploading…" : "Attach"}</span>
+      <DropdownMenuTrigger disabled={disabled} aria-label={uploading ? "Uploading attachments" : "Attach files or a reference"} render={<Button type="button" variant={iconOnly ? "secondary" : "ghost"} size={iconOnly ? "icon" : "sm"} className="support-attach-trigger" />}>
+        {uploading ? <Loader2 className="animate-spin" /> : iconOnly ? <Plus /> : <Paperclip />}{!iconOnly && <span>{uploading ? "Uploading…" : "Attach"}</span>}
       </DropdownMenuTrigger>
-      <DropdownMenuContent side="top" align="end" sideOffset={10} className="support-attach-menu">
+      <DropdownMenuContent side="top" align={iconOnly ? "start" : "end"} sideOffset={10} className="support-attach-menu">
         <DropdownMenuLabel>Attach to message</DropdownMenuLabel>
         <DropdownMenuItem disabled={filesDisabled} onClick={onFiles} title="Images up to 5 MB. PDF, TXT, CSV, DOCX and XLSX up to 10 MB. MP4, MOV and WAV up to 10 MB and 30 seconds."><FileUp /><span><strong>Upload files</strong><small>Images, documents, video or audio</small></span></DropdownMenuItem>
         <DropdownMenuSeparator />

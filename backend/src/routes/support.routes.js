@@ -2,6 +2,7 @@ import express from "express";
 import mongoose from "mongoose";
 import { protect, blockInPreviewMode, authorizeRoles } from "../middlewares/auth.middleware.js";
 import { supportMediaUpload } from "../middlewares/support-upload.middleware.js";
+import { getSupportContext, getSupportTransactions, getSupportLedger, applySupportAccessAction, applySupportWalletAction } from "../controllers/support-tools.controller.js";
 import {
     getOrCreateConversation,
     listConversations,
@@ -28,6 +29,11 @@ router.param("id", (req, res, next, id) => mongoose.Types.ObjectId.isValid(id) ?
 router.post("/conversations", getOrCreateConversation);
 router.get("/conversations", listConversations);
 router.get("/conversations/:id", getConversationById);
+router.get("/conversations/:id/context", getSupportContext);
+router.get("/conversations/:id/transactions", getSupportTransactions);
+router.get("/conversations/:id/ledger", authorizeRoles("Super Admin"), getSupportLedger);
+router.post("/conversations/:id/wallet-action", authorizeRoles("Super Admin"), applySupportWalletAction);
+router.post("/conversations/:id/access-action", authorizeRoles("Reseller", "Super Admin"), applySupportAccessAction);
 router.delete("/conversations/:id", authorizeRoles("Super Admin"), deleteConversation);
 router.patch("/conversations/:id/status", updateStatus);
 router.post("/conversations/:id/escalate", requestEscalation);

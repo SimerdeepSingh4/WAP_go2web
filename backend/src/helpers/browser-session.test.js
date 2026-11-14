@@ -50,7 +50,7 @@ after(async () => {
     await mongoose.disconnect(); await mongo?.stop();
 });
 
-async function request(path, { jar, cookie = jar?.cookie, bearer, context, expectedAccount, expectedSession, method = "GET", body, appHeader = true, origin: requestOrigin } = {}) {
+async function request(path, { jar, cookie = jar?.cookie, bearer, context, expectedAccount = context ? undefined : jar?.userId, expectedSession = context ? undefined : jar?.sessionId, method = "GET", body, appHeader = true, origin: requestOrigin } = {}) {
     const headers = { "Content-Type": "application/json" };
     if (appHeader) headers["X-App-Request"] = "1";
     if (cookie) headers.Cookie = cookie;
@@ -95,6 +95,7 @@ test("actions and logout from a stale account tab cannot affect the new signed-i
     const change = await request("/api/change", stale);
     assert.equal(change.status, 409); assert.equal(change.body.code, "BROWSER_SESSION_CHANGED");
     assert.equal(writes, before);
+    assert.equal((await request("/api/change", { cookie: browser.cookie, method: "POST", body: {} })).status, 409);
     assert.equal((await request("/api/auth/logout", stale)).status, 409);
     assert.equal((await me({ jar: browser })).body.user.role, "Reseller");
 });

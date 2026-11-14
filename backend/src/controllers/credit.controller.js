@@ -8,6 +8,7 @@ import { creditAmount as normalizeCreditAmount, creditsForCount, creditTransacti
 import { startCreditSession, saveCreditReceipt } from "../helpers/credit-operation.js";
 import { transactionObjectId } from "../helpers/transaction-reference.js";
 import { publicAccountIdentity } from "../helpers/account-identity.js";
+import { recordSupportAction, publishSupportAction } from "../helpers/support-action.js";
 
 /**
  * GET /api/credits/balance
@@ -327,9 +328,12 @@ export async function allocateCredits(req, res) {
             { session: mongoSession }
         );
 
+        await recordSupportAction(req, mongoSession, toUserId, `Allocated ${creditAmount} credits. New balance: ${balanceAfterTo} credits.\nTransaction ID: ${transaction[0].transactionId}`, transaction[0]._id);
         await saveCreditReceipt(req, mongoSession, 200, { success: true, message: "Credit allocation processed.", transaction: { id: transaction[0]._id, transactionId: transaction[0].transactionId, amount: creditAmount, toUser: { id: toUser._id, username: toUser.username, role: toUser.role }, balanceAfterFrom, balanceAfterTo } });
         await mongoSession.commitTransaction();
         mongoSession.endSession();
+
+        await publishSupportAction(req);
 
         // ── Real-Time WebSockets (POST-COMMIT) ────────────────────
         if (balanceAfterFrom !== null) {
@@ -396,10 +400,12 @@ export async function requestCredits(req, res) {
         fromUser: null, toUser: req.user._id, amount, type: "REQUEST",
         notes: note.trim(), performedBy: req.user._id, requestedFrom: recipient?._id || null,
       }], { session });
+      await recordSupportAction(req, session, req.user._id, `Requested ${amount} credits.${note.trim() ? `\n${note.trim()}` : ""}\nTransaction ID: ${transaction.transactionId}`, transaction._id);
       const result = { success: true, message: recipient ? "Credit request sent to your reseller." : "Credit request sent to the super admin.", transaction };
       await saveCreditReceipt(req, session, 201, result);
       return result;
     }, creditTransactionOptions);
+    await publishSupportAction(req);
     return res.status(201).json(response);
   } catch (error) {
     console.error("RequestCredits error:", error);

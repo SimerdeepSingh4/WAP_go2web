@@ -24,10 +24,11 @@ export function requestSessionCredentials(req) {
         context: req.headers?.["x-account-context"],
         expectedAccountId: req.headers?.["x-expected-account"],
         expectedSessionId: req.headers?.["x-expected-session"],
+        mutation: !["GET", "HEAD", "OPTIONS"].includes(req.method || "GET"),
     };
 }
 
-export async function authenticateBrowserSession({ cookieToken, bearerToken, context, expectedAccountId, expectedSessionId }) {
+export async function authenticateBrowserSession({ cookieToken, bearerToken, context, expectedAccountId, expectedSessionId, mutation = false }) {
     const delegated = context === "preview" || context === "impersonation";
     if (context && !delegated) throw rejection("Unknown account context.");
     // Ordinary Bearer tokens never override the browser's shared cookie.
@@ -58,7 +59,7 @@ export async function authenticateBrowserSession({ cookieToken, bearerToken, con
             throw rejection("Your manager account can no longer access this session.");
         }
     }
-    if ((expectedAccountId && String(session.userId) !== expectedAccountId) || (expectedSessionId && String(session._id) !== expectedSessionId)) {
+    if ((mutation && !delegated && (!expectedAccountId || !expectedSessionId)) || (expectedAccountId && String(session.userId) !== expectedAccountId) || (expectedSessionId && String(session._id) !== expectedSessionId)) {
         throw rejection("Your browser account changed. Refresh this tab before continuing.", 409, "BROWSER_SESSION_CHANGED");
     }
     return { token, decoded, session, parentSession };

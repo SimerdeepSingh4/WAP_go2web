@@ -20,7 +20,7 @@ const { updateAccountMediaUploadLimits } = await import("../controllers/media-up
 const { uploadFiles } = await import("../middlewares/upload.middleware.js");
 
 let mongo, server, origin;
-const accounts = {}, tokens = {};
+const accounts = {}, tokens = {}, sessionIds = {};
 before(async () => {
     mongo = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
     // Existing unrelated white-label indexes are not needed by these fixtures.
@@ -31,7 +31,8 @@ before(async () => {
         await User.collection.insertOne(account);
         accounts[role] = account;
         const token = jwt.sign({ userId: String(account._id) }, process.env.JWT_SECRET);
-        await Session.create({ userId: account._id, tokenHash: createHash("sha256").update(token).digest("hex"), expiresAt: new Date(Date.now() + 3600000) });
+        const session = await Session.create({ userId: account._id, tokenHash: createHash("sha256").update(token).digest("hex"), expiresAt: new Date(Date.now() + 3600000) });
+        sessionIds[role] = String(session._id);
         tokens[role] = token;
     }
     const app = express();
@@ -50,7 +51,7 @@ after(async () => {
 });
 
 async function request(path, { role = "Super Admin", method = "GET", limits } = {}) {
-    const response = await fetch(origin + path, { method, headers: { Cookie: `token=${tokens[role]}`, "Content-Type": "application/json" }, body: limits === undefined ? undefined : JSON.stringify({ mediaUploadLimits: limits }) });
+    const response = await fetch(origin + path, { method, headers: { Cookie: `token=${tokens[role]}`, "Content-Type": "application/json", "X-Expected-Account": String(accounts[role]._id), "X-Expected-Session": sessionIds[role] }, body: limits === undefined ? undefined : JSON.stringify({ mediaUploadLimits: limits }) });
     return { status: response.status, body: await response.json() };
 }
 const endpoint = "/api/settings/media-limits";
@@ -96,7 +97,7 @@ test("multipart uploads enforce each effective limit, including aliases, with an
     async function upload(field, name, type, size, prefix = Buffer.from("%PDF-1.7\n")) {
         const data = Buffer.alloc(size); prefix.copy(data);
         const form = new FormData(); form.set(field, new Blob([data], { type }), name);
-        const response = await fetch(origin + "/api/test-upload", { method: "POST", headers: { Cookie: `token=${tokens.User}` }, body: form, signal: AbortSignal.timeout(10000) });
+        const response = await fetch(origin + "/api/test-upload", { method: "POST", headers: { Cookie: `token=${tokens.User}`, "X-Expected-Account": String(accounts.User._id), "X-Expected-Session": sessionIds.User }, body: form, signal: AbortSignal.timeout(10000) });
         return { status: response.status, body: await response.json() };
     }
     for (const [field, name, type] of [["image", "image.png", "image/png"], ["video", "video.mp4", "video/mp4"], ["pdf", "report.pdf", "application/pdf"]]) {
