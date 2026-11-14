@@ -15,7 +15,8 @@ export const reconciliationApi = {
   confirm: async (id, planId) => {
     try { return (await api.post(`/credit-reconciliation/accounts/${id}/plans/${planId}/confirm`, {}, { timeout: 60000 })).data; }
     catch (error) {
-      if (!error.response && ["ECONNABORTED", "ETIMEDOUT", "ERR_NETWORK", "ECONNRESET"].includes(error.code) || error.response?.status >= 500) {
+      const lostResponse = !error.response && ["ECONNABORTED", "ETIMEDOUT", "ERR_NETWORK", "ECONNRESET"].includes(error.code);
+      if (lostResponse || error.response?.status >= 500) {
         try { const receipt = await savedResult(id, planId); if (receipt.state === "completed") return receipt; }
         catch { /* Preserve this review for an explicit receipt check or safe retry. */ }
         throw Object.assign(new Error("The saved result could not be confirmed. Check the saved result or retry this same review; it cannot apply the correction twice."), { code: "CREDIT_RESULT_UNCONFIRMED" });

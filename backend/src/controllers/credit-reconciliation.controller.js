@@ -118,7 +118,7 @@ export const reconciliationRepairResult = handle(async (req, res) => {
     if (!plan) throw reconciliationError("This review does not belong to your account and the selected wallet.", 404);
     const receipt = await CreditRepair.findOne({ planId: plan._id }).select("_id after").lean();
     if (receipt) return res.json({ success: true, state: "completed", result: { id: String(receipt._id), after: receipt.after, replayed: true } });
-    const last = await CreditCaseEvent.findOne({ userId: req.params.userId, "details.planId": String(plan._id), action: { $in: ["repair_started", "repair_failed", "repair_outcome_unconfirmed"] } }).sort({ _id: -1 }).select("action").lean();
+    const last = await CreditCaseEvent.findOne({ userId: req.params.userId, "details.planId": String(plan._id), action: { $in: ["repair_started", "repair_failed", "repair_outcome_unconfirmed"] } }).sort({ auditSequence: -1, _id: -1 }).select("action").lean();
     const state = last?.action === "repair_started" ? "processing" : last?.action === "repair_outcome_unconfirmed" ? "unconfirmed" : last?.action === "repair_failed" ? "failed" : plan.expiresAt <= new Date() ? "expired" : "not_started";
     return res.json({ success: true, state, result: null });
 });

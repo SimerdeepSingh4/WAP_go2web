@@ -50,7 +50,11 @@ export async function inspectCreditAccount(userId, session, options = {}) {
     try { walletMinor = creditMinor(wallet?.balance || 0); }
     catch { concerns.push("The saved wallet balance is not a valid two-decimal credit amount."); }
     const minorMismatch = wallet?.balanceMinor != null && wallet.balanceMinor !== walletMinor;
-    const recoveries = await CreditRecovery.find({ userId }).sort({ effectiveAt: 1, _id: 1 }).session(session).lean();
+    const recoveryTime = entry => entry.walletApplied ? entry.createdAt : entry.effectiveAt;
+    const recoveries = await CreditRecovery.find({ userId }).session(session).lean();
+    // Wallet recovery takes effect when it is confirmed. Preserve the original
+    // date as source evidence without changing earlier saved wallet snapshots.
+    recoveries.sort((a, b) => new Date(recoveryTime(a)) - new Date(recoveryTime(b)) || String(a._id).localeCompare(String(b._id)));
     updateDigest({ userId, wallet, recoveries });
 
     let auditCount = 0, auditValid = true, auditHash = "GENESIS", auditSequence = 0, zeroOpening = false;
@@ -95,12 +99,12 @@ export async function inspectCreditAccount(userId, session, options = {}) {
         sinceSnapshot += recovery.deltaMinor;
         totals.recovered += recovery.deltaMinor;
         if (recovery.deltaMinor > 0) totals.inflow += recovery.deltaMinor; else totals.outflow -= recovery.deltaMinor;
-        include({ id: String(recovery._id), reference: `REC-${recovery._id}`, type: "RECOVERY", originalType: recovery.originalType, delta: credits(recovery.deltaMinor), expectedBefore: credits(before), expectedAfter: credits(running), recordedAfter: null, createdAt: recovery.effectiveAt, recordedAt: recovery.createdAt, notes: recovery.reason, sourceReference: recovery.sourceReference, performedBy: recovery.performedBy, restored: true, walletApplied: Boolean(recovery.walletApplied) });
+        include({ id: String(recovery._id), reference: `REC-${recovery._id}`, type: "RECOVERY", originalType: recovery.originalType, delta: credits(recovery.deltaMinor), expectedBefore: credits(before), expectedAfter: credits(running), recordedAfter: null, createdAt: recoveryTime(recovery), originalEffectiveAt: recovery.effectiveAt, recordedAt: recovery.createdAt, notes: recovery.reason, sourceReference: recovery.sourceReference, performedBy: recovery.performedBy, restored: true, walletApplied: Boolean(recovery.walletApplied) });
     }
     const filter = { $or: [{ fromUser: userId }, { toUser: userId }, { "postings.userId": userId }] };
     for await (const row of Transaction.find(filter).sort({ createdAt: 1, _id: 1 }).session(session).lean().cursor()) {
         updateDigest(row);
-        while (recoveryIndex < recoveries.length && recoveries[recoveryIndex].effectiveAt <= row.createdAt) applyRecovery(recoveries[recoveryIndex++]);
+        while (recoveryIndex < recoveries.length && recoveryTime(recoveries[recoveryIndex]) <= row.createdAt) applyRecovery(recoveries[recoveryIndex++]);
         let movement;
         try { movement = ledgerDelta(row, userId); }
         catch { movement = { delta: 0, typed: 0, valid: false, recordedAfterMinor: null, legacy: !row.postings?.length }; }

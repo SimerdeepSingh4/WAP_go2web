@@ -384,3 +384,45 @@ test("account lookup includes unflagged matching clients and resellers and exclu
     const empty = response(); await controller.searchRecoveryAccounts({ ...request, query: { q: "[.*" } }, empty); assert.equal(empty.body.items.length, 0);
     const short = response(); await controller.searchRecoveryAccounts({ ...request, query: { q: "" } }, short); assert.equal(short.body.items.length, 0);
 });
+
+test("recovering an older completed transaction does not manufacture historical snapshot mismatches", async () => {
+    const account = await makeAccount("Earlier transaction original time");
+    const wallet = await Wallet.findOne({ userId: account._id });
+    const originalTime = new Date(wallet.createdAt.getTime() + 1).toISOString();
+    const review = await plan(account, "transaction", recoveryDetails({ effectiveAt: originalTime })); await execute(account, review);
+    const view = await inspect(account._id);
+    assert.equal(view.summary.classification, "matched"); assert.equal(view.summary.firstBreak, null);
+    const entry = view.entries.find(row => row.walletApplied);
+    assert.equal(entry.originalEffectiveAt.toISOString(), originalTime);
+    assert.equal(entry.createdAt.toISOString(), entry.recordedAt.toISOString());
+    assert.equal(entry.expectedBefore, 100); assert.equal(entry.expectedAfter, 110);
+});
+
+test("saved-result lookup retrieves the completed receipt without applying another correction", async () => {
+    const account = await makeAccount("Lost confirmation response"); await drift(account, 1);
+    const review = await plan(account, "wallet");
+    const request = { ...req(account._id), params: { userId: String(account._id), planId: review.id } };
+    const before = response(); await controller.reconciliationRepairResult(request, before); assert.equal(before.body.state, "not_started");
+    await execute(account, review);
+    const result = response(); await controller.reconciliationRepairResult(request, result);
+    assert.equal(result.body.state, "completed"); assert.equal(result.body.result.replayed, true);
+    assert.equal(result.body.result.after.walletBalance, 100);
+    assert.equal(await models.CreditRepair.countDocuments({ planId: review.id }), 1);
+    assert.equal((await Wallet.findOne({ userId: account._id })).balance, 100);
+    const wrongAdmin = response(); await controller.reconciliationRepairResult({ ...request, user: { ...admin, _id: oid() } }, wrongAdmin); assert.equal(wrongAdmin.statusCode, 404);
+    const wrongAccount = response(); await controller.reconciliationRepairResult({ ...request, params: { ...request.params, userId: String(oid()) } }, wrongAccount); assert.equal(wrongAccount.statusCode, 404);
+    const reseller = response(); await controller.reconciliationRepairResult({ ...request, user: manager }, reseller); assert.equal(reseller.statusCode, 403);
+});
+
+test("saved-result lookup distinguishes processing from failed confirmation", async () => {
+    const account = await makeAccount("Confirmation status states"); await drift(account, 1);
+    const review = await plan(account, "wallet");
+    const request = { ...req(account._id), params: { userId: String(account._id), planId: review.id } };
+    const session = await mongoose.startSession();
+    try { await session.withTransaction(() => service.recordCreditCaseEvent(account._id, "repair_started", { planId: review.id }, { id: String(admin._id), role: admin.role }, session)); }
+    finally { await session.endSession(); }
+    const pending = response(); await controller.reconciliationRepairResult(request, pending); assert.equal(pending.body.state, "processing");
+    await drift(account, 1); await assert.rejects(execute(account, review), { statusCode: 409 });
+    const failed = response(); await controller.reconciliationRepairResult(request, failed); assert.equal(failed.body.state, "failed");
+    assert.equal((await Wallet.findOne({ userId: account._id })).balance, 102);
+});
