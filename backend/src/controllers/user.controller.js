@@ -20,7 +20,6 @@ import { syncResellerReassignment } from "../helpers/support-reassignment.helper
 export async function getUsers(req, res) {
     try {
         let filter = {};
-
         if (req.user.role === "Reseller") {
             filter = { resellerId: req.user._id };
         } else if (req.user.role === "Super Admin") {
@@ -28,7 +27,6 @@ export async function getUsers(req, res) {
                 filter = { resellerId: req.query.resellerId };
             }
         }
-
         const users = await userModel
             .find(filter)
             .select("-password")
@@ -38,7 +36,6 @@ export async function getUsers(req, res) {
         const userIds = users.map((u) => u._id);
         const wallets = await walletModel.find({ userId: { $in: userIds } });
         const walletMap = new Map(wallets.map((w) => [String(w.userId), w]));
-
         const usersWithExpiry = users.map((user) => {
             const w = walletMap.get(String(user._id));
             const isWalletExpired = Boolean(w?.expiresAt && new Date(w.expiresAt) <= now);
@@ -66,7 +63,6 @@ export async function getUsers(req, res) {
                 isWhiteLabelExpired: isWlExpired,
             };
         });
-
         return res.status(200).json({
             success: true,
             count: usersWithExpiry.length,
@@ -98,6 +94,7 @@ export async function getUserById(req, res) {
                 success: false,
             });
         }
+
         const isSuperAdmin = req.user.role === "Super Admin";
         const isOwner = req.user._id.toString() === targetUser._id.toString();
         const isAssignedReseller =
@@ -141,6 +138,7 @@ export async function getCurrentUser(req, res) {
                 success: false,
             });
         }
+
         return res.status(200).json({
             success: true,
             user,
@@ -160,9 +158,11 @@ async function saveUserProfileImage(req, res, userId) {
         if (req.isPreview) {
             return res.status(403).json({ message: "Exit preview mode before changing your profile image.", success: false });
         }
+
         if (!req.file) {
             return res.status(400).json({ message: "Choose a profile image to upload.", success: false });
         }
+
         const targetUser = await userModel.findById(userId).select("dp_img");
         if (!targetUser) {
             return res.status(404).json({ message: "User not found.", success: false });
@@ -422,6 +422,7 @@ export async function updateUserAccess(req, res) {
         if (!targetUser) {
             return res.status(404).json({ message: "User not found", success: false });
         }
+
         const isSuperAdmin = req.user.role === "Super Admin";
         const ownsUser = req.user.role === "Reseller" &&
             targetUser.role === "User" &&
@@ -433,6 +434,7 @@ export async function updateUserAccess(req, res) {
                 success: false,
             });
         }
+
         if (targetUser.role === "Super Admin") {
             return res.status(403).json({
                 message: "Super Admin accounts cannot be changed here.",
@@ -463,15 +465,18 @@ export async function updateUserAccess(req, res) {
                 updates.expiresAt = null;
             } else {
                 const parsedExpiry = new Date(expiresAt);
+
                 if (Number.isNaN(parsedExpiry.getTime())) {
                     return res.status(400).json({
                         message: "Enter a valid account expiry date.",
-                        success: false,
+                        success: false
                     });
                 }
+
                 if (/^\d{4}-\d{2}-\d{2}$/.test(expiresAt)) {
                     parsedExpiry.setUTCHours(23, 59, 59, 999);
                 }
+
                 updates.expiresAt = parsedExpiry;
             }
         }
@@ -480,11 +485,13 @@ export async function updateUserAccess(req, res) {
             if (!isSuperAdmin || !["User", "Reseller"].includes(targetUser.role)) {
                 return res.status(403).json({ message: "Only Super Admin can manage feature access for user and reseller accounts.", success: false });
             }
+
             const featureAccess = req.body.featureAccess;
             const allowedFeatures = ["campaignDp", "campaignNumber", "campaignLink"];
             if (!featureAccess || typeof featureAccess !== "object" || Array.isArray(featureAccess) || Object.keys(featureAccess).some((key) => !allowedFeatures.includes(key)) || Object.values(featureAccess).some((enabled) => typeof enabled !== "boolean")) {
                 return res.status(400).json({ message: "Feature access must contain boolean DP, phone, or campaign link settings.", success: false });
             }
+
             updates.featureAccess = {
                 campaignDp: targetUser.featureAccess?.campaignDp === true,
                 campaignNumber: targetUser.featureAccess?.campaignNumber === true,
@@ -493,16 +500,33 @@ export async function updateUserAccess(req, res) {
             };
         }
 
+        // Handle per‑user video upload limit
         if (Object.hasOwn(req.body, "maxVideoSizeMB")) {
             if (!isSuperAdmin) {
                 return res.status(403).json({ message: "Only Super Admin can manage video upload limits.", success: false });
             }
+
             const parsedVideoSize = Number(req.body.maxVideoSizeMB);
             if (!Number.isFinite(parsedVideoSize) || parsedVideoSize < 1 || parsedVideoSize > 100) {
                 return res.status(400).json({ message: "Max video size must be between 1 and 100 MB.", success: false });
             }
+
             updates.maxVideoSizeMB = parsedVideoSize;
             updates.mediaUploadLimits = { ...targetUser.mediaUploadLimits?.toObject?.() || targetUser.mediaUploadLimits || {}, videoMB: parsedVideoSize };
+        }
+
+        // New per‑user campaign limit
+        if (Object.hasOwn(req.body, "maxCampaignsPerDay")) {
+            if (!isSuperAdmin) {
+                return res.status(403).json({ message: "Only Super Admin can set per‑user campaign limits.", success: false });
+            }
+
+            const parsed = Number(req.body.maxCampaignsPerDay);
+            if (!Number.isFinite(parsed) || parsed < 1 || parsed > 500) {
+                return res.status(400).json({ message: "maxCampaignsPerDay must be a number between 1 and 500.", success: false });
+            }
+
+            updates.maxCampaignsPerDay = parsed;
         }
 
         if (status === "expired") {
@@ -579,9 +603,11 @@ export async function updateWhiteLabelAccess(req, res) {
                         success: false,
                     });
                 }
+
                 if (/^\d{4}-\d{2}-\d{2}$/.test(expiresAt)) {
                     parsedExpiry.setUTCHours(23, 59, 59, 999);
                 }
+
                 targetUser.whiteLabel.expiresAt = parsedExpiry;
             }
         }
@@ -630,6 +656,7 @@ export async function updateManagedUserProfile(req, res) {
         if (!isSuperAdmin && !ownsUser) {
             return res.status(403).json({ message: "You can only manage your own users.", success: false });
         }
+
         if (targetUser.role === "Super Admin") {
             return res.status(403).json({ message: "Super Admin accounts cannot be changed here.", success: false });
         }
@@ -684,9 +711,11 @@ export async function updateManagedUserProfile(req, res) {
                 if (Number.isNaN(parsedExpiry.getTime())) {
                     return res.status(400).json({ message: "Enter a valid account expiry date.", success: false });
                 }
+
                 if (typeof expiresAt === "string" && /^\d{4}-\d{2}-\d{2}$/.test(expiresAt)) {
                     parsedExpiry.setUTCHours(23, 59, 59, 999);
                 }
+
                 updates.expiresAt = parsedExpiry;
             }
         }
@@ -833,6 +862,7 @@ export async function deleteUser(req, res) {
         if (!targetUser) {
             return res.status(404).json({ message: "Account not found", success: false });
         }
+
         const isSuperAdmin = req.user.role === "Super Admin";
         const ownsUser = req.user.role === "Reseller" &&
             targetUser.role === "User" &&
@@ -843,6 +873,7 @@ export async function deleteUser(req, res) {
                 success: false,
             });
         }
+
         if (targetUser.role === "Super Admin") {
             return res.status(403).json({ message: "Super Admin accounts cannot be deleted.", success: false });
         }
@@ -890,6 +921,7 @@ export async function impersonateUser(req, res) {
                 success: false,
             });
         }
+
         const isSuperAdmin = req.user.role === "Super Admin";
         const isAssignedReseller =
             req.user.role === "Reseller" &&
@@ -1205,16 +1237,36 @@ export async function updateUser(req, res) {
         }
 
         // 8. Update maxVideoSizeMB (Super Admin only)
+        // Handle per‑user video upload limit
         if (Object.hasOwn(req.body, "maxVideoSizeMB")) {
             if (!isSuperAdmin) {
                 return res.status(403).json({ message: "Only Super Admin can manage video upload limits.", success: false });
             }
+
             const parsedVideoSize = Number(req.body.maxVideoSizeMB);
             if (!Number.isFinite(parsedVideoSize) || parsedVideoSize < 1 || parsedVideoSize > 100) {
                 return res.status(400).json({ message: "Max video size must be between 1 and 100 MB.", success: false });
             }
+
             targetUser.maxVideoSizeMB = parsedVideoSize;
-            targetUser.mediaUploadLimits.videoMB = parsedVideoSize;
+            targetUser.mediaUploadLimits = {
+                ...(targetUser.mediaUploadLimits?.toObject?.() || targetUser.mediaUploadLimits || {}),
+                videoMB: parsedVideoSize,
+            };
+        }
+
+        // New per‑user campaign limit
+        if (Object.hasOwn(req.body, "maxCampaignsPerDay")) {
+            if (!isSuperAdmin) {
+                return res.status(403).json({ message: "Only Super Admin can set per‑user campaign limits.", success: false });
+            }
+
+            const parsed = Number(req.body.maxCampaignsPerDay);
+            if (!Number.isFinite(parsed) || parsed < 1 || parsed > 500) {
+                return res.status(400).json({ message: "maxCampaignsPerDay must be a number between 1 and 500.", success: false });
+            }
+
+            targetUser.maxCampaignsPerDay = parsed;
         }
 
         await targetUser.save();
@@ -1222,6 +1274,7 @@ export async function updateUser(req, res) {
         if (didChangeReseller) {
             await syncResellerReassignment(targetUser._id, oldResellerId, newResellerId, req.user._id);
         }
+
         await notifyUser(targetUser._id, "ACCOUNT_ACCESS_CHANGED", {});
 
         return res.status(200).json({

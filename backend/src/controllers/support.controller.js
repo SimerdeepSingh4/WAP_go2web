@@ -42,6 +42,87 @@ async function inboxConversations(conversations, viewer) {
     return conversations.map(conversation => ({ ...sanitizeConversation(conversation, viewer.role), unreadCount: counts.get(String(conversation._id)) || 0 }));
 }
 
+export const SUPPORT_RETENTION_DAYS = 7;
+export const SUPPORT_RETENTION_MS = SUPPORT_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+
+export function isConversationExpired(conversation) {
+    if (!conversation) return false;
+    const cutoff = Date.now() - SUPPORT_RETENTION_MS;
+    const mostRecent = Math.max(
+        new Date(conversation.latestActivity?.sentAt || 0).getTime(),
+        new Date(conversation.updatedAt || conversation.createdAt || 0).getTime()
+    );
+    return mostRecent < cutoff;
+}
+
+/**
+ * Automatically purge support chats:
+ * 1. Stale abandoned empty drafts older than 15 minutes.
+ * 2. Conversations inactive for more than 7 days (1 week retention policy).
+ * Removes conversation records, messages, attachments, and disk storage files.
+ */
+export async function purgeExpiredSupportChats() {
+    try {
+        const cutoff7Days = new Date(Date.now() - SUPPORT_RETENTION_MS);
+        const cutoff15Mins = new Date(Date.now() - 15 * 60 * 1000);
+
+        // 1. Abandoned drafts
+        const abandonedDrafts = await supportConversationModel.find({
+            "latestActivity.messageText": { $in: ["", null] },
+            nextSequenceNumber: { $lte: 1 },
+            createdAt: { $lt: cutoff15Mins },
+        }).select("_id").lean();
+
+        // 2. Expired conversations: no update or message within the last 7 days
+        const expiredConversations = await supportConversationModel.find({
+            updatedAt: { $lt: cutoff7Days },
+            $or: [
+                { "latestActivity.sentAt": { $lt: cutoff7Days } },
+                { "latestActivity.sentAt": null },
+                { "latestActivity.sentAt": { $exists: false } },
+            ],
+        }).select("_id").lean();
+
+        const targets = [...abandonedDrafts, ...expiredConversations];
+        if (!targets.length) return;
+
+        const targetIds = [...new Set(targets.map(t => String(t._id)))];
+
+        // Retrieve attachment storage references for disk cleanup
+        const attachments = await supportAttachmentModel.find({
+            conversationId: { $in: targetIds },
+        }).select("storageReference").lean();
+
+        await Promise.all([
+            supportMessageModel.deleteMany({ conversationId: { $in: targetIds } }),
+            supportAttachmentModel.deleteMany({ conversationId: { $in: targetIds } }),
+            supportConversationModel.deleteMany({ _id: { $in: targetIds } }),
+        ]);
+
+        if (attachments.length > 0) {
+            void Promise.allSettled(
+                attachments.map(att => removeSupportMedia(att.storageReference))
+            ).catch(err => console.error("Support attachment disk cleanup error:", err));
+        }
+
+        if (expiredConversations.length > 0) {
+            console.log(`[Support Retention] Automatically purged ${expiredConversations.length} conversation(s) older than 7 days.`);
+        }
+    } catch (error) {
+        console.error("purgeExpiredSupportChats error:", error.message);
+    }
+}
+
+// Background cleanup timer: run every 1 hour
+setInterval(() => {
+    void purgeExpiredSupportChats();
+}, 60 * 60 * 1000).unref();
+
+// Run once shortly after startup
+setTimeout(() => {
+    void purgeExpiredSupportChats();
+}, 10_000).unref();
+
 /**
  * POST /api/support/conversations
  * Start or get the ongoing active conversation for the authenticated user.
