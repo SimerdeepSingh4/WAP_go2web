@@ -160,6 +160,7 @@ function AccountDetail({ account, onClose, onAction }) {
               ["Company", account.companyName || "Not provided"],
               ["Phone", account.phone || "Not provided"],
               ["Rate", `${number(account.ratePerMsg)} credits / recipient`],
+              ["Daily campaign limit", account.dailyCampaignLimit ? `${number(account.dailyCampaignLimit)} / day (Custom)` : "Platform default"],
               ["Campaign upload limits", mediaUploadSummary(account, uploadLimits.defaults)],
               ["Account expiry", account.expiresAt ? `${dateTime(account.expiresAt)}${account.isExpired ? " (Expired)" : ""}` : "No expiry"],
               ["Assigned reseller", account.resellerId?.username || "—"],
@@ -257,21 +258,21 @@ function AccountDetail({ account, onClose, onAction }) {
                 {reconcile.data && (
                   <div
                     className={`rounded-lg border p-3.5 space-y-2.5 text-xs ${
-                      reconcile.data.reconciliation?.isBalanced
+                      reconcile.data.report?.isReconciled
                         ? "border-emerald-200 bg-emerald-50/60 text-emerald-900"
                         : "border-red-200 bg-red-50 text-red-900"
                     }`}
                   >
                     <div className="flex items-center gap-2 font-semibold">
-                      {reconcile.data.reconciliation?.isBalanced ? (
+                      {reconcile.data.report?.isReconciled ? (
                         <>
                           <ShieldCheck className="size-4 text-emerald-600" />
-                          <span>Balance Verified: Transactions match wallet balance</span>
+                          <span>Wallet and recorded ledger match</span>
                         </>
                       ) : (
                         <>
                           <ShieldAlert className="size-4 text-red-600" />
-                          <span>Balance Mismatch Detected</span>
+                          <span>{reconcile.data.report?.classification === "cannot_confirm" ? "Conflicting records need review" : "Balance mismatch detected"}</span>
                         </>
                       )}
                     </div>
@@ -279,21 +280,22 @@ function AccountDetail({ account, onClose, onAction }) {
                     <div className="grid grid-cols-2 gap-2 pt-1 border-t border-muted/50 text-[11px]">
                       <div>
                         <span className="text-muted-foreground">Added:</span>{" "}
-                        <strong className="tabular-nums">+{number(reconcile.data.reconciliation?.totalInflow)}</strong>
+                        <strong className="tabular-nums">+{number(reconcile.data.report?.totalInflow)}</strong>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Used:</span>{" "}
-                        <strong className="tabular-nums">-{number(reconcile.data.reconciliation?.totalOutflow)}</strong>
+                        <strong className="tabular-nums">-{number(reconcile.data.report?.totalOutflow)}</strong>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Calculated Balance:</span>{" "}
-                        <strong className="tabular-nums">{number(reconcile.data.reconciliation?.calculatedBalance)}</strong>
+                        <strong className="tabular-nums">{number(reconcile.data.report?.calculatedBalance)}</strong>
                       </div>
                       <div>
                         <span className="text-muted-foreground">Wallet Balance:</span>{" "}
-                        <strong className="tabular-nums">{number(reconcile.data.reconciliation?.walletBalance)}</strong>
+                        <strong className="tabular-nums">{number(reconcile.data.report?.currentBalance)}</strong>
                       </div>
                     </div>
+                    <Link to={`/admin/reconciliation?account=${account._id}`} onClick={onClose} className="inline-flex items-center gap-1 underline underline-offset-4">Inspect full ledger and correction options</Link>
                   </div>
                 )}
               </QueryState>
@@ -595,6 +597,11 @@ export default function Accounts({ role }) {
           caption={`${role} accounts`}
           rows={rows}
           columns={columns}
+          mobile={{
+            primary: "name",
+            secondary: "email",
+            featured: role === "Reseller" ? ["status", "rate", "whiteLabel"] : ["status", "rate"],
+          }}
         />
       </QueryState>
 
@@ -642,7 +649,7 @@ export default function Accounts({ role }) {
           action="createAccount"
           successMessage={`${role} account created`}
           onClose={() => setModal(null)}
-          initialValues={{ username: "", email: "", phone: "", companyName: "", password: "", ratePerMsg: "", resellerId: "", expiresAt: "" }}
+          initialValues={{ username: "", email: "", phone: "", companyName: "", password: "", ratePerMsg: "", dailyCampaignLimit: "", resellerId: "", expiresAt: "" }}
           fields={[
             { key: "username", label: "Account name", required: true, maxLength: 100 },
             { key: "email", label: "Email", type: "email", required: true },
@@ -650,6 +657,14 @@ export default function Accounts({ role }) {
             { key: "phone", label: "Phone number (optional)", type: "tel", maxLength: 40, hint: "Include the country code, e.g. +919876543210." },
             { key: "password", label: "Initial password", type: "password", required: true, hint: "Use at least 8 characters." },
             { key: "ratePerMsg", label: "Rate (credits / recipient)", type: "number", min: 0.01, step: 0.01, required: true },
+            {
+              key: "dailyCampaignLimit",
+              label: "Daily campaign limit (optional)",
+              type: "number",
+              min: 1,
+              step: 1,
+              hint: "Max campaigns per day. Leave blank for platform default.",
+            },
             {
               key: "expiresAt",
               label: "Account expiry date (optional)",
@@ -675,6 +690,7 @@ export default function Accounts({ role }) {
             password: v.password,
             role,
             ratePerMsg: Number(v.ratePerMsg),
+            dailyCampaignLimit: v.dailyCampaignLimit ? Number(v.dailyCampaignLimit) : null,
             expiresAt: v.expiresAt || null,
             ...(role === "User" && v.resellerId ? { resellerId: v.resellerId } : {}),
           })}
@@ -684,6 +700,7 @@ export default function Accounts({ role }) {
               <p>{v.email}</p>{v.companyName && <p>Company: {v.companyName}</p>}{v.phone && <p>Phone: {v.phone}</p>}
               <p>Role: {role}</p>
               <p>Rate: {number(Number(v.ratePerMsg))} credits / recipient</p>
+              <p>Daily limit: {v.dailyCampaignLimit ? `${v.dailyCampaignLimit} campaigns / day (Custom)` : "Platform default"}</p>
               <p>Expiry: {v.expiresAt || "No expiry"}</p>
               {role === "User" && <p>Reseller: {resellers.find((a) => a._id === v.resellerId)?.username || "Direct (None)"}</p>}
             </>
@@ -706,6 +723,7 @@ export default function Accounts({ role }) {
             companyName: modal.account.companyName || "",
             password: "",
             ratePerMsg: String(modal.account.ratePerMsg ?? 12),
+            dailyCampaignLimit: modal.account.dailyCampaignLimit != null ? String(modal.account.dailyCampaignLimit) : "",
             status: modal.account.status === "expired" || (modal.account.isExpired && modal.account.status === "active") ? "expired" : modal.account.status || "active",
             expiresAt: modal.account.expiresAt ? new Date(modal.account.expiresAt).toISOString().slice(0, 10) : "",
             resellerId: modal.account.resellerId?._id || modal.account.resellerId || "",
@@ -717,6 +735,14 @@ export default function Accounts({ role }) {
             { key: "phone", label: "Phone number (optional)", type: "tel", maxLength: 40, hint: "Include the country code, e.g. +919876543210." },
             { key: "password", label: "New password (optional)", type: "password", hint: "Leave blank to keep existing password. If setting new, min 8 characters." },
             { key: "ratePerMsg", label: "Rate (credits / recipient)", type: "number", min: 0.01, step: 0.01, required: true },
+            {
+              key: "dailyCampaignLimit",
+              label: "Daily campaign limit (optional)",
+              type: "number",
+              min: 1,
+              step: 1,
+              hint: "Max campaigns per day. Leave blank for platform default.",
+            },
             {
               key: "status",
               label: "Account status",
@@ -751,6 +777,7 @@ export default function Accounts({ role }) {
             companyName: (v.companyName || "").trim(),
             ...(v.password && v.password.trim() ? { password: v.password.trim() } : {}),
             ratePerMsg: Number(v.ratePerMsg),
+            dailyCampaignLimit: v.dailyCampaignLimit ? Number(v.dailyCampaignLimit) : null,
             status: v.status,
             expiresAt: v.expiresAt || null,
             ...(role === "User" ? { resellerId: v.resellerId || null } : {}),
@@ -760,6 +787,7 @@ export default function Accounts({ role }) {
               <p className="font-medium text-foreground">{v.username}</p>
               <p className="text-xs text-muted-foreground">{v.email}</p>{v.companyName && <p className="text-xs">Company: {v.companyName}</p>}{v.phone && <p className="text-xs">Phone: {v.phone}</p>}
               <p className="text-xs">Rate: <strong>{number(Number(v.ratePerMsg))} credits / recipient</strong></p>
+              <p className="text-xs">Daily limit: <strong>{v.dailyCampaignLimit ? `${v.dailyCampaignLimit} campaigns / day (Custom)` : "Platform default"}</strong></p>
               <p className="text-xs">Status: <strong>{v.status}</strong></p>
               <p className="text-xs">Expiry: <strong>{v.expiresAt || "No expiry"}</strong></p>
               {v.password?.trim() && <p className="text-xs">Password: <strong>Will be updated</strong></p>}
@@ -850,6 +878,7 @@ export default function Accounts({ role }) {
             status: modal.account.status === "expired" || (modal.account.isExpired && modal.account.status === "active") ? "expired" : modal.account.status || "active",
             accessReason: modal.account.accessReason || "",
             expiresAt: modal.account.expiresAt ? new Date(modal.account.expiresAt).toISOString().slice(0, 10) : "",
+            dailyCampaignLimit: modal.account.dailyCampaignLimit != null ? String(modal.account.dailyCampaignLimit) : "",
             allowCampaignDp: modal.account.featureAccess?.campaignDp === true,
             allowCampaignNumber: modal.account.featureAccess?.campaignNumber === true,
             allowCampaignLink: modal.account.featureAccess?.campaignLink === true,
@@ -858,6 +887,14 @@ export default function Accounts({ role }) {
             { key: "status", label: "Account status", options: [{ value: "active", label: "Active" }, { value: "blocked", label: "Blocked" }, { value: "expired", label: "Expired" }] },
             { key: "accessReason", label: "Reason shown to this account (optional)", type: "textarea", maxLength: 1000, hint: "Explain why access is blocked or expired. The account holder can view this reason." },
             { key: "expiresAt", label: "Account expiry date (optional)", type: "date", hint: "The account remains active through this date. Leave blank for no expiry." },
+            {
+              key: "dailyCampaignLimit",
+              label: "Daily campaign limit (optional)",
+              type: "number",
+              min: 1,
+              step: 1,
+              hint: "Max campaigns per day. Leave blank for platform default.",
+            },
             ...(role === "User" || role === "Reseller" ? [
               { key: "allowCampaignDp", label: "Share profile DP in campaigns", type: "checkbox", hint: "Allow this account's profile DP (from settings) to be shared in campaigns." },
               { key: "allowCampaignNumber", label: "Campaign number", type: "checkbox", hint: "Allow this account to add an optional contact number to a campaign." },
@@ -869,6 +906,7 @@ export default function Accounts({ role }) {
             status: values.status,
             accessReason: (values.accessReason || "").trim(),
             expiresAt: values.expiresAt || null,
+            dailyCampaignLimit: values.dailyCampaignLimit ? Number(values.dailyCampaignLimit) : null,
             ...((role === "User" || role === "Reseller") ? { featureAccess: { campaignDp: values.allowCampaignDp, campaignNumber: values.allowCampaignNumber, campaignLink: values.allowCampaignLink } } : {}),
           })}
           review={(values) => (
@@ -877,6 +915,7 @@ export default function Accounts({ role }) {
               <p>Status: <strong>{values.status}</strong></p>
               {values.accessReason && <p>Reason: {values.accessReason}</p>}
               <p>Expiry: <strong>{values.expiresAt || "No expiry"}</strong></p>
+              <p>Daily limit: <strong>{values.dailyCampaignLimit ? `${values.dailyCampaignLimit} campaigns / day (Custom)` : "Platform default"}</strong></p>
               {(role === "User" || role === "Reseller") && <p>Share profile DP in campaigns: <strong>{values.allowCampaignDp ? "Allowed" : "Not allowed"}</strong></p>}
               {(role === "User" || role === "Reseller") && <p>Campaign number: <strong>{values.allowCampaignNumber ? "Allowed" : "Not allowed"}</strong></p>}
               {(role === "User" || role === "Reseller") && <p>Campaign link: <strong>{values.allowCampaignLink ? "Allowed" : "Not allowed"}</strong></p>}

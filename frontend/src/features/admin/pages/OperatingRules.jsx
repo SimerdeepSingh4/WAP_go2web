@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import api from "@/api/client";
 import {
   Laptop, Smartphone, Tablet, Clock, SlidersHorizontal, RotateCcw,
   Save, Coins, CheckCircle2, LogOut, RefreshCw,
@@ -124,6 +125,7 @@ function validateSettings(settings) {
 
 export default function OperatingRules() {
   const { logoutAll } = useAuth();
+  const queryClient = useQueryClient();
   const [initialSettings] = useState(readSettings);
   const [settings, setSettings] = useState(initialSettings);
   const [savedSettings, setSavedSettings] = useState(initialSettings);
@@ -138,6 +140,26 @@ export default function OperatingRules() {
   const errors = showErrors ? validation : {};
   const sendingError = validation.sendingWindow;
   const updateSetting = (key, value) => { setSettings((previous) => ({ ...previous, [key]: value })); setSaveNotice(""); };
+
+  const platformSettingsQuery = useQuery({
+    queryKey: ["platformSettings"],
+    queryFn: async () => (await api.get("/settings/platform")).data,
+  });
+
+  useEffect(() => {
+    if (platformSettingsQuery.data?.settings?.dailyCampaignLimit != null) {
+      const serverLimit = platformSettingsQuery.data.settings.dailyCampaignLimit;
+      setSettings((prev) => ({ ...prev, dailyCampaignLimit: serverLimit }));
+      setSavedSettings((prev) => ({ ...prev, dailyCampaignLimit: serverLimit }));
+    }
+  }, [platformSettingsQuery.data?.settings?.dailyCampaignLimit]);
+
+  const updatePlatformMutation = useMutation({
+    mutationFn: async (payload) => (await api.put("/settings/platform", payload)).data,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["platformSettings"] });
+    },
+  });
 
   useEffect(() => {
     if (!focusField) return;
@@ -164,7 +186,7 @@ export default function OperatingRules() {
   const activeSessions = sessionsQuery.data?.sessions || [];
   const activeCount = sessionsQuery.data?.activeCount ?? activeSessions.length;
 
-  function handleSave(event) {
+  async function handleSave(event) {
     event.preventDefault();
     const firstError = Object.keys(validation)[0];
     if (firstError) {
@@ -178,12 +200,13 @@ export default function OperatingRules() {
     ["dailyCampaignLimit", "maxAllowedDevices", "defaultRatePerMsg", "lowBalanceThreshold", "creditExpiryValue"].forEach((key) => { normalized[key] = Number(settings[key]); });
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+      await updatePlatformMutation.mutateAsync({ dailyCampaignLimit: normalized.dailyCampaignLimit });
       setSettings(normalized); setSavedSettings(normalized); setShowErrors(false);
-      setSaveNotice("Changes saved in this browser.");
-      toast.add({ title: "Preferences saved", description: "Saved in this browser. Server rules are unchanged.", type: "success" });
-    } catch {
-      setSaveNotice("Could not save. Browser storage may be unavailable.");
-      toast.add({ title: "Could not save preferences", description: "Check that browser storage is available and try again.", type: "error" });
+      setSaveNotice("Changes saved successfully.");
+      toast.add({ title: "Preferences saved", description: "Global campaign limits and workspace preferences saved.", type: "success" });
+    } catch (err) {
+      setSaveNotice("Could not save settings.");
+      toast.add({ title: "Could not save preferences", description: err?.response?.data?.message || err?.message || "Check network connection.", type: "error" });
     }
   }
 
@@ -216,7 +239,7 @@ export default function OperatingRules() {
     </header>
     <CampaignMediaSettings />
     <form className="portal-settings" noValidate onSubmit={handleSave}>
-      <div className="portal-settings-notice"><Info aria-hidden="true" /><span>These preferences are saved in this browser only and do not update server rules. Device sign-out actions apply immediately.</span></div>
+      <div className="portal-settings-notice"><Info aria-hidden="true" /><span>Daily campaign limits are saved globally on the server for all users and resellers. Operating hours, devices, and billing preferences are saved for this workspace.</span></div>
       <dl className="portal-settings-summary">
         <div><dt>Daily campaign limit</dt><dd>{settings.dailyCampaignLimit === "" ? "—" : number(settings.dailyCampaignLimit)} / account</dd></div>
         <div><dt>Sending window</dt><dd>{settings.startTime || "—"}–{settings.endTime || "—"}</dd></div>

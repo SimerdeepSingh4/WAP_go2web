@@ -2,7 +2,8 @@ import mongoose from "mongoose";
 import walletModel from "../models/wallet.model.js";
 import userModel from "../models/user.model.js";
 import transactionModel from "../models/transaction.model.js";
-import { creditAmount, creditMinor, creditsForCount, creditTransactionOptions } from "./credit-amount.js";
+import { creditAmount, creditsForCount, creditTransactionOptions } from "./credit-amount.js";
+import { inspectCreditAccount } from "../services/credit-evidence.service.js";
 
 async function moveCredits(userId, count, session, options, direction) {
     if (!session) {
@@ -47,38 +48,15 @@ export const refundCredits = (userId, count, session = null, options = {}) => mo
 // Read both documents from the same snapshot so an in-flight transfer cannot
 // produce a false mismatch. This is read-only: historic drift is never hidden.
 export async function reconcileWallet(userId) {
-    const userObjectId = new mongoose.Types.ObjectId(userId);
     const session = await mongoose.startSession();
     let report;
     try {
         await session.withTransaction(async () => {
-            const wallet = await walletModel.findOne({ userId: userObjectId }).session(session);
-            if (!wallet) throw new Error(`Wallet not found for user ${userId}`);
-            const isFrom = { $eq: ["$fromUser", userObjectId] };
-            const isTo = { $eq: ["$toUser", userObjectId] };
-            const is = (type) => ({ $eq: ["$type", type] });
-            const and = (...args) => ({ $and: args });
-            const [totals] = await transactionModel.aggregate([
-                { $match: { $or: [{ fromUser: userObjectId }, { toUser: userObjectId }, { "postings.userId": userObjectId }] } },
-                { $project: {
-                    amountMinor: { $ifNull: ["$amountMinor", { $round: [{ $multiply: ["$amount", 100] }, 0] }] },
-                    postings: { $ifNull: ["$postings", []] },
-                    inflow: { $or: [and(is("ALLOCATE"), isTo, { $ne: ["$fromUser", userObjectId] }), and(is("REFUND"), isTo), and(is("RECLAIM"), isTo)] },
-                    outflow: { $or: [and(is("DEDUCT"), { $or: [isFrom, and({ $eq: ["$fromUser", null] }, isTo)] }), and(is("ALLOCATE"), isFrom, { $ne: ["$toUser", userObjectId] }), and(is("RECLAIM"), isFrom)] },
-                } },
-                { $project: { deltaMinor: { $cond: [
-                    { $gt: [{ $size: "$postings" }, 0] },
-                    { $sum: { $map: { input: { $filter: { input: "$postings", as: "entry", cond: { $eq: ["$$entry.userId", userObjectId] } } }, as: "entry", in: "$$entry.deltaMinor" } } },
-                    { $subtract: [{ $cond: ["$inflow", "$amountMinor", 0] }, { $cond: ["$outflow", "$amountMinor", 0] }] },
-                ] } } },
-                { $group: { _id: null, totalInflowMinor: { $sum: { $max: ["$deltaMinor", 0] } }, totalOutflowMinor: { $sum: { $max: [{ $multiply: ["$deltaMinor", -1] }, 0] } } } },
-            ]).session(session);
-            const inflow = Number(totals?.totalInflowMinor || 0);
-            const outflow = Number(totals?.totalOutflowMinor || 0);
-            const current = creditMinor(wallet.balance);
-            const expected = inflow - outflow;
-            if (![inflow, outflow, expected].every(Number.isSafeInteger)) throw new Error("Ledger totals exceed the supported credit range");
-            report = { userId, currentBalance: wallet.balance, calculatedBalance: expected / 100, totalInflow: inflow / 100, totalOutflow: outflow / 100, isReconciled: current === expected, drift: (current - expected) / 100 };
+            const { summary } = await inspectCreditAccount(new mongoose.Types.ObjectId(userId), session);
+            report = { userId, currentBalance: summary.walletBalance, calculatedBalance: summary.expectedBalance,
+                openingBalance: summary.opening.amount, totalInflow: summary.totals.inflow, totalOutflow: summary.totals.outflow,
+                isReconciled: summary.classification === "matched", classification: summary.classification,
+                drift: summary.difference, openingVerified: summary.opening.verified, concerns: summary.concerns };
         }, creditTransactionOptions);
         return report;
     } finally { await session.endSession(); }

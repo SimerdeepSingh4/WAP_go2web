@@ -19,6 +19,7 @@ import {
     exportRecipientDraft,
     deleteCampaign,
     downloadProfileDp,
+    getCampaignDailyUsage,
 } from "../controllers/campaign.controller.js";
 import {
     protect,
@@ -32,6 +33,7 @@ const campaignRouter = Router();
 campaignRouter.use(protect);
 
 campaignRouter.post("/", blockInPreviewMode("Campaign creation"), uploadFiles, creditRequest, createCampaign);
+campaignRouter.get("/daily-usage", getCampaignDailyUsage);
 campaignRouter.get("/", getCampaigns);
 campaignRouter.get("/:id/tracked-numbers", authorizeRoles("Super Admin"), blockInPreviewMode("Recipient tracking"), getTrackedNumbers);
 campaignRouter.post("/:id/tracked-numbers", authorizeRoles("Super Admin"), blockInPreviewMode("Recipient tracking"), addTrackedNumbers);

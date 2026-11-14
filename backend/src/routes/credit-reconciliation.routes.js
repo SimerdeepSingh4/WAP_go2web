@@ -1,0 +1,21 @@
+import { Router } from "express";
+import mongoose from "mongoose";
+import { protect } from "../middlewares/auth.middleware.js";
+import { reconciliationAdminOnly, reconciliationSummary, listReconciliationCases, searchRecoveryAccounts, startReconciliationScan, recheckReconciliation, reconciliationEvidence, reconciliationHistory, walletAuditEvidence, previewReconciliationRepair, confirmReconciliationRepair, reconciliationRepairResult } from "../controllers/credit-reconciliation.controller.js";
+
+const router = Router();
+router.use(protect, reconciliationAdminOnly);
+router.param("userId", (req, res, next, id) => mongoose.isObjectIdOrHexString(id) ? next() : res.status(400).json({ success: false, message: "Invalid account reference." }));
+router.param("planId", (req, res, next, id) => mongoose.isObjectIdOrHexString(id) ? next() : res.status(400).json({ success: false, message: "Invalid review reference." }));
+router.get("/summary", reconciliationSummary);
+router.get("/cases", listReconciliationCases);
+router.get("/accounts/search", searchRecoveryAccounts);
+router.post("/scan", startReconciliationScan);
+router.get("/accounts/:userId/evidence", reconciliationEvidence);
+router.get("/accounts/:userId/history", reconciliationHistory);
+router.get("/accounts/:userId/wallet-audit", walletAuditEvidence);
+router.post("/accounts/:userId/check", recheckReconciliation);
+router.post("/accounts/:userId/preview", previewReconciliationRepair);
+router.post("/accounts/:userId/plans/:planId/confirm", confirmReconciliationRepair);
+router.get("/accounts/:userId/plans/:planId/result", reconciliationRepairResult);
+export default router;

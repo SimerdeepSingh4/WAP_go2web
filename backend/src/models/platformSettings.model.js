@@ -6,6 +6,12 @@ const schema = new mongoose.Schema({
     mediaUploadLimits: Object.fromEntries(Object.entries(DEFAULT_MEDIA_UPLOAD_LIMITS).map(([key, value]) => [key, {
         type: Number, default: value, min: 1, max: MAX_MEDIA_UPLOAD_MB,
     }])),
+    dailyCampaignLimit: {
+        type: Number,
+        default: 10,
+        min: 1,
+        max: 1000,
+    },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "user" },
 }, { timestamps: true });
 
