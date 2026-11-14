@@ -130,6 +130,13 @@ export default function CreateCampaignPage() {
     queryFn: async () => (await apiClient.get("/credits/balance")).data,
   });
 
+  const dailyUsageQuery = useQuery({
+    queryKey: ["campaignDailyUsage", user?.id || user?._id],
+    queryFn: async () => (await apiClient.get("/campaigns/daily-usage")).data,
+  });
+  const dailyUsage = dailyUsageQuery.data;
+  const isDailyLimitReached = !isAdmin && Boolean(dailyUsage && !dailyUsage.isUnlimited && dailyUsage.remainingToday <= 0);
+
   const wallet = balanceQuery.data?.wallet || {};
   const currentBalance = wallet.balance || 0;
   const isLocked = !isAdmin && Boolean(wallet.isLocked);
@@ -170,6 +177,7 @@ export default function CreateCampaignPage() {
     { ok: validRecipients.length > 0 && invalidCount === 0, label: "Valid recipient numbers" },
     { ok: Boolean(scheduleValid), label: scheduleType === "later" ? "Future schedule time" : "Delivery timing" },
     { ok: !hasInsufficientCredits && !isLocked, label: "Enough credits" },
+    ...(!isAdmin && dailyUsage && !dailyUsage.isUnlimited ? [{ ok: !isDailyLimitReached, label: "Daily campaign limit" }] : []),
   ];
 
   const isDirty = Boolean(campaignTitle || campaignDescription || campaignLink || campaignLinkName || campaignNumber || shareProfileDp || messageText || rawRecipients.trim() || totalMediaCount || scheduleType !== "now" || scheduledTime);
@@ -286,7 +294,7 @@ export default function CreateCampaignPage() {
       finished.current = true;
       window.clearTimeout(draftSaveTimer.current);
       if (draftKey) removeCampaignDraft(draftKey).catch(() => {});
-      for (const key of ["campaigns", "reseller", "admin", "user", "myWalletBalance"]) queryClient.invalidateQueries({ queryKey: [key] });
+      for (const key of ["campaigns", "reseller", "admin", "user", "myWalletBalance", "campaignDailyUsage"]) queryClient.invalidateQueries({ queryKey: [key] });
       toast.add({
         title: "Campaign submitted",
         description: data.message || `Campaign '${campaignTitle}' has been submitted for review.`,
@@ -310,6 +318,12 @@ export default function CreateCampaignPage() {
     setFormError("");
     setValidateRecipients(true);
     if (submitting.current || createCampaignMutation.isPending) return;
+    if (isDailyLimitReached) {
+      const msg = `Daily campaign limit reached (${dailyUsage?.dailyLimit} per day). You cannot create more campaigns today.`;
+      setFormError(msg);
+      toast.add({ title: "Daily limit reached", description: msg, type: "error" });
+      return;
+    }
     if (user?.isPreview) return setFormError("Exit account preview to submit a campaign.");
     if (Object.values(media).some(Boolean) && !uploadLimits.isSuccess) return setFormError("Load the upload limits before continuing.");
     for (const [kind, attachment] of Object.entries(media)) {
@@ -373,7 +387,8 @@ export default function CreateCampaignPage() {
     (!isAdmin && !balanceQuery.isSuccess) ||
     isLocked ||
     hasInsufficientCredits ||
-    isOverCharacterLimit;
+    isOverCharacterLimit ||
+    isDailyLimitReached;
 
   return (
     <div data-tour-loading={!draftReady} className="campaign-editor campaign-compose mx-auto flex w-full min-w-0 max-w-6xl flex-col gap-5 pb-8">
@@ -400,9 +415,21 @@ export default function CreateCampaignPage() {
         checks={checks}
         onNavigateBack={() => navigate(parentCampaignsPath)}
         isPending={createCampaignMutation.isPending}
+        dailyUsage={dailyUsage}
       />
 
-      <div ref={errorRef} className={formError || isLocked ? "space-y-3" : "hidden"}>
+      <div ref={errorRef} className={formError || isLocked || isDailyLimitReached ? "space-y-3" : "hidden"}>
+        {isDailyLimitReached && (
+          <div className="flex items-start gap-3 p-4 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+            <AlertTriangle className="size-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+            <div className="flex-1 space-y-0.5">
+              <p className="text-sm font-semibold">Daily campaign limit reached</p>
+              <p className="text-xs">
+                You have reached your limit of {dailyUsage?.dailyLimit} {dailyUsage?.dailyLimit === 1 ? "campaign" : "campaigns"} for today. Your daily limit resets at midnight.
+              </p>
+            </div>
+          </div>
+        )}
         {formError && (
           <div role="alert" className="flex items-start gap-3 p-4 rounded-xl bg-destructive/10 text-destructive border border-destructive/20">
             <AlertTriangle className="size-5 shrink-0 mt-0.5" />

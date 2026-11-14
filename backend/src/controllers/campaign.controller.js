@@ -23,6 +23,7 @@ import { campaignMediaCategory } from "../helpers/campaign-media.js";
 import { getAccountMediaUploadLimits } from "../services/media-upload-limits.service.js";
 import { uploadCampaignMedia } from "../helpers/campaign-upload.js";
 import { campaignRecipientError, campaignRecipientLines } from "../../../shared/campaignRecipients.js";
+import { getEffectiveDailyCampaignLimit } from "../services/platform-settings.service.js";
 
 const REPORT_CATEGORIES = [
     "whatsapp_successful",
@@ -445,6 +446,46 @@ export const downloadRecipientReport = async (req, res) => {
     }
 };
 
+export const getCampaignDailyUsage = async (req, res) => {
+    try {
+        const user = req.user;
+        if (user.role === "Super Admin") {
+            return res.json({
+                success: true,
+                isUnlimited: true,
+                dailyLimit: null,
+                usedToday: 0,
+                remainingToday: null,
+                isCustom: false,
+            });
+        }
+
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const usedToday = await campaignModel.countDocuments({
+            userId: user._id,
+            createdAt: { $gte: startOfDay },
+        });
+
+        const effectiveLimit = await getEffectiveDailyCampaignLimit(user);
+        const hasCustom = Number.isInteger(user.dailyCampaignLimit) && user.dailyCampaignLimit >= 1;
+        const remainingToday = Math.max(0, effectiveLimit - usedToday);
+
+        return res.json({
+            success: true,
+            isUnlimited: false,
+            dailyLimit: effectiveLimit,
+            usedToday,
+            remainingToday,
+            isCustom: hasCustom,
+        });
+    } catch (error) {
+        console.error("Error getting campaign daily usage:", error);
+        return res.status(500).json({ success: false, message: "Failed to fetch daily campaign usage." });
+    }
+};
+
 export const createCampaign = async (req, res) => {
     const mongoSession = await startCreditSession(req);
     mongoSession.startTransaction({
@@ -453,6 +494,30 @@ export const createCampaign = async (req, res) => {
     });
 
     try {
+        if (req.user.role !== "Super Admin") {
+            const effectiveLimit = await getEffectiveDailyCampaignLimit(req.user);
+            if (effectiveLimit !== null && effectiveLimit !== undefined) {
+                const startOfDay = new Date();
+                startOfDay.setHours(0, 0, 0, 0);
+
+                const todayCampaignCount = await campaignModel.countDocuments({
+                    userId: req.user._id,
+                    createdAt: { $gte: startOfDay },
+                }).session(mongoSession);
+
+                if (todayCampaignCount >= effectiveLimit) {
+                    await mongoSession.abortTransaction();
+                    mongoSession.endSession();
+                    return res.status(429).json({
+                        success: false,
+                        message: `Daily campaign limit reached (${effectiveLimit} per day). You cannot create more campaigns today.`,
+                        dailyLimit: effectiveLimit,
+                        usedToday: todayCampaignCount,
+                        remainingToday: 0,
+                    });
+                }
+            }
+        }
         const {
             campaignTitle,
             campaignDescription,

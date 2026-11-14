@@ -354,6 +354,14 @@ export async function createUser(req, res) {
             }
         }
 
+        let customDailyCampaignLimit = null;
+        if (req.user.role === "Super Admin" && req.body.dailyCampaignLimit !== undefined && req.body.dailyCampaignLimit !== null && req.body.dailyCampaignLimit !== "") {
+            const parsedLimit = Number(req.body.dailyCampaignLimit);
+            if (Number.isInteger(parsedLimit) && parsedLimit >= 1) {
+                customDailyCampaignLimit = parsedLimit;
+            }
+        }
+
         let accountExpiry = null;
         if (req.body.expiresAt) {
             const parsedExpiry = new Date(req.body.expiresAt);
@@ -375,6 +383,7 @@ export async function createUser(req, res) {
             resellerId: assignedReseller,
             ratePerMsg: customRate,
             maxVideoSizeMB: customMaxVideoSizeMB,
+            dailyCampaignLimit: customDailyCampaignLimit,
             mediaUploadLimits: req.user.role === "Super Admin" && req.body.maxVideoSizeMB != null && req.body.maxVideoSizeMB !== "" ? { videoMB: customMaxVideoSizeMB } : undefined,
             expiresAt: accountExpiry,
             createdBy: req.user._id,
@@ -505,6 +514,21 @@ export async function updateUserAccess(req, res) {
             updates.mediaUploadLimits = { ...targetUser.mediaUploadLimits?.toObject?.() || targetUser.mediaUploadLimits || {}, videoMB: parsedVideoSize };
         }
 
+        if (Object.hasOwn(req.body, "dailyCampaignLimit")) {
+            if (!isSuperAdmin) {
+                return res.status(403).json({ message: "Only Super Admin can manage daily campaign limits.", success: false });
+            }
+            if (req.body.dailyCampaignLimit === null || req.body.dailyCampaignLimit === "" || req.body.dailyCampaignLimit === undefined) {
+                updates.dailyCampaignLimit = null;
+            } else {
+                const parsedLimit = Number(req.body.dailyCampaignLimit);
+                if (!Number.isInteger(parsedLimit) || parsedLimit < 1) {
+                    return res.status(400).json({ message: "Daily campaign limit must be a whole number of at least 1, or empty for platform default.", success: false });
+                }
+                updates.dailyCampaignLimit = parsedLimit;
+            }
+        }
+
         if (status === "expired") {
             updates.expiresAt = new Date(Date.now() - 1000);
         }
@@ -528,6 +552,7 @@ export async function updateUserAccess(req, res) {
                 status: targetUser.status,
                 expiresAt: targetUser.expiresAt,
                 maxVideoSizeMB: targetUser.maxVideoSizeMB ?? 9,
+                dailyCampaignLimit: targetUser.dailyCampaignLimit,
                 featureAccess: targetUser.featureAccess,
             },
         });
@@ -1169,6 +1194,22 @@ export async function updateUser(req, res) {
             }
         }
 
+        // 5b. Update dailyCampaignLimit (Super Admin only)
+        if (Object.hasOwn(req.body, "dailyCampaignLimit")) {
+            if (!isSuperAdmin) {
+                return res.status(403).json({ message: "Only Super Admin can manage daily campaign limits.", success: false });
+            }
+            if (req.body.dailyCampaignLimit === null || req.body.dailyCampaignLimit === "" || req.body.dailyCampaignLimit === undefined) {
+                targetUser.dailyCampaignLimit = null;
+            } else {
+                const parsedLimit = Number(req.body.dailyCampaignLimit);
+                if (!Number.isInteger(parsedLimit) || parsedLimit < 1) {
+                    return res.status(400).json({ message: "Daily campaign limit must be a whole number of at least 1, or empty for platform default.", success: false });
+                }
+                targetUser.dailyCampaignLimit = parsedLimit;
+            }
+        }
+
         // 6. Update expiresAt
         if (Object.hasOwn(req.body, "expiresAt")) {
             if (!expiresAt) {
@@ -1236,6 +1277,7 @@ export async function updateUser(req, res) {
                 status: targetUser.status,
                 expiresAt: targetUser.expiresAt,
                 maxVideoSizeMB: targetUser.maxVideoSizeMB ?? 9,
+                dailyCampaignLimit: targetUser.dailyCampaignLimit,
                 resellerId: targetUser.resellerId,
             },
         });

@@ -4,9 +4,10 @@ import ThemeToggle from "../../branding/components/ThemeToggle";
 import HelpMenu from "./HelpMenu";
 import { useState } from "react";
 import { Link, NavLink, Navigate, Outlet, useLocation } from "react-router";
-import { LayoutDashboard, Megaphone, Users, Building2, Wallet, ReceiptText, Settings, LogOut, ChevronDown, PanelLeftClose, PanelLeftOpen, Bell, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Megaphone, Users, Building2, Wallet, ReceiptText, Settings, LogOut, ChevronDown, PanelLeftClose, PanelLeftOpen, Bell, HelpCircle, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useBranding } from "@/features/branding/context/BrandingContext";
+import { useNotifications } from "@/features/notifications/hooks/useNotifications";
 import UserAvatar from "@/features/accounts/components/UserAvatar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -17,6 +18,8 @@ import { useAppTour } from "@/features/tour/hooks/useAppTour";
 import { ReadOnlyContext } from "@/features/auth/context/read-only.context";
 import { accountRestriction } from "../../../../../shared/accountAccess.js";
 import AccountAccessBanner from "@/features/auth/components/AccountAccessBanner";
+import ReconciliationBanner from "@/features/reconciliation/components/ReconciliationBanner";
+import CreditBalanceResult from "@/features/reconciliation/components/CreditBalanceResult";
 
 const rolePaths = { "Super Admin": "/admin", Reseller: "/reseller", User: "/user" };
 const navigation = {
@@ -29,6 +32,7 @@ const navigation = {
     ["Users", "/users", Users],
     ["Credits", "/credits", Wallet],
     ["Transactions", "/activity", ReceiptText],
+    ["Reconciliation", "/reconciliation", ShieldCheck],
     ["Audit log", "/audit", ShieldCheck],
     ["Notifications", "/notifications", Bell],
     ["Settings", "/settings", Settings],
@@ -152,9 +156,13 @@ export default function DashboardLayout({ role }) {
   }
   const base = rolePaths[role];
   const items = navigation[role];
+  const isSupportPage = pathname.startsWith(`${base}/support`);
 
   // Keep a manager's data out of a workspace labelled for another role.
   const username = user?.username || role;
+
+  const notificationQuery = useNotifications({ limit: 6 });
+  const unreadNotifications = notificationQuery.data?.unreadCount || 0;
 
   async function signOut() {
     try { await logout(); }
@@ -177,11 +185,15 @@ export default function DashboardLayout({ role }) {
                 <GlobalSearch />
               </div>
               <div className="portal-topbar-actions ml-auto flex items-center gap-2">
-                <div id="tour-notification-bell">
+                <div id="tour-notification-bell" className="hidden md:block">
                   <NotificationBell base={base} />
                 </div>
                 <ThemeToggle />
-                <HelpMenu base={base} user={user} hasTour={hasTour} startTour={startTour} />
+                {!isSupportPage && (
+                  <div className="hidden md:block">
+                    <HelpMenu base={base} user={user} hasTour={hasTour} startTour={startTour} />
+                  </div>
+                )}
 
                 <DropdownMenu>
                   <DropdownMenuTrigger
@@ -189,11 +201,19 @@ export default function DashboardLayout({ role }) {
                       <button
                         type="button"
                         aria-label={`Account menu for ${username}`}
-                        className="portal-profile-trigger"
+                        className="portal-profile-trigger relative"
                       />
                     }
                   >
-                    <UserAvatar user={user} className="size-8.5 rounded-full border border-border bg-muted shrink-0" />
+                    <div className="relative">
+                      <UserAvatar user={user} className="size-8.5 rounded-full border border-border bg-muted shrink-0" />
+                      {unreadNotifications > 0 && (
+                        <span
+                          className="md:hidden absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-red-500 border-2 border-background"
+                          aria-label={`${unreadNotifications} unread notifications`}
+                        />
+                      )}
+                    </div>
                     <ChevronDown className="size-3.5 text-muted-foreground transition-transform portal-profile-chevron" aria-hidden="true" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="portal-account-menu w-60 p-2">
@@ -205,6 +225,28 @@ export default function DashboardLayout({ role }) {
                       </span>
                     </div>
                     <DropdownMenuSeparator />
+                    <DropdownMenuItem className="md:hidden" render={<Link to={`${base}/notifications`} />}>
+                      <Bell aria-hidden="true" className="size-4" />
+                      <span className="flex-1">Notifications</span>
+                      {unreadNotifications > 0 && (
+                        <span className="rounded-full bg-red-500 text-white px-1.5 py-0.5 text-[10px] font-semibold leading-none">
+                          {unreadNotifications > 99 ? "99+" : unreadNotifications}
+                        </span>
+                      )}
+                    </DropdownMenuItem>
+                    {!isSupportPage && (
+                      <DropdownMenuItem className="md:hidden" render={<Link to={`${base}/support`} />}>
+                        <HelpCircle aria-hidden="true" className="size-4" />
+                        <span>Help & Support</span>
+                      </DropdownMenuItem>
+                    )}
+                    {hasTour && (
+                      <DropdownMenuItem className="md:hidden" onClick={() => startTour(true)}>
+                        <HelpCircle aria-hidden="true" className="size-4" />
+                        <span>Take a tour</span>
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuSeparator className="md:hidden" />
                     <DropdownMenuItem render={<Link to={`${base}/settings`} />}>
                       <Settings aria-hidden="true" className="size-4" />
                       Settings
@@ -220,6 +262,8 @@ export default function DashboardLayout({ role }) {
             </header>
             
             <AccountAccessBanner />
+            {role === "Super Admin" && <ReconciliationBanner />}
+            <CreditBalanceResult />
             <main id="dashboard-main" tabIndex={-1} className="portal-main">
               <ReadOnlyContext.Provider key={readOnly ? "restricted" : "editable"} value={readOnly ? { restriction, onBlocked: showReadOnlyNotice } : null}>
                 {readOnly ? <fieldset className="account-readonly-content" aria-label="Read-only dashboard" onClickCapture={blockReadOnlyAction} onSubmitCapture={event => { event.preventDefault(); event.stopPropagation(); showReadOnlyNotice(); }}><Outlet /></fieldset> : <Outlet />}
