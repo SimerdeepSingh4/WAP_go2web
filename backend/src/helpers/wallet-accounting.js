@@ -1,10 +1,13 @@
 import { creditAmount, creditMinor } from "./credit-amount.js";
+import { queueCreditCheck } from "./credit-audit-job.js";
 
 function requireTransaction(session) {
     if (!session?.inTransaction()) throw new Error("Wallet balance changes require an active ledger transaction");
 }
 
 export function walletAccountingHooks(schema) {
+    schema.post("save", async function (doc) { await queueCreditCheck([doc.userId], doc.$session()); });
+    schema.post("findOneAndUpdate", async function (doc) { if (doc) await queueCreditCheck([doc.userId], this.getOptions().session); });
     for (const method of ["updateOne", "updateMany", "replaceOne", "findOneAndReplace"]) {
         schema.pre(method, function () {
             const update = this.getUpdate();

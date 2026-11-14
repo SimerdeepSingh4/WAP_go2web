@@ -1,5 +1,5 @@
 .portal-main:has(> .support-page) { max-width:none; padding:16px; }
-.support-page { display:flex; width:100%; min-width:0; height:calc(100dvh - 104px); min-height:560px; flex-direction:column; gap:14px; color:var(--foreground); }
+.support-page { display:flex; width:100%; min-width:0; height:calc(100dvh - 104px - var(--credit-banner-height,0px)); min-height:560px; flex-direction:column; gap:14px; color:var(--foreground); }
 .support-page { --support-user-text:#1d4ed8; --support-reseller-text:#92400e; --support-admin-text:#7e22ce; }
 .dark .support-page { --support-user-text:#93c5fd; --support-reseller-text:#fcd34d; --support-admin-text:#d8b4fe; }
 .support-page-header { display:flex; flex-shrink:0; align-items:flex-end; justify-content:space-between; gap:16px; }
@@ -273,7 +273,7 @@
 }
 @media(max-width:767px) {
   .portal-main:has(> .support-page) { padding:10px 8px 8px; }
-  .support-page { height:calc(100dvh - 82px); min-height:480px; gap:12px; }
+  .support-page { height:calc(100dvh - 82px - var(--credit-banner-height,0px)); min-height:480px; gap:12px; }
   .support-page-header { align-items:center; }
   .support-workspace-link { margin-bottom:8px; font-size:10px; }
   .support-page-icon,.support-workspace-role { display:none; }

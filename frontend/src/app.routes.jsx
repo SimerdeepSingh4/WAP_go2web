@@ -31,6 +31,7 @@ const AdminCampaigns = lazy(() => import("./features/admin/pages/Campaigns.jsx")
 const AdminContacts = lazy(() => import("./features/admin/pages/Contacts.jsx"));
 const Administrators = lazy(() => import("./features/admin/pages/Administrators.jsx"));
 const AdminAuditLog = lazy(() => import("./features/admin/pages/AuditLog.jsx"));
+const CreditReconciliation = lazy(() => import("./features/reconciliation/pages/ReconciliationPage.jsx"));
 const AdminAccounts = lazy(() => import("./features/admin/pages/Accounts.jsx"));
 const AdminCredits = lazy(() => import("./features/admin/pages/Credits.jsx"));
 const AdminOperatingRules = lazy(() => import("./features/admin/pages/OperatingRules.jsx"));
@@ -139,6 +140,7 @@ export const router = createBrowserRouter([
       { path: "reports", element: <Navigate to="/admin/campaigns?status=unreported" replace /> },
       { path: "administrators", element: <Administrators /> },
       { path: "audit", element: <AdminAuditLog /> },
+      { path: "reconciliation", element: <CreditReconciliation /> },
       { path: "resellers", element: <AdminAccounts key="resellers" role="Reseller" /> },
       { path: "users", element: <AdminAccounts key="users" role="User" /> },
       { path: "credits", element: <AdminCredits key="credits" /> },

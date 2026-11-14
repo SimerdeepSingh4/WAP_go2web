@@ -1,43 +1,44 @@
 .mobile-record-list, .mobile-table-sort { display: none; }
 
 @media (max-width: 767px) {
-  .responsive-data-table { border-radius: 14px; }
+  .responsive-data-table { border-radius: 14px; overflow: hidden; }
   .responsive-table-desktop { display: none; }
-  .mobile-record-list { display: grid; gap: 10px; margin: 0; padding: 12px; list-style: none; background: var(--muted); }
-  .mobile-record { position: relative; min-width: 0; padding: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); color: var(--foreground); }
-  .mobile-record-label { display: block; margin-bottom: 5px; color: var(--muted-foreground); font-size: 10px; font-weight: 550; }
-  .mobile-record-title { min-width: 0; }
-  .mobile-record-heading { display: flex; min-width: 0; align-items: center; gap: 10px; }
+  .mobile-record-list { display: grid; gap: 12px; margin: 0; padding: 12px; list-style: none; background: var(--muted); }
+  .mobile-record { position: relative; min-width: 0; padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); color: var(--foreground); display: flex; flex-direction: column; gap: 12px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03); }
+  .mobile-record-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
+  .mobile-record-heading { display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1; }
   .mobile-record-avatar { flex-shrink: 0; }
-  .mobile-record-highlights dd > span { max-width: 100%; white-space: normal; }
-  .mobile-record-value { min-width: 0; font-size: 14px; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
-  .mobile-record-secondary { margin-top: 6px; color: var(--muted-foreground); font-size: 11px; line-height: 1.6; }
-  .mobile-record :where(.truncate, .line-clamp-1, .line-clamp-2) { max-width: 100%; overflow: visible; white-space: normal; text-overflow: clip; -webkit-line-clamp: unset; }
-  .mobile-record :where(p, span, a, button, dd) { overflow-wrap: anywhere; }
-  .mobile-record-value :where(a, button) { max-width: 100%; white-space: normal; text-align: left; }
-  .mobile-record-title :where(div, p) { min-width: 0; max-width: 100%; }
-  .mobile-record-highlights { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
-  .mobile-record-highlights > div { min-width: 0; }
-  .mobile-record-highlights dt, .mobile-record-details dt { color: var(--muted-foreground); font-size: 10px; line-height: 1.5; }
-  .mobile-record-highlights dd { margin-top: 5px; font-size: 12px; font-weight: 550; }
-  .mobile-record-details { margin-top: 12px; border-top: 1px solid var(--border); }
-  .mobile-record-details summary { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 12px; list-style: none; color: var(--foreground); font-size: 11px; font-weight: 550; cursor: pointer; }
+  .mobile-record-title { min-width: 0; flex: 1; }
+  .mobile-record-label { display: block; margin-bottom: 2px; color: var(--muted-foreground); font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+  .mobile-record-value { min-width: 0; font-size: 14px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
+  .mobile-record-value :where(a, button) { font-size: 14px; font-weight: 600; color: var(--foreground); text-align: left; }
+  .mobile-record-secondary { margin-top: 2px; color: var(--muted-foreground); font-size: 12px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mobile-record-actions { flex-shrink: 0; display: flex; align-items: center; }
+  .mobile-record-actions :where(button, a) { min-height: 36px; min-width: 36px; border-radius: 8px; }
+  
+  .mobile-record-highlights { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, var(--muted) 60%, var(--card)); border: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+  .mobile-record-stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .mobile-record-stat-label { color: var(--muted-foreground); font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.03em; }
+  .mobile-record-stat-val { font-size: 13px; font-weight: 600; color: var(--foreground); }
+
+  .mobile-record-details-grid { display: flex; flex-direction: column; gap: 8px; margin: 0; padding-top: 4px; border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+  .mobile-record-detail-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; }
+  .mobile-record-detail-label { color: var(--muted-foreground); font-size: 11px; flex-shrink: 0; }
+  .mobile-record-detail-val { margin: 0; color: var(--foreground); font-size: 12px; font-weight: 500; text-align: right; overflow-wrap: anywhere; }
+
+  .mobile-record-details { margin-top: 0; border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent); }
+  .mobile-record-details summary { display: flex; min-height: 36px; align-items: center; justify-content: space-between; gap: 8px; list-style: none; color: var(--muted-foreground); font-size: 11px; font-weight: 500; cursor: pointer; padding: 4px 0; transition: color 0.15s ease; }
   .mobile-record-details summary::-webkit-details-marker { display: none; }
-  .mobile-record-details summary svg { width: 15px; height: 15px; flex-shrink: 0; transition: transform .15s; }
+  .mobile-record-details summary svg { width: 14px; height: 14px; flex-shrink: 0; transition: transform .2s ease; }
   .mobile-record-details[open] summary svg { transform: rotate(180deg); }
-  .mobile-record-details dl { display: grid; gap: 12px; padding: 2px 0 10px; }
-  .mobile-record-details dd { min-width: 0; max-width: 100%; margin-top: 4px; color: var(--foreground); font-size: 12px; line-height: 1.65; white-space: normal; overflow-wrap: anywhere; }
-  .mobile-record-details dd > * { max-width: 100%; }
-  .mobile-record-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 8px; }
-  .mobile-record-actions > div { max-width: 100%; }
-  .mobile-record-actions > div > div { flex-wrap: wrap; }
-  .mobile-record-actions :where(button, a) { min-height: 44px; min-width: 44px; }
-  .mobile-record:has(.mobile-record-actions [aria-haspopup="menu"]) .mobile-record-title { padding-right: 44px; }
-  .mobile-record-actions:has([aria-haspopup="menu"]) { position: absolute; top: 10px; right: 10px; margin: 0; }
-  .mobile-table-sort { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--card); }
-  .mobile-table-sort label { color: var(--muted-foreground); font-size: 11px; }
-  .mobile-table-sort select { flex: 1; min-width: 0; min-height: 44px; padding: 8px 10px; border: 1px solid var(--input); border-radius: 8px; background: var(--background); color: var(--foreground); font-size: 12px; }
-  .mobile-table-sort button { min-height: 44px; }
+  .mobile-record-details[open] .mobile-record-details-grid { padding-top: 6px; border-top: none; }
+
+  .mobile-record :where(.truncate, .line-clamp-1, .line-clamp-2) { max-width: 100%; }
+  
+  .mobile-table-sort { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--card); font-size: 12px; }
+  .mobile-table-sort label { color: var(--muted-foreground); font-size: 12px; font-weight: 500; white-space: nowrap; }
+  .mobile-table-sort select { flex: 1; max-width: 220px; min-height: 36px; padding: 6px 10px; border: 1px solid var(--input); border-radius: 8px; background: var(--background); color: var(--foreground); font-size: 12px; outline: none; }
+  .mobile-table-sort button { min-height: 36px; font-size: 12px; }
   .responsive-table-pager { gap: 10px; padding: 12px; }
   .responsive-table-pager nav { flex-wrap: wrap; gap: 8px; }
   .responsive-table-pager nav button { min-width: 44px; min-height: 44px; }

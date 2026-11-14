@@ -75,6 +75,11 @@ const userSchema = new mongoose.Schema(
         mediaUploadLimits: Object.fromEntries(Object.keys(DEFAULT_MEDIA_UPLOAD_LIMITS).map(key => [key, {
             type: Number, default: null, min: 1, max: MAX_MEDIA_UPLOAD_MB,
         }])),
+        dailyCampaignLimit: {
+            type: Number,
+            default: null,
+            min: [1, "Daily campaign limit must be at least 1"],
+        },
         featureAccess: {
             campaignDp: { type: Boolean, default: false },
             campaignNumber: { type: Boolean, default: false },

@@ -85,6 +85,7 @@ test("Super Admin changes wallet validity without changing account access or its
     assert.equal(report.statusCode, 200, JSON.stringify(report.body));
     assert.equal(report.body.data.currentBalance, wallet.balance);
     assert.equal(report.body.data.isReconciled, true);
+    assert.equal(report.body.data.classification, "matched");
     // Restore the test wallet so later allocation tests exercise the same permissions.
     await invoke(tools.applySupportWalletAction, admin, { expiresAt: null, isLocked: false, expectedUpdatedAt: updated.updatedAt.toISOString() });
     await Message.deleteMany({ conversationId: conversation._id });

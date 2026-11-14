@@ -372,6 +372,11 @@ export default function ResellerUsers() {
           caption="Client user accounts"
           rows={rows}
           columns={columns}
+          mobile={{
+            primary: "name",
+            secondary: "email",
+            featured: ["status", "rate"],
+          }}
         />
       </QueryState>
 

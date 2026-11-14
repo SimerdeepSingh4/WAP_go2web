@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { creditRequest } from "../helpers/credit-operation.js";
+import { ownCreditBalanceResult } from "../controllers/credit-reconciliation.controller.js";
 import {
     getBalance,
     allocateCredits,
@@ -27,8 +28,9 @@ creditRouter.use(protect);
 creditRouter.get("/balance", getBalance);
 
 // GET /api/credits/reconcile — Invariant audit: Wallet Balance === Total Inflows - Total Outflows
-// Any user can reconcile their own wallet; Super Admin can audit any user with ?userId=xxx
-creditRouter.get("/reconcile", reconcileCreditBalance);
+// Super Admin only; private reconciliation details are never returned to clients or resellers.
+creditRouter.get("/reconcile", authorizeRoles("Super Admin"), reconcileCreditBalance);
+creditRouter.get("/balance-result", ownCreditBalanceResult);
 
 // POST /api/credits/allocate — Super Admin / Reseller only
 // Super Admin → Reseller (unlimited pool)

@@ -1,4 +1,5 @@
 import { creditAmount, creditMinor } from "./credit-amount.js";
+import { queueCreditCheck } from "./credit-audit-job.js";
 
 export function buildCreditPostings(record) {
     const amountMinor = creditMinor(record.amount);
@@ -28,6 +29,7 @@ export function buildCreditPostings(record) {
 }
 
 export function ledgerAccountingHooks(schema) {
+    schema.post("save", async function (doc) { await queueCreditCheck([doc.fromUser, doc.toUser, ...(doc.postings || []).map(entry => entry.userId)], doc.$session()); });
     schema.pre("validate", function () {
         if (!this.isNew) return;
         this.amount = creditAmount(this.amount);
