@@ -26,12 +26,13 @@ const handle = fn => async (req, res) => {
 // records their resolved status and permanent clearance event.
 const reviewFilter = { state: "open", $or: [{ "summary.difference": { $ne: 0 } }, { "summary.minorMismatch": true }, { "summary.evidenceConflict": true }, { "summary.calculationsAgree": false }, { "summary.audit.verified": false }, { "summary.walletId": null }] };
 export const reconciliationSummary = handle(async (_req, res) => {
-    const [open, confirmed, unverified, matched, pending, retrying, monitor] = await Promise.all([
+    const [open, confirmed, unverified, matched, pending, retrying, monitor, postingFailures] = await Promise.all([
         CreditCase.countDocuments(reviewFilter), CreditCase.countDocuments({ ...reviewFilter, classification: "confirmed" }),
         CreditCase.countDocuments({ ...reviewFilter, classification: "cannot_confirm" }), CreditCase.countDocuments({ ...reviewFilter, classification: "matched" }),
         CreditAuditJob.countDocuments({ dirty: true }), CreditAuditJob.countDocuments({ dirty: true, attempts: { $gt: 0 } }), CreditAuditState.findById("monitor").lean(),
+        AuditEvent.countDocuments({ action: "credit.posting_blocked", occurredAt: { $gte: new Date(Date.now() - 15 * 60000) } }),
     ]);
-    res.json({ success: true, open, confirmed, unverified, matched, pending, retrying, monitor: monitor ? { state: monitor.scanState, lastTickAt: monitor.lastTickAt, lastScanAt: monitor.scanFinishedAt, nextScanAt: monitor.nextFullScanAt, queued: monitor.scanQueued, error: monitor.error, healthy: Boolean(monitor.lastTickAt && Date.now() - new Date(monitor.lastTickAt).getTime() < 90000) } : { state: "not_started", healthy: false } });
+    res.json({ success: true, open, confirmed, unverified, matched, pending, retrying, postingFailures, monitor: monitor ? { state: monitor.scanState, lastTickAt: monitor.lastTickAt, lastScanAt: monitor.scanFinishedAt, nextScanAt: monitor.nextFullScanAt, queued: monitor.scanQueued, error: monitor.error, healthy: Boolean(monitor.lastTickAt && Date.now() - new Date(monitor.lastTickAt).getTime() < 90000) } : { state: "not_started", healthy: false } });
 });
 export const listReconciliationCases = handle(async (req, res) => {
     const page = Math.max(1, Math.floor(Number(req.query.page) || 1)), limit = 25;

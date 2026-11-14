@@ -16,7 +16,31 @@
 .portal-skip-link:focus { top: 12px; }
 .portal-shell { width: 100%; min-height: 100svh; }
 .portal-inset { min-width: 0; flex: 1; background: var(--background); }
-.portal-sidebar-header { min-height: 84px; display: flex; align-items: center; padding: 15px 16px; border-bottom: 1px solid var(--border); }
+.portal-sidebar-header {
+  min-height: 84px;
+  display: flex;
+  align-items: center;
+  padding: 15px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.portal-sidebar-header:hover {
+  background-color: var(--secondary);
+}
+.portal-sidebar-header:hover .portal-sidebar-logo-toggle {
+  background: var(--secondary);
+  border-color: var(--border);
+}
+.portal-sidebar-header:hover .portal-sidebar-logo-toggle .portal-logo-default {
+  opacity: 0;
+  transform: scale(0.75);
+}
+.portal-sidebar-header:hover .portal-sidebar-logo-toggle .portal-logo-hover {
+  opacity: 1;
+  transform: scale(1);
+}
 .portal-sidebar-toggle-btn {
   display: inline-flex;
   align-items: center;

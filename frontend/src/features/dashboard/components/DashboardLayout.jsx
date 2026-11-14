@@ -64,16 +64,23 @@ function Navigation({ role, base, items }) {
 
   return (
     <Sidebar collapsible="icon" className="portal-sidebar">
-      <SidebarHeader className="portal-sidebar-header">
+      <SidebarHeader
+        onClick={toggleSidebar}
+        role="button"
+        tabIndex={0}
+        aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            toggleSidebar();
+          }
+        }}
+        className="portal-sidebar-header cursor-pointer select-none"
+      >
         {isCollapsed ? (
           <div className="flex items-center justify-center w-full">
-            <button
-              type="button"
-              onClick={toggleSidebar}
-              aria-label="Expand sidebar"
-              title="Expand sidebar"
-              className="portal-sidebar-logo-toggle group"
-            >
+            <div className="portal-sidebar-logo-toggle group">
               <span className="portal-logo-layer portal-logo-default">
                 <img
                   src={brandLogo}
@@ -83,17 +90,11 @@ function Navigation({ role, base, items }) {
               <span className="portal-logo-layer portal-logo-hover">
                 <PanelLeftOpen className="size-5" aria-hidden="true" />
               </span>
-            </button>
+            </div>
           </div>
         ) : (
           <div className="flex items-center gap-3 w-full min-w-0">
-            <button
-              type="button"
-              onClick={toggleSidebar}
-              aria-label="Collapse sidebar"
-              title="Collapse sidebar"
-              className="portal-sidebar-logo-toggle group"
-            >
+            <div className="portal-sidebar-logo-toggle group">
               <span className="portal-logo-layer portal-logo-default">
                 <img
                   src={brandLogo}
@@ -103,16 +104,11 @@ function Navigation({ role, base, items }) {
               <span className="portal-logo-layer portal-logo-hover">
                 <PanelLeftClose className="size-5" aria-hidden="true" />
               </span>
-            </button>
-            <Link
-              to={base}
-              aria-label={`${brandTitle} home`}
-              onClick={() => setOpenMobile(false)}
-              className="portal-brand-copy flex-1 min-w-0"
-            >
+            </div>
+            <div className="portal-brand-copy flex-1 min-w-0">
               <strong>{brandTitle}<span>.</span></strong>
               <span>{role === "Super Admin" ? "Super admin" : role}</span>
-            </Link>
+            </div>
           </div>
         )}
       </SidebarHeader>

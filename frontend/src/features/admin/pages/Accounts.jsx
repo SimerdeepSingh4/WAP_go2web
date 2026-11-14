@@ -144,7 +144,7 @@ function AccountDetail({ account, onClose, onAction }) {
               updateDp.mutate(file);
             }} />
             <div className="flex shrink-0 items-center gap-2">
-              <Button size="sm" variant="outline" disabled={updateDp.isPending} onClick={() => dpInput.current?.click()}>
+              <Button size="sm" variant="outline" disabled={updateDp.isPending || (account.role !== "Super Admin" && account.featureAccess?.campaignDp !== true)} onClick={() => dpInput.current?.click()} title={account.role !== "Super Admin" && account.featureAccess?.campaignDp !== true ? "Enable profile DP in Manage account access first" : undefined}>
                 <Upload className="size-3.5" />
                 {updateDp.isPending ? "Uploading…" : dpImage ? "Change photo" : "Add photo"}
               </Button>
@@ -906,7 +906,7 @@ export default function Accounts({ role }) {
               hint: "Max campaigns per day. Leave blank for platform default.",
             },
             ...(role === "User" || role === "Reseller" ? [
-              { key: "allowCampaignDp", label: "Share profile DP in campaigns", type: "checkbox", hint: "Allow this account's profile DP (from settings) to be shared in campaigns." },
+              { key: "allowCampaignDp", label: "Share profile DP in campaigns", type: "checkbox", hint: "Allow this account's profile DP (from settings) to be shared in campaigns. If disabled, DP upload is blocked and existing DP is removed." },
               { key: "allowCampaignNumber", label: "Campaign number", type: "checkbox", hint: "Allow this account to add an optional contact number to a campaign." },
               { key: "allowCampaignLink", label: "Campaign link", type: "checkbox", hint: "Show an optional link field when this account creates a campaign." },
             ] : []),
@@ -926,7 +926,7 @@ export default function Accounts({ role }) {
               {values.accessReason && <p>Reason: {values.accessReason}</p>}
               <p>Expiry: <strong>{values.expiresAt || "No expiry"}</strong></p>
               <p>Daily limit: <strong>{values.dailyCampaignLimit ? `${values.dailyCampaignLimit} campaigns / day (Custom)` : "Platform default"}</strong></p>
-              {(role === "User" || role === "Reseller") && <p>Share profile DP in campaigns: <strong>{values.allowCampaignDp ? "Allowed" : "Not allowed"}</strong></p>}
+              {(role === "User" || role === "Reseller") && <p>Share profile DP in campaigns: <strong>{values.allowCampaignDp ? "Allowed" : "Not allowed (removes current DP)"}</strong></p>}
               {(role === "User" || role === "Reseller") && <p>Campaign number: <strong>{values.allowCampaignNumber ? "Allowed" : "Not allowed"}</strong></p>}
               {(role === "User" || role === "Reseller") && <p>Campaign link: <strong>{values.allowCampaignLink ? "Allowed" : "Not allowed"}</strong></p>}
             </>

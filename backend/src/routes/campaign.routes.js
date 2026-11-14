@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { creditRequest } from "../helpers/credit-operation.js";
+import { creditRequest, retryCreditController } from "../helpers/credit-operation.js";
+import Campaign from "../models/campaign.model.js";
 import {
     createCampaign,
     getCampaigns,
@@ -29,10 +30,14 @@ import {
 import { uploadDocument, uploadFiles } from "../middlewares/upload.middleware.js";
 import { getTrackedNumbers, addTrackedNumbers, saveTrackedContacts, updateTrackedNote } from "../controllers/recipient-tracking.controller.js";
 const campaignRouter = Router();
+const campaignWallets = async req => {
+    const campaign = await Campaign.findById(req.params.id).select("userId").lean();
+    return [campaign?.userId];
+};
 
 campaignRouter.use(protect);
 
-campaignRouter.post("/", blockInPreviewMode("Campaign creation"), uploadFiles, creditRequest, createCampaign);
+campaignRouter.post("/", blockInPreviewMode("Campaign creation"), uploadFiles, creditRequest, retryCreditController(createCampaign, { walletIds: req => req.user.role === "Super Admin" ? [] : [req.user._id] }));
 campaignRouter.get("/daily-usage", getCampaignDailyUsage);
 campaignRouter.get("/", getCampaigns);
 campaignRouter.get("/:id/tracked-numbers", authorizeRoles("Super Admin"), blockInPreviewMode("Recipient tracking"), getTrackedNumbers);
@@ -62,7 +67,7 @@ campaignRouter.get("/:id", getCampaignById);
 campaignRouter.post(
     "/:id/cancel",
     blockInPreviewMode("Campaign cancellation"),
-    cancelScheduledCampaign
+    retryCreditController(cancelScheduledCampaign, { walletIds: campaignWallets })
 );
 
 // STRICTLY Super Admin ONLY: Recipient management, permanent row numbers, filter & custom tabs
@@ -70,7 +75,7 @@ campaignRouter.put(
     "/:id/recipients-management",
     authorizeRoles("Super Admin"),
     blockInPreviewMode("Campaign recipients management"),
-    updateCampaignRecipientsManagement
+    retryCreditController(updateCampaignRecipientsManagement, { walletIds: campaignWallets })
 );
 
 // STRICTLY Super Admin ONLY: Configure dynamic categories, billing rules and save report
@@ -78,7 +83,7 @@ campaignRouter.put(
     "/:id/report",
     authorizeRoles("Super Admin"),
     blockInPreviewMode("Campaign report update"),
-    saveCampaignReport
+    retryCreditController(saveCampaignReport, { walletIds: campaignWallets })
 );
 
 // Only Super Admin can approve or change campaign status.
@@ -86,7 +91,7 @@ campaignRouter.patch(
     "/:id/status",
     authorizeRoles("Super Admin"),
     blockInPreviewMode("Campaign status update"),
-    updateCampaignStatus
+    retryCreditController(updateCampaignStatus, { walletIds: campaignWallets })
 );
 
 // STRICTLY Super Admin ONLY: Input actual campaign response and delivery metrics
@@ -94,7 +99,7 @@ campaignRouter.patch(
     "/:id/metrics",
     authorizeRoles("Super Admin"),
     blockInPreviewMode("Campaign metrics update"),
-    updateCampaignMetrics
+    retryCreditController(updateCampaignMetrics, { walletIds: campaignWallets })
 );
 
 campaignRouter.delete("/:id", deleteCampaign);

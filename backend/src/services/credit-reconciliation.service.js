@@ -9,6 +9,7 @@ import { creditMinor, creditTransactionOptions } from "../helpers/credit-amount.
 import { queueCreditCheck } from "../helpers/credit-audit-job.js";
 import { notifyRole, notifyUser } from "./socket.service.js";
 import { accountRestriction } from "../../../shared/accountAccess.js";
+import { recordApprovedRepair } from "../helpers/credit-session-guard.js";
 import { normalizedRecoveryReference, recoveryReferenceKey } from "../helpers/credit-recovery-reference.js";
 
 export function requireReconciliationAdmin(req) {
@@ -147,6 +148,7 @@ export async function executeCreditRepair(req) {
             if (before.snapshot !== plan.snapshot) throw reconciliationError("The wallet or evidence changed after your review. Run a fresh check before confirming again.", 409);
             if (plan.mode === "transaction" && !plan.transactionVerified) throw reconciliationError("Verify the completed transaction before preparing another recovery.", 409);
             const changesWallet = ["wallet", "transaction"].includes(plan.mode);
+            recordApprovedRepair(session, { wallet: before.wallet, afterBalance: plan.proposed.walletBalance, planId: plan._id, mode: plan.mode });
             const sourceKey = ["ledger", "transaction"].includes(plan.mode) ? await assertRecoverySourceUnused(plan.userId, plan.sourceReference, session, plan.mode === "transaction") : undefined;
             const update = { $inc: { reconciliationVersion: 1 } };
             if (changesWallet) update.$set = { balance: plan.proposed.walletBalance, balanceMinor: creditMinor(plan.proposed.walletBalance), updatedAt: new Date() };

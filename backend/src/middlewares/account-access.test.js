@@ -68,8 +68,9 @@ test("account recovery opens a dedicated correctly named chat for users and rese
   t.mock.method(User, "findOne", async () => ({ _id: manager }));
   t.mock.method(Conversation, "findOne", filter => {
     query = filter;
-    return { populate: async () => null };
+    return { populate() { return this; }, then(resolve) { return resolve(null); } };
   });
+  t.mock.method(Conversation, "find", () => ({ select() { return this; }, lean: async () => [] }));
   t.mock.method(Conversation, "create", async data => ({ ...data, _id: "6ae96a3caacdc8ca6d181310", populate: async () => {} }));
   for (const role of ["User", "Reseller"]) for (const status of ["expired", "blocked"]) {
     const user = { _id: userId, role, status, resellerId: role === "User" ? manager : null };

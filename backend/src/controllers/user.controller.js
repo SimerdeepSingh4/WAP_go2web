@@ -152,6 +152,25 @@ export async function getCurrentUser(req, res) {
     }
 }
 
+export async function deleteUserDpImageFile(userId, dpPath) {
+    if (!dpPath) return;
+    try {
+        const filename = path.basename(dpPath);
+        const ownedPhoto = new RegExp(`^dp_${userId}_[a-f0-9-]+\\.webp$`, "i");
+        if (dpPath === `/uploads/profile-pictures/${filename}` && ownedPhoto.test(filename)) {
+            await unlink(path.join(process.cwd(), "uploads", "profile-pictures", filename)).catch(() => {});
+        } else if (isCloudinaryConfigured() && dpPath.startsWith(`https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/`)) {
+            const imagePath = new URL(dpPath).pathname;
+            const cloudFilename = imagePath.split("/profile-pictures/")[1];
+            if (cloudFilename && ownedPhoto.test(cloudFilename)) {
+                await cloudinary.uploader.destroy(`profile-pictures/${cloudFilename.slice(0, -5)}`, { resource_type: "image", invalidate: true }).catch(() => {});
+            }
+        }
+    } catch (cleanupError) {
+        if (cleanupError.code !== "ENOENT") console.warn("Profile photo cleanup failed:", cleanupError.message);
+    }
+}
+
 async function saveUserProfileImage(req, res, userId) {
     let savedFilePath;
     try {
@@ -159,13 +178,27 @@ async function saveUserProfileImage(req, res, userId) {
             return res.status(403).json({ message: "Exit preview mode before changing your profile image.", success: false });
         }
 
-        if (!req.file) {
-            return res.status(400).json({ message: "Choose a profile image to upload.", success: false });
-        }
-
-        const targetUser = await userModel.findById(userId).select("dp_img");
+        const targetUser = await userModel.findById(userId).select("dp_img role featureAccess");
         if (!targetUser) {
             return res.status(404).json({ message: "User not found.", success: false });
+        }
+
+        // If target user is a User or Reseller and not allowed to share DP, deny upload and remove existing DP
+        if (targetUser.role !== "Super Admin" && targetUser.featureAccess?.campaignDp !== true) {
+            if (targetUser.dp_img) {
+                const oldPath = targetUser.dp_img;
+                targetUser.dp_img = "";
+                await targetUser.save();
+                void deleteUserDpImageFile(targetUser._id, oldPath);
+            }
+            return res.status(403).json({
+                message: "Profile photo upload is disabled for this account. Super Admin must enable profile DP sharing first.",
+                success: false,
+            });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ message: "Choose a profile image to upload.", success: false });
         }
 
         const imageBuffer = await sharp(req.file.buffer)
@@ -270,23 +303,7 @@ export async function removeCurrentUserProfileImage(req, res) {
         if (!previous) return res.status(404).json({ message: "User not found.", success: false });
 
         const previousPath = previous.dp_img || "";
-        try {
-            const filename = path.basename(previousPath);
-            const ownedPhoto = new RegExp(`^dp_${req.user._id}_[a-f0-9-]+\\.webp$`, "i");
-            if (previousPath === `/uploads/profile-pictures/${filename}` && ownedPhoto.test(filename)) {
-                await unlink(path.join(process.cwd(), "uploads", "profile-pictures", filename));
-            } else if (isCloudinaryConfigured() && previousPath.startsWith(`https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/`)) {
-                const imagePath = new URL(previousPath).pathname;
-                const cloudFilename = imagePath.split("/profile-pictures/")[1];
-                if (cloudFilename && ownedPhoto.test(cloudFilename)) {
-                    await cloudinary.uploader.destroy(`profile-pictures/${cloudFilename.slice(0, -5)}`, { resource_type: "image", invalidate: true });
-                }
-            }
-        } catch (cleanupError) {
-            // Removing the account photo succeeds even if old-file cleanup
-            // is temporarily unavailable.
-            if (cleanupError.code !== "ENOENT") console.warn("Profile photo cleanup failed:", cleanupError.message);
-        }
+        await deleteUserDpImageFile(req.user._id, previousPath);
 
         return res.status(200).json({ success: true, message: "Profile photo removed.", user: { ...previous.toObject(), dp_img: "" } });
     } catch (error) {
@@ -507,6 +524,13 @@ export async function updateUserAccess(req, res) {
                 campaignLink: targetUser.featureAccess?.campaignLink === true,
                 ...featureAccess,
             };
+
+            // If DP sharing is disabled, remove existing profile DP of user/reseller
+            if (updates.featureAccess.campaignDp === false && targetUser.dp_img) {
+                const oldDp = targetUser.dp_img;
+                updates.dp_img = "";
+                void deleteUserDpImageFile(targetUser._id, oldDp);
+            }
         }
 
         // Handle per‑user video upload limit
@@ -1279,6 +1303,24 @@ export async function updateUser(req, res) {
             }
 
             targetUser.maxCampaignsPerDay = parsed;
+        }
+
+        // Feature access (Super Admin only for User and Reseller roles)
+        if (isSuperAdmin && Object.hasOwn(req.body, "featureAccess") && ["User", "Reseller"].includes(targetUser.role)) {
+            const featureAccess = req.body.featureAccess;
+            if (featureAccess && typeof featureAccess === "object" && !Array.isArray(featureAccess)) {
+                targetUser.featureAccess = {
+                    campaignDp: targetUser.featureAccess?.campaignDp === true,
+                    campaignNumber: targetUser.featureAccess?.campaignNumber === true,
+                    campaignLink: targetUser.featureAccess?.campaignLink === true,
+                    ...featureAccess,
+                };
+                if (targetUser.featureAccess.campaignDp === false && targetUser.dp_img) {
+                    const oldDp = targetUser.dp_img;
+                    targetUser.dp_img = "";
+                    void deleteUserDpImageFile(targetUser._id, oldDp);
+                }
+            }
         }
 
         await targetUser.save();
