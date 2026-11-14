@@ -115,11 +115,17 @@ export function RecentTransactions({ query, base }) {
             {
               key: "note",
               label: "Notes",
-              render: (t) => (
-                <span className="text-xs text-muted-foreground line-clamp-1 max-w-xs">
-                  {t.notes || t.description || "—"}
-                </span>
-              ),
+              render: (t) => {
+                const noteText = t.notes || t.description || "—";
+                return (
+                  <span
+                    className="text-xs text-muted-foreground whitespace-normal break-words leading-relaxed block min-w-[220px]"
+                    title={noteText !== "—" ? noteText : undefined}
+                  >
+                    {noteText}
+                  </span>
+                );
+              },
             },
           ]}
         />
