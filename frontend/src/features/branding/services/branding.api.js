@@ -33,6 +33,7 @@ export async function updateResellerBranding(data) {
 export async function uploadResellerLogo(file) {
     const formData = new FormData();
     formData.append("image", file);
+    formData.append("logo", file);
     const response = await apiClient.post("/branding/reseller/logo", formData, {
         headers: { "Content-Type": "multipart/form-data" },
     });

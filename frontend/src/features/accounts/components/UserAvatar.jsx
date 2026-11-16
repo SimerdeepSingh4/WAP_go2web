@@ -11,7 +11,7 @@ export default function UserAvatar({ user, className = "size-8" }) {
   return (
     <Avatar className={className} aria-hidden="true">
       {imageSrc && <AvatarImage src={imageSrc} alt="" />}
-      <AvatarFallback>{initials}</AvatarFallback>
+      <AvatarFallback className="bg-transparent">{initials}</AvatarFallback>
     </Avatar>
   );
 }
