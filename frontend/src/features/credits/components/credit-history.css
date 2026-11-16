@@ -34,7 +34,7 @@
   .credit-ledger-filters:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
   .credit-ledger-type-filter, .credit-ledger-account-filter { width: auto; }
 }
-@media (max-width: 767px) {
+@media (max-width: 979.98px) {
   .credit-ledger-toolbar { align-items: stretch; flex-direction: column; gap: 14px; padding: 16px; }
   .credit-ledger-filters { display: grid; grid-template-columns: minmax(0, 1fr); }
   .credit-ledger-type-filter, .credit-ledger-account-filter { width: 100%; }

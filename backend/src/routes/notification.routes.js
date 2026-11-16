@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import mongoose from "mongoose";
 import { protect, blockInPreviewMode } from "../middlewares/auth.middleware.js";
 import { Notification, NotificationEvent, NotificationPreference, PushSubscription, PushDelivery } from "../models/notification.model.js";
-import { notificationScope } from "../services/notification.service.js";
+import { notificationScope, refreshCreditAllocationMessages } from "../services/notification.service.js";
 import { isAllowedPushEndpoint, notificationCategories, notificationAttentionFilter } from "../helpers/notification-policy.js";
 import { pushConfigured } from "../workers/notification.worker.js";
 import { notifyUser } from "../services/socket.service.js";
@@ -35,7 +35,7 @@ router.get("/", route(async (req, res) => {
         Notification.countDocuments({ ...scope, archivedAt: null }),
         Notification.countDocuments({ $and: [scope, { archivedAt: null, readAt: null }, notificationAttentionFilter] }),
     ]);
-    const visibleItems = items.map(item => {
+    const visibleItems = (await refreshCreditAllocationMessages(items, req.user)).map(item => {
         const subject = item.subjectUserId;
         const identity = publicAccountIdentity(subject, req.user.role);
         if (identity === subject) return item;

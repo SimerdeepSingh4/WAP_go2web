@@ -14,6 +14,13 @@ const categories = {
 const tint = "color-mix(in oklab, currentColor 12%, transparent)";
 const reel = Array.from({ length: 20 }, (_, index) => index % 10);
 
+function NotificationBody({ text }) {
+  return text.split(/((?:Super Admin|Reseller|User)\s+"[^"]+")/g).map((part, index) => {
+    const account = part.match(/^(Super Admin|Reseller|User)\s+"([^"]+)"$/);
+    return account ? <span key={index}>{account[1]} <strong className="font-semibold text-foreground">{account[2]}</strong></span> : part;
+  });
+}
+
 function relativeTime(value) {
   const minutes = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60000));
   if (minutes < 1) return "now";
@@ -82,7 +89,7 @@ export default function NotificationListItem({ item, base, action, isPreview, on
             <Link to={href} onClick={open} onKeyDown={(event) => { if (event.key === "Delete") { event.preventDefault(); archive(); } }} className="mt-0.5 block rounded-sm outline-none after:absolute after:inset-0 after:rounded-2xl focus-visible:after:ring-2 focus-visible:after:ring-ring">
               <p className="break-words pr-3 text-sm font-semibold leading-snug text-foreground">{item.title}</p>
             </Link>
-            {item.body && <p className="mt-1 whitespace-pre-wrap break-words text-[13px] leading-snug text-muted-foreground">{item.body}</p>}
+            {item.body && <p className="mt-1 whitespace-pre-wrap break-words text-[13px] leading-snug text-muted-foreground"><NotificationBody text={item.body} /></p>}
             {amount && <CreditAmount amount={amount} reduced={reduced} />}
             <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
               {(showSubject || status) && <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">

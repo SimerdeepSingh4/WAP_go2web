@@ -1,4 +1,5 @@
 import userModel from "../models/user.model.js";
+import Transaction from "../models/transaction.model.js";
 import { Notification, NotificationPreference, PushSubscription, PushDelivery } from "../models/notification.model.js";
 import { formatNotification, getNotificationGroup, managesUser, mayReadNotification, sameId, notificationPriority } from "../helpers/notification-policy.js";
 import { notifyUser } from "./socket.service.js";
@@ -18,11 +19,32 @@ export async function canDeliverNotification(notification, user) {
     return mayReadNotification(user, notification, subject);
 }
 
+// Rebuild allocation wording from the transaction so existing inbox entries
+// also show the correct direction without changing their read/archive state.
+export async function refreshCreditAllocationMessages(items, viewer) {
+    const ids = items.filter(item => item.itemType === "transaction" && item.fieldKey === "ALLOCATE" && /^[a-f\d]{24}$/i.test(String(item.itemId))).map(item => item.itemId);
+    if (!ids.length) return items;
+    const transactions = await Transaction.find({ _id: { $in: ids }, type: "ALLOCATE" }).select("amount type fromUser toUser performedBy").lean();
+    if (!transactions.length) return items;
+    const participants = await userModel.find({ _id: { $in: [...new Set(transactions.flatMap(tx => [tx.fromUser, tx.toUser, tx.performedBy]).filter(Boolean).map(String))] } }).select("username role").lean();
+    const byId = new Map(transactions.map(tx => [String(tx._id), tx]));
+    return items.map(item => {
+        const transaction = byId.get(String(item.itemId));
+        if (item.itemType !== "transaction" || item.fieldKey !== "ALLOCATE" || !transaction) return item;
+        return { ...item, ...formatNotification({ kind: "transaction", data: transaction }, viewer, item.subjectUserId, 100, participants) };
+    });
+}
+
 export async function deliverEvent(event) {
     const d = event.data;
     const ids = event.kind === "transaction" ? [d.fromUser, d.toUser] : [event.kind === "user" ? d.id : d.userId];
     const subjects = await userModel.find({ _id: { $in: ids.filter(Boolean) } }).lean();
     const admins = await userModel.find({ role: "Super Admin" }).lean();
+    const participants = [...subjects, ...admins];
+    if (event.kind === "transaction" && d.performedBy && !participants.some(account => sameId(account._id, d.performedBy))) {
+        const actor = await userModel.findById(d.performedBy).select("username role").lean();
+        if (actor) participants.push(actor);
+    }
     const recipients = new Map();
     const creditRequest = event.kind === "transaction" && d.type === "REQUEST";
     let notifyAdmins = true;
@@ -53,7 +75,7 @@ export async function deliverEvent(event) {
     if (notifyAdmins) for (const admin of admins) put(admin, mainSubject || admin);
     const thresholdPreference = mainSubject && await NotificationPreference.findOne({ userId: mainSubject._id }).lean();
     for (const { user, subject, managed } of recipients.values()) {
-        const message = formatNotification(event, user, subject, thresholdPreference?.lowBalanceThreshold ?? 100);
+        const message = formatNotification(event, user, subject, thresholdPreference?.lowBalanceThreshold ?? 100, participants);
         if (!message) continue;
 
         const group = getNotificationGroup(event, event.data?.changeField);

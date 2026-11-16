@@ -16,6 +16,7 @@ import CampaignDetail from "../components/CampaignDetail";
 import UserAvatar from "@/features/accounts/components/UserAvatar";
 import { downloadProfileDp } from "@/features/campaigns/lib/downloadProfileDp";
 import { toast } from "@/components/ui/toast";
+import "@/features/campaigns/components/campaign-list.css";
 
 const IST_OFFSET = 330 * 60_000;
 
@@ -170,13 +171,14 @@ export default function Campaigns({ reports = false }) {
     {
       key: "title",
       label: "Campaign",
-      className: "w-full min-w-[200px]",
+      className: "w-48 whitespace-nowrap",
       sort: (c) => c.campaignTitle,
       render: (c) => (
-        <div className="min-w-0 flex flex-col gap-1">
+        <div className="campaign-title-copy flex w-44 max-w-full min-w-0 flex-col gap-1">
           <Link
             to={`/admin/campaigns/${c._id}`}
-            className="truncate text-left font-semibold hover:underline text-foreground block text-xs hover:text-primary transition-colors"
+            title={c.campaignTitle}
+            className="block overflow-hidden text-ellipsis whitespace-nowrap text-left text-xs font-semibold text-foreground transition-colors hover:text-primary hover:underline"
           >
             {c.campaignTitle}
           </Link>
@@ -189,12 +191,12 @@ export default function Campaigns({ reports = false }) {
     {
       key: "owner",
       label: "Account",
-      className: "min-w-[160px] whitespace-nowrap",
+      className: "w-px whitespace-nowrap",
       sort: (c) => ownerName(c.userId),
       render: (c) => (
-        <div className="flex items-center gap-2 whitespace-nowrap">
-          <div className="relative shrink-0">
-            <UserAvatar user={c.userId} className="size-7" />
+        <div className="campaign-account-cell flex w-max max-w-44 items-center gap-3">
+          <div className="campaign-account-avatar relative size-9 shrink-0">
+            <UserAvatar user={c.userId} className="size-9" />
             {(c.profileDp || c.userId?.dp_img) && (
               <button
                 type="button"
@@ -203,19 +205,20 @@ export default function Campaigns({ reports = false }) {
                   try { await downloadProfileDp(c._id); }
                   catch (error) { toast.add({ title: "DP download failed", description: error.response?.data?.message || "Could not download profile picture.", type: "error" }); }
                 }}
-                aria-label="Download profile picture"
-                title="Download DP"
-                className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-xs hover:text-foreground hover:bg-muted transition-colors"
+                aria-label={`Download profile picture for ${ownerName(c.userId)}`}
+                title={`Download ${ownerName(c.userId)}’s profile picture`}
+                className="absolute -right-1 -bottom-0.5 z-10 grid size-5 place-items-center rounded-full border border-border bg-card text-muted-foreground shadow-xs outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                style={{ minHeight: 20, minWidth: 20 }}
               >
-                <Download className="size-2.5" />
+                <Download aria-hidden="true" className="size-3" />
               </button>
             )}
           </div>
-          <div className="min-w-0 whitespace-nowrap">
-            <p className="font-medium text-xs text-foreground whitespace-nowrap truncate max-w-[140px]" title={ownerName(c.userId)}>
+          <div className="campaign-account-name min-w-0 max-w-32">
+            <p className="overflow-hidden text-ellipsis whitespace-nowrap text-xs font-medium text-foreground" title={ownerName(c.userId)}>
               {ownerName(c.userId)}
             </p>
-            <p className="text-[11px] text-muted-foreground capitalize whitespace-nowrap">
+            <p className="text-[11px] capitalize text-muted-foreground">
               {c.userId?.role || "—"}
             </p>
           </div>
@@ -460,6 +463,7 @@ export default function Campaigns({ reports = false }) {
           rows={rows}
           columns={columns}
           compact={true}
+          className="campaign-list-table"
         />
       </QueryState>
 

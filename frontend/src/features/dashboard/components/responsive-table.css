@@ -1,6 +1,12 @@
 .mobile-record-list, .mobile-table-sort { display: none; }
 
-@media (max-width: 767px) {
+.portal-main .responsive-data-table :where([data-slot="table-head"], [data-slot="table-cell"]) { padding-inline: 12px; }
+
+@media (min-width: 980px) and (max-width: 1279px) {
+  .portal-main .responsive-data-table :where([data-slot="table-head"], [data-slot="table-cell"]) { padding-inline: 8px; }
+}
+
+@media (max-width: 979.98px) {
   .responsive-data-table { border-radius: 14px; overflow: hidden; }
   .responsive-table-desktop { display: none; }
   .mobile-record-list { display: grid; gap: 12px; margin: 0; padding: 12px; list-style: none; background: var(--muted); }
@@ -46,7 +52,7 @@
 
 .recipient-table-scroll { max-width: 100%; overflow: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
 .recipient-scroll-hint { display: none; }
-@media (max-width: 767px) {
+@media (max-width: 979.98px) {
   .recipient-scroll-hint { display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--muted); color: var(--muted-foreground); font-size: 11px; }
   .recipient-comparison { border-collapse: separate; border-spacing: 0; }
   .recipient-comparison .recipient-phone { position: sticky; left: 0; z-index: 10; min-width: 150px !important; width: 150px !important; max-width: 170px; background: var(--card); box-shadow: 1px 0 0 var(--border); }

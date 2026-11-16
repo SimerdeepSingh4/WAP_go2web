@@ -17,7 +17,7 @@ export default function CampaignRecipientReview({ campaign }) {
   });
   const trackedRows = useMemo(() => new Map((tracking.data?.rows || []).filter((row) => row.inCampaign).map((row) => [row.phoneNumber, row])), [tracking.data]);
   return <div className={isAdmin ? "@container min-w-0 border-t border-border" : "min-w-0"}><div className={isAdmin ? "grid min-w-0 grid-cols-1 items-start gap-5 @min-[900px]:grid-cols-[minmax(0,1fr)_340px]" : "min-w-0"}>
-    <CampaignRecipientsTable embedded={isAdmin} campaign={campaign} trackedRows={isAdmin ? trackedRows : undefined} focusedPhone={focusedPhone} onClearFocus={() => setFocusedPhone("")} />
+    <CampaignRecipientsTable embedded={isAdmin} campaign={campaign} trackedRows={isAdmin ? trackedRows : undefined} trackedOwnerName={tracking.data?.username} focusedPhone={focusedPhone} onClearFocus={() => setFocusedPhone("")} />
     {isAdmin && <TrackedNumbersPanel campaignId={campaign._id} query={tracking} onLocate={setFocusedPhone} />}
   </div></div>;
 }

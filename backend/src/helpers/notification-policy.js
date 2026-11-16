@@ -143,7 +143,7 @@ export function getNotificationGroup(event, changeField) {
     };
 }
 
-export function formatNotification(event, viewer, subject, threshold = 100) {
+export function formatNotification(event, viewer, subject, threshold = 100, participants = []) {
     const d = event.data;
     const base = roleBase(viewer.role);
     const isSelf = sameId(viewer._id, subject?._id);
@@ -197,6 +197,18 @@ export function formatNotification(event, viewer, subject, threshold = 100) {
 
     if (event.kind === "transaction") {
         const amount = Number(d.amount || 0).toLocaleString("en-IN");
+        if (d.type === "ALLOCATE") {
+            const identity = id => publicAccountIdentity([...participants, viewer, subject].find(account => sameId(account?._id, id)), viewer.role);
+            const sender = identity(d.fromUser || d.performedBy);
+            const recipient = identity(d.toUser);
+            const label = account => account.username === account.role ? account.role : `${account.role} "${account.username}"`;
+            if (sameId(viewer._id, d.toUser)) {
+                return result("credits", sender ? `Credits received from ${sender.username}` : "Credits received",
+                    sender ? `${amount} credits were received from ${label(sender)}.` : `${amount} credits were added to your wallet.`, `${base}/credits`);
+            }
+            return result("credits", recipient ? `Credits allocated to ${recipient.username}` : "Credits allocated",
+                `${amount} credits were allocated${recipient ? ` to ${label(recipient)}` : " to the recipient"}${sender && !sameId(sender._id, viewer._id) ? ` by ${label(sender)}` : ""}.`, `${base}/credits`);
+        }
         if (d.type === "REQUEST") {
             const href = `${base}/${viewer.role === "Super Admin" ? "activity" : "credits"}?transaction=${d.id}`;
             const note = d.notes ? ` Note: ${d.notes}` : "";

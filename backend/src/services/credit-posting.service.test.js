@@ -287,3 +287,25 @@ test("fractional credits do not accumulate rounding drift and an interrupted tra
     assert.equal(await Transaction.countDocuments({ operationKey: `interrupted:${user._id}` }), 0);
     assert.equal((await view(user)).summary.classification, "matched");
 });
+
+test("allocation notifications use the real participants and correct existing wording without changing inbox state", async () => {
+    const user = await account();
+    const { transaction } = await move(user, 5, "ALLOCATE", `notification:${user._id}`);
+    const { deliverEvent, refreshCreditAllocationMessages } = await import("./notification.service.js");
+    const { Notification } = await import("../models/notification.model.js");
+    const event = { kind: "transaction", eventKey: `test-allocation:${transaction._id}`, data: { id: transaction._id, type: "ALLOCATE", amount: 5, fromUser: null, toUser: user._id, performedBy: admin._id, version: Date.now() } };
+    await deliverEvent(event);
+    const sent = await Notification.findOne({ recipientId: admin._id, itemId: String(transaction._id) }).lean();
+    const received = await Notification.findOne({ recipientId: user._id, itemId: String(transaction._id) }).lean();
+    assert.equal(sent.title, `Credits allocated to ${user.username}`);
+    assert.equal(received.title, "Credits received from Super Admin");
+    assert(!received.body.includes(admin.username));
+    const readAt = new Date(), archivedAt = new Date();
+    const old = { ...sent, subjectUserId: user, title: `Credits received from ${user.username}`, body: `5 credits were received from User "${user.username}".`, readAt, archivedAt };
+    const [fixed] = await refreshCreditAllocationMessages([old], admin);
+    assert.equal(fixed.title, `Credits allocated to ${user.username}`);
+    assert.equal(fixed.readAt, readAt); assert.equal(fixed.archivedAt, archivedAt); assert.equal(fixed._id, old._id);
+    assert.equal(await balance(user), 5); assert.equal(await Transaction.countDocuments({ operationKey: `notification:${user._id}` }), 1);
+    const other = { itemType: "campaign", body: "Campaign status changed" };
+    assert.deepEqual(await refreshCreditAllocationMessages([other], admin), [other]);
+});

@@ -54,7 +54,7 @@ export default function TrackedNumbersPanel({ campaignId, query, onLocate }) {
     <header className="flex min-h-16 items-center justify-between gap-2 py-3">
       <div>
         <h2 className="text-sm font-semibold">Repeated numbers <span className="ml-1 font-normal tabular-nums text-muted-foreground">{data?.rows.length ?? ""}</span></h2>
-        {data && <p className="mt-1 text-[11px] text-muted-foreground">{data.totalUserCampaigns} submitted {data.totalUserCampaigns === 1 ? "campaign" : "campaigns"} by this user</p>}
+        {data && <p className="mt-1 break-words text-[11px] text-muted-foreground">{data.totalUserCampaigns} submitted {data.totalUserCampaigns === 1 ? "campaign" : "campaigns"} by <span className="font-medium text-foreground">{data.username}</span></p>}
       </div>
       <Link to="/admin/contacts" className="shrink-0 text-[11px] text-muted-foreground hover:text-foreground hover:underline">Contacts</Link>
     </header>
@@ -104,14 +104,14 @@ export default function TrackedNumbersPanel({ campaignId, query, onLocate }) {
         <span>{data.rows.filter((row) => row.repeated).length} repeated</span>
       </div>
 
-      <ul className="max-h-[620px] divide-y divide-border overflow-y-auto">{rows.map((row) => <li key={row.phoneNumber} className="flex items-start gap-2 py-2.5">
+      <ul className="max-h-[620px] divide-y divide-border overflow-y-auto">{rows.map((row) => <li key={row.phoneNumber} aria-label={row.userPhone ? `${data.username}’s own phone number` : undefined} className={`flex items-start gap-2 border-l-2 px-3 py-2.5 ${row.userPhone ? "border-l-blue-500 bg-blue-50/80 dark:border-l-blue-400 dark:bg-blue-950/35" : "border-l-transparent"}`}>
         <input type="checkbox" aria-label={`Select ${row.phoneNumber}`} checked={selected.has(row.phoneNumber)} onChange={() => toggle(row.phoneNumber)} className="mt-0.5 shrink-0" />
         <div className="min-w-0 flex-1">
-          <div className="flex items-baseline justify-between gap-2">
-            {row.inCampaign ? <button type="button" title="Find in recipients" onClick={() => onLocate(row.phoneNumber)} className="break-all text-left font-mono text-xs font-medium underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none">{row.phoneNumber}</button> : <span className="break-all font-mono text-xs">{row.phoneNumber}</span>}
+          <div className={`flex items-baseline justify-between gap-2 ${row.userPhone ? "font-semibold text-blue-900 dark:text-blue-100" : ""}`}>
+            {row.inCampaign ? <button type="button" title="Find in recipients" onClick={() => onLocate(row.phoneNumber)} className={`break-all text-left font-mono text-xs underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none ${row.userPhone ? "font-semibold" : "font-medium"}`}>{row.phoneNumber}</button> : <span className="break-all font-mono text-xs">{row.phoneNumber}</span>}
             <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground" title={`Appeared in ${row.campaignCount} of ${row.totalCampaigns} campaigns as of this submission`} aria-label={`Appeared in ${row.campaignCount} of ${row.totalCampaigns} campaigns as of this submission`}>{row.campaignCount}/{row.totalCampaigns}</span>
           </div>
-          <TrackedNumberBadges row={row} showRepeated={false} />
+          <TrackedNumberBadges row={row} ownerName={data.username} showRepeated={false} />
           <TrackedNumberNote campaignId={campaignId} row={row} />
         </div>
       </li>)}</ul>

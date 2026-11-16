@@ -59,7 +59,7 @@ export function getStatusBadge(status) {
   }
 }
 
-export default function CampaignRecipientsTable({ campaign, trackedRows, focusedPhone = "", onClearFocus, embedded = false }) {
+export default function CampaignRecipientsTable({ campaign, trackedRows, trackedOwnerName, focusedPhone = "", onClearFocus, embedded = false }) {
   const { user } = useAuth();
   const inputAudit = user?.role === "Super Admin" ? campaign.recipientInputAudit : null;
   const numberMarks = useMemo(() => recipientMarkMap(inputAudit), [inputAudit]);
@@ -180,7 +180,16 @@ export default function CampaignRecipientsTable({ campaign, trackedRows, focused
         <TableHeader className="bg-muted/40"><TableRow className="hover:bg-transparent"><TableHead className="recipient-index w-12 text-center text-[11px]">#</TableHead><TableHead className="recipient-phone text-[11px]">Phone number</TableHead><TableHead className="w-28 text-[11px] sm:w-36">Status</TableHead><TableHead className="w-12 text-center"><span className="sr-only">Copy</span></TableHead></TableRow></TableHeader>
         <TableBody>{rows.length ? rows.map((row) => {
           const tracked = user?.role === "Super Admin" ? trackedRows?.get(row.phoneNumber.replace(/\D/g, "")) : undefined;
-          return <TableRow key={row.rowNumber} className="hover:bg-muted/25"><TableCell className="recipient-index text-center text-[11px] text-muted-foreground tabular-nums">{row.rowNumber}</TableCell><TableCell data-input-risk={numberMarks.get(row.rowNumber)} className={`recipient-phone break-all font-mono text-xs font-medium ${tracked ? "border-l-2 border-l-amber-500/60" : ""}`}>{row.phoneNumber}{numberMarks.has(row.rowNumber) && <div className="mt-1"><RecipientNumberHighlight mark={numberMarks.get(row.rowNumber)} /></div>}<TrackedNumberBadges row={tracked} /></TableCell><TableCell>{getStatusBadge(row.status)}</TableCell><TableCell className="text-center"><Button type="button" size="icon-xs" variant="ghost" aria-label={`Copy phone number ${row.phoneNumber}`} onClick={() => copyNumber(row.phoneNumber)} className="text-muted-foreground hover:text-foreground">{copiedNumber === row.phoneNumber ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}</Button></TableCell></TableRow>;
+          return <TableRow key={row.rowNumber} className="hover:bg-muted/25">
+            <TableCell className="recipient-index text-center text-[11px] text-muted-foreground tabular-nums">{row.rowNumber}</TableCell>
+            <TableCell data-input-risk={numberMarks.get(row.rowNumber)} className={`recipient-phone break-all font-mono text-xs font-medium ${tracked?.userPhone ? "border-l-2 border-l-blue-500 bg-blue-50/80 dark:border-l-blue-400 dark:bg-blue-950/35" : tracked ? "border-l-2 border-l-amber-500/60" : ""}`}>
+              {row.phoneNumber}
+              {numberMarks.has(row.rowNumber) && <div className="mt-1"><RecipientNumberHighlight mark={numberMarks.get(row.rowNumber)} /></div>}
+              <TrackedNumberBadges row={tracked} ownerName={trackedOwnerName || campaign.userId?.username} />
+            </TableCell>
+            <TableCell>{getStatusBadge(row.status)}</TableCell>
+            <TableCell className="text-center"><Button type="button" size="icon-xs" variant="ghost" aria-label={`Copy phone number ${row.phoneNumber}`} onClick={() => copyNumber(row.phoneNumber)} className="text-muted-foreground hover:text-foreground">{copiedNumber === row.phoneNumber ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}</Button></TableCell>
+          </TableRow>;
         }) : <TableRow><TableCell colSpan={4} className="py-10! text-center text-xs text-muted-foreground">{search || focusedPhone ? "No contacts match your search." : "No contacts available."}</TableCell></TableRow>}</TableBody>
       </Table>
       <footer className={`flex flex-wrap items-center justify-between gap-3 border-t border-border py-3 ${embedded ? "" : "bg-muted/15 px-4 sm:px-5"}`}>
