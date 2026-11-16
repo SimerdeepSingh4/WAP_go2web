@@ -1,3 +1,4 @@
+import { postCreditMovement } from "../services/credit-posting.service.js";
 import { notifyUser } from "../services/socket.service.js";
 import { reconcileWallet as verifyReconcile } from "../helpers/credit.helper.js";
 import mongoose from "mongoose";
@@ -5,7 +6,7 @@ import walletModel from "../models/wallet.model.js";
 import transactionModel from "../models/transaction.model.js";
 import userModel from "../models/user.model.js";
 import { creditAmount as normalizeCreditAmount, creditsForCount, creditTransactionOptions } from "../helpers/credit-amount.js";
-import { startCreditSession, saveCreditReceipt } from "../helpers/credit-operation.js";
+import { startCreditSession, saveCreditReceipt, creditPostingKey, creditErrorDetails, abortCreditSession } from "../helpers/credit-operation.js";
 import { transactionObjectId } from "../helpers/transaction-reference.js";
 import { publicAccountIdentity } from "../helpers/account-identity.js";
 import { recordSupportAction, publishSupportAction } from "../helpers/support-action.js";
@@ -90,6 +91,7 @@ export async function getBalance(req, res) {
         console.error("GetBalance error:", error);
         return res.status(error.statusCode || (error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? 409 : 500)).json({
             message: error.statusCode ? error.message : error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? "A concurrent credit operation is being processed. Retry using the same request reference." : "Internal server error",
+            ...creditErrorDetails(error, req),
             success: false,
         });
     }
@@ -117,8 +119,8 @@ export async function allocateCredits(req, res) {
 
         // ── Validation ──────────────────────────────────────────
         if (!toUserId || !amount) {
-            await mongoSession.abortTransaction();
-            mongoSession.endSession();
+            await abortCreditSession(mongoSession);
+            await mongoSession.endSession();
             return res.status(400).json({
                 message: "toUserId and amount are required.",
                 success: false,
@@ -127,8 +129,8 @@ export async function allocateCredits(req, res) {
 
         const creditAmount = normalizeCreditAmount(amount);
         if (isNaN(creditAmount) || creditAmount <= 0) {
-            await mongoSession.abortTransaction();
-            mongoSession.endSession();
+            await abortCreditSession(mongoSession);
+            await mongoSession.endSession();
             return res.status(400).json({
                 message: "Amount must be a positive number.",
                 success: false,
@@ -139,8 +141,8 @@ export async function allocateCredits(req, res) {
         if (password) {
             const caller = await userModel.findById(req.user._id).select("+password");
             if (!caller || !(await caller.comparePassword(password))) {
-                await mongoSession.abortTransaction();
-                mongoSession.endSession();
+                await abortCreditSession(mongoSession);
+                await mongoSession.endSession();
                 return res.status(401).json({
                     message: "Incorrect password. Credit transfer aborted for security.",
                     success: false,
@@ -149,8 +151,8 @@ export async function allocateCredits(req, res) {
         }
 
         if (req.user.role === "User") {
-            await mongoSession.abortTransaction();
-            mongoSession.endSession();
+            await abortCreditSession(mongoSession);
+            await mongoSession.endSession();
             return res.status(403).json({
                 message: "Users cannot allocate credits.",
                 success: false,
@@ -162,8 +164,8 @@ export async function allocateCredits(req, res) {
             .findById(toUserId)
             .session(mongoSession);
         if (!toUser) {
-            await mongoSession.abortTransaction();
-            mongoSession.endSession();
+            await abortCreditSession(mongoSession);
+            await mongoSession.endSession();
             return res.status(404).json({
                 message: "Target user not found.",
                 success: false,
@@ -178,8 +180,8 @@ export async function allocateCredits(req, res) {
             // Super Admin can allocate to Resellers (or directly to Users)
             // Super Admin has unlimited pool — no deduction from their own wallet
             if (toUser.role === "Super Admin") {
-                await mongoSession.abortTransaction();
-                mongoSession.endSession();
+                await abortCreditSession(mongoSession);
+                await mongoSession.endSession();
                 return res.status(400).json({
                     message: "Cannot allocate credits to another Super Admin.",
                     success: false,
@@ -188,8 +190,8 @@ export async function allocateCredits(req, res) {
         } else if (req.user.role === "Reseller") {
             // Reseller can ONLY allocate to their own Users
             if (toUser.role !== "User") {
-                await mongoSession.abortTransaction();
-                mongoSession.endSession();
+                await abortCreditSession(mongoSession);
+                await mongoSession.endSession();
                 return res.status(403).json({
                     message: "Resellers can only allocate credits to Users.",
                     success: false,
@@ -197,8 +199,8 @@ export async function allocateCredits(req, res) {
             }
 
             if (String(toUser.resellerId) !== String(req.user._id)) {
-                await mongoSession.abortTransaction();
-                mongoSession.endSession();
+                await abortCreditSession(mongoSession);
+                await mongoSession.endSession();
                 return res.status(403).json({
                     message:
                         "Resellers can only allocate credits to their own users.",
@@ -212,8 +214,8 @@ export async function allocateCredits(req, res) {
                 .session(mongoSession);
 
             if (!fromWallet) {
-                await mongoSession.abortTransaction();
-                mongoSession.endSession();
+                await abortCreditSession(mongoSession);
+                await mongoSession.endSession();
                 return res.status(400).json({
                     message: "Reseller wallet not found. Cannot allocate credits.",
                     success: false,
@@ -221,8 +223,8 @@ export async function allocateCredits(req, res) {
             }
 
             if (fromWallet.expiresAt && new Date(fromWallet.expiresAt) <= new Date()) {
-                await mongoSession.abortTransaction();
-                mongoSession.endSession();
+                await abortCreditSession(mongoSession);
+                await mongoSession.endSession();
                 return res.status(403).json({
                     message: "Your credit balance has expired and is locked. Cannot allocate credits.",
                     success: false,
@@ -231,8 +233,8 @@ export async function allocateCredits(req, res) {
             }
 
             if (fromWallet.balance < creditAmount) {
-                await mongoSession.abortTransaction();
-                mongoSession.endSession();
+                await abortCreditSession(mongoSession);
+                await mongoSession.endSession();
                 return res.status(400).json({
                     message: `Insufficient balance. Your balance: ${fromWallet.balance}, requested: ${creditAmount}.`,
                     success: false,
@@ -240,31 +242,6 @@ export async function allocateCredits(req, res) {
                 });
             }
 
-            // Atomic CAS Guard: Deduct from Reseller strictly if balance >= creditAmount
-            const updatedFrom = await walletModel.findOneAndUpdate(
-                {
-                    userId: req.user._id,
-                    balance: { $gte: creditAmount },
-                },
-                {
-                    $inc: { balance: -creditAmount },
-                },
-                {
-                    returnDocument: 'after',
-                    session: mongoSession,
-                }
-            );
-
-            if (!updatedFrom) {
-                await mongoSession.abortTransaction();
-                mongoSession.endSession();
-                return res.status(400).json({
-                    message: `Insufficient balance or concurrent transaction in progress. Your balance: ${fromWallet.balance}, requested: ${creditAmount}.`,
-                    success: false,
-                    currentBalance: fromWallet.balance,
-                });
-            }
-            balanceAfterFrom = updatedFrom.balance;
         }
 
         // ── Calculate Expiry Date for Target User ─────────────────
@@ -282,56 +259,20 @@ export async function allocateCredits(req, res) {
             targetExpiresAt = new Date(Date.now() + 2 * 365.25 * 24 * 60 * 60 * 1000);
         }
 
-        // ── Add credits to target user's wallet (Atomic Upsert Increment) ─
-        const updateOps = {
-            $inc: { balance: creditAmount },
-            $setOnInsert: { resellerId: toUser.resellerId || null },
-        };
-        if (targetExpiresAt !== undefined) {
-            updateOps.$set = {
-                expiresAt: targetExpiresAt,
-                isLocked: false,
-            };
-        } else {
-            updateOps.$set = { isLocked: false };
-        }
-
-        const updatedToWallet = await walletModel.findOneAndUpdate(
-            { userId: toUserId },
-            updateOps,
-            {
-                returnDocument: 'after',
-                upsert: true,
-                session: mongoSession,
-            }
-        );
-        const balanceAfterTo = updatedToWallet.balance;
-
-        // ── Create audit log ────────────────────────────────────
-        const transaction = await transactionModel.create(
-            [
-                {
-                    fromUser:
-                        req.user.role === "Super Admin"
-                            ? null
-                            : req.user._id,
-                    toUser: toUserId,
-                    amount: creditAmount,
-                    type: "ALLOCATE",
-                    notes: notes || "",
-                    rateSnapshot: toUser.ratePerMsg || null,
-                    balanceAfterFrom,
-                    balanceAfterTo,
-                    performedBy: req.user._id,
-                },
-            ],
-            { session: mongoSession }
-        );
+        const posting = await postCreditMovement({
+            session: mongoSession, operationKey: creditPostingKey(req, "allocation"), type: "ALLOCATE", amount: creditAmount,
+            fromUser: req.user.role === "Super Admin" ? null : req.user._id, toUser: toUserId, performedBy: req.user._id,
+            notes: notes || "", rateSnapshot: toUser.ratePerMsg || null,
+            toWalletSet: { isLocked: false, ...(targetExpiresAt !== undefined ? { expiresAt: targetExpiresAt } : {}) },
+        });
+        balanceAfterFrom = posting.fromWallet?.balance ?? null;
+        const balanceAfterTo = posting.toWallet.balance;
+        const transaction = [posting.transaction];
 
         await recordSupportAction(req, mongoSession, toUserId, `Allocated ${creditAmount} credits. New balance: ${balanceAfterTo} credits.\nTransaction ID: ${transaction[0].transactionId}`, transaction[0]._id);
         await saveCreditReceipt(req, mongoSession, 200, { success: true, message: "Credit allocation processed.", transaction: { id: transaction[0]._id, transactionId: transaction[0].transactionId, amount: creditAmount, toUser: { id: toUser._id, username: toUser.username, role: toUser.role }, balanceAfterFrom, balanceAfterTo } });
         await mongoSession.commitTransaction();
-        mongoSession.endSession();
+        await mongoSession.endSession();
 
         await publishSupportAction(req);
 
@@ -368,11 +309,12 @@ export async function allocateCredits(req, res) {
             },
         });
     } catch (error) {
-        await mongoSession.abortTransaction();
-        mongoSession.endSession();
+        await abortCreditSession(mongoSession);
+        await mongoSession.endSession();
         console.error("AllocateCredits error:", error);
         return res.status(error.statusCode || (error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? 409 : 500)).json({
             message: error.statusCode ? error.message : error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? "A concurrent credit operation is being processed. Retry using the same request reference." : "Internal server error",
+            ...creditErrorDetails(error, req),
             success: false,
         });
     }
@@ -430,8 +372,8 @@ export async function reclaimCredits(req, res) {
         const { fromUserId, amount, notes } = req.body;
 
         if (!fromUserId) {
-            await mongoSession.abortTransaction();
-            mongoSession.endSession();
+            await abortCreditSession(mongoSession);
+            await mongoSession.endSession();
             return res.status(400).json({
                 message: "fromUserId is required.",
                 success: false,
@@ -440,8 +382,8 @@ export async function reclaimCredits(req, res) {
 
         const reclaimAmount = normalizeCreditAmount(amount);
         if (isNaN(reclaimAmount) || reclaimAmount <= 0) {
-            await mongoSession.abortTransaction();
-            mongoSession.endSession();
+            await abortCreditSession(mongoSession);
+            await mongoSession.endSession();
             return res.status(400).json({
                 message: "amount must be a positive number.",
                 success: false,
@@ -453,8 +395,8 @@ export async function reclaimCredits(req, res) {
             .session(mongoSession);
 
         if (!fromUser) {
-            await mongoSession.abortTransaction();
-            mongoSession.endSession();
+            await abortCreditSession(mongoSession);
+            await mongoSession.endSession();
             return res.status(404).json({
                 message: "User to reclaim credits from not found.",
                 success: false,
@@ -463,8 +405,8 @@ export async function reclaimCredits(req, res) {
 
         // Permission check: Super Admin can reclaim from anyone; Reseller can only reclaim from their own Users
         if (req.user.role !== "Super Admin" && req.user.role !== "Reseller") {
-            await mongoSession.abortTransaction();
-            mongoSession.endSession();
+            await abortCreditSession(mongoSession);
+            await mongoSession.endSession();
             return res.status(403).json({
                 message: "Forbidden: Only Super Admin or Reseller can reclaim credits.",
                 success: false,
@@ -474,16 +416,16 @@ export async function reclaimCredits(req, res) {
         // Reseller can only reclaim from Users assigned to them with a mandatory reason
         if (req.user.role === "Reseller") {
             if (!notes || !notes.trim()) {
-                await mongoSession.abortTransaction();
-                mongoSession.endSession();
+                await abortCreditSession(mongoSession);
+                await mongoSession.endSession();
                 return res.status(400).json({
                     message: "A reason is mandatory when reclaiming credits.",
                     success: false,
                 });
             }
             if (fromUser.role !== "User" || String(fromUser.resellerId) !== String(req.user._id)) {
-                await mongoSession.abortTransaction();
-                mongoSession.endSession();
+                await abortCreditSession(mongoSession);
+                await mongoSession.endSession();
                 return res.status(403).json({
                     message: "Forbidden: You can only reclaim credits from your own client users.",
                     success: false,
@@ -492,8 +434,8 @@ export async function reclaimCredits(req, res) {
         }
 
         if (fromUser.role === "Super Admin") {
-            await mongoSession.abortTransaction();
-            mongoSession.endSession();
+            await abortCreditSession(mongoSession);
+            await mongoSession.endSession();
             return res.status(400).json({
                 message: "Cannot reclaim credits from a Super Admin.",
                 success: false,
@@ -506,8 +448,8 @@ export async function reclaimCredits(req, res) {
             .session(mongoSession);
 
         if (!fromWallet || fromWallet.balance < reclaimAmount) {
-            await mongoSession.abortTransaction();
-            mongoSession.endSession();
+            await abortCreditSession(mongoSession);
+            await mongoSession.endSession();
             return res.status(400).json({
                 message: `Insufficient balance to reclaim. Target balance: ${fromWallet ? fromWallet.balance : 0}, requested: ${reclaimAmount}.`,
                 success: false,
@@ -515,60 +457,18 @@ export async function reclaimCredits(req, res) {
             });
         }
 
-        // Deduct from target user's wallet
-        fromWallet.balance -= reclaimAmount;
-        await fromWallet.save({ session: mongoSession });
-        const balanceAfterFrom = fromWallet.balance;
-
-        // If caller is Reseller, refund credits back to Reseller wallet
-        let balanceAfterTo = null;
-        if (req.user.role === "Reseller") {
-            let resellerWallet = await walletModel
-                .findOne({ userId: req.user._id })
-                .session(mongoSession);
-
-            if (!resellerWallet) {
-                const created = await walletModel.create(
-                    [
-                        {
-                            userId: req.user._id,
-                            balance: 0,
-                            resellerId: null,
-                        },
-                    ],
-                    { session: mongoSession }
-                );
-                resellerWallet = created[0];
-            }
-
-            resellerWallet.balance += reclaimAmount;
-            await resellerWallet.save({ session: mongoSession });
-            balanceAfterTo = resellerWallet.balance;
-        }
-
-        // Audit log
-        const transaction = await transactionModel.create(
-            [
-                {
-                    fromUser: fromUserId,
-                    toUser: req.user._id,
-                    amount: reclaimAmount,
-                    type: "RECLAIM",
-                    notes:
-                        notes ||
-                        `Reclaimed ${reclaimAmount} credits from ${fromUser.username}`,
-                    rateSnapshot: fromUser.ratePerMsg || null,
-                    balanceAfterFrom,
-                    balanceAfterTo,
-                    performedBy: req.user._id,
-                },
-            ],
-            { session: mongoSession }
-        );
+        const posting = await postCreditMovement({
+            session: mongoSession, operationKey: creditPostingKey(req, "reclaim"), type: "RECLAIM", amount: reclaimAmount,
+            fromUser: fromUserId, toUser: req.user._id, performedBy: req.user._id,
+            notes: notes || `Reclaimed ${reclaimAmount} credits from ${fromUser.username}`, rateSnapshot: fromUser.ratePerMsg || null,
+        });
+        const balanceAfterFrom = posting.fromWallet.balance;
+        const balanceAfterTo = posting.toWallet?.balance ?? null;
+        const transaction = [posting.transaction];
 
         await saveCreditReceipt(req, mongoSession, 200, { success: true, message: "Credit reclaim processed.", transaction: { id: transaction[0]._id, transactionId: transaction[0].transactionId, amount: reclaimAmount, fromUser: { id: fromUser._id, username: fromUser.username, role: fromUser.role }, balanceAfterFrom, balanceAfterTo } });
         await mongoSession.commitTransaction();
-        mongoSession.endSession();
+        await mongoSession.endSession();
 
         return res.status(200).json({
             success: true,
@@ -586,11 +486,12 @@ export async function reclaimCredits(req, res) {
             },
         });
     } catch (error) {
-        await mongoSession.abortTransaction();
-        mongoSession.endSession();
+        await abortCreditSession(mongoSession);
+        await mongoSession.endSession();
         console.error("ReclaimCredits error:", error);
         return res.status(error.statusCode || (error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? 409 : 500)).json({
             message: error.statusCode ? error.message : error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? "A concurrent credit operation is being processed. Retry using the same request reference." : "Internal server error",
+            ...creditErrorDetails(error, req),
             success: false,
         });
     }
@@ -615,14 +516,14 @@ export async function deductCredits(req, res) {
 
         // Ensure at least one of amount or messageCount is supplied
         if ((amount === undefined || amount === null || amount === "") && (messageCount === undefined || messageCount === null || messageCount === "")) {
-            await mongoSession.abortTransaction();
-            mongoSession.endSession();
+            await abortCreditSession(mongoSession);
+            await mongoSession.endSession();
             return res.status(400).json({ message: "Provide either 'amount' or 'messageCount'.", success: false });
         }
 
         if (!userId) {
-            await mongoSession.abortTransaction();
-            mongoSession.endSession();
+            await abortCreditSession(mongoSession);
+            await mongoSession.endSession();
             return res.status(400).json({
                 message: "userId is required.",
                 success: false,
@@ -633,8 +534,8 @@ export async function deductCredits(req, res) {
             .findById(userId)
             .session(mongoSession);
         if (!targetUser) {
-            await mongoSession.abortTransaction();
-            mongoSession.endSession();
+            await abortCreditSession(mongoSession);
+            await mongoSession.endSession();
             return res.status(404).json({
                 message: "User not found.",
                 success: false,
@@ -646,8 +547,8 @@ export async function deductCredits(req, res) {
         if (amount !== undefined && amount !== null && amount !== "") {
             const amt = normalizeCreditAmount(amount);
             if (isNaN(amt) || amt <= 0) {
-                await mongoSession.abortTransaction();
-                mongoSession.endSession();
+                await abortCreditSession(mongoSession);
+                await mongoSession.endSession();
                 return res.status(400).json({
                     message: "amount must be a positive number.",
                     success: false,
@@ -657,8 +558,8 @@ export async function deductCredits(req, res) {
         } else {
             count = Number(messageCount ?? 1);
             if (!Number.isSafeInteger(count) || count <= 0) {
-                await mongoSession.abortTransaction();
-                mongoSession.endSession();
+                await abortCreditSession(mongoSession);
+                await mongoSession.endSession();
                 return res.status(400).json({
                     message: "messageCount must be a positive number.",
                     success: false,
@@ -666,8 +567,8 @@ export async function deductCredits(req, res) {
             }
 
             if (!targetUser.ratePerMsg || targetUser.ratePerMsg <= 0) {
-                await mongoSession.abortTransaction();
-                mongoSession.endSession();
+                await abortCreditSession(mongoSession);
+                await mongoSession.endSession();
                 return res.status(400).json({
                     message:
                         "User does not have a valid rate per message configured.",
@@ -681,8 +582,8 @@ export async function deductCredits(req, res) {
         // Permission check: Reseller can only deduct from their own users
         if (req.user.role === "Reseller") {
             if (String(targetUser.resellerId) !== String(req.user._id)) {
-                await mongoSession.abortTransaction();
-                mongoSession.endSession();
+                await abortCreditSession(mongoSession);
+                await mongoSession.endSession();
                 return res.status(403).json({
                     message:
                         "Resellers can only deduct credits from their own users.",
@@ -692,8 +593,8 @@ export async function deductCredits(req, res) {
         } else if (req.user.role === "User") {
             // Users can only deduct from themselves (for sending messages)
             if (String(userId) !== String(req.user._id)) {
-                await mongoSession.abortTransaction();
-                mongoSession.endSession();
+                await abortCreditSession(mongoSession);
+                await mongoSession.endSession();
                 return res.status(403).json({
                     message: "Users can only deduct from their own account.",
                     success: false,
@@ -701,57 +602,18 @@ export async function deductCredits(req, res) {
             }
         }
 
-        // ATOMIC ISOLATION GUARD: Deduct only if balance >= deductionAmount
-        const wallet = await walletModel.findOneAndUpdate(
-            {
-                userId,
-                balance: { $gte: deductionAmount },
-            },
-            {
-                $inc: { balance: -deductionAmount },
-            },
-            {
-                returnDocument: 'after',
-                session: mongoSession,
-            }
-        );
-
-        if (!wallet) {
-            const currentWallet = await walletModel.findOne({ userId }).session(mongoSession);
-            const available = currentWallet ? currentWallet.balance : 0;
-            await mongoSession.abortTransaction();
-            mongoSession.endSession();
-            return res.status(400).json({
-                message: `Insufficient credits or concurrent deduction in progress. Required: ${deductionAmount}, Available: ${available}.`,
-                success: false,
-                required: deductionAmount,
-                available,
-            });
-        }
-
-        // Audit log
-        const transaction = await transactionModel.create(
-            [
-                {
-                    fromUser: userId,
-                    toUser: userId,
-                    amount: deductionAmount,
-                    type: "DEDUCT",
-                    notes:
-                        notes ||
-                        (amount !== undefined && amount !== null ? `Deducted ${deductionAmount} credits` : `Deducted for ${count} message(s) at rate ${targetUser.ratePerMsg}/msg`),
-                    rateSnapshot: targetUser.ratePerMsg,
-                    balanceAfterFrom: wallet.balance,
-                    balanceAfterTo: wallet.balance,
-                    performedBy: req.user._id,
-                },
-            ],
-            { session: mongoSession }
-        );
+        const posting = await postCreditMovement({
+            session: mongoSession, operationKey: creditPostingKey(req, "deduction"), type: "DEDUCT", amount: deductionAmount,
+            fromUser: userId, toUser: userId, performedBy: req.user._id,
+            notes: notes || (amount !== undefined && amount !== null ? `Deducted ${deductionAmount} credits` : `Deducted for ${count} message(s) at rate ${targetUser.ratePerMsg}/msg`),
+            rateSnapshot: targetUser.ratePerMsg,
+        });
+        const wallet = posting.wallet;
+        const transaction = [posting.transaction];
 
         await saveCreditReceipt(req, mongoSession, 200, { success: true, message: "Credit deduction processed.", deduction: { transactionId: transaction[0].transactionId, amount: deductionAmount, remainingBalance: wallet.balance, messageCount: count, ratePerMsg: targetUser.ratePerMsg } });
         await mongoSession.commitTransaction();
-        mongoSession.endSession();
+        await mongoSession.endSession();
 
         return res.status(200).json({
             success: true,
@@ -767,11 +629,12 @@ export async function deductCredits(req, res) {
             },
         });
     } catch (error) {
-        await mongoSession.abortTransaction();
-        mongoSession.endSession();
+        await abortCreditSession(mongoSession);
+        await mongoSession.endSession();
         console.error("DeductCredits error:", error);
         return res.status(error.statusCode || (error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? 409 : 500)).json({
             message: error.statusCode ? error.message : error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? "A concurrent credit operation is being processed. Retry using the same request reference." : "Internal server error",
+            ...creditErrorDetails(error, req),
             success: false,
         });
     }
@@ -863,6 +726,7 @@ export async function getTransactions(req, res) {
         console.error("GetTransactions error:", error);
         return res.status(error.statusCode || (error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? 409 : 500)).json({
             message: error.statusCode ? error.message : error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? "A concurrent credit operation is being processed. Retry using the same request reference." : "Internal server error",
+            ...creditErrorDetails(error, req),
             success: false,
         });
     }
@@ -947,6 +811,7 @@ export async function updateRate(req, res) {
         console.error("UpdateRate error:", error);
         return res.status(error.statusCode || (error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? 409 : 500)).json({
             message: error.statusCode ? error.message : error.code === 11000 || error.hasErrorLabel?.("TransientTransactionError") ? "A concurrent credit operation is being processed. Retry using the same request reference." : "Internal server error",
+            ...creditErrorDetails(error, req),
             success: false,
         });
     }

@@ -212,11 +212,17 @@ export default function Credits({ activity = false }) {
     {
       key: "note",
       label: "Note",
-      render: (t) => (
-        <span className="block max-w-64 whitespace-normal break-words text-xs text-muted-foreground">
-          {t.notes || "—"}
-        </span>
-      ),
+      render: (t) => {
+        const noteText = t.notes || "—";
+        return (
+          <span
+            className="block min-w-[200px] whitespace-normal break-words text-xs text-muted-foreground leading-relaxed"
+            title={noteText !== "—" ? noteText : undefined}
+          >
+            {noteText}
+          </span>
+        );
+      },
     },
     {
       key: "actions",

@@ -15,7 +15,7 @@ export default function ReconciliationBanner() {
   const query = useReconciliationSummary();
   const ref = useRef(null);
   const allowed = user?.role === "Super Admin" && !user.isPreview && !user.isImpersonation;
-  const problem = query.isError || query.data?.monitor?.healthy === false || query.data?.retrying > 0;
+  const problem = query.isError || query.data?.monitor?.healthy === false || query.data?.retrying > 0 || query.data?.postingFailures > 0;
   const shown = allowed && !pathname.startsWith("/admin/reconciliation") && Boolean(query.data?.open || problem);
   useEffect(() => {
     if (!socket || !allowed) return;
@@ -32,5 +32,6 @@ export default function ReconciliationBanner() {
     return () => { observer.disconnect(); layout.style.removeProperty("--credit-banner-height"); };
   }, [shown]);
   if (!shown) return null;
-  return <aside ref={ref} className="credit-reconciliation-banner" role="status"><ShieldAlert aria-hidden="true" /><div><strong>{query.data?.open ? `${query.data.open} credit ${query.data.open === 1 ? "account needs" : "accounts need"} review` : "Credit monitoring needs attention"}</strong><p>{query.isError ? "The credit monitor is unavailable. Review its status before making a correction." : problem ? "Some checks could not complete. Existing cases and evidence are retained." : `${query.data.confirmed} balance mismatches · ${query.data.unverified} conflicting records`}</p></div><Link to="/admin/reconciliation">Review credits<ArrowUpRight /></Link></aside>;
+  const stopped = query.data?.postingFailures || 0;
+  return <aside ref={ref} className="credit-reconciliation-banner" role="status"><ShieldAlert aria-hidden="true" /><div><strong>{stopped ? `${stopped} credit ${stopped === 1 ? "operation needs" : "operations need"} review` : query.data?.open ? `${query.data.open} credit ${query.data.open === 1 ? "account needs" : "accounts need"} review` : "Credit monitoring needs attention"}</strong><p>{query.isError ? "The credit monitor is unavailable. Review its status before making a correction." : stopped ? "Credit operations were stopped in the last 15 minutes. Their audit records are available for investigation." : problem ? "Some checks could not complete. Existing cases and evidence are retained." : `${query.data.confirmed} balance mismatches · ${query.data.unverified} conflicting records`}</p></div><Link to={stopped ? "/admin/audit?search=credit.posting_blocked&scope=all" : "/admin/reconciliation"}>{stopped ? "Review operations" : "Review credits"}<ArrowUpRight /></Link></aside>;
 }

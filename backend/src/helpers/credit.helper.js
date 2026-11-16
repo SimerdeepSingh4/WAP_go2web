@@ -1,20 +1,13 @@
 import mongoose from "mongoose";
-import walletModel from "../models/wallet.model.js";
 import userModel from "../models/user.model.js";
-import transactionModel from "../models/transaction.model.js";
 import { creditAmount, creditsForCount, creditTransactionOptions } from "./credit-amount.js";
 import { inspectCreditAccount } from "../services/credit-evidence.service.js";
+import { postCreditMovement } from "../services/credit-posting.service.js";
+import { runCreditTransaction } from "./credit-operation.js";
 
 async function moveCredits(userId, count, session, options, direction) {
     if (!session) {
-        const owned = await mongoose.startSession();
-        let result;
-        try {
-            await owned.withTransaction(async () => {
-                result = await moveCredits(userId, count, owned, options, direction);
-            }, creditTransactionOptions);
-            return result;
-        } finally { await owned.endSession(); }
+        return runCreditTransaction(owned => moveCredits(userId, count, owned, options, direction), { walletIds: [userId] });
     }
     if (!session.inTransaction()) throw new Error("An active transaction is required");
     const user = await userModel.findById(userId).session(session);
@@ -22,23 +15,16 @@ async function moveCredits(userId, count, session, options, direction) {
     const rate = options.rate ?? user.ratePerMsg;
     const amount = options.directAmount != null ? creditAmount(options.directAmount) : creditsForCount(rate, count);
     if (amount <= 0) throw new Error("Credit amount must be positive");
-    const wallet = await walletModel.findOneAndUpdate(
-        { userId, ...(direction < 0 ? { balance: { $gte: amount } } : {}) },
-        { $inc: { balance: direction * amount }, $setOnInsert: { resellerId: user.resellerId || null } },
-        { returnDocument: "after", upsert: direction > 0, session }
-    );
-    if (!wallet) throw new Error("Insufficient credits. No balance or ledger changes were saved.");
-    const [transaction] = await transactionModel.create([{
+    const { wallet, transaction } = await postCreditMovement({
+        session, operationKey: options.operationKey || (options.refundOperationId ? `refund:${options.refundOperationId}` : ""),
         type: direction > 0 ? "REFUND" : "DEDUCT", amount,
         fromUser: direction < 0 ? userId : null, toUser: userId,
         performedBy: options.performedBy || userId,
         campaignId: options.campaignId || null,
-        ...(direction > 0 ? { refundOperationId: options.refundOperationId || new mongoose.Types.ObjectId() } : {}),
+        refundOperationId: options.refundOperationId,
         notes: options.notes || (direction > 0 ? "Credit refund" : "Credit deduction"),
         rateSnapshot: rate,
-        balanceAfterFrom: direction < 0 ? wallet.balance : null,
-        balanceAfterTo: wallet.balance,
-    }], { session });
+    });
     return { amount, newBalance: wallet.balance, transactionId: transaction._id };
 }
 

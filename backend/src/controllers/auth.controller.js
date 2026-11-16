@@ -8,6 +8,7 @@ import sessionModel from "../models/session.model.js";
 import walletModel from "../models/wallet.model.js";
 import { notifySession, notifyUser, notifyRole } from "../services/socket.service.js";
 import { authenticateBrowserSession, requestSessionCredentials, revokeBrowserSessions, sessionCookieOptions, tokenHash as hashSessionToken } from "../helpers/browser-session.js";
+import { deleteUserDpImageFile } from "./user.controller.js";
 
 const MAX_CONCURRENT_DEVICES = 3;
 
@@ -275,6 +276,13 @@ export async function login(req, res) {
         const { session } = await createDeviceSession(user, req, res);
         const whiteLabel = await resolveUserWhiteLabel(user);
 
+        if (user.role !== "Super Admin" && user.featureAccess?.campaignDp !== true && user.dp_img) {
+            const oldDp = user.dp_img;
+            await userModel.updateOne({ _id: user._id }, { $set: { dp_img: "" } });
+            user.dp_img = "";
+            void deleteUserDpImageFile(user._id, oldDp);
+        }
+
         return res.status(200).json({
             message: "Login successful",
             success: true,
@@ -284,6 +292,7 @@ export async function login(req, res) {
                 username: user.username,
                 email: user.email,
                 phone: user.phone || "",
+                dp_img: user.dp_img || "",
                 role: user.role,
                 expiresAt: user.expiresAt || null,
                 status: user.status,
@@ -422,6 +431,13 @@ export async function logoutSession(req, res) {
 
 export async function getMe(req, res) {
     try {
+        if (req.user.role !== "Super Admin" && req.user.featureAccess?.campaignDp !== true && req.user.dp_img) {
+            const oldDp = req.user.dp_img;
+            await userModel.updateOne({ _id: req.user._id }, { $set: { dp_img: "" } });
+            req.user.dp_img = "";
+            void deleteUserDpImageFile(req.user._id, oldDp);
+        }
+
         const whiteLabel = await resolveUserWhiteLabel(req.user);
         return res.status(200).json({
             success: true,

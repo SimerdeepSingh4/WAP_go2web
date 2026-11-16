@@ -147,12 +147,12 @@ export default function OperatingRules() {
   });
 
   useEffect(() => {
-    if (platformSettingsQuery.data?.settings?.dailyCampaignLimit != null) {
-      const serverLimit = platformSettingsQuery.data.settings.dailyCampaignLimit;
-      setSettings((prev) => ({ ...prev, dailyCampaignLimit: serverLimit }));
-      setSavedSettings((prev) => ({ ...prev, dailyCampaignLimit: serverLimit }));
+    if (platformSettingsQuery.data?.settings) {
+      const serverSettings = platformSettingsQuery.data.settings;
+      setSettings((prev) => ({ ...prev, ...serverSettings }));
+      setSavedSettings((prev) => ({ ...prev, ...serverSettings }));
     }
-  }, [platformSettingsQuery.data?.settings?.dailyCampaignLimit]);
+  }, [platformSettingsQuery.data?.settings]);
 
   const updatePlatformMutation = useMutation({
     mutationFn: async (payload) => (await api.put("/settings/platform", payload)).data,
@@ -200,10 +200,10 @@ export default function OperatingRules() {
     ["dailyCampaignLimit", "maxAllowedDevices", "defaultRatePerMsg", "lowBalanceThreshold", "creditExpiryValue"].forEach((key) => { normalized[key] = Number(settings[key]); });
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
-      await updatePlatformMutation.mutateAsync({ dailyCampaignLimit: normalized.dailyCampaignLimit });
+      await updatePlatformMutation.mutateAsync(normalized);
       setSettings(normalized); setSavedSettings(normalized); setShowErrors(false);
       setSaveNotice("Changes saved successfully.");
-      toast.add({ title: "Preferences saved", description: "Global campaign limits and workspace preferences saved.", type: "success" });
+      toast.add({ title: "Preferences saved", description: "Global platform preferences, rates, and limits saved successfully.", type: "success" });
     } catch (err) {
       setSaveNotice("Could not save settings.");
       toast.add({ title: "Could not save preferences", description: err?.response?.data?.message || err?.message || "Check network connection.", type: "error" });
@@ -239,7 +239,7 @@ export default function OperatingRules() {
     </header>
     <CampaignMediaSettings />
     <form className="portal-settings" noValidate onSubmit={handleSave}>
-      <div className="portal-settings-notice"><Info aria-hidden="true" /><span>Daily campaign limits are saved globally on the server for all users and resellers. Operating hours, devices, and billing preferences are saved for this workspace.</span></div>
+      <div className="portal-settings-notice"><Info aria-hidden="true" /><span>Platform preferences, campaign limits, default rates, and credit policies are saved globally on the server.</span></div>
       <dl className="portal-settings-summary">
         <div><dt>Daily campaign limit</dt><dd>{settings.dailyCampaignLimit === "" ? "—" : number(settings.dailyCampaignLimit)} / account</dd></div>
         <div><dt>Sending window</dt><dd>{settings.startTime || "—"}–{settings.endTime || "—"}</dd></div>

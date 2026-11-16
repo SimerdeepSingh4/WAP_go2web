@@ -48,7 +48,7 @@ export default function AccountSettings() {
   const [photoUploadVersion, setPhotoUploadVersion] = useState(0);
 
   const isReseller = user?.role === "Reseller";
-  const canManageProfilePhoto = true;
+  const canManageProfilePhoto = user?.role === "Super Admin" || user?.featureAccess?.campaignDp === true;
   const resellerBrandingQuery = useQuery({
     queryKey: ["resellerBranding"],
     queryFn: getResellerBranding,
@@ -132,32 +132,34 @@ export default function AccountSettings() {
     }}><Icon aria-hidden="true" />{label}</button>)}</div>
     <div className="account-settings-grid">
       <div className="account-settings-stack">
-        <SettingsCard section="profile" active={visibleTab === "profile"} title="Your profile" description="Your photo and account details." icon={UserRound}>
+        <SettingsCard section="profile" active={visibleTab === "profile"} title="Your profile" description={canManageProfilePhoto ? "Your photo and account details." : "Your account details."} icon={UserRound}>
           <div className="account-settings-profile-main">
           <div className="account-settings-identity">
             <UserAvatar user={user} className="size-16 rounded-2xl" />
             <div className="min-w-0 flex-1"><h3>{user?.username || "Your account"}</h3><span>{user?.role || "Account"}</span></div>
           </div>
-          {canManageProfilePhoto && <div className="account-settings-profile-image">
-            <ProfilePhotoUpload
-              key={String(user?.id || user?._id) + ":" + Boolean(user?.isPreview) + ":" + photoUploadVersion}
-              disabled={Boolean(user?.isPreview) || removePhoto.isPending}
-              onUpload={(file, helpers) => profileImage.mutateAsync({ file, helpers })}
-              className="max-w-none"
-            />
-            {user?.dp_img && <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="mt-2 text-destructive hover:text-destructive"
-              disabled={user?.isPreview || profileImage.isPending || removePhoto.isPending}
-              onClick={() => removePhoto.mutate()}
-            >
-              {removePhoto.isPending ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : <Trash2 className="size-3.5" aria-hidden="true" />}
-              {removePhoto.isPending ? "Removing..." : "Remove photo"}
-            </Button>}
-            {user?.isPreview && <p className="account-settings-note mt-2">Exit account preview to change the profile photo.</p>}
-          </div>}
+          {canManageProfilePhoto && (
+            <div className="account-settings-profile-image">
+              <ProfilePhotoUpload
+                key={String(user?.id || user?._id) + ":" + Boolean(user?.isPreview) + ":" + photoUploadVersion}
+                disabled={Boolean(user?.isPreview) || removePhoto.isPending}
+                onUpload={(file, helpers) => profileImage.mutateAsync({ file, helpers })}
+                className="max-w-none"
+              />
+              {user?.dp_img && <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="mt-2 text-destructive hover:text-destructive"
+                disabled={user?.isPreview || profileImage.isPending || removePhoto.isPending}
+                onClick={() => removePhoto.mutate()}
+              >
+                {removePhoto.isPending ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> : <Trash2 className="size-3.5" aria-hidden="true" />}
+                {removePhoto.isPending ? "Removing..." : "Remove photo"}
+              </Button>}
+              {user?.isPreview && <p className="account-settings-note mt-2">Exit account preview to change the profile photo.</p>}
+            </div>
+          )}
           </div>
           <div className="account-settings-profile-fields">
           <dl className="account-settings-details">{[["Email address", user?.email], ["Account name", user?.username]].map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || "Unavailable"}</dd></div>)}</dl>

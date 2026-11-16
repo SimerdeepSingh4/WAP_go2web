@@ -34,6 +34,8 @@ const transactionSchema = new mongoose.Schema(
             min: [0.01, "Amount must be greater than 0"],
         },
         amountMinor: { type: Number },
+        operationKey: { type: String, maxlength: 240 },
+        operationFingerprint: String,
         postings: [{
             _id: false,
             account: { type: String, required: true },
@@ -97,6 +99,7 @@ transactionSchema.index({ fromUser: 1, createdAt: -1 });
 transactionSchema.index({ toUser: 1, createdAt: -1 });
 transactionSchema.index({ performedBy: 1, createdAt: -1 });
 transactionSchema.index({ type: 1, createdAt: -1 });
+transactionSchema.index({ operationKey: 1 }, { unique: true, sparse: true });
 
 // Keep automated refunds idempotent while allowing separate manual adjustments.
 transactionSchema.index(

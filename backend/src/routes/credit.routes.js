@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { creditRequest } from "../helpers/credit-operation.js";
+import { creditRequest, retryCreditController } from "../helpers/credit-operation.js";
 import { ownCreditBalanceResult } from "../controllers/credit-reconciliation.controller.js";
 import {
     getBalance,
@@ -40,7 +40,7 @@ creditRouter.post(
     authorizeRoles("Super Admin", "Reseller"),
     blockInPreviewMode("Credit allocation"),
     creditRequest,
-    allocateCredits
+    retryCreditController(allocateCredits, { walletIds: req => [req.body.toUserId, req.user.role === "Reseller" ? req.user._id : null] })
 );
 
 // POST /api/credits/request — User requests credits (creates a pending transaction)
@@ -59,7 +59,7 @@ creditRouter.post(
     authorizeRoles("Super Admin", "Reseller"),
     blockInPreviewMode("Credit reclaim"),
     creditRequest,
-    reclaimCredits
+    retryCreditController(reclaimCredits, { walletIds: req => [req.body.fromUserId, req.user.role === "Reseller" ? req.user._id : null] })
 );
 
 // POST /api/credits/deduct — Deduct credits when messages are sent
@@ -69,7 +69,7 @@ creditRouter.post(
     "/deduct",
     blockInPreviewMode("Credit deduction"),
     creditRequest,
-    deductCredits
+    retryCreditController(deductCredits, { walletIds: req => [req.body.userId || req.user._id] })
 );
 
 // GET /api/credits/transactions — Audit log with role-based filtering

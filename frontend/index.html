@@ -10,8 +10,7 @@
         try {
           var key = "promotion-theme";
           var preference = localStorage.getItem(key);
-          var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-          var isDark = preference === "dark" || (preference !== "light" && prefersDark);
+          var isDark = preference === "dark";
           var theme = isDark ? "dark" : "light";
           document.documentElement.classList.remove("light", "dark");
           document.documentElement.classList.add(theme);
