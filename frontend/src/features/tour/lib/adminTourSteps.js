@@ -18,9 +18,9 @@ function accountsPage(reseller) {
 }
 
 export const adminPageTours = {
-  overview: page("overview", "Admin overview", "Get familiar with the tools for managing campaigns, accounts, and credits.", [
-    step('.portal-sidebar', "Your workspace navigation", "Move between campaigns, super admins, resellers, users, credits, transactions, notifications, and settings.", "right"),
-    step('.portal-metrics', "Platform totals", "See campaign totals, active resellers, user accounts, and credits in circulation. Select a card to open its management page."),
+  overview: page("overview", "Admin dashboard", "Get familiar with the tools for managing campaigns, accounts, and credits.", [
+    step('.portal-sidebar', "Your workspace navigation", "Move between Dashboard, campaigns, resellers, users, credits, transactions, notifications, and settings.", "right"),
+    step('.overview-metrics', "Platform totals", "See campaign totals, active resellers, user accounts, and credits in circulation. Select a card to open its management page."),
     step('.portal-page-actions', "Refresh or allocate credits", "Refresh reloads dashboard data. Allocate credits opens the credit form to fund an account."),
     step('.dashboard-two-column > :first-child', "Campaigns awaiting attention", "Review pending submissions and their owners. Open a campaign to inspect it, or select View all for the complete queue."),
     step('.dashboard-two-column > :last-child', "Your reseller network", "Review reseller accounts and status, then use Manage to open the full network."),

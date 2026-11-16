@@ -82,6 +82,7 @@ export default function UserCredits({ activity = false }) {
               },
               {
                 label: "Rate per recipient",
+                tone: "purple",
                 value: balance.data?.wallet?.ratePerMsg,
                 loading: balance.isPending,
                 caption: "Credits deducted per recipient",
@@ -89,6 +90,7 @@ export default function UserCredits({ activity = false }) {
               },
               {
                 label: "Total transactions",
+                tone: "blue",
                 value: ledger.data?.pagination?.total ?? null,
                 loading: ledger.isPending,
                 caption: "Recorded in your ledger",

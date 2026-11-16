@@ -525,9 +525,9 @@ export default function Credits({ activity = false }) {
         <QueryState query={overview}>
           <div data-tour="credit-summary">
             <OverviewMetricCards columns={3} label="Credit summary" items={[
-              { label: "Super Admin Balance", value: "Unlimited", caption: "Unlimited sending pool", icon: Wallet },
-              { label: "Total Credits Given", value: overview.data?.stats?.credits?.totalAllocatedBySuperAdmin, caption: "Total credits added across network", icon: Coins },
-              { label: "Circulating Balances", value: overview.data?.stats?.credits?.totalCreditsInCirculation, caption: "Current credits held in user/reseller wallets", icon: TrendingUp },
+              { label: "Super Admin Balance", value: "Unlimited", caption: "Unlimited sending pool", icon: Wallet, accent: true },
+              { label: "Total Credits Given", value: overview.data?.stats?.credits?.totalAllocatedBySuperAdmin, caption: "Total credits added across network", icon: Coins, tone: "blue" },
+              { label: "Circulating Balances", value: overview.data?.stats?.credits?.totalCreditsInCirculation, caption: "Current credits held in user/reseller wallets", icon: TrendingUp, tone: "pink" },
             ]} />
           </div>
         </QueryState>

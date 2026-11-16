@@ -36,7 +36,7 @@ export default function AuditLog() {
       </div>
     </div>
     <QueryState query={query} empty={!items.length} emptyTitle="No activity found" emptyDescription="Try clearing the filters or searching for a different name.">
-      <DataTable rows={items} paginated={false} caption="Activity history" columns={[
+      <DataTable className="audit-history-table" rows={items} paginated={false} caption="Activity history" columns={[
         { key: "time", label: "When", render: (item) => <span className="whitespace-nowrap text-xs">{dateTime(item.occurredAt)}</span> },
         { key: "actor", label: "Who did it", render: (item) => <div><p className="text-sm font-medium">{item.actor?.name || item.actor?.role || "System"}</p><p className="text-xs text-muted-foreground">{item.actor?.role === "System" ? "Automatic activity" : item.actor?.role}{item.actor?.impersonation || item.actor?.preview ? " · Using account access" : ""}</p></div> },
         { key: "action", label: "What happened", render: (item) => <span className="text-sm font-medium">{actionLabel(item)}</span> },

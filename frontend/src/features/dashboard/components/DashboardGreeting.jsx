@@ -6,7 +6,7 @@ export default function DashboardGreeting({ username, description, action }) {
   return <header className="portal-greeting">
     <div className="portal-greeting-copy">
       <div className="portal-greeting-text">
-        <p className="portal-greeting-label">Overview</p>
+        <p className="portal-greeting-label">Dashboard</p>
         <h1>{greeting}, <span>{username}.</span></h1>
         <p className="portal-greeting-description">{description}</p>
       </div>

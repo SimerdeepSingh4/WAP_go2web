@@ -27,16 +27,16 @@ export default function Overview() {
         transactionsQuery.refetch(),
       ]);
       if (results.some((result) => result.isError)) throw new Error("Some dashboard data could not be refreshed.");
-      toast.add({ title: "Overview refreshed", type: "success" });
+      toast.add({ title: "Dashboard refreshed", type: "success" });
     } catch (error) {
       toast.add({ title: "Refresh incomplete", description: error?.message || "Please try again.", type: "error" });
     }
   }
 
   const metrics = [
-    { label: "Total campaigns", value: stats?.campaigns?.totalCampaigns, caption: "Across all accounts", icon: Megaphone, path: "/admin/campaigns" },
-    { label: "Active resellers", value: stats?.accounts?.activeResellers, caption: `${number(stats?.accounts?.totalResellers)} resellers in network`, icon: Building2, path: "/admin/resellers" },
-    { label: "User accounts", value: stats?.accounts?.totalUsers, caption: "Managed through resellers", icon: Users, path: "/admin/users" },
+    { label: "Total campaigns", value: stats?.campaigns?.totalCampaigns, caption: "Across all accounts", icon: Megaphone, path: "/admin/campaigns", tone: "blue" },
+    { label: "Active resellers", value: stats?.accounts?.activeResellers, caption: `${number(stats?.accounts?.totalResellers)} resellers in network`, icon: Building2, path: "/admin/resellers", tone: "purple" },
+    { label: "User accounts", value: stats?.accounts?.totalUsers, caption: "Managed through resellers", icon: Users, path: "/admin/users", tone: "pink" },
     { label: "Credits in circulation", value: stats?.credits?.totalCreditsInCirculation, caption: "Combined account balances", icon: Wallet, path: "/admin/credits", accent: true },
   ];
 
@@ -45,7 +45,7 @@ export default function Overview() {
       {/* Page Heading & Actions */}
       <header className="portal-page-heading">
         <div className="portal-heading-copy">
-          <h1>Workspace overview</h1>
+          <h1>Dashboard</h1>
           <p>Across all accounts</p>
         </div>
         <div className="portal-page-actions items-center gap-2.5">

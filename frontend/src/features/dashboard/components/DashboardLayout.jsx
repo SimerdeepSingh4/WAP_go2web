@@ -24,7 +24,7 @@ import CreditBalanceResult from "@/features/reconciliation/components/CreditBala
 const rolePaths = { "Super Admin": "/admin", Reseller: "/reseller", User: "/user" };
 const navigation = {
   "Super Admin": [
-    ["Overview", "", LayoutDashboard],
+    ["Dashboard", "", LayoutDashboard],
     ["Campaigns", "/campaigns", Megaphone],
     ["Contacts", "/contacts", Users],
     // Temporarily hidden; keep the Administrators page for future staff management.
@@ -39,7 +39,7 @@ const navigation = {
     ["Settings", "/settings", Settings],
   ],
   Reseller: [
-    ["Overview", "", LayoutDashboard],
+    ["Dashboard", "", LayoutDashboard],
     ["Campaigns", "/campaigns", Megaphone],
     ["Users", "/users", Users],
     ["Credits", "/credits", Wallet],
@@ -47,7 +47,7 @@ const navigation = {
     ["Settings", "/settings", Settings],
   ],
   User: [
-    ["Overview", "", LayoutDashboard],
+    ["Dashboard", "", LayoutDashboard],
     ["Campaigns", "/campaigns", Megaphone],
     ["Credits", "/credits", Wallet],
     ["Notifications", "/notifications", Bell],

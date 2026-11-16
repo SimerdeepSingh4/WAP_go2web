@@ -233,6 +233,7 @@ export default function ResellerCredits({ activity = false }) {
                 },
                 {
                   label: "Received this month",
+                  tone: "yellow",
                   value:
                     stats?.credits?.creditsPurchasedThisMonth ??
                     stats?.wallet?.creditsPurchasedThisMonth ??
@@ -243,6 +244,7 @@ export default function ResellerCredits({ activity = false }) {
                 },
                 {
                   label: "Assigned users",
+                  tone: "blue",
                   value: accountsQuery.isSuccess ? accounts.length : null,
                   loading: accountsQuery.isPending,
                   caption: "Registered under your agency",
@@ -251,6 +253,7 @@ export default function ResellerCredits({ activity = false }) {
                 },
                 {
                   label: "Active accounts",
+                  tone: "purple",
                   value: accountsQuery.isSuccess
                     ? accounts.filter((a) => a.status === "active").length
                     : null,

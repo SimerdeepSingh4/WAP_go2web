@@ -20,14 +20,14 @@ export default function UserOverview() {
   async function refresh() {
     const results = await Promise.all([campaigns.refetch(), balance.refetch()]);
     const failed = results.some(r => r.isError);
-    toast.add({ title: failed ? "Some information could not be refreshed" : "Overview refreshed", type: failed ? "error" : "success" });
+    toast.add({ title: failed ? "Some information could not be refreshed" : "Dashboard refreshed", type: failed ? "error" : "success" });
   }
   return <>
     <DashboardGreeting username={username} description="Your credits and recent campaigns." action={<div className="flex flex-wrap gap-2"><SupportHelpButton area="my dashboard" /><Button variant="outline" onClick={refresh} disabled={campaigns.isFetching || balance.isFetching}><RefreshCw />Refresh</Button><Button nativeButton={false} render={<Link to="/user/campaigns/create" />}><Plus />Create campaign</Button></div>} />
     <QueryState query={balance}><OverviewMetricCards items={[
-      { label: "Total campaigns", value: campaigns.isSuccess ? (campaigns.data?.data || []).length : null, loading: campaigns.isPending, caption: "All your submissions", icon: Megaphone, path: "/user/campaigns" },
-      { label: "Completed campaigns", value: campaigns.isSuccess ? (campaigns.data?.data || []).filter(campaign => ["completed", "sent"].includes(campaign.status)).length : null, loading: campaigns.isPending, caption: "View campaign results", icon: CheckCircle, path: "/user/campaigns?status=completed" },
-      { label: "Rate per recipient", value: wallet?.ratePerMsg, caption: "Credits per recipient", icon: Coins, path: "/user/credits" },
+      { label: "Total campaigns", value: campaigns.isSuccess ? (campaigns.data?.data || []).length : null, loading: campaigns.isPending, caption: "All your submissions", icon: Megaphone, path: "/user/campaigns", tone: "blue" },
+      { label: "Completed campaigns", value: campaigns.isSuccess ? (campaigns.data?.data || []).filter(campaign => ["completed", "sent"].includes(campaign.status)).length : null, loading: campaigns.isPending, caption: "View campaign results", icon: CheckCircle, path: "/user/campaigns?status=completed", tone: "yellow" },
+      { label: "Rate per recipient", value: wallet?.ratePerMsg, caption: "Credits per recipient", icon: Coins, path: "/user/credits", tone: "purple" },
       { label: "Available credits", value: wallet?.balance, caption: wallet?.isLocked ? "Locked · contact your reseller" : wallet?.expiresAt ? `Expires ${dateTime(wallet.expiresAt)}` : "Available for campaigns · no expiry", icon: Wallet, path: "/user/credits", accent: true },
     ]} /></QueryState>
     <RecentCampaigns query={campaigns} base="/user" />

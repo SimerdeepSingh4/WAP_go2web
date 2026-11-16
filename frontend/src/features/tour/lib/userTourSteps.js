@@ -5,9 +5,9 @@ const step = (element, title, description, side = "bottom") => ({
 const page = (id, title, description, steps) => ({ id, title, description, steps });
 
 export const userPageTours = {
-  overview: page("overview", "Your overview", "This is your home page. See your credits and recent campaigns here.", [
+  overview: page("overview", "Your dashboard", "This is your home page. See your credits and recent campaigns here.", [
     step('.portal-sidebar', "Move between pages", "Use this menu to open your campaigns, credits, notifications, or settings.", "right"),
-    step('.dashboard-summary', "Your credits", "See how many credits you have, the cost per recipient, and when your credits expire."),
+    step('.overview-metrics', "Your credits", "See how many credits you have, the cost per recipient, and when your credits expire."),
     step('.portal-page-actions', "Start a campaign", "Choose Create campaign to send a new message. Refresh checks for the latest information."),
     step('.dashboard-section', "Your recent campaigns", "See your latest campaigns and their status. Select a campaign to learn more, or View all to see the full list."),
     step('.dashboard-note', "Need more credits?", "Choose Request credits to ask your account manager for more credits."),
@@ -48,7 +48,7 @@ export const userPageTours = {
     step('[aria-label="Recipients per page"]', "Browse more results", "Choose how many rows to show. The page controls below the list help you move through the report."),
   ]),
   credits: page("credits", "Your credits", "Credits pay for your campaigns. Check your balance and past credit changes here.", [
-    step('.dashboard-summary', "Your available balance", "See the credits you can use and the cost per recipient. If your wallet is locked, contact your account manager."),
+    step('.overview-metrics', "Your available balance", "See the credits you can use and the cost per recipient. If your wallet is locked, contact your account manager."),
     step(target("request-credits"), "Ask for more credits", "Enter the amount you need and an optional note, then review and send the request. Your balance changes only when your manager adds credits."),
     step('[aria-label="Transaction type"]', "Choose what to see", "Show all credit changes, or choose a type such as campaign charges, refunds, or credit requests."),
     step(target("records"), "Your credit history", "See when credits changed, why they changed, and your balance afterward. A request is only a request; it does not add credits."),
