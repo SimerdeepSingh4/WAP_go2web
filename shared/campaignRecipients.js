@@ -1,11 +1,10 @@
-// Campaign creation uses one unformatted Indian phone number per line.
+// Campaign creation uses one unformatted phone number per line.
 // Keep these rules shared so API requests cannot bypass the form validation.
 export function campaignRecipientError(value) {
     if (typeof value !== "string" || value.length === 0 || /[^0-9]/.test(value)) {
         return "Use digits only, with one number per line; no spaces, commas or +.";
     }
-    if (value.length >= 2 && !value.startsWith("91")) return "Must start with 91.";
-    if (value.length !== 12) return `Has ${value.length} digits; exactly 12 required.`;
+    if (value.length < 10 || value.length > 12) return `Has ${value.length} digits; enter 10 to 12 digits.`;
     return null;
 }
 

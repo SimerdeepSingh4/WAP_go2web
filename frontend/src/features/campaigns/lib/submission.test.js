@@ -12,7 +12,7 @@ test("admin submission is free and missing rates follow the existing server fall
   assert.equal(campaignEstimate({ role: "User", ratePerMsg: 0, balance: 50, recipients: 2 }).cost, 24);
 });
 test("review reports invalid line numbers without repairing or discarding invalid input", () => {
-  const raw = '919876543210\n\n91987654321\n9198765432100\n449876543210\n+919876543210\n919876543210';
+  const raw = '919876543210\n\n91987654321\n9198765432100\n987654321\n+919876543210\n919876543210';
   const result = parseRecipients(raw);
   assert.deepEqual(result.validRecipients, ['919876543210']);
   assert.equal(result.duplicatesCount, 1);
@@ -21,7 +21,7 @@ test("review reports invalid line numbers without repairing or discarding invali
   assert.deepEqual(result.invalidEntries.map(entry => entry.lineNumber), [3, 4, 5, 6]);
   assert.match(result.invalidEntries[0].message, /11 digits/);
   assert.match(result.invalidEntries[1].message, /13 digits/);
-  assert.match(result.invalidEntries[2].message, /start with 91/);
+  assert.match(result.invalidEntries[2].message, /9 digits/);
   assert.deepEqual(splitRecipientInput(raw), raw.split('\n').filter(Boolean));
   assert.deepEqual(parseRecipients(''), { validRecipients: [], duplicatesCount: 0, invalidCount: 0, invalidEntries: [], enteredCount: 0 });
 });
@@ -58,7 +58,7 @@ test("editing allows partial digits and prefix correction but rejects non-digits
     assert(recipientEditError(text), `Must reject ${JSON.stringify(text)}`);
   }
   assert.equal(recipientEditError('919876543210\n9198765432100').lineNumber, 2);
-  assert.match(parseRecipients('44').invalidEntries[0].message, /start with 91/);
+  assert.match(parseRecipients('44').invalidEntries[0].message, /2 digits/);
 });
 
 test("credit estimates charge every entered occurrence, including repeats", () => {
