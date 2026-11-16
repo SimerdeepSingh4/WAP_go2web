@@ -15,6 +15,8 @@ import { number, dateTime, ownerName, needsReport, published, waiting } from "..
 import { resolveUserImageUrl } from "@/features/accounts/lib/profileImage";
 import CampaignDetail from "../components/CampaignDetail";
 import UserAvatar from "@/features/accounts/components/UserAvatar";
+import { downloadProfileDp } from "@/features/campaigns/lib/downloadProfileDp";
+import { toast } from "@/components/ui/toast";
 
 const IST_OFFSET = 330 * 60_000;
 
@@ -195,15 +197,19 @@ export default function Campaigns({ reports = false }) {
           <div className="relative shrink-0">
             <UserAvatar user={c.userId} className="size-7" />
             {(c.profileDp || c.userId?.dp_img) && (
-              <a
-                href={`/api/campaigns/${c._id}/profile-dp`}
-                download="profile-dp.jpg"
+              <button
+                type="button"
+                onClick={async (event) => {
+                  event.stopPropagation();
+                  try { await downloadProfileDp(c._id); }
+                  catch (error) { toast.add({ title: "DP download failed", description: error.response?.data?.message || "Could not download profile picture.", type: "error" }); }
+                }}
                 aria-label="Download profile picture"
                 title="Download DP"
                 className="absolute -bottom-1 -right-1 flex size-4 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-xs hover:text-foreground hover:bg-muted transition-colors"
               >
                 <Download className="size-2.5" />
-              </a>
+              </button>
             )}
           </div>
           <div className="min-w-0 whitespace-nowrap">

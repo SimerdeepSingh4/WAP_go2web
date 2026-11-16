@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { FileText, Pencil, AlertTriangle } from "lucide-react";
+import { FileText, Pencil, AlertTriangle, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -25,6 +25,7 @@ import api from "@/api/client";
 import { toast } from "@/components/ui/toast";
 import UserAvatar from "@/features/accounts/components/UserAvatar";
 import CampaignRecipientReview from "@/features/campaigns/components/detail/CampaignRecipientReview";
+import { downloadProfileDp } from "@/features/campaigns/lib/downloadProfileDp";
 
 export default function CampaignDetail({ id, initialReport, initialStatus, onClose }) {
   const query = useAdminQuery("campaign", { id });
@@ -165,17 +166,19 @@ export default function CampaignDetail({ id, initialReport, initialStatus, onClo
                       <UserAvatar user={campaign.userId} className="size-8" />
                       {ownerName(campaign.userId)}
                       {campaign.profileDp || campaign.userId?.dp_img ? (
-                        <a
-                          href={campaign.profileDp || campaign.userId?.dp_img}
-                          target="_blank"
-                          rel="noreferrer"
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try { await downloadProfileDp(id); }
+                            catch (error) { toast.add({ title: "DP download failed", description: error.response?.data?.message || "Could not download profile picture.", type: "error" }); }
+                          }}
                           aria-label="View profile picture"
-                          title="View profile picture"
+                          title="Download profile picture"
                           className="ml-2 flex items-center gap-1 text-muted-foreground hover:text-foreground"
                         >
                           <Download className="size-4" />
                           <span className="text-xs">DP</span>
-                        </a>
+                        </button>
                       ) : null}
                     </span>
                   </div>
