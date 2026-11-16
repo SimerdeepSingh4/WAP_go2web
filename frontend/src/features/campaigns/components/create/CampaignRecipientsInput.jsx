@@ -25,13 +25,13 @@ export default function CampaignRecipientsInput({
   onBlur,
   showValidation = false,
 }) {
-  const visibleErrors = showValidation ? invalidEntries : invalidEntries.filter(({ message }) => message === "Must start with 91.");
+  const visibleErrors = showValidation ? invalidEntries : [];
   return (
     <SectionCard
       dataTour="create-recipients"
       icon={Users}
       title="Recipients"
-      description="Enter 12-digit numbers starting with 91, one per line, or upload a CSV or TXT file in the same format."
+      description="Enter numbers with 10 to 12 digits, one per line, or upload a CSV or TXT file in the same format."
       aside={
         <>
           <input
@@ -67,7 +67,7 @@ export default function CampaignRecipientsInput({
               Phone numbers <span className="text-destructive">*</span>
             </Label>
             <span id="recipients-help" className="text-[11px] font-medium text-muted-foreground">
-              Exactly 12 digits starting with 91 &bull; One number per line
+              10 to 12 digits &bull; One number per line
             </span>
           </div>
           <Textarea
@@ -113,7 +113,7 @@ export default function CampaignRecipientsInput({
         {inputError && <p id="recipients-input-error" className="text-xs text-destructive" role="alert">Line {inputError.lineNumber}: {inputError.message} The input was not added.</p>}
         {visibleErrors.length > 0 && <div id="recipients-errors" className="text-xs text-destructive" aria-live="polite">
           <ul className="space-y-1">
-            {visibleErrors.slice(0, 10).map(({ lineNumber, message }) => <li key={lineNumber} className={message === "Must start with 91." ? "text-amber-700 dark:text-amber-400" : undefined}>Line {lineNumber}: {message}</li>)}
+            {visibleErrors.slice(0, 10).map(({ lineNumber, message }) => <li key={lineNumber}>Line {lineNumber}: {message}</li>)}
           </ul>
           {visibleErrors.length > 10 && <p className="mt-1">And {number(visibleErrors.length - 10)} more invalid lines.</p>}
         </div>}

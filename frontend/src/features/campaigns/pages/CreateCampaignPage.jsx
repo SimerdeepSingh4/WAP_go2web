@@ -350,8 +350,8 @@ export default function CreateCampaignPage() {
     if (!messageText && totalMediaCount === 0) return setFormError("Please provide message content or attach media (image, video, or PDF).");
     if (isOverCharacterLimit) return setFormError(`Message exceeds the maximum limit of ${CHARACTER_LIMIT} characters (currently ${charCount}). Please shorten it.`);
     if (/\{\{[\s\S]*?\}\}/.test(messageBody)) return setFormError("Dynamic variables like {{...}} are not allowed. Please enter static text only.");
-    if (invalidCount > 0) return setFormError(`Correct ${invalidCount} invalid recipient ${invalidCount === 1 ? "line" : "lines"}. Every number must contain exactly 12 digits, start with 91, and be on its own line.`);
-    if (validRecipients.length === 0) return setFormError("Add at least one 12-digit recipient number starting with 91.");
+    if (invalidCount > 0) return setFormError(`Correct ${invalidCount} invalid recipient ${invalidCount === 1 ? "line" : "lines"}. Every number must contain 10 to 12 digits and be on its own line.`);
+    if (validRecipients.length === 0) return setFormError("Add at least one recipient number with 10 to 12 digits.");
     if (hasInsufficientCredits) return setFormError(`Insufficient credits. You need ${estimatedCost} credits but currently hold ${currentBalance}.`);
 
     const formData = new FormData();

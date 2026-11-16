@@ -2,11 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { campaignRecipientError, campaignRecipientLines } from "./campaignRecipients.js";
 
-test("campaign recipients require exactly 12 ASCII digits starting with 91", () => {
-    for (const value of ["919876543210", "910000000000", "919999999999"]) {
+test("campaign recipients require 10 to 12 ASCII digits", () => {
+    for (const value of ["9876543210", "91987654321", "919876543210"]) {
         assert.equal(campaignRecipientError(value), null);
     }
-    for (const value of ["", "9876543210", "91987654321", "9198765432100", "449876543210", "+919876543210", "91 9876543210", "919876543210 ", " 919876543210", "91987654321a", "91987654321\n", "91987654321\r", "919876543210\n", "９１９８７６５４３２１０", null, 919876543210, {}, ["919876543210"]]) {
+    for (const value of ["", "987654321", "9198765432100", "+919876543210", "91 9876543210", "919876543210 ", " 919876543210", "91987654321a", "91987654321\n", "91987654321\r", "919876543210\n", "９１９８７６５４３２１０", null, 919876543210, {}, ["919876543210"]]) {
         assert.equal(typeof campaignRecipientError(value), "string", `Must reject ${JSON.stringify(value)}`);
     }
 });

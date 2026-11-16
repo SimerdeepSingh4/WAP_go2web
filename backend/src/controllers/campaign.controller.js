@@ -652,7 +652,7 @@ export const createCampaign = async (req, res) => {
             await mongoSession.endSession();
             return res.status(400).json({
                 success: false,
-                message: "Every recipient must contain exactly 12 digits, start with 91, and be entered one per line without spaces, commas or +.",
+                message: "Every recipient must contain 10 to 12 digits and be entered one per line without spaces, commas or +.",
                 invalidCount: invalidEntries.length,
                 invalidEntries: invalidEntries.slice(0, 10),
             });
