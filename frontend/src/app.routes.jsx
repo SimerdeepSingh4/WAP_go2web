@@ -29,7 +29,8 @@ const AdminLayout = lazy(() => import("./features/admin/components/AdminLayout.j
 const AdminOverview = lazy(() => import("./features/admin/pages/Overview.jsx"));
 const AdminCampaigns = lazy(() => import("./features/admin/pages/Campaigns.jsx"));
 const AdminContacts = lazy(() => import("./features/admin/pages/Contacts.jsx"));
-const Administrators = lazy(() => import("./features/admin/pages/Administrators.jsx"));
+// Temporarily hidden; retain the page component and route for future staff management.
+// const Administrators = lazy(() => import("./features/admin/pages/Administrators.jsx"));
 const AdminAuditLog = lazy(() => import("./features/admin/pages/AuditLog.jsx"));
 const CreditReconciliation = lazy(() => import("./features/reconciliation/pages/ReconciliationPage.jsx"));
 const AdminAccounts = lazy(() => import("./features/admin/pages/Accounts.jsx"));
@@ -138,7 +139,7 @@ export const router = createBrowserRouter([
       { path: "campaigns/:id/report", element: <CampaignReportPage /> },
       { path: "contacts", element: <AdminContacts /> },
       { path: "reports", element: <Navigate to="/admin/campaigns?status=unreported" replace /> },
-      { path: "administrators", element: <Administrators /> },
+      // { path: "administrators", element: <Administrators /> },
       { path: "audit", element: <AdminAuditLog /> },
       { path: "reconciliation", element: <CreditReconciliation /> },
       { path: "resellers", element: <AdminAccounts key="resellers" role="Reseller" /> },

@@ -555,8 +555,8 @@ export default function Accounts({ role }) {
         title={role === "Reseller" ? "Resellers Network" : "User Accounts"}
         description={
           role === "Reseller"
-            ? "Manage reseller accounts, add credits, set message rates, and check balances."
-            : "Manage user accounts, allocate credits directly, configure message rates, and audit usage."
+            ? "Manage reseller accounts, add credits, set recipient rates, and check balances."
+            : "Manage user accounts, allocate credits directly, configure recipient rates, and audit usage."
         }
         action={
           <Button

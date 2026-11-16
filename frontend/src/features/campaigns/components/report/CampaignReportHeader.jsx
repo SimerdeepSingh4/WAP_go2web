@@ -47,13 +47,13 @@ export default function CampaignReportHeader({
               <>
                 Delivery report for{" "}
                 <span className="inline-flex items-center gap-1.5 font-medium text-foreground/80"><UserAvatar user={campaign.userId} className="size-6" />{ownerName(campaign.userId)}</span>
-                {campaign.userId?.role ? ` (${campaign.userId.role})` : ""} · {rate} credits per message · Submitted{" "}
+                {campaign.userId?.role ? ` (${campaign.userId.role})` : ""} · {rate} credits per recipient · Submitted{" "}
                 {dateTime(campaign.createdAt)}
                 {isPublished && ` · Published ${dateTime(campaign.campaignSummary.reportedAt)}`}
               </>
             ) : (
               <>
-                Final delivery and credit report · {rate} credits per message · Submitted {dateTime(campaign.createdAt)}
+                Final delivery and credit report · {rate} credits per recipient · Submitted {dateTime(campaign.createdAt)}
                 {isPublished && ` · Published on ${dateTime(campaign.campaignSummary.reportedAt)}`}
               </>
             )}

@@ -818,7 +818,7 @@ export const createCampaign = async (req, res) => {
             const posting = await postCreditMovement({
                 session: mongoSession, operationKey: creditPostingKey(req, "campaign-charge"), type: "DEDUCT", amount: requiredCredits,
                 fromUser: req.user._id, toUser: req.user._id, performedBy: req.user._id, campaignId: req.creditCampaignId,
-                notes: `Campaign "${campaignTitle}": ${totalRecipients} submitted number(s), including ${duplicateOccurrences} repeat occurrence(s), at rate ${rate}/msg`, rateSnapshot: rate,
+                notes: `Campaign "${campaignTitle}": ${totalRecipients} submitted number(s), including ${duplicateOccurrences} repeat occurrence(s), at rate ${rate} credits/recipient`, rateSnapshot: rate,
             });
             updatedWallet = posting.wallet;
 
@@ -828,7 +828,7 @@ export const createCampaign = async (req, res) => {
                 await abortCreditSession(mongoSession);
                 await mongoSession.endSession();
                 return res.status(400).json({
-                    message: `Insufficient credits to launch campaign. Required: ${requiredCredits} credits (${totalRecipients} numbers × ${rate}/msg), Available: ${available} credits.`,
+                    message: `Insufficient credits to launch campaign. Required: ${requiredCredits} credits (${totalRecipients} recipients × ${rate} credits/recipient), Available: ${available} credits.`,
                     success: false,
                     required: requiredCredits,
                     available,
@@ -1461,7 +1461,7 @@ export const updateCampaignMetrics = async (req, res) => {
                     const posting = await postCreditMovement({
                         session: mongoSession, operationKey: campaignPostingReference(campaign, "status-refund", refundAmount), type: "REFUND", amount: refundAmount,
                         fromUser: req.user._id, toUser: campaign.userId, performedBy: req.user._id, campaignId: campaign._id,
-                        notes: wholeCampaignFailed ? `Remaining credit refund: campaign "${campaign.campaignTitle}" marked failed.` : `Automated refund for ${numFailed} failed/wrong number(s) on campaign "${campaign.campaignTitle}" at rate ${rate}/msg`, rateSnapshot: rate,
+                        notes: wholeCampaignFailed ? `Remaining credit refund: campaign "${campaign.campaignTitle}" marked failed.` : `Automated refund for ${numFailed} failed/wrong number(s) on campaign "${campaign.campaignTitle}" at rate ${rate} credits/recipient`, rateSnapshot: rate,
                     });
                     updatedUserWallet = posting.wallet;
                     const refundTransaction = [posting.transaction];

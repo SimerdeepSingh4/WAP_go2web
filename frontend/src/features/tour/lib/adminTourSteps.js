@@ -8,7 +8,7 @@ const table = (description) => step('#dashboard-main [data-tour="records"]', "Ex
 
 function accountsPage(reseller) {
   return page(reseller ? "resellers" : "users", reseller ? "Resellers" : "User accounts", "Manage account access, pricing, and credits.", [
-    step(target("add-account"), reseller ? "Add a reseller" : "Add a user", "Create an account with a username, email, password, message rate, and access settings. Review the details before confirming."),
+    step(target("add-account"), reseller ? "Add a reseller" : "Add a user", "Create an account with a username, email, password, recipient rate, and access settings. Review the details before confirming."),
     search("Search by account name or email. Clear your search to return to the full list."),
     step('#dashboard-main [aria-label="Account status"]', "Filter account access", "Focus on active, blocked, or expired accounts."),
     table(reseller ? "Review contact details, assigned user counts, credits per recipient, expiry, and status. Select a name to inspect its profile and wallet. Sort supported columns and browse with the page controls."
@@ -47,7 +47,7 @@ export const adminPageTours = {
     step(target("credit-actions"), "Add or reclaim credits", "Add Credits funds an active account. Reclaim takes back available credits. Review the account, amount, and notes before confirmation."),
     search("Search for an account by name or email before changing its balance."),
     step('#dashboard-main [aria-label="Filter by role"]', "Focus on a role", "Show all wallets, reseller wallets, or user wallets."),
-    table("Compare balances, message rates, wallet expiry, and locked status. Row actions let you add or reclaim credits and view history. Wallet credit expiry is separate from account access expiry."),
+    table("Compare balances, recipient rates, wallet expiry, and locked status. Row actions let you add or reclaim credits and view history. Wallet credit expiry is separate from account access expiry."),
   ]),
   activity: page("activity", "Transactions", "Follow the audit trail for allocations, campaign charges, refunds, and deductions.", [
     step('#dashboard-main [aria-label="Transaction type"]', "Filter credit movements", "Isolate allocations, charges, refunds, or other adjustments by transaction type."),
@@ -61,7 +61,7 @@ export const adminPageTours = {
     step('.portal-settings-summary', "Your current preferences", "This summary shows your selected daily campaign allowance, sending window, and device limit."),
     step('#operating-tab-campaigns', "Campaign preferences", "The Campaigns tab contains daily allowances, sending hours, and behavior outside the sending window."),
     step('#operating-tab-devices', "Device access", "The Devices tab contains limit preferences and live signed-in sessions. Disconnect ends a session immediately. Signing out all devices also ends your current session."),
-    step('#operating-tab-billing', "Rates and balances", "The Billing tab contains default message rates, low-balance thresholds, credit expiry, refund preferences, and overdraft protection."),
+    step('#operating-tab-billing', "Rates and balances", "The Billing tab contains default recipient rates, low-balance thresholds, credit expiry, refund preferences, and overdraft protection."),
     step('.portal-settings-panel', "Edit the selected category", "Review the active tab's fields and explanations. Address validation messages before saving. Switch tabs after this walkthrough to explore each category."),
     step('.portal-savebar', "Save your preferences", "Save changes keeps edits in this browser. Restore defaults resets the form; save afterward to keep the defaults."),
   ]),

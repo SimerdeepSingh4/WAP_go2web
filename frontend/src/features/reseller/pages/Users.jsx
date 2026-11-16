@@ -118,7 +118,7 @@ function UserDetail({ account, onClose, onAction }) {
                 }}
               >
                 <Pencil className="size-3.5 text-muted-foreground" />
-                Change Message Rate
+                Change Recipient Rate
               </Button>
               <Button
                 variant="outline"

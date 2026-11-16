@@ -63,8 +63,8 @@ const userSchema = new mongoose.Schema(
         accessReason: { type: String, trim: true, default: "", maxlength: 1000 },
         ratePerMsg: {
             type: Number,
-            default: 12, // default 12 paise per message
-            min: [0, "Rate per message cannot be negative"],
+            default: 12, // default 12 credits per recipient
+            min: [0, "Rate per recipient cannot be negative"],
         },
         maxVideoSizeMB: {
             // Legacy API field; campaign uploads use mediaUploadLimits below.

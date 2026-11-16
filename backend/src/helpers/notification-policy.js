@@ -273,10 +273,10 @@ export function formatNotification(event, viewer, subject, threshold = 100, part
             return result("accounts", title, body, href);
         }
         if (d.changes?.includes("ratePerMsg")) {
-            const title = isSelf ? "Message rate updated" : `Message rate updated • ${subjectName}`;
+            const title = isSelf ? "Recipient rate updated" : `Recipient rate updated • ${subjectName}`;
             const body = isSelf
-                ? `The rate is now ${d.rate} credits per message.`
-                : `Message rate for ${subjectLabel} is now ${d.rate} credits per message.`;
+                ? `The rate is now ${d.rate} credits per recipient.`
+                : `Recipient rate for ${subjectLabel} is now ${d.rate} credits per recipient.`;
             return result("accounts", title, body, href);
         }
         if (d.changes?.includes("expiresAt")) {

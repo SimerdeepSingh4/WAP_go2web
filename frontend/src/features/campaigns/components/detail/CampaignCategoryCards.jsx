@@ -583,7 +583,7 @@ export default function CampaignCategoryCards({ campaign }) {
       <section data-tour="report-editor-actions" className="overflow-hidden rounded-xl border border-border bg-card" aria-label="Report controls">
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div className="space-y-1">
-            <h2 className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">Recipient report <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-normal text-muted-foreground">{number(rate)} credits / message</span></h2>
+            <h2 className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">Recipient report <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-normal text-muted-foreground">{number(rate)} credits / recipient</span></h2>
             <p className="text-[11px] text-muted-foreground">Paste numbers into a category to move them.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">

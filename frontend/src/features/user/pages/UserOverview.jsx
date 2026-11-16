@@ -27,7 +27,7 @@ export default function UserOverview() {
     <QueryState query={balance}><OverviewMetricCards items={[
       { label: "Total campaigns", value: campaigns.isSuccess ? (campaigns.data?.data || []).length : null, loading: campaigns.isPending, caption: "All your submissions", icon: Megaphone, path: "/user/campaigns" },
       { label: "Completed campaigns", value: campaigns.isSuccess ? (campaigns.data?.data || []).filter(campaign => ["completed", "sent"].includes(campaign.status)).length : null, loading: campaigns.isPending, caption: "View campaign results", icon: CheckCircle, path: "/user/campaigns?status=completed" },
-      { label: "Rate per recipient", value: wallet?.ratePerMsg, caption: "Credits per message", icon: Coins, path: "/user/credits" },
+      { label: "Rate per recipient", value: wallet?.ratePerMsg, caption: "Credits per recipient", icon: Coins, path: "/user/credits" },
       { label: "Available credits", value: wallet?.balance, caption: wallet?.isLocked ? "Locked · contact your reseller" : wallet?.expiresAt ? `Expires ${dateTime(wallet.expiresAt)}` : "Available for campaigns · no expiry", icon: Wallet, path: "/user/credits", accent: true },
     ]} /></QueryState>
     <RecentCampaigns query={campaigns} base="/user" />

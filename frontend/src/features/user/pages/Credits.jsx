@@ -84,7 +84,7 @@ export default function UserCredits({ activity = false }) {
                 label: "Rate per recipient",
                 value: balance.data?.wallet?.ratePerMsg,
                 loading: balance.isPending,
-                caption: "Credits deducted per message",
+                caption: "Credits deducted per recipient",
                 icon: Coins,
               },
               {

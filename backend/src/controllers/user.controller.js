@@ -1210,7 +1210,7 @@ export async function updateUser(req, res) {
         if (ratePerMsg !== undefined && ratePerMsg !== null && ratePerMsg !== "") {
             const parsedRate = Number(ratePerMsg);
             if (isNaN(parsedRate) || parsedRate < 0) {
-                return res.status(400).json({ message: "Rate per message must be a non-negative number", success: false });
+                return res.status(400).json({ message: "Rate per recipient must be a non-negative number", success: false });
             }
             targetUser.ratePerMsg = parsedRate;
         }

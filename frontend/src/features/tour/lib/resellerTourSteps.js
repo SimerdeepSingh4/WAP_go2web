@@ -16,7 +16,7 @@ export const resellerPageTours = {
     step('#tour-topbar-search', "Find something quickly", "Search for a user or campaign here, then select a result to open it."),
   ]),
   users: page("users", "Your users", "Manage your client accounts and the credits they use for campaigns.", [
-    step(target("reseller-add-user"), "Add a user", "Create a client account with a name, email, password, and message rate. Review the details before confirming."),
+    step(target("reseller-add-user"), "Add a user", "Create a client account with a name, email, password, and recipient rate. Review the details before confirming."),
     step('input[aria-label="Search username or email"]', "Find a user", "Type a username or email here. Clear the search to see all your users again."),
     step('[aria-label="Account status"]', "Check account access", "Choose active, blocked, or expired to show only users with that status."),
     step(target("records"), "Read the user list", "Check each user's details, rate, and status. Select a name to see the account profile and wallet balance."),

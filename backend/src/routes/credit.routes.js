@@ -76,7 +76,7 @@ creditRouter.post(
 // Users see only their own, Resellers see their users, Super Admin sees all
 creditRouter.get("/transactions", getTransactions);
 
-// PATCH /api/credits/rate — Update a user's rate per message
+// PATCH /api/credits/rate — Update a user's rate per recipient
 // Super Admin can set rates for Resellers and Users
 // Reseller can set rates for their own Users only
 creditRouter.patch(

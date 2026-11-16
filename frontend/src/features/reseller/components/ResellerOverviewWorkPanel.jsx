@@ -163,7 +163,7 @@ function UserNetwork({ query }) {
                       {user.username}
                     </p>
                     <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {user.email} · {number(user.ratePerMsg)} credits/msg
+                      {user.email} · {number(user.ratePerMsg)} credits/recipient
                     </p>
                   </div>
                   <StatusBadge status={user.status} />

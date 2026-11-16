@@ -14,7 +14,7 @@ import { recordSupportAction, publishSupportAction } from "../helpers/support-ac
 /**
  * GET /api/credits/balance
  * ------------------------
- * Returns the current user's wallet balance and rate per message.
+ * Returns the current user's wallet balance and rate per recipient.
  * Super Admin / Reseller can also query ?userId=xxx to check any user's balance.
  */
 export async function getBalance(req, res) {
@@ -561,7 +561,7 @@ export async function deductCredits(req, res) {
                 await abortCreditSession(mongoSession);
                 await mongoSession.endSession();
                 return res.status(400).json({
-                    message: "messageCount must be a positive number.",
+                    message: "Recipient count must be a positive number.",
                     success: false,
                 });
             }
@@ -571,7 +571,7 @@ export async function deductCredits(req, res) {
                 await mongoSession.endSession();
                 return res.status(400).json({
                     message:
-                        "User does not have a valid rate per message configured.",
+                        "User does not have a valid rate per recipient configured.",
                     success: false,
                 });
             }
@@ -605,7 +605,7 @@ export async function deductCredits(req, res) {
         const posting = await postCreditMovement({
             session: mongoSession, operationKey: creditPostingKey(req, "deduction"), type: "DEDUCT", amount: deductionAmount,
             fromUser: userId, toUser: userId, performedBy: req.user._id,
-            notes: notes || (amount !== undefined && amount !== null ? `Deducted ${deductionAmount} credits` : `Deducted for ${count} message(s) at rate ${targetUser.ratePerMsg}/msg`),
+            notes: notes || (amount !== undefined && amount !== null ? `Deducted ${deductionAmount} credits` : `Deducted for ${count} recipient(s) at rate ${targetUser.ratePerMsg} credits/recipient`),
             rateSnapshot: targetUser.ratePerMsg,
         });
         const wallet = posting.wallet;
@@ -617,7 +617,7 @@ export async function deductCredits(req, res) {
 
         return res.status(200).json({
             success: true,
-            message: `Deducted ${deductionAmount} credits${amount !== undefined && amount !== null ? '' : ` for ${count} message(s)`}.`,
+            message: `Deducted ${deductionAmount} credits${amount !== undefined && amount !== null ? '' : ` for ${count} recipient(s)`}.`,
             deduction: {
                 transactionId: transaction[0].transactionId,
                 amount: deductionAmount,
@@ -735,7 +735,7 @@ export async function getTransactions(req, res) {
 /**
  * PATCH /api/credits/rate
  * -----------------------
- * Update a user's rate per message.
+ * Update a user's rate per recipient.
  * Only Super Admin can set Reseller rates.
  * Super Admin / Reseller can set User rates (reseller only for their own users).
  *
@@ -771,7 +771,7 @@ export async function updateRate(req, res) {
         // Permission checks
         if (req.user.role === "User") {
             return res.status(403).json({
-                message: "Users cannot change message rates.",
+                message: "Users cannot change recipient rates.",
                 success: false,
             });
         }
@@ -798,7 +798,7 @@ export async function updateRate(req, res) {
 
         return res.status(200).json({
             success: true,
-            message: `Rate <upd></upd>ated for ${targetUser.username}: ${previousRate} → ${rate} per message.`,
+            message: `Rate updated for ${targetUser.username}: ${previousRate} → ${rate} credits per recipient.`,
             user: {
                 id: targetUser._id,
                 username: targetUser.username,
