@@ -162,6 +162,8 @@ export default function ResellerBrandingSettings() {
     try {
       setUploadingLogo(true);
       await logoMutation.mutateAsync(file);
+    } catch {
+      // Handled by logoMutation.onError toast
     } finally {
       setUploadingLogo(false);
       event.target.value = "";

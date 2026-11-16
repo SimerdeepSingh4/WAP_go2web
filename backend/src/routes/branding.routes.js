@@ -7,7 +7,7 @@ import {
     removeResellerLogo,
 } from "../controllers/branding.controller.js";
 import { protect, authorizeRoles } from "../middlewares/auth.middleware.js";
-import { uploadProfileImage } from "../middlewares/upload.middleware.js";
+import { uploadBrandingLogo } from "../middlewares/upload.middleware.js";
 
 const brandingRouter = Router();
 
@@ -33,7 +33,7 @@ brandingRouter.post(
     "/reseller/logo",
     protect,
     authorizeRoles("Reseller"),
-    uploadProfileImage,
+    uploadBrandingLogo,
     uploadResellerLogo
 );
 

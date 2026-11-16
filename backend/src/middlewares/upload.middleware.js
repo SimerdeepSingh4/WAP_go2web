@@ -273,10 +273,40 @@ export const uploadProfileImage = multer({
     },
 }).single("dp_img");
 
+export const uploadBrandingLogo = (req, res, next) => {
+    multer({
+        storage,
+        limits: { fileSize: 5 * 1024 * 1024 },
+        fileFilter: (req, file, cb) => {
+            if (["image/jpeg", "image/png", "image/webp", "image/svg+xml"].includes(file.mimetype)) {
+                cb(null, true);
+            } else {
+                cb(new Error("Logo image must be JPG, PNG, WebP, or SVG."), false);
+            }
+        },
+    }).fields([
+        { name: "image", maxCount: 1 },
+        { name: "logo", maxCount: 1 },
+        { name: "dp_img", maxCount: 1 },
+    ])(req, res, (err) => {
+        if (err) {
+            return res.status(400).json({
+                message: err.message || "Failed to process logo upload.",
+                success: false,
+            });
+        }
+        if (req.files) {
+            req.file = req.files.image?.[0] || req.files.logo?.[0] || req.files.dp_img?.[0] || null;
+        }
+        next();
+    });
+};
+
 export default {
     uploadFiles,
     uploadDocument,
     uploadProfileImage,
+    uploadBrandingLogo,
     getActiveMediaUploads,
     resetActiveMediaUploads,
     MAX_SINGLE_MEDIA_SIZE,

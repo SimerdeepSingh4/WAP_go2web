@@ -2,7 +2,7 @@ import NotificationBell from "@/features/notifications/components/NotificationBe
 import GlobalSearch from "./GlobalSearch";
 import ThemeToggle from "../../branding/components/ThemeToggle";
 import HelpMenu from "./HelpMenu";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { Link, NavLink, Navigate, Outlet, useLocation } from "react-router";
 import { LayoutDashboard, Megaphone, Users, Building2, Wallet, ReceiptText, Settings, LogOut, ChevronDown, PanelLeftClose, PanelLeftOpen, Bell, HelpCircle, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
@@ -203,7 +203,7 @@ export default function DashboardLayout({ role }) {
                     }
                   >
                     <div className="relative">
-                      <UserAvatar user={user} className="size-8.5 rounded-full border border-border bg-muted shrink-0" />
+                      <UserAvatar user={user} className="size-8.5 rounded-full border border-border bg-transparent shrink-0" />
                       {unreadNotifications > 0 && (
                         <span
                           className="md:hidden absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-red-500 border-2 border-background"
@@ -263,7 +263,9 @@ export default function DashboardLayout({ role }) {
             <CreditBalanceResult />
             <main id="dashboard-main" tabIndex={-1} className="portal-main">
               <ReadOnlyContext.Provider key={readOnly ? "restricted" : "editable"} value={readOnly ? { restriction, onBlocked: showReadOnlyNotice } : null}>
-                {readOnly ? <fieldset className="account-readonly-content" aria-label="Read-only dashboard" onClickCapture={blockReadOnlyAction} onSubmitCapture={event => { event.preventDefault(); event.stopPropagation(); showReadOnlyNotice(); }}><Outlet /></fieldset> : <Outlet />}
+                <Suspense fallback={<div role="status" className="py-8 text-sm text-muted-foreground">Loading page…</div>}>
+                  {readOnly ? <fieldset className="account-readonly-content" aria-label="Read-only dashboard" onClickCapture={blockReadOnlyAction} onSubmitCapture={event => { event.preventDefault(); event.stopPropagation(); showReadOnlyNotice(); }}><Outlet /></fieldset> : <Outlet />}
+                </Suspense>
               </ReadOnlyContext.Provider>
             </main>
           </SidebarInset>

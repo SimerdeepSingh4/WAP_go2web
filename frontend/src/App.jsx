@@ -6,7 +6,7 @@ import { BrandingProvider } from "./features/branding/context/BrandingContext";
 import { SocketProvider } from "./features/socket/context/socket.context.jsx";
 import { router } from "./app.routes.jsx";
 import { Toaster } from "./components/ui/toast";
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useAuthContext } from "./features/auth/context/auth.context.jsx";
 
 function SessionRouter() {
@@ -25,7 +25,9 @@ const App = () => {
           <BrandingProvider>
             <Toaster>
               <SocketProvider>
-                <SessionRouter />
+                <Suspense fallback={<div role="status" className="p-8 text-sm text-muted-foreground">Loading workspace…</div>}>
+                  <SessionRouter />
+                </Suspense>
               </SocketProvider>
             </Toaster>
           </BrandingProvider>

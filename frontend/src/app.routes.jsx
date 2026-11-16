@@ -1,24 +1,7 @@
-import NotificationsPage from "./features/notifications/pages/NotificationsPage.jsx";
 import { createBrowserRouter, Navigate, useParams } from "react-router";
 import LoginPage from "./features/auth/pages/Login.jsx";
 import { useAuth } from "./features/auth/hooks/useAuth.js";
 import RoleRoute from "./components/guards/RoleRoute.jsx";
-import ResellerOverview from "./features/reseller/pages/Overview.jsx";
-import ResellerLayout from "./features/reseller/components/ResellerLayout.jsx";
-import ResellerUsers from "./features/reseller/pages/Users.jsx";
-import ResellerCredits from "./features/reseller/pages/Credits.jsx";
-import ResellerCampaigns from "./features/reseller/pages/Campaigns.jsx";
-import ResellerSettings from "./features/reseller/pages/Settings.jsx";
-import SupportChatPage from "./features/support/pages/SupportChatPage.jsx";
-import UserLayout from "./features/user/components/UserLayout.jsx";
-import UserOverview from "./features/user/pages/UserOverview.jsx";
-import UserCredits from "./features/user/pages/Credits.jsx";
-import UserCampaigns from "./features/user/pages/Campaigns.jsx";
-import UserSettings from "./features/user/pages/Settings.jsx";
-import CreateCampaignPage from "./features/campaigns/pages/CreateCampaignPage.jsx";
-import CampaignDetailPage from "./features/campaigns/pages/CampaignDetailPage.jsx";
-import CampaignReportPage from "./features/campaigns/pages/CampaignReportPage.jsx";
-import CreateCampaignReportPage from "./features/campaigns/pages/CreateCampaignReportPage.jsx";
 import PreviewBanner from "./components/guards/PreviewBanner.jsx";
 
 import { lazy, Suspense } from "react";
@@ -36,6 +19,25 @@ const CreditReconciliation = lazy(() => import("./features/reconciliation/pages/
 const AdminAccounts = lazy(() => import("./features/admin/pages/Accounts.jsx"));
 const AdminCredits = lazy(() => import("./features/admin/pages/Credits.jsx"));
 const AdminOperatingRules = lazy(() => import("./features/admin/pages/OperatingRules.jsx"));
+
+const ResellerLayout = lazy(() => import("./features/reseller/components/ResellerLayout.jsx"));
+const ResellerOverview = lazy(() => import("./features/reseller/pages/Overview.jsx"));
+const ResellerUsers = lazy(() => import("./features/reseller/pages/Users.jsx"));
+const ResellerCredits = lazy(() => import("./features/reseller/pages/Credits.jsx"));
+const ResellerCampaigns = lazy(() => import("./features/reseller/pages/Campaigns.jsx"));
+const ResellerSettings = lazy(() => import("./features/reseller/pages/Settings.jsx"));
+const UserLayout = lazy(() => import("./features/user/components/UserLayout.jsx"));
+const UserOverview = lazy(() => import("./features/user/pages/UserOverview.jsx"));
+const UserCredits = lazy(() => import("./features/user/pages/Credits.jsx"));
+const UserCampaigns = lazy(() => import("./features/user/pages/Campaigns.jsx"));
+const UserSettings = lazy(() => import("./features/user/pages/Settings.jsx"));
+
+const NotificationsPage = lazy(() => import("./features/notifications/pages/NotificationsPage.jsx"));
+const SupportChatPage = lazy(() => import("./features/support/pages/SupportChatPage.jsx"));
+const CreateCampaignPage = lazy(() => import("./features/campaigns/pages/CreateCampaignPage.jsx"));
+const CampaignDetailPage = lazy(() => import("./features/campaigns/pages/CampaignDetailPage.jsx"));
+const CampaignReportPage = lazy(() => import("./features/campaigns/pages/CampaignReportPage.jsx"));
+const CreateCampaignReportPage = lazy(() => import("./features/campaigns/pages/CreateCampaignReportPage.jsx"));
 
 function RoleCampaignDetailRedirect() {
   const { user } = useAuth();
