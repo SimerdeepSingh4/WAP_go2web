@@ -21,7 +21,7 @@ export const adminPageTours = {
   overview: page("overview", "Admin dashboard", "Get familiar with the tools for managing campaigns, accounts, and credits.", [
     step('.portal-sidebar', "Your workspace navigation", "Move between Dashboard, campaigns, resellers, users, credits, transactions, notifications, and settings.", "right"),
     step('.overview-metrics', "Platform totals", "See campaign totals, active resellers, user accounts, and credits in circulation. Select a card to open its management page."),
-    step('.portal-page-actions', "Refresh or allocate credits", "Refresh reloads dashboard data. Allocate credits opens the credit form to fund an account."),
+    step('.portal-page-actions', "Allocate credits", "Allocate credits opens the credit form to fund an account."),
     step('.dashboard-two-column > :first-child', "Campaigns awaiting attention", "Review pending submissions and their owners. Open a campaign to inspect it, or select View all for the complete queue."),
     step('.dashboard-two-column > :last-child', "Your reseller network", "Review reseller accounts and status, then use Manage to open the full network."),
     step('.portal-overview > .dashboard-section', "Recent credit movements", "Review recent allocations and adjustments. Open the full transaction history for a complete audit trail."),
@@ -47,7 +47,7 @@ export const adminPageTours = {
     step(target("credit-actions"), "Add or reclaim credits", "Add Credits funds an active account. Reclaim takes back available credits. Review the account, amount, and notes before confirmation."),
     search("Search for an account by name or email before changing its balance."),
     step('#dashboard-main [aria-label="Filter by role"]', "Focus on a role", "Show all wallets, reseller wallets, or user wallets."),
-    table("Compare balances, recipient rates, wallet expiry, and locked status. Row actions let you add or reclaim credits and view history. Wallet credit expiry is separate from account access expiry."),
+    table("Compare balances, recipient rates, account expiry, and locked status. Row actions let you add or reclaim credits and view history."),
   ]),
   activity: page("activity", "Transactions", "Follow the audit trail for allocations, campaign charges, refunds, and deductions.", [
     step('#dashboard-main [aria-label="Transaction type"]', "Filter credit movements", "Isolate allocations, charges, refunds, or other adjustments by transaction type."),
@@ -61,7 +61,7 @@ export const adminPageTours = {
     step('.portal-settings-summary', "Your current preferences", "This summary shows your selected daily campaign allowance, sending window, and device limit."),
     step('#operating-tab-campaigns', "Campaign preferences", "The Campaigns tab contains daily allowances, sending hours, and behavior outside the sending window."),
     step('#operating-tab-devices', "Device access", "The Devices tab contains limit preferences and live signed-in sessions. Disconnect ends a session immediately. Signing out all devices also ends your current session."),
-    step('#operating-tab-billing', "Rates and balances", "The Billing tab contains default recipient rates, low-balance thresholds, credit expiry, refund preferences, and overdraft protection."),
+    step('#operating-tab-billing', "Rates and balances", "The Billing tab contains default recipient rates, low-balance thresholds, default account expiry, refund preferences, and overdraft protection."),
     step('.portal-settings-panel', "Edit the selected category", "Review the active tab's fields and explanations. Address validation messages before saving. Switch tabs after this walkthrough to explore each category."),
     step('.portal-savebar', "Save your preferences", "Save changes keeps edits in this browser. Restore defaults resets the form; save afterward to keep the defaults."),
   ]),
@@ -80,7 +80,7 @@ export const adminPageTours = {
     step(target("report-editor"), "Review before publishing", "Check numbers and credit treatment carefully. On the review page, inspect the owner's preview before confirming publication."),
   ]),
   report: page("campaign-report", "Review and publish a report", "Check the owner's preview and credit adjustments before making a report available.", [
-    step(target("report-review-header"), "Report state and actions", "Check the last publication time. Refresh reloads data. Edit report opens the editor. Publish report opens a confirmation."),
+    step(target("report-review-header"), "Report state and actions", "Check the last publication time. Edit report opens the editor. Publish report opens a confirmation."),
     step(target("report-credit-preview"), "Check the credit adjustment", "Review the estimated refund or deduction. Publication applies the adjustment; draft edits alone do not change the owner's balance."),
     step(target("report-owner-preview"), "See the owner's report", "Inspect the content and outcomes the owner will see after publication. Correct errors with Edit report before publishing."),
   ]),

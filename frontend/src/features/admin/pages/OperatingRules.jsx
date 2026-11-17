@@ -23,13 +23,13 @@ const DEFAULT_SETTINGS = {
   startTime: "09:00", endTime: "19:00", outOfWindowBehavior: "queue",
   maxAllowedDevices: 3, deviceEvictionStrategy: "fifo",
   defaultRatePerMsg: 1, lowBalanceThreshold: 500,
-  creditExpiryValue: 2, creditExpiryUnit: "years", creditExpiryYears: "2",
+  accountExpiryValue: 2, accountExpiryUnit: "years",
   autoRefundEnabled: true, strictOverdraftProtection: true,
 };
 const TABS = [
   { id: "campaigns", short: "Campaigns", long: " & hours", icon: Clock, description: "Set campaign allowances and the daily sending window." },
   { id: "devices", short: "Devices", long: " & sessions", icon: MonitorSmartphone, description: "Choose device limits and review your signed-in sessions." },
-  { id: "billing", short: "Credits", long: " & rates", icon: Coins, description: "Set default pricing, expiry, and balance preferences." },
+  { id: "billing", short: "Credits", long: " & rates", icon: Coins, description: "Set default pricing, account expiry, and balance preferences." },
 ];
 const FIELD_META = {
   dailyCampaignLimit: ["campaigns", "daily-limit"],
@@ -37,7 +37,7 @@ const FIELD_META = {
   maxAllowedDevices: ["devices", "device-limit"],
   defaultRatePerMsg: ["billing", "default-rate"],
   lowBalanceThreshold: ["billing", "low-balance"],
-  creditExpiryValue: ["billing", "credit-expiry-value"],
+  accountExpiryValue: ["billing", "account-expiry-value"],
 };
 
 function readSettings() {
@@ -45,6 +45,12 @@ function readSettings() {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return { ...DEFAULT_SETTINGS };
     const savedSettings = { ...parsed };
+    savedSettings.accountExpiryValue ??= parsed.creditExpiryValue ?? DEFAULT_SETTINGS.accountExpiryValue;
+    savedSettings.accountExpiryUnit ??= parsed.creditExpiryUnit ?? DEFAULT_SETTINGS.accountExpiryUnit;
+    delete savedSettings.creditExpiryValue;
+    delete savedSettings.creditExpiryUnit;
+    delete savedSettings.creditExpiryYears;
+    delete savedSettings.accountExpiryYears;
     delete savedSettings.maxRecipientsPerCampaign;
     return { ...DEFAULT_SETTINGS, ...savedSettings };
   } catch { return { ...DEFAULT_SETTINGS }; }
@@ -119,7 +125,7 @@ function validateSettings(settings) {
   if (!integer(settings.maxAllowedDevices, 1, 5)) errors.maxAllowedDevices = "Choose between 1 and 5 devices.";
   if (settings.defaultRatePerMsg === "" || !Number.isFinite(Number(settings.defaultRatePerMsg)) || Number(settings.defaultRatePerMsg) < 0.01) errors.defaultRatePerMsg = "Enter a rate of at least 0.01 credits.";
   if (!integer(settings.lowBalanceThreshold, 0)) errors.lowBalanceThreshold = "Enter a whole number of 0 or more.";
-  if (settings.creditExpiryUnit !== "never" && (settings.creditExpiryValue === "" || !Number.isFinite(Number(settings.creditExpiryValue)) || Number(settings.creditExpiryValue) < 0)) errors.creditExpiryValue = "Enter a valid expiry of 0 or more, or choose Never.";
+  if (settings.accountExpiryUnit !== "never" && (settings.accountExpiryValue === "" || !Number.isFinite(Number(settings.accountExpiryValue)) || Number(settings.accountExpiryValue) < 0)) errors.accountExpiryValue = "Enter a valid expiry of 0 or more, or choose Never.";
   return errors;
 }
 
@@ -197,7 +203,7 @@ export default function OperatingRules() {
       return;
     }
     const normalized = { ...settings };
-    ["dailyCampaignLimit", "maxAllowedDevices", "defaultRatePerMsg", "lowBalanceThreshold", "creditExpiryValue"].forEach((key) => { normalized[key] = Number(settings[key]); });
+    ["dailyCampaignLimit", "maxAllowedDevices", "defaultRatePerMsg", "lowBalanceThreshold", "accountExpiryValue"].forEach((key) => { normalized[key] = Number(settings[key]); });
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
       await updatePlatformMutation.mutateAsync(normalized);
@@ -216,8 +222,7 @@ export default function OperatingRules() {
   }
 
   function changeExpiry(value, unit) {
-    const factor = unit === "months" ? 1 / 12 : unit === "days" ? 1 / 365.25 : 1;
-    setSettings((previous) => ({ ...previous, creditExpiryValue: value, creditExpiryUnit: unit, creditExpiryYears: unit === "never" ? "0" : String((Number(value) || 0) * factor) }));
+    setSettings((previous) => ({ ...previous, accountExpiryValue: value, accountExpiryUnit: unit }));
     setSaveNotice("");
   }
 
@@ -310,16 +315,16 @@ export default function OperatingRules() {
         </div>}
 
         {activeTab === "billing" && <div className="portal-settings-columns">
-          <SettingsCard title="Rates & credit expiry" description="Set defaults for new account balances." icon={Coins}>
+          <SettingsCard title="Rates & account expiry" description="Set the default rate and expiry for new accounts." icon={Coins}>
             <NumberField id="default-rate" label="Credits per recipient" hint="Default rate for new accounts. Individual rates can be adjusted in Accounts." min={0.01} step={0.01} value={settings.defaultRatePerMsg} onChange={(value) => updateSetting("defaultRatePerMsg", value)} error={errors.defaultRatePerMsg} />
             <NumberField id="low-balance" label="Low balance warning" hint="Show a warning below this credit balance." min={0} step={1} value={settings.lowBalanceThreshold} onChange={(value) => updateSetting("lowBalanceThreshold", value)} error={errors.lowBalanceThreshold} />
-            <div className="portal-field"><label htmlFor="credit-expiry-value">Default credit expiry</label>
-              <div className="portal-expiry-fields"><Input id="credit-expiry-value" type="number" min={0} step="any" disabled={settings.creditExpiryUnit === "never"} value={settings.creditExpiryUnit === "never" ? "" : settings.creditExpiryValue ?? ""} onChange={(event) => changeExpiry(event.target.value === "" ? "" : Number(event.target.value), settings.creditExpiryUnit)} placeholder={settings.creditExpiryUnit === "never" ? "No expiry" : "Duration"} aria-invalid={Boolean(errors.creditExpiryValue)} aria-describedby="credit-expiry-hint" />
-                <select aria-label="Credit expiry unit" value={settings.creditExpiryUnit} onChange={(event) => changeExpiry(settings.creditExpiryValue, event.target.value)}>{["years", "months", "days", "never"].map((unit) => <option key={unit} value={unit}>{unit[0].toUpperCase() + unit.slice(1)}</option>)}</select>
+            <div className="portal-field"><label htmlFor="account-expiry-value">Default account expiry</label>
+              <div className="portal-expiry-fields"><Input id="account-expiry-value" type="number" min={0} step="any" disabled={settings.accountExpiryUnit === "never"} value={settings.accountExpiryUnit === "never" ? "" : settings.accountExpiryValue ?? ""} onChange={(event) => changeExpiry(event.target.value === "" ? "" : Number(event.target.value), settings.accountExpiryUnit)} placeholder={settings.accountExpiryUnit === "never" ? "No expiry" : "Duration"} aria-invalid={Boolean(errors.accountExpiryValue)} aria-describedby="account-expiry-hint" />
+                <select aria-label="Account expiry unit" value={settings.accountExpiryUnit} onChange={(event) => changeExpiry(settings.accountExpiryValue, event.target.value)}>{["years", "months", "days", "never"].map((unit) => <option key={unit} value={unit}>{unit[0].toUpperCase() + unit.slice(1)}</option>)}</select>
               </div>
-              <div className="portal-expiry-presets">{[{ label: "6 months", value: 6, unit: "months" }, { label: "1 year", value: 1, unit: "years" }, { label: "2 years", value: 2, unit: "years" }, { label: "3 years", value: 3, unit: "years" }, { label: "Never", value: 0, unit: "never" }].map((preset) => <button key={preset.label} type="button" aria-pressed={settings.creditExpiryUnit === preset.unit && (preset.unit === "never" || Number(settings.creditExpiryValue) === preset.value)} onClick={() => changeExpiry(preset.value, preset.unit)}>{preset.label}</button>)}</div>
-              <p id="credit-expiry-hint" className="portal-field-hint">Choose a duration, use a preset, or select Never. A value of 0 also means no expiry.</p>
-              {errors.creditExpiryValue && <p role="alert" className="portal-field-error">{errors.creditExpiryValue}</p>}
+              <div className="portal-expiry-presets">{[{ label: "6 months", value: 6, unit: "months" }, { label: "1 year", value: 1, unit: "years" }, { label: "2 years", value: 2, unit: "years" }, { label: "3 years", value: 3, unit: "years" }, { label: "Never", value: 0, unit: "never" }].map((preset) => <button key={preset.label} type="button" aria-pressed={settings.accountExpiryUnit === preset.unit && (preset.unit === "never" || Number(settings.accountExpiryValue) === preset.value)} onClick={() => changeExpiry(preset.value, preset.unit)}>{preset.label}</button>)}</div>
+              <p id="account-expiry-hint" className="portal-field-hint">Choose a duration, use a preset, or select Never. A value of 0 also means no expiry.</p>
+              {errors.accountExpiryValue && <p role="alert" className="portal-field-error">{errors.accountExpiryValue}</p>}
             </div>
             <div className="portal-rule-summary"><strong>Pricing example</strong><p>10,000 recipients × {settings.defaultRatePerMsg || "—"} credits = <b>{number(10000 * Number(settings.defaultRatePerMsg || 0))} credits</b>.</p></div>
           </SettingsCard>

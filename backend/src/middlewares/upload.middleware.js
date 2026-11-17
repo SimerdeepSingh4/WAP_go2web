@@ -3,6 +3,7 @@ import path from "path";
 import { checkCampaignMediaName, validateCampaignMedia } from "../helpers/campaign-media.js";
 import { getAccountMediaUploadLimits } from "../services/media-upload-limits.service.js";
 import { campaignMediaLimitBytes } from "../../../shared/mediaUploadLimits.js";
+import { MAX_CAMPAIGN_MEDIA, SINGLE_MEDIA_MESSAGE } from "../../../shared/campaignMedia.js";
 
 // In-Memory Storage: buffers files directly in RAM for zero disk-cleanup overhead
 const storage = multer.memoryStorage();
@@ -10,7 +11,7 @@ const storage = multer.memoryStorage();
 // Memory & DoS Protection Limits for Campaign Media Uploads
 export const MAX_SINGLE_MEDIA_SIZE = 100 * 1024 * 1024; // 100 MB per file parser ceiling (exact per-user limit validated in controller)
 export const MAX_TOTAL_UPLOAD_BYTES = 120 * 1024 * 1024; // 120 MB total multipart payload ceiling
-export const MAX_MEDIA_FILES = 15; // Max 15 files per campaign request
+export const MAX_MEDIA_FILES = MAX_CAMPAIGN_MEDIA;
 export const MAX_FIELD_SIZE = 4 * 1024 * 1024; // 4 MB for non-file text/JSON fields
 export const MAX_FIELDS = 50;
 export const MAX_CONCURRENT_UPLOADS = 5;
@@ -109,11 +110,11 @@ const mediaUpload = multer({
 });
 
 const parseMedia = mediaUpload.fields([
-    { name: "images", maxCount: 10 },
+    { name: "images", maxCount: MAX_CAMPAIGN_MEDIA },
     { name: "image", maxCount: 1 },
-    { name: "video", maxCount: 5 },
-    { name: "audio", maxCount: 5 },
-    { name: "documents", maxCount: 10 },
+    { name: "video", maxCount: MAX_CAMPAIGN_MEDIA },
+    { name: "audio", maxCount: MAX_CAMPAIGN_MEDIA },
+    { name: "documents", maxCount: MAX_CAMPAIGN_MEDIA },
     { name: "document", maxCount: 1 },
     { name: "pdf", maxCount: 1 },
 ]);
@@ -207,7 +208,7 @@ export async function uploadFiles(req, res, next) {
                 if (error.code === "LIMIT_FILE_COUNT") {
                     return res.status(400).json({
                         success: false,
-                        message: "Too many files uploaded. Maximum 15 media files allowed per campaign.",
+                        message: SINGLE_MEDIA_MESSAGE,
                         code: error.code,
                     });
                 }

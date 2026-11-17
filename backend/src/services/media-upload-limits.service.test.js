@@ -6,6 +6,8 @@ import mongoose from "mongoose";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 import express from "express";
 import jwt from "jsonwebtoken";
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 // These tests use only a temporary MongoDB and local HTTP server.
 Object.assign(process.env, { MONGO_URI: "mongodb://127.0.0.1/media-limit-test", JWT_SECRET: "media-upload-limits-test-secret", REDIS_HOST: "127.0.0.1", REDIS_PORT: "6379", REDIS_PASSWORD: "test", AUDIT_SIGNING_KEY: "media-upload-test-audit-key-at-least-32-bytes" });
@@ -22,7 +24,8 @@ const { uploadFiles } = await import("../middlewares/upload.middleware.js");
 let mongo, server, origin;
 const accounts = {}, tokens = {}, sessionIds = {};
 before(async () => {
-    mongo = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
+    const binary = fileURLToPath(new URL("../../node_modules/.cache/mongodb-memory-server/mongod-x64-win32-8.2.6.exe", import.meta.url));
+    mongo = await MongoMemoryReplSet.create({ ...(existsSync(binary) ? { binary: { systemBinary: binary } } : {}), replSet: { count: 1 } });
     // Existing unrelated white-label indexes are not needed by these fixtures.
     await mongoose.connect(mongo.getUri(), { autoIndex: false });
     await Promise.all([User.init(), Session.init(), Settings.init(), AuditHead.init(), AuditEvent.init(), NotificationEvent.init()]);
@@ -56,6 +59,23 @@ async function request(path, { role = "Super Admin", method = "GET", limits } = 
 }
 const endpoint = "/api/settings/media-limits";
 const accountEndpoint = role => `/api/users/${accounts[role]._id}/media-limits`;
+
+test("multipart requests reject a second file across the same field or different aliases", async () => {
+    for (const fields of [["documents", "documents"], ["documents", "pdf"], ["image", "video"]]) {
+        const form = new FormData();
+        for (const field of fields) {
+            const type = field === "image" ? "image/png" : field === "video" ? "video/mp4" : "application/pdf";
+            const name = field === "image" ? "image.png" : field === "video" ? "clip.mp4" : "report.pdf";
+            form.append(field, new Blob([Buffer.from("%PDF-1.7\nexample")], { type }), name);
+        }
+        const result = await fetch(origin + "/api/test-upload", { method: "POST", headers: {
+            Cookie: `token=${tokens.User}`, "X-Expected-Account": String(accounts.User._id), "X-Expected-Session": sessionIds.User,
+        }, body: form });
+        const body = await result.json();
+        assert.equal(result.status, 400, JSON.stringify(body));
+        assert.match(body.message, /one media attachment/i);
+    }
+});
 
 test("existing accounts with the old 9 MB video default receive 3 MB for every type", async () => {
     const response = await request(endpoint, { role: "User" });

@@ -1,7 +1,7 @@
 import { Copy, ExternalLink, Phone } from "lucide-react";
 import { toast } from "@/components/ui/toast";
 
-export default function CampaignActionLinks({ link, phone, linkName }) {
+export default function CampaignActionLinks({ link, phone, linkName, phoneName }) {
   if (!link && !phone) return null;
 
   async function copyValue(label, value) {
@@ -40,12 +40,10 @@ export default function CampaignActionLinks({ link, phone, linkName }) {
       </div>}
       {phone && <div className="flex min-w-0 items-center gap-2 rounded-md border border-border bg-card px-3 py-2.5">
         <Phone aria-hidden="true" className="size-4 shrink-0 text-primary" />
-        <a
-          href={`tel:${phone}`}
-          className="min-w-0 flex-1 break-all text-xs font-medium text-foreground underline underline-offset-2"
-        >
-          {phone}
-        </a>
+        <div className="min-w-0 flex-1">
+          {phoneName && <p className="truncate text-xs font-semibold text-foreground">{phoneName}</p>}
+          <a href={`tel:${phone}`} className="block min-w-0 break-all text-xs text-muted-foreground underline underline-offset-2">{phone}</a>
+        </div>
         <button
           type="button"
           onClick={() => copyValue("Campaign number", phone)}

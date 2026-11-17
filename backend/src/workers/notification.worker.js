@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import webpush from "web-push";
 import { Notification, NotificationEvent, PushDelivery, PushSubscription, NotificationPreference } from "../models/notification.model.js";
 import userModel from "../models/user.model.js";
-import walletModel from "../models/wallet.model.js";
 import sessionModel from "../models/session.model.js";
 import { deliverEvent, canDeliverNotification } from "../services/notification.service.js";
 import { roleBase } from "../helpers/notification-policy.js";
@@ -87,13 +86,13 @@ async function scanExpiry() {
     if (expiryRunning || stopping) return;
     expiryRunning = (async () => {
         const now = new Date(), soon = new Date(Date.now() + 7 * 86400000);
-        for (const [kind, model] of [["wallet", walletModel], ["account", userModel]]) {
+        for (const [kind, model] of [["account", userModel]]) {
             const cursor = model.find({ expiresAt: { $lte: soon, $gt: new Date(Date.now() - 7 * 86400000) } }).select("_id userId expiresAt").lean().cursor();
             for await (const item of cursor) {
                 if (stopping) break;
                 const expired = new Date(item.expiresAt) <= now;
                 const eventKey = `expiry:${kind}:${item._id}:${new Date(item.expiresAt).toISOString()}:${expired ? "expired" : "soon"}`;
-                await NotificationEvent.updateOne({ eventKey }, { $setOnInsert: { kind: "expiry", data: { userId: kind === "wallet" ? item.userId : item._id, expired, kind, version: Date.now() } } }, { upsert: true });
+                await NotificationEvent.updateOne({ eventKey }, { $setOnInsert: { kind: "expiry", data: { userId: item._id, expired, kind, version: Date.now() } } }, { upsert: true });
             }
         }
     })();

@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { FormError } from "@/features/dashboard/components/shared";
 import { number, dateTime } from "@/lib/format";
-import { ClipboardCheck, Info, MessageSquare, Send } from "lucide-react";
+import { ClipboardCheck, Clock3, Image, Link2, Loader2, Paperclip, Phone, Send } from "lucide-react";
 import "./campaign-dialogs.css";
 
 export default function CampaignReviewDialog({
@@ -13,6 +13,7 @@ export default function CampaignReviewDialog({
   campaignLink,
   campaignLinkName,
   campaignNumber,
+  campaignNumberName,
   shareProfileDp,
   totalRecipients,
   estimate,
@@ -22,8 +23,8 @@ export default function CampaignReviewDialog({
   scheduleType,
   scheduledTime,
   totalMediaCount,
-  previewText,
-  invalidCount,
+  mediaName,
+  duplicatesCount = 0,
   error,
   onSubmit,
 }) {
@@ -38,61 +39,43 @@ export default function CampaignReviewDialog({
         <DialogHeader className="campaign-dialog-header">
           <span className="campaign-dialog-icon" aria-hidden="true"><ClipboardCheck /></span>
           <div><DialogTitle>Review campaign</DialogTitle>
-          <DialogDescription>
-            {isAdmin
-              ? "Credits are charged when the server accepts your submission. The super admin handles approval and processing."
-              : "Review your campaign details before submitting."}
-          </DialogDescription></div>
+          <DialogDescription>Check the details before you submit.</DialogDescription></div>
         </DialogHeader>
 
-        <dl className="campaign-review-details">
-          {[
-            ["Campaign", campaignTitle],
-            ...(campaignNumber ? [["Campaign number", campaignNumber]] : []),
-            ...(campaignLink ? [[campaignLinkName ? `Link (${campaignLinkName})` : "Campaign link", campaignLink]] : []),
-            ...(shareProfileDp ? [["Profile DP", "Shared from settings"]] : []),
-            ["Numbers entered", number(totalRecipients)],
-            ["Rate per recipient", `${number(estimate.rate)} ${estimate.rate === 1 ? "credit" : "credits"}`],
-            ["Estimated charge", `${number(estimatedCost)} credits`],
-            ["Balance after submission", isAdmin ? "Unlimited" : `${number(remainingBalance)} credits`],
-            ["Delivery", scheduleType === "later" ? dateTime(scheduledTime) : "As soon as approved"],
-            ["Attachments", number(totalMediaCount)],
-          ].map(([label, value]) => (
-            <div key={label} data-highlight={label === "Estimated charge" || undefined}>
-              <dt>{label}</dt>
-              <dd>
-                {value}
-              </dd>
-            </div>
-          ))}
-        </dl>
+        <div className="campaign-review-body">
+          <div className="campaign-review-name"><span>Campaign</span><h3>{campaignTitle}</h3></div>
 
-        {previewText && (
-          <div className="campaign-review-message"><h3><MessageSquare aria-hidden="true" />Message preview</h3><p>{previewText}</p></div>
-        )}
+          <section className="campaign-review-summary" aria-label="Recipients and estimated cost">
+            <dl className="campaign-review-totals">
+              <div><dt>Numbers entered</dt><dd>{number(totalRecipients)}
+                {duplicatesCount > 0 && <p>{number(duplicatesCount)} repeated {duplicatesCount === 1 ? "entry" : "entries"} included</p>}</dd>
+              </div>
+              <div><dt>Estimated cost</dt><dd>{number(estimatedCost)} <span>credits</span>
+                <p>{number(estimate.rate)} {estimate.rate === 1 ? "credit" : "credits"} per number</p></dd>
+              </div>
+            </dl>
+            <div className="campaign-review-balance"><span>Balance after submission</span><strong>{isAdmin ? "Unlimited" : `${number(remainingBalance)} credits`}</strong></div>
+          </section>
 
-        {isAdmin && <p className="campaign-review-note"><Info aria-hidden="true" /><span>
-          {isAdmin && invalidCount > 0 ? `${number(invalidCount)} entries need review. ` : ""}
-          The server confirms the final charge.
-        </span></p>}
+          <dl className="campaign-review-details">
+            <div><dt><Clock3 aria-hidden="true" />Delivery</dt><dd>{scheduleType === "later" ? <><strong>Scheduled</strong><small>{dateTime(scheduledTime)}</small></> : "After admin approval"}</dd></div>
+            <div><dt><Paperclip aria-hidden="true" />Campaign media</dt><dd>{totalMediaCount > 0 ? <><strong>{number(totalMediaCount)} {totalMediaCount === 1 ? "attachment" : "attachments"}</strong>{mediaName && <small>{mediaName}</small>}</> : "No attachment"}</dd></div>
+            {shareProfileDp && <div><dt><Image aria-hidden="true" />Profile photo</dt><dd>Included separately</dd></div>}
+            {campaignLink && <div><dt><Link2 aria-hidden="true" />Link button</dt><dd><strong>{campaignLinkName}</strong><small>{campaignLink}</small></dd></div>}
+            {campaignNumber && <div><dt><Phone aria-hidden="true" />Call button</dt><dd><strong>{campaignNumberName}</strong><small>{campaignNumber}</small></dd></div>}
+          </dl>
 
-        <FormError message={error?.response?.data?.message || error?.message} />
+          <p className="campaign-review-note">Credits are deducted when you submit. Your campaign needs admin approval before delivery.</p>
+        </div>
 
-        <div className="campaign-dialog-footer">
-          <Button
-            variant="outline"
-            disabled={isPending}
-            onClick={onClose}
-          >
-            Back to edit
-          </Button>
-          <Button
-            disabled={isPending}
-            onClick={onSubmit}
-          >
-            <Send aria-hidden="true" />
-            {isPending ? "Submitting…" : "Submit campaign"}
-          </Button>
+        <div className="campaign-review-actions">
+          {error && <FormError message={error?.response?.data?.message || error?.message} />}
+          <div className="campaign-dialog-footer campaign-review-footer">
+            <Button type="button" variant="outline" disabled={isPending} onClick={onClose}>Edit campaign</Button>
+            <Button type="button" disabled={isPending} onClick={onSubmit}>
+              {isPending ? <><Loader2 className="animate-spin motion-reduce:animate-none" aria-hidden="true" />Submitting…</> : <><Send aria-hidden="true" />{isAdmin ? "Submit campaign" : "Submit for approval"}</>}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Upload, Image as ImageIcon, Video as VideoIcon, FileText, Trash2, Plus } from "lucide-react";
+import { Upload, Image as ImageIcon, Video as VideoIcon, FileText, Trash2, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SectionCard } from "./CampaignDetailsSection";
@@ -51,173 +51,112 @@ export function mediaKindsForLimits(limits) {
   }]));
 }
 
-function MediaSlot({ kind, config, value, onSelect, onRemove }) {
-  const cfg = config || MEDIA_KINDS[kind];
-  const Icon = cfg.icon;
+export default function CampaignMediaUploader({
+  media, onSelectMedia, onRemoveMedia, canShareProfileDp, shareProfileDp,
+  onToggleShareProfileDp, userProfileDp, mediaKinds = MEDIA_KINDS,
+}) {
   const inputRef = useRef(null);
   const [dragging, setDragging] = useState(false);
+  const [error, setError] = useState("");
+  const profileDpUrl = resolveUserImageUrl(userProfileDp);
+  const uploaded = Object.entries(media).filter(([, value]) => value);
+  const count = uploaded.length;
+  const selected = uploaded.map(([kind, value]) => ({ kind, value, config: mediaKinds[kind] }));
 
-  const pick = (file) => {
-    if (file) onSelect(kind, file);
-    if (inputRef.current) inputRef.current.value = "";
-  };
+  function pick(files) {
+    setDragging(false);
+    setError("");
+    if (!files?.length) return;
+    if (files.length > 1) {
+      setError("Choose only one image, video, or PDF per campaign.");
+      return;
+    }
+    const file = files[0];
+    const kind = Object.keys(mediaKinds).find(key =>
+      mediaKinds[key].types.includes(file.type) || (key === "pdf" && /\.pdf$/i.test(file.name))
+    );
+    if (!kind) {
+      setError("Choose a JPG, PNG, WebP image, MP4, MOV, WebM video, or PDF document.");
+      return;
+    }
+    onSelectMedia(kind, file);
+  }
 
-  return (
+  return <SectionCard
+    dataTour="create-media"
+    icon={Upload}
+    title="Campaign media"
+    description="Optional. Add one image, video, or PDF to this campaign."
+    aside={<Badge variant="outline" className="text-xs tabular-nums" data-media-count={count}>{count} / 1 attached</Badge>}
+  >
+    <input
+      ref={inputRef}
+      type="file"
+      accept={Object.values(mediaKinds).map(config => config.accept).join(",")}
+      aria-label="Choose campaign media"
+      className="hidden"
+      onChange={event => { pick(event.target.files); event.target.value = ""; }}
+    />
     <div
-      onDragOver={(e) => {
-        e.preventDefault();
-        setDragging(true);
-      }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        setDragging(false);
-        pick(e.dataTransfer.files?.[0]);
-      }}
-      className={`rounded-xl border p-3.5 flex flex-col gap-3 transition-colors ${
-        dragging ? "border-primary bg-primary/5" : "bg-card"
-      }`}
+      data-media-dropzone
+      className={`min-w-0 rounded-xl border border-dashed p-4 transition-colors sm:p-5 ${dragging ? "border-primary bg-primary/5" : "border-border bg-muted/20"}`}
+      onDragOver={event => { event.preventDefault(); setDragging(true); }}
+      onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget)) setDragging(false); }}
+      onDrop={event => { event.preventDefault(); pick(event.dataTransfer.files); }}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2.5">
-          <div className={`grid size-9 place-items-center rounded-lg ${cfg.tone}`}>
-            <Icon className="size-4" />
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-foreground">{cfg.label}</p>
-            <p className="text-[11px] text-muted-foreground">
-              {cfg.hint} · up to {cfg.max / MB} MB
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <input
-        ref={inputRef}
-        type="file"
-        accept={cfg.accept}
-        onChange={(e) => pick(e.target.files?.[0])}
-        className="hidden"
-        aria-label={`Choose ${cfg.label}`}
-      />
-
-      {value ? (
-        <div className="rounded-lg border bg-muted/30 p-2 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            {kind === "image" && value.preview ? (
-              <img src={value.preview} alt="" className="size-10 rounded object-cover border shrink-0" />
-            ) : (
-              <div className={`grid size-10 shrink-0 place-items-center rounded ${cfg.tone}`}>
-                {kind === "pdf" ? <span className="font-bold text-[10px]">PDF</span> : <Icon className="size-4" />}
+      {selected.length ? (
+        <div className="space-y-3">
+          {selected.map(({ kind, value, config }) => {
+            const Icon = config.icon;
+            return <div key={kind} data-media-kind={kind} className="min-w-0 overflow-hidden rounded-lg border bg-card">
+              {kind === "image" && value.preview && <img src={value.preview} alt="Selected campaign attachment" className="mx-auto max-h-48 w-full bg-muted/30 object-contain" />}
+              {kind === "video" && value.preview && <video src={value.preview} controls playsInline preload="metadata" className="mx-auto max-h-48 w-full bg-black" aria-label="Selected video preview" />}
+              <div className="flex min-w-0 items-center gap-3 p-3">
+                <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${config.tone}`}><Icon className="size-4" aria-hidden="true" /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium text-foreground" title={value.name}>{value.name}</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">{formatFileSize(value.size)}</p>
+                </div>
+                <Button type="button" variant="ghost" size="icon-sm" aria-label={`Remove ${config.label.toLowerCase()}`} onClick={() => {
+                  setError("");
+                  onRemoveMedia(kind);
+                }}><Trash2 className="size-4" aria-hidden="true" /></Button>
               </div>
-            )}
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-foreground truncate" title={value.name}>
-                {value.name}
-              </p>
-              <p className="text-[11px] text-muted-foreground">{formatFileSize(value.size)}</p>
-            </div>
+            </div>;
+          })}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[11px] leading-5 text-muted-foreground">Choosing another file replaces the current attachment.</p>
+            <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}><RefreshCw className="size-3.5" aria-hidden="true" />Replace media</Button>
           </div>
-          <button
-            type="button"
-            onClick={() => onRemove(kind)}
-            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 p-1.5 rounded transition-colors shrink-0 cursor-pointer"
-            title={`Remove ${cfg.label.toLowerCase()}`}
-            aria-label={`Remove ${cfg.label.toLowerCase()}`}
-          >
-            <Trash2 className="size-3.5" />
-          </button>
         </div>
       ) : (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => inputRef.current?.click()}
-          className="w-full h-9 text-xs gap-1.5 border-dashed"
-        >
-          <Plus className="size-3.5" />
-          Choose or drop file
-        </Button>
-      )}
-    </div>
-  );
-}
-
-export default function CampaignMediaUploader({
-  media,
-  onSelectMedia,
-  onRemoveMedia,
-  canShareProfileDp,
-  shareProfileDp,
-  onToggleShareProfileDp,
-  userProfileDp,
-  mediaKinds = MEDIA_KINDS,
-}) {
-  const isDpSharingAvailable = Boolean(canShareProfileDp);
-  const profileDpUrl = resolveUserImageUrl(userProfileDp);
-  const totalMediaCount = Object.values(media).filter(Boolean).length + (isDpSharingAvailable && shareProfileDp ? 1 : 0);
-  const mediaKindNames = Object.keys(mediaKinds);
-
-  return (
-    <SectionCard
-      dataTour="create-media"
-      icon={Upload}
-      title="Campaign media"
-      description="Optional campaign image, video, and PDF attachments."
-      aside={
-        totalMediaCount > 0 && (
-          <Badge
-            variant="outline"
-            className="text-xs bg-primary-text/5 text-primary-text border-primary-text/20 tabular-nums"
-          >
-            {totalMediaCount} attached
-          </Badge>
-        )
-      }
-    >
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
-        {mediaKindNames.map((kind) => (
-          <MediaSlot
-            key={kind}
-            kind={kind}
-            config={mediaKinds[kind]}
-            value={media[kind]}
-            onSelect={onSelectMedia}
-            onRemove={onRemoveMedia}
-          />
-        ))}
-      </div>
-
-      {isDpSharingAvailable && (
-        <div className="mt-4 pt-3.5 border-t flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-lg border bg-muted/20 p-3">
-          <div className="flex items-center gap-3 min-w-0">
-            {profileDpUrl ? <img
-              src={profileDpUrl}
-              alt="Profile DP"
-              className="size-10 rounded-full object-cover border shrink-0"
-            /> : <span className="grid size-10 shrink-0 place-items-center rounded-full border bg-muted text-muted-foreground" aria-hidden="true"><ImageIcon className="size-4" /></span>}
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-foreground">Share Settings Profile DP</p>
-              <p className="text-[11px] text-muted-foreground truncate">
-                Share your profile DP from Settings with this campaign.
-              </p>
-            </div>
-          </div>
-          <label className="flex items-center gap-2 cursor-pointer self-end sm:self-center shrink-0">
-            <input
-              type="checkbox"
-              checked={Boolean(shareProfileDp)}
-              onChange={(e) => onToggleShareProfileDp && onToggleShareProfileDp(e.target.checked)}
-              className="size-4 rounded border-input text-primary-text focus:ring-primary cursor-pointer"
-            />
-            <span className="text-xs font-medium text-foreground select-none">
-              Share DP
-            </span>
-          </label>
+        <div className="flex flex-col items-center gap-3 py-3 text-center">
+          <span className="grid size-11 place-items-center rounded-full border bg-card text-primary-text"><Upload className="size-5" aria-hidden="true" /></span>
+          <div><p className="text-sm font-medium">Drop your media here</p><p className="mt-1 text-xs text-muted-foreground">One attachment per campaign. Text-only campaigns are welcome too.</p></div>
+          <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>Choose media</Button>
         </div>
       )}
-    </SectionCard>
-  );
+    </div>
+    {error && <p role="alert" className="mt-2 text-xs text-destructive">{error}</p>}
+    {count > 1 && <p role="alert" className="mt-2 text-xs text-destructive">This saved draft has multiple attachments. Remove extras or replace them with a single file.</p>}
+    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground">
+      {Object.entries(mediaKinds).map(([kind, config]) => <span key={kind}>{config.label}: up to {config.max / MB} MB</span>)}
+    </div>
+    {canShareProfileDp && <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border bg-muted/20 p-3">
+      <div className="flex min-w-0 items-center gap-2.5">
+        {profileDpUrl ? <img src={profileDpUrl} alt="" className="size-9 shrink-0 rounded-full border object-cover" /> : <span className="grid size-9 shrink-0 place-items-center rounded-full border text-muted-foreground"><ImageIcon className="size-4" aria-hidden="true" /></span>}
+        <div className="min-w-0">
+          <p className="text-xs font-medium">Share profile photo</p>
+          <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">{profileDpUrl ? "Included separately. Does not replace or count as campaign media." : "Add a profile photo in Settings to use this option."}</p>
+        </div>
+      </div>
+      <label className="flex shrink-0 items-center gap-2 text-xs">
+        <input type="checkbox" checked={Boolean(shareProfileDp)} disabled={!profileDpUrl && !shareProfileDp}
+          onChange={event => { setError(""); onToggleShareProfileDp(event.target.checked); }}
+          className="size-4 accent-primary-text" aria-label="Share profile photo with campaign" />
+        Include DP
+      </label>
+    </div>}
+  </SectionCard>;
 }
 

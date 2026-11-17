@@ -1,0 +1,53 @@
+.review-pin-annotation {
+  --review-pin-color: #7c3aed;
+  --review-pin-tint: rgb(124 58 237 / .045);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  z-index: 9800;
+  pointer-events: none;
+  visibility: var(--review-pin-visibility, visible);
+}
+.review-pin-annotation[data-resolved="true"] { --review-pin-color: #059669; --review-pin-tint: rgb(5 150 105 / .045); }
+.review-pin-annotation[data-lost="true"] { --review-pin-color: #d97706; --review-pin-tint: rgb(217 119 6 / .045); }
+.review-pin-highlight {
+  position: absolute;
+  left: var(--review-pin-region-left);
+  top: var(--review-pin-region-top);
+  width: var(--review-pin-region-width);
+  height: var(--review-pin-region-height);
+  border-radius: var(--review-pin-region-radius);
+  box-sizing: border-box;
+  border: 2px solid var(--review-pin-color);
+  background: var(--review-pin-tint);
+  clip-path: var(--review-pin-clip, none);
+  pointer-events: none;
+}
+.review-pin-marker {
+  position: absolute;
+  left: var(--review-pin-left);
+  top: var(--review-pin-top);
+  visibility: var(--review-pin-marker-visibility, visible);
+  display: grid;
+  width: 26px;
+  height: 26px;
+  min-height: 0;
+  padding: 0;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  border: 2px solid white;
+  border-radius: 50%;
+  background: var(--review-pin-color);
+  color: white;
+  box-shadow: 0 2px 6px rgb(0 0 0 / .2);
+  font: 700 11px/1 system-ui, sans-serif;
+  cursor: pointer;
+  pointer-events: auto;
+  user-select: none;
+  transition: box-shadow .15s;
+}
+.review-pin-marker:hover { box-shadow: 0 0 0 3px rgb(124 58 237 / .18), 0 2px 6px rgb(0 0 0 / .2); }
+.review-pin-marker:focus-visible { outline: 2px solid var(--review-pin-color); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .review-pin-marker { transition: none; } }

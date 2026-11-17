@@ -29,8 +29,8 @@ export async function updatePlatformSettings(req, res) {
             dailyCampaignLimit,
             defaultRatePerMsg,
             lowBalanceThreshold,
-            creditExpiryValue,
-            creditExpiryUnit,
+            accountExpiryValue,
+            accountExpiryUnit,
             maxAllowedDevices,
             autoRefundEnabled,
             strictOverdraftProtection,
@@ -75,25 +75,25 @@ export async function updatePlatformSettings(req, res) {
             updates.lowBalanceThreshold = parsed;
         }
 
-        if (creditExpiryUnit !== undefined) {
-            if (!["years", "months", "days", "never"].includes(creditExpiryUnit)) {
+        if (accountExpiryUnit !== undefined) {
+            if (!["years", "months", "days", "never"].includes(accountExpiryUnit)) {
                 return res.status(400).json({
                     success: false,
                     message: "Choose a valid expiry unit.",
                 });
             }
-            updates.creditExpiryUnit = creditExpiryUnit;
+            updates.accountExpiryUnit = accountExpiryUnit;
         }
 
-        if (creditExpiryValue !== undefined) {
-            const parsed = Number(creditExpiryValue);
+        if (accountExpiryValue !== undefined) {
+            const parsed = Number(accountExpiryValue);
             if (!Number.isFinite(parsed) || parsed < 0) {
                 return res.status(400).json({
                     success: false,
-                    message: "Default credit expiry must be 0 or more.",
+                    message: "Default account expiry must be 0 or more.",
                 });
             }
-            updates.creditExpiryValue = parsed;
+            updates.accountExpiryValue = parsed;
         }
 
         if (maxAllowedDevices !== undefined) {

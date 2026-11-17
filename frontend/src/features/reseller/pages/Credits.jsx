@@ -9,13 +9,13 @@ import {
   Coins,
   Users,
   CheckCircle2,
-  RefreshCw,
   MinusCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import OverviewMetricCards from "@/features/dashboard/components/OverviewMetricCards";
+import { CreditBalancePreview } from "@/features/dashboard/components/ActionReview";
 import { useResellerQuery } from "../hooks/useReseller";
-import { PageHeading, QueryState, FilterSelect, DataTable, Pager } from "@/features/dashboard/components/shared";
+import { PageHeading, QueryState, FilterSelect, DataTable, Pager, ClearFiltersButton } from "@/features/dashboard/components/shared";
 import ResellerActionForm from "../components/ResellerActionForm";
 import { dateTime, number, ownerName } from "@/lib/format";
 import "@/features/credits/components/credit-history.css";
@@ -163,51 +163,31 @@ export default function ResellerCredits({ activity = false }) {
             : "Manage your credit wallet and allocate broadcast credits to your client accounts."
         }
         action={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                myBalance.refetch();
-                ledger.refetch();
-                accountsQuery.refetch();
-              }}
-              disabled={ledger.isFetching || myBalance.isFetching}
-              className="gap-1.5"
-            >
-              <RefreshCw
-                className={`size-3.5 ${
-                  ledger.isFetching || myBalance.isFetching ? "animate-spin" : ""
-                }`}
-              />
-              Refresh
-            </Button>
-            {!activity && (
-              <>
-                <Button variant="outline" disabled={signedInUser?.isPreview} onClick={() => update("request", "new")}>Request credits</Button>
-                <Button
-                  data-tour="reseller-allocate"
-                  onClick={() => update("allocate", "new")}
-                  disabled={signedInUser?.isPreview || !accounts.length || accountsQuery.isError || isWalletLocked}
-                  title={isWalletLocked ? "Your credit balance is expired and locked." : undefined}
-                  className="gap-1.5 font-semibold"
-                >
-                  <Plus className="size-4" />
-                  Allocate credits
-                </Button>
-                <Button
-                  data-tour="reseller-reclaim"
-                  variant="outline"
-                  onClick={() => setReclaimOpen(true)}
-                  disabled={signedInUser?.isPreview || !accounts.length || accountsQuery.isError}
-                  className="gap-1.5"
-                >
-                  <MinusCircle className="size-4" />
-                  Reclaim credits
-                </Button>
-              </>
-            )}
-          </div>
+          !activity ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" disabled={signedInUser?.isPreview} onClick={() => update("request", "new")}>Request credits</Button>
+              <Button
+                data-tour="reseller-allocate"
+                onClick={() => update("allocate", "new")}
+                disabled={signedInUser?.isPreview || !accounts.length || accountsQuery.isError || isWalletLocked}
+                title={isWalletLocked ? "Your wallet is locked." : undefined}
+                className="gap-1.5 font-semibold"
+              >
+                <Plus className="size-4" />
+                Allocate credits
+              </Button>
+              <Button
+                data-tour="reseller-reclaim"
+                variant="outline"
+                onClick={() => setReclaimOpen(true)}
+                disabled={signedInUser?.isPreview || !accounts.length || accountsQuery.isError}
+                className="gap-1.5"
+              >
+                <MinusCircle className="size-4" />
+                Reclaim credits
+              </Button>
+            </div>
+          ) : undefined
         }
       />
 
@@ -225,15 +205,13 @@ export default function ResellerCredits({ activity = false }) {
                   loading: myBalance.isPending,
                   caption: isWalletLocked
                     ? "Locked · contact administrator"
-                    : myBalance.data?.wallet?.expiresAt
-                    ? `Expires ${dateTime(myBalance.data?.wallet?.expiresAt)}`
                     : "Available for allocation",
                   icon: isWalletLocked ? Lock : Wallet,
                   accent: true,
                 },
                 {
                   label: "Received this month",
-                  tone: "yellow",
+                  tone: "blue-filled",
                   value:
                     stats?.credits?.creditsPurchasedThisMonth ??
                     stats?.wallet?.creditsPurchasedThisMonth ??
@@ -244,7 +222,7 @@ export default function ResellerCredits({ activity = false }) {
                 },
                 {
                   label: "Assigned users",
-                  tone: "blue",
+                  tone: "rose-filled",
                   value: accountsQuery.isSuccess ? accounts.length : null,
                   loading: accountsQuery.isPending,
                   caption: "Registered under your agency",
@@ -253,7 +231,7 @@ export default function ResellerCredits({ activity = false }) {
                 },
                 {
                   label: "Active accounts",
-                  tone: "purple",
+                  tone: "purple-filled",
                   value: accountsQuery.isSuccess
                     ? accounts.filter((a) => a.status === "active").length
                     : null,
@@ -339,7 +317,8 @@ export default function ResellerCredits({ activity = false }) {
             columns={columns}
             mobile={{ primary: "transactionId", secondary: "to", featured: ["amount", "type"] }}
             emptyTitle="No transactions found"
-            emptyDescription="Transactions will appear here when credits are allocated or campaigns are dispatched."
+            emptyDescription={type !== "all" || account !== "all" || transactionId ? "No transactions match your selected filters." : "Allocations, campaign charges, and refunds will appear here."}
+            emptyAction={(type !== "all" || account !== "all" || transactionId) && <ClearFiltersButton keys={["type", "account", "transaction", "page"]} />}
           />
           <Pager
             page={page}
@@ -419,6 +398,8 @@ export default function ResellerCredits({ activity = false }) {
               <p className="whitespace-pre-wrap break-words text-xs text-muted-foreground mt-1">
                 {v.notes || "No transaction note provided."}
               </p>
+              <CreditBalancePreview balance={myBalance.data?.wallet?.balance} amount={v.amount} deduct label="Your balance" />
+              <CreditBalancePreview balance={accounts.find(a => a._id === v.toUserId)?.wallet?.balance} amount={v.amount} />
             </>
           )}
           submitLabel="Allocate credits"
@@ -469,6 +450,7 @@ export default function ResellerCredits({ activity = false }) {
               <p className="text-muted-foreground text-xs mt-1">
                 Reason: <strong>{v.notes}</strong>
               </p>
+              <CreditBalancePreview balance={accounts.find(a => a._id === v.fromUserId)?.wallet?.balance} amount={v.amount} deduct />
             </>
           )}
           submitLabel="Reclaim credits"

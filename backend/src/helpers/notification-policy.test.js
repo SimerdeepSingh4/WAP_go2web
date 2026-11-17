@@ -1,11 +1,23 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { formatNotification, getNotificationGroup, notificationPriority } from "./notification-policy.js";
+import { formatNotification, getNotificationGroup, notificationPriority, mayReadNotification } from "./notification-policy.js";
 
 const escalation = {
     kind: "support",
     data: { id: "conversation-123", action: "escalated", subject: "Delivery help", reason: "Please investigate the delivery issue." },
 };
+
+test("retired wallet-expiry notices are ignored while account-expiry notices remain", () => {
+    const subject = { _id: "client", role: "User", username: "Client" };
+    const viewer = { _id: "client", role: "User" };
+    assert.equal(formatNotification({ kind: "expiry", data: { userId: "client", kind: "wallet", expired: true } }, viewer, subject), null);
+    const expired = formatNotification({ kind: "expiry", data: { userId: "client", kind: "account", expired: true } }, viewer, subject);
+    assert.equal(expired.title, "Account expired");
+    assert.equal(expired.href, "/user/settings");
+    assert(!expired.body.includes("credits"));
+    const upcoming = formatNotification({ kind: "expiry", data: { userId: "client", kind: "account", expired: false } }, viewer, subject);
+    assert.match(upcoming.body, /account expires within seven days/);
+});
 
 test("support escalation is important and opens the exact conversation", () => {
     const message = formatNotification(escalation, { role: "Super Admin" });
@@ -79,4 +91,24 @@ test("allocation senders and observing managers see the recipient and correct di
     assert.equal(managed.title, "Credits allocated to shiv");
     assert.doesNotMatch(managed.body, /received from User/);
     assert(!JSON.stringify(managed).includes(allocator.username));
+});
+
+test("a newly created user does not receive a self-creation notification", () => {
+    const newClient = { _id: "new-user-1", username: "ABCD", role: "User" };
+    const event = { kind: "user", data: { id: newClient._id, username: newClient.username, role: newClient.role, isNew: true } };
+    assert.equal(formatNotification(event, newClient, newClient), null);
+    const adminMessage = formatNotification(event, { _id: "admin-1", role: "Super Admin" }, newClient);
+    assert.ok(adminMessage);
+    assert.equal(adminMessage.title, "New User created: ABCD");
+});
+
+test("super admin cannot view notifications for transactions or wallets between resellers and their users", () => {
+    const superAdmin = { _id: "admin-1", role: "Super Admin" };
+    const managedUser = { _id: "user-1", role: "User", resellerId: "reseller-1" };
+    const directUser = { _id: "user-2", role: "User", resellerId: null };
+
+    assert.equal(mayReadNotification(superAdmin, { recipientId: "admin-1", recipientRole: "Super Admin", itemType: "transaction", managed: false }, managedUser), false);
+    assert.equal(mayReadNotification(superAdmin, { recipientId: "admin-1", recipientRole: "Super Admin", itemType: "wallet", managed: false }, managedUser), false);
+    assert.equal(mayReadNotification(superAdmin, { recipientId: "admin-1", recipientRole: "Super Admin", itemType: "transaction", managed: false }, directUser), true);
+    assert.equal(mayReadNotification(superAdmin, { recipientId: "admin-1", recipientRole: "Super Admin", itemType: "campaign", managed: false }, managedUser), true);
 });

@@ -3,13 +3,13 @@ import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { useSearchParams, Link } from "react-router";
 import { Popover } from "@base-ui/react/popover";
-import { MoreHorizontal, Eye, FileText, RefreshCw, CalendarDays, X, Trash2, Download, Image as ImageIcon, Video, MessageSquare, Users, CheckCircle2, Clock } from "lucide-react";
+import { MoreHorizontal, Eye, FileText, CalendarDays, Trash2, Download, Image as ImageIcon, Video, MessageSquare, Users, CheckCircle2, Clock } from "lucide-react";
 import CampaignDeleteDialog from "@/features/campaigns/components/CampaignDeleteDialog";
 import { useAdminMutation } from "../hooks/useAdmin";
 import { Button } from "@/components/ui/button";
 import CampaignFilterCalendar from "../components/CampaignFilterCalendar";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { PageHeading, QueryState, DataTable, StatusBadge } from "../../dashboard/components/shared";
+import { PageHeading, QueryState, DataTable, StatusBadge, ClearFiltersButton } from "../../dashboard/components/shared";
 import { useAdminQuery } from "../hooks/useAdmin";
 import { number, dateTime, ownerName, needsReport, published, waiting } from "../../../lib/format";
 import CampaignDetail from "../components/CampaignDetail";
@@ -97,6 +97,8 @@ export default function Campaigns({ reports = false }) {
   const [campaignToDelete, setCampaignToDelete] = useState(null);
   const deleteMutation = useAdminMutation("deleteCampaign", "Campaign deleted successfully", () => setCampaignToDelete(null));
   const today = dateFromKey(campaignDay(new Date()));
+  const yesterday = today ? new Date(today.getTime() - 86400000) : undefined;
+  const sevenDaysAgo = today ? new Date(today.getTime() - 6 * 86400000) : undefined;
   const search = params.get("search") || "";
   const defaultStatus = reports ? "all" : "pending";
   const status = params.get("status") || defaultStatus;
@@ -108,7 +110,68 @@ export default function Campaigns({ reports = false }) {
     to: dateFromKey(rangeToKey),
   };
   const hasCompleteRange = Boolean(selectedRange.from && selectedRange.to);
-  const hasDateFilter = Boolean(selectedDateKey || params.has("from") || params.has("to"));
+  const presetParam = params.get("preset") || "";
+  const detectedPreset = (() => {
+    if (presetParam) return presetParam;
+    if (!hasCompleteRange) return "custom";
+    if (today && rangeFromKey === dateKey(today) && rangeToKey === dateKey(today)) return "today";
+    if (yesterday && rangeFromKey === dateKey(yesterday) && rangeToKey === dateKey(yesterday)) return "yesterday";
+    if (sevenDaysAgo && today && rangeFromKey === dateKey(sevenDaysAgo) && rangeToKey === dateKey(today)) return "7days";
+    return "custom";
+  })();
+  const [activePreset, setActivePreset] = useState("custom");
+  const hasDateFilter = Boolean(selectedDateKey || params.has("from") || params.has("to") || params.has("preset"));
+
+  function applyRange(start, end, preset) {
+    setParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        next.delete("date");
+        next.set("from", start);
+        next.set("to", end);
+        if (preset) {
+          next.set("preset", preset);
+        } else {
+          next.delete("preset");
+        }
+        return next;
+      },
+      { replace: true }
+    );
+    setCalendarOpen(false);
+  }
+
+  function applyPreset(preset) {
+    if (preset === "today" && today) {
+      const k = dateKey(today);
+      applyRange(k, k, "today");
+    } else if (preset === "yesterday" && yesterday) {
+      const k = dateKey(yesterday);
+      applyRange(k, k, "yesterday");
+    } else if (preset === "7days" && sevenDaysAgo && today) {
+      applyRange(dateKey(sevenDaysAgo), dateKey(today), "7days");
+    } else if (preset === "custom") {
+      setActivePreset("custom");
+    }
+  }
+
+  const dateFilterLabel = (() => {
+    if (!hasCompleteRange) {
+      return rangeFromKey ? "Select end date" : "Filter by date";
+    }
+    if (presetParam === "today" || (today && rangeFromKey === dateKey(today) && rangeToKey === dateKey(today))) {
+      return "Today";
+    }
+    if (presetParam === "yesterday" || (yesterday && rangeFromKey === dateKey(yesterday) && rangeToKey === dateKey(yesterday))) {
+      return "Yesterday";
+    }
+    if (presetParam === "7days" || (sevenDaysAgo && today && rangeFromKey === dateKey(sevenDaysAgo) && rangeToKey === dateKey(today))) {
+      return "7days";
+    }
+    return selectedRange.from.getTime() === selectedRange.to.getTime()
+      ? selectedRange.from.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+      : `${selectedRange.from.toLocaleDateString("en-IN", { day: "numeric", month: "short" })} – ${selectedRange.to.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`;
+  })();
   const hasFilters = Boolean(search || status !== defaultStatus || hasDateFilter);
   const reducedMotion = useReducedMotion();
   const selected = params.get("campaign");
@@ -339,18 +402,6 @@ export default function Campaigns({ reports = false }) {
             ? "Review and publish recorded campaign results."
             : "Review submissions and update campaign status."
         }
-        action={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => query.refetch()}
-            disabled={query.isFetching}
-            className="gap-1.5"
-          >
-            <RefreshCw className={`size-3.5 ${query.isFetching ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-        }
       />
 
       {/* Filter Tabs Bar */}
@@ -383,66 +434,94 @@ export default function Campaigns({ reports = false }) {
 
         <div className="ml-auto flex max-w-full flex-wrap items-center gap-2">
           <Popover.Root open={calendarOpen} onOpenChange={(open) => {
-            if (open) setDraftRange(selectedRange);
+            if (open) {
+              setDraftRange(selectedRange);
+              setActivePreset("");
+            }
             setCalendarOpen(open);
           }}>
             <Popover.Trigger
                 render={<Button data-tour="campaign-dates" type="button" variant={hasCompleteRange ? "default" : "outline"} size="sm" className="campaign-date-filter-trigger gap-2" />}
             >
               <CalendarDays className="size-4" />
-              {hasCompleteRange
-                ? selectedRange.from.getTime() === selectedRange.to.getTime()
-                  ? selectedRange.from.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
-                  : `${selectedRange.from.toLocaleDateString("en-IN", { day: "numeric", month: "short" })} – ${selectedRange.to.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`
-                : rangeFromKey ? "Select end date" : "Filter by date"}
+              {dateFilterLabel}
             </Popover.Trigger>
             <Popover.Portal>
               <Popover.Positioner align="end" sideOffset={8} className="z-50">
                 <Popover.Popup className="campaign-calendar-popup">
-                  <CampaignFilterCalendar
-                    latestDate={today}
-                    selected={draftRange}
-                    defaultMonth={draftRange.from || selectedRange.from || new Date()}
-                    onSelect={(range) => setDraftRange(range || { from: undefined, to: undefined })}
-                  />
-                  <p className="px-2 pb-2 text-center text-xs text-muted-foreground" aria-live="polite">
-                    {draftRange.from && !draftRange.to ? "Select an end date" : "Select a start and end date"}
-                  </p>
-                  <div className="flex justify-between gap-2 border-t border-border px-2 pt-2">
-                    <Button type="button" size="sm" variant="ghost" onClick={() => setDraftRange({ from: undefined, to: undefined })}>Clear</Button>
-                    <div className="flex gap-2">
-                      <Button type="button" size="sm" variant="outline" onClick={() => setCalendarOpen(false)}>Cancel</Button>
-                      <Button type="button" size="sm" disabled={!draftRange.from || !draftRange.to || draftRange.from > today || draftRange.to > today} onClick={() => {
-                        const start = dateKey(draftRange.from);
-                        const end = dateKey(draftRange.to);
-                        setParams((current) => {
-                          const next = new URLSearchParams(current);
-                          next.delete("date");
-                          next.set("from", start <= end ? start : end);
-                          next.set("to", start <= end ? end : start);
-                          return next;
-                        }, { replace: true });
-                        setCalendarOpen(false);
-                      }}>Apply range</Button>
-                    </div>
-                  </div>
+                  {activePreset === "custom" ? (
+                    <>
+                      <CampaignFilterCalendar
+                        latestDate={today}
+                        selected={draftRange}
+                        defaultMonth={draftRange.from || selectedRange.from || new Date()}
+                        onSelect={(range) => setDraftRange(range || { from: undefined, to: undefined })}
+                      />
+                      <p className="px-2 pb-2 text-center text-xs text-muted-foreground" aria-live="polite">
+                        {draftRange.from && !draftRange.to ? "Select an end date" : "Select a start and end date"}
+                      </p>
+                      <div className="flex justify-between gap-2 border-t border-border px-2 pt-2">
+                        <Button type="button" size="sm" variant="ghost" onClick={() => setDraftRange({ from: undefined, to: undefined })}>Clear</Button>
+                        <div className="flex gap-2">
+                          <Button type="button" size="sm" variant="outline" onClick={() => setCalendarOpen(false)}>Cancel</Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            disabled={!draftRange.from || !draftRange.to || draftRange.from > today || draftRange.to > today}
+                            onClick={() => {
+                              const start = dateKey(draftRange.from);
+                              const end = dateKey(draftRange.to);
+                              applyRange(start <= end ? start : end, start <= end ? end : start, "custom");
+                            }}
+                          >
+                            Apply range
+                          </Button>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="border-b border-border px-3 py-2">
+                        <span className="text-xs font-semibold text-foreground">Filter by date</span>
+                      </div>
+                      <div className="p-2 space-y-1">
+                        {[
+                          { id: "today", label: "Today", desc: today?.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) },
+                          { id: "yesterday", label: "Yesterday", desc: yesterday?.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) },
+                          { id: "7days", label: "7days", desc: sevenDaysAgo && today ? `${sevenDaysAgo.toLocaleDateString("en-IN", { day: "numeric", month: "short" })} – ${today.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}` : "" },
+                          { id: "custom", label: "Custom days", desc: "" },
+                        ].map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              if (item.id === "custom") {
+                                setActivePreset("custom");
+                              } else {
+                                applyPreset(item.id);
+                              }
+                            }}
+                            className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-xs transition-colors cursor-pointer ${
+                              detectedPreset === item.id
+                                ? "bg-primary text-primary-foreground font-semibold"
+                                : "hover:bg-muted text-foreground"
+                            }`}
+                          >
+                            <span>{item.label}</span>
+                            {item.desc ? (
+                              <span className={`text-[11px] ${detectedPreset === item.id ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                                {item.desc}
+                              </span>
+                            ) : null}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </Popover.Popup>
               </Popover.Positioner>
             </Popover.Portal>
           </Popover.Root>
-          <motion.div className="campaign-date-clear-slot" initial={false} animate={{ opacity: hasDateFilter ? 1 : 0, scale: hasDateFilter ? 1 : 0.85 }} transition={{ duration: reducedMotion ? 0 : 0.16 }} style={{ display: hasDateFilter ? "flex" : "none" }} aria-hidden={!hasDateFilter}>
-            <Button variant="ghost" size="icon-sm" disabled={!hasDateFilter} tabIndex={hasDateFilter ? 0 : -1} aria-label="Clear date filter" title="Clear date filter" onClick={() => {
-              setParams((current) => {
-                const next = new URLSearchParams(current);
-                next.delete("date");
-                next.delete("from");
-                next.delete("to");
-                return next;
-              }, { replace: true });
-            }}>
-              <X className="size-4" />
-            </Button>
-          </motion.div>
           <motion.div initial={false} animate={{ opacity: hasFilters ? 1 : 0 }} transition={{ duration: reducedMotion ? 0 : 0.16 }} style={{ display: hasFilters ? undefined : "none" }} aria-hidden={!hasFilters}>
             <Button variant="ghost" size="sm" disabled={!hasFilters} tabIndex={hasFilters ? 0 : -1} onClick={() => setParams({})}>
               Clear all filters
@@ -454,8 +533,9 @@ export default function Campaigns({ reports = false }) {
       <QueryState
         query={query}
         empty={!rows.length}
-        emptyTitle={reports ? "No campaign reports yet" : "No campaigns yet"}
+        emptyTitle={hasFilters ? "No campaigns match your filters" : reports ? "No campaign reports yet" : "No campaigns yet"}
         emptyDescription={hasCompleteRange ? "No campaigns were submitted during this date range." : "Campaigns created by your resellers and users will appear here."}
+        emptyAction={hasFilters && <ClearFiltersButton keys={["search", "status", "date", "from", "to", "preset"]} />}
       >
         <DataTable
           key={`${search}-${status}-${rangeFromKey}-${rangeToKey}`}

@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
+import { Eye, EyeOff, CheckCircle2, ArrowLeft } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useBranding } from "@/features/branding/context/BrandingContext";
+import { forgotPassword as forgotPasswordApi } from "../services/auth.api";
 
 function PortalIcon({ type = "network", className = "size-5" }) {
   const paths = {
@@ -109,7 +111,32 @@ export default function LoginPage({ onLogin, panelName: propPanelName }) {
   const [errorMsg, setErrorMsg] = useState("");
   const errorRef = useRef(null);
 
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [forgotIdentifier, setForgotIdentifier] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotMsg, setForgotMsg] = useState("");
+  const [forgotError, setForgotError] = useState("");
+
   const { login, isLoggingIn } = useAuth();
+
+  async function handleForgotSubmit(e) {
+    e.preventDefault();
+    const query = forgotIdentifier.trim();
+    if (!query) return;
+
+    setForgotLoading(true);
+    setForgotError("");
+    try {
+      const res = await forgotPasswordApi(query);
+      setForgotSent(true);
+      setForgotMsg(res?.message || "If an account with that email or username exists, a notification has been sent to your account manager.");
+    } catch (err) {
+      setForgotError(err?.response?.data?.message || err?.message || "Failed to submit request. Please try again.");
+    } finally {
+      setForgotLoading(false);
+    }
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -171,7 +198,7 @@ export default function LoginPage({ onLogin, panelName: propPanelName }) {
 
       {/* Right Column: Clean Editorial Form */}
       <section
-        aria-labelledby="login-heading"
+        aria-labelledby={isForgotPassword ? "forgot-heading" : "login-heading"}
         className="flex h-full min-w-0 flex-col justify-between bg-background px-8 py-10 sm:px-12 md:px-12 lg:px-16 xl:px-24 lg:py-12 overflow-y-auto md:overflow-hidden"
       >
         <div className="md:hidden">
@@ -180,108 +207,236 @@ export default function LoginPage({ onLogin, panelName: propPanelName }) {
 
         <div className="flex flex-1 items-center justify-center py-4">
           <div className="w-full max-w-[420px]">
-            <p className="text-[11px] font-semibold uppercase tracking-[2px] text-primary">
-              Messaging Workspace
-            </p>
-            <h2
-              id="login-heading"
-              className="mt-2 text-3xl sm:text-[36px] font-bold tracking-tight text-foreground"
-            >
-              Welcome back.
-            </h2>
-            <p className="mt-1.5 mb-7 text-sm text-muted-foreground">
-              Sign in to manage campaigns, audience directories, and credits.
-            </p>
+            {isForgotPassword ? (
+              <>
+                <p className="text-[11px] font-semibold uppercase tracking-[2px] text-primary">
+                  Account Recovery
+                </p>
+                <h2
+                  id="forgot-heading"
+                  className="mt-2 text-3xl sm:text-[36px] font-bold tracking-tight text-foreground"
+                >
+                  Forgot password?
+                </h2>
+                <p className="mt-1.5 mb-7 text-sm text-muted-foreground">
+                  Enter your email or username to send a password reset notification to your account manager.
+                </p>
 
-            {errorMsg && (
-              <div
-                ref={errorRef}
-                id="login-error"
-                role="alert"
-                tabIndex={-1}
-                className="mb-5 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm leading-relaxed text-destructive outline-none focus-visible:ring-2 focus-visible:ring-destructive/30"
-              >
-                {errorMsg}
-              </div>
-            )}
+                {forgotSent ? (
+                  <div className="space-y-5">
+                    <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm text-foreground flex items-start gap-3">
+                      <CheckCircle2 className="size-5 text-primary shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <p className="font-semibold text-foreground">Request sent</p>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          {forgotMsg || "If an account with that email or username exists, a notification has been sent to your account manager."}
+                        </p>
+                      </div>
+                    </div>
 
-            <form onSubmit={handleSubmit} aria-busy={isLoggingIn} className="space-y-5">
-              <div>
-                <label htmlFor="identifier" className="mb-2 block text-sm font-medium text-foreground">
-                  Email or Username
-                </label>
-                <input
-                  id="identifier"
-                  name="identifier"
-                  type="text"
-                  autoComplete="username"
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  value={identifier}
-                  onChange={(event) => setIdentifier(event.target.value)}
-                  placeholder="Enter your email or username"
-                  required
-                  disabled={isLoggingIn}
-                  aria-describedby={errorMsg ? "login-error" : undefined}
-                  className={inputClasses}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="password" className="mb-2 block text-sm font-medium text-foreground">
-                  Password
-                </label>
-                <div className="relative">
-                  <input
-                    id="password"
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Enter your password"
-                    required
-                    disabled={isLoggingIn}
-                    aria-describedby={errorMsg ? "login-error" : undefined}
-                    className={`${inputClasses} pr-18`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((value) => !value)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    aria-controls="password"
-                    aria-pressed={showPassword}
-                    className="absolute inset-y-1 right-1.5 min-w-14 cursor-pointer rounded-md px-2 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none transition-colors"
-                  >
-                    {showPassword ? "Hide" : "Show"}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoggingIn}
-                className="flex min-h-[46px] w-full cursor-pointer items-center justify-between gap-3 rounded-lg bg-primary hover:bg-primary-hover px-5 py-3 text-sm font-semibold text-primary-foreground transition-all shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-70 mt-3"
-              >
-                <span role="status" aria-live="polite">
-                  {isLoggingIn ? "Signing in…" : "Sign in"}
-                </span>
-                {isLoggingIn ? (
-                  <svg aria-hidden="true" className="size-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" opacity="0.25" />
-                    <path d="M12 3a9 9 0 0 1 9 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsForgotPassword(false);
+                        setForgotSent(false);
+                        setForgotError("");
+                      }}
+                      className="flex min-h-[46px] w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary hover:bg-primary-hover px-5 py-3 text-sm font-semibold text-primary-foreground transition-all shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                    >
+                      <ArrowLeft className="size-4" />
+                      Back to sign in
+                    </button>
+                  </div>
                 ) : (
-                  <svg aria-hidden="true" className="size-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 12h15m-6-6 6 6-6 6" />
-                  </svg>
-                )}
-              </button>
-            </form>
+                  <form onSubmit={handleForgotSubmit} className="space-y-5">
+                    {forgotError && (
+                      <div
+                        role="alert"
+                        className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm leading-relaxed text-destructive"
+                      >
+                        {forgotError}
+                      </div>
+                    )}
 
-            <p className="mt-6 text-center text-xs text-muted-foreground">
-              Need access? Contact your account administrator.
-            </p>
+                    <div>
+                      <label htmlFor="forgot-identifier" className="mb-2 block text-sm font-medium text-foreground">
+                        Email or Username
+                      </label>
+                      <input
+                        id="forgot-identifier"
+                        name="forgot-identifier"
+                        type="text"
+                        autoFocus
+                        required
+                        value={forgotIdentifier}
+                        onChange={(e) => setForgotIdentifier(e.target.value)}
+                        placeholder="Enter your email or username"
+                        disabled={forgotLoading}
+                        className={inputClasses}
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={forgotLoading || !forgotIdentifier.trim()}
+                      className="flex min-h-[46px] w-full cursor-pointer items-center justify-between gap-3 rounded-lg bg-primary hover:bg-primary-hover px-5 py-3 text-sm font-semibold text-primary-foreground transition-all shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-70 mt-3"
+                    >
+                      <span role="status" aria-live="polite">
+                        {forgotLoading ? "Sending request…" : "Send reset request"}
+                      </span>
+                      {forgotLoading ? (
+                        <svg aria-hidden="true" className="size-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                          <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" opacity="0.25" />
+                          <path d="M12 3a9 9 0 0 1 9 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        </svg>
+                      ) : (
+                        <svg aria-hidden="true" className="size-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M4 12h15m-6-6 6 6-6 6" />
+                        </svg>
+                      )}
+                    </button>
+
+                    <div className="pt-2 text-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsForgotPassword(false);
+                          setForgotError("");
+                        }}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                      >
+                        <ArrowLeft className="size-3.5" />
+                        Back to sign in
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="text-[11px] font-semibold uppercase tracking-[2px] text-primary">
+                  Messaging Workspace
+                </p>
+                <h2
+                  id="login-heading"
+                  className="mt-2 text-3xl sm:text-[36px] font-bold tracking-tight text-foreground"
+                >
+                  Welcome back.
+                </h2>
+                <p className="mt-1.5 mb-7 text-sm text-muted-foreground">
+                  Sign in to manage campaigns, audience directories, and credits.
+                </p>
+
+                {errorMsg && (
+                  <div
+                    ref={errorRef}
+                    id="login-error"
+                    role="alert"
+                    tabIndex={-1}
+                    className="mb-5 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm leading-relaxed text-destructive outline-none focus-visible:ring-2 focus-visible:ring-destructive/30"
+                  >
+                    {errorMsg}
+                  </div>
+                )}
+
+                <form onSubmit={handleSubmit} aria-busy={isLoggingIn} className="space-y-5">
+                  <div>
+                    <label htmlFor="identifier" className="mb-2 block text-sm font-medium text-foreground">
+                      Email or Username
+                    </label>
+                    <input
+                      id="identifier"
+                      name="identifier"
+                      type="text"
+                      autoComplete="username"
+                      autoCapitalize="none"
+                      spellCheck={false}
+                      value={identifier}
+                      onChange={(event) => setIdentifier(event.target.value)}
+                      placeholder="Enter your email or username"
+                      required
+                      disabled={isLoggingIn}
+                      aria-describedby={errorMsg ? "login-error" : undefined}
+                      className={inputClasses}
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label htmlFor="password" className="text-sm font-medium text-foreground">
+                        Password
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsForgotPassword(true);
+                          setForgotIdentifier(identifier.trim());
+                          setForgotSent(false);
+                          setForgotMsg("");
+                          setForgotError("");
+                        }}
+                        className="text-xs font-medium text-primary hover:text-primary-hover hover:underline cursor-pointer transition-colors"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <input
+                        id="password"
+                        name="password"
+                        type={showPassword ? "text" : "password"}
+                        autoComplete="current-password"
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                        placeholder="Enter your password"
+                        required
+                        disabled={isLoggingIn}
+                        aria-describedby={errorMsg ? "login-error" : undefined}
+                        className={`${inputClasses} pr-11`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((value) => !value)}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        aria-controls="password"
+                        aria-pressed={showPassword}
+                        className="absolute inset-y-1 right-1.5 flex items-center justify-center w-9 cursor-pointer rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none transition-colors"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="size-4.5" aria-hidden="true" />
+                        ) : (
+                          <Eye className="size-4.5" aria-hidden="true" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoggingIn}
+                    className="flex min-h-[46px] w-full cursor-pointer items-center justify-between gap-3 rounded-lg bg-primary hover:bg-primary-hover px-5 py-3 text-sm font-semibold text-primary-foreground transition-all shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-wait disabled:opacity-70 mt-3"
+                  >
+                    <span role="status" aria-live="polite">
+                      {isLoggingIn ? "Signing in…" : "Sign in"}
+                    </span>
+                    {isLoggingIn ? (
+                      <svg aria-hidden="true" className="size-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" opacity="0.25" />
+                        <path d="M12 3a9 9 0 0 1 9 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                    ) : (
+                      <svg aria-hidden="true" className="size-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4 12h15m-6-6 6 6-6 6" />
+                      </svg>
+                    )}
+                  </button>
+                </form>
+
+                <p className="mt-6 text-center text-xs text-muted-foreground">
+                  Need access? Contact your account administrator.
+                </p>
+              </>
+            )}
           </div>
         </div>
 

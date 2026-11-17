@@ -6,6 +6,7 @@ import config from "../config/config.js";
 import userModel from "../models/user.model.js";
 import sessionModel from "../models/session.model.js";
 import walletModel from "../models/wallet.model.js";
+import { Notification, NotificationPreference, PushSubscription, PushDelivery } from "../models/notification.model.js";
 import { notifySession, notifyUser, notifyRole } from "../services/socket.service.js";
 import { authenticateBrowserSession, requestSessionCredentials, revokeBrowserSessions, sessionCookieOptions, tokenHash as hashSessionToken } from "../helpers/browser-session.js";
 import { deleteUserDpImageFile } from "./user.controller.js";
@@ -580,6 +581,133 @@ export async function changePassword(req, res) {
     }
 }
 
+/**
+ * POST /api/auth/forgot-password
+ * ------------------------------
+ * Public endpoint to request password assistance.
+ * Identifies the user by email or username, resolves the reseller who created that user,
+ * and creates an urgent notification for that reseller.
+ */
+export async function forgotPassword(req, res) {
+    try {
+        const { identifier, email, username } = req.body || {};
+        const query = (identifier || email || username || "").trim();
+
+        if (!query) {
+            return res.status(400).json({
+                success: false,
+                message: "Please enter your email or username.",
+            });
+        }
+
+        const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const user = await userModel.findOne({
+            $or: [
+                { email: query.toLowerCase() },
+                { username: { $regex: new RegExp("^" + escaped + "$", "i") } },
+            ],
+        });
+
+        // If no user matches, return a generic message to prevent account enumeration
+        if (!user) {
+            return res.status(200).json({
+                success: true,
+                message: "If an account with that email or username exists, a notification has been sent to your account manager.",
+            });
+        }
+
+        // Find the reseller who created this user
+        let manager = null;
+        if (user.resellerId) {
+            manager = await userModel.findOne({ _id: user.resellerId, role: "Reseller" });
+        }
+        if (!manager && user.createdBy) {
+            manager = await userModel.findById(user.createdBy);
+        }
+        // Fallback to Super Admin if user was created directly by Super Admin or has no reseller
+        if (!manager) {
+            manager = await userModel.findOne({ role: "Super Admin" });
+        }
+
+        if (manager) {
+            const version = Date.now();
+            const groupKey = "user:" + user._id + ":security:password-reset";
+            const eventId = "pwd-reset:" + user._id + ":" + version;
+            const targetPath = manager.role === "Super Admin"
+                ? (user.role === "Reseller" ? "/admin/resellers?search=" + encodeURIComponent(user.username) : "/admin/users?search=" + encodeURIComponent(user.username))
+                : "/reseller/users?search=" + encodeURIComponent(user.username);
+
+            const title = "Password reset request: " + user.username;
+            const body = "User \"" + user.username + "\" (" + (user.email || "No email") + ") requested assistance with resetting their password.";
+
+            const notification = await Notification.findOneAndUpdate(
+                { recipientId: manager._id, groupKey },
+                {
+                    $set: {
+                        recipientId: manager._id,
+                        recipientRole: manager.role,
+                        eventId,
+                        lastEventId: eventId,
+                        groupKey,
+                        itemType: "user",
+                        itemId: String(user._id),
+                        changeType: "security",
+                        fieldKey: "password-reset",
+                        version,
+                        category: "accounts",
+                        priority: "urgent",
+                        title,
+                        body,
+                        href: targetPath,
+                        subjectUserId: user._id,
+                        managed: false,
+                        readAt: null,
+                        archivedAt: null,
+                        createdAt: new Date(),
+                    },
+                },
+                { upsert: true, returnDocument: "after" }
+            ).lean();
+
+            notifyUser(manager._id.toString(), "NOTIFICATION_CREATED", {
+                id: notification._id,
+                title: notification.title,
+                body: notification.body,
+                groupKey: notification.groupKey,
+                toastId: "notification-" + notification._id,
+                version: notification.version,
+            });
+
+            try {
+                const preference = await NotificationPreference.findOne({ userId: manager._id }).lean();
+                if (!preference || preference.pushCategories.includes("accounts")) {
+                    const subscriptions = await PushSubscription.find({ userId: manager._id }).select("_id").lean();
+                    for (const subscription of subscriptions) {
+                        await PushDelivery.updateOne(
+                            { notificationId: notification._id, subscriptionId: subscription._id },
+                            { $setOnInsert: { userId: manager._id } },
+                            { upsert: true }
+                        );
+                    }
+                }
+            } catch (pushErr) {
+                console.warn("Could not queue push for password reset notification:", pushErr.message);
+            }
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "If an account with that email or username exists, a notification has been sent to your account manager.",
+        });
+    } catch (error) {
+        console.error("ForgotPassword error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to submit password reset request. Please try again.",
+        });
+    }
+}
+
 export default {
     register,
     login,
@@ -589,4 +717,5 @@ export default {
     getMe,
     getActiveSessions,
     changePassword,
+    forgotPassword,
 };

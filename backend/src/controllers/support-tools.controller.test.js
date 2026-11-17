@@ -50,30 +50,30 @@ test("context is restricted to the conversation account and discloses no manager
     assert.equal(result.statusCode, 200);
     assert.equal(result.body.data.account.id, String(customer._id));
     assert.equal(result.body.data.wallet.balance, 100);
-    assert.deepEqual(result.body.data.capabilities, { manageAccount: false, allocate: false, requestCredits: true, manageCreditValidity: false, auditLedger: false, escalate: false });
+    assert.deepEqual(result.body.data.capabilities, { manageAccount: false, allocate: false, requestCredits: true, manageWalletLocks: false, auditLedger: false, escalate: false });
     assert.equal(result.body.data.account.resellerId, undefined);
     assert.equal((await invoke(tools.getSupportContext, outsider)).statusCode, 403);
     const manager = await invoke(tools.getSupportContext, reseller);
     assert.equal(manager.body.data.capabilities.manageAccount, true);
 });
 
-test("credit expiry and ledger powers are reserved for Super Admin", async () => {
+test("wallet lock and ledger powers are reserved for Super Admin", async () => {
     const manager = await invoke(tools.getSupportContext, reseller);
-    assert.equal(manager.body.data.capabilities.manageCreditValidity, false);
+    assert.equal(manager.body.data.capabilities.manageWalletLocks, false);
     assert.equal(manager.body.data.capabilities.auditLedger, false);
     assert.equal(manager.body.data.capabilities.escalate, true);
     const staff = await invoke(tools.getSupportContext, admin);
-    assert.equal(staff.body.data.capabilities.manageCreditValidity, true);
+    assert.equal(staff.body.data.capabilities.manageWalletLocks, true);
     assert.equal(staff.body.data.capabilities.auditLedger, true);
     assert.equal(staff.body.data.capabilities.escalate, false);
-    assert.equal((await invoke(tools.applySupportWalletAction, reseller, { expiresAt: null, isLocked: false, expectedUpdatedAt: null })).statusCode, 403);
+    assert.equal((await invoke(tools.applySupportWalletAction, reseller, { isLocked: false, expectedUpdatedAt: null })).statusCode, 403);
     assert.equal((await invoke(tools.getSupportLedger, reseller)).statusCode, 403);
 });
 
-test("Super Admin changes wallet validity without changing account access or its balance", async () => {
+test("Super Admin changes wallet locks without changing account access or its balance", async () => {
     const wallet = await Wallet.findOne({ userId: customer._id }).lean();
     const accountBefore = await User.findById(customer._id).lean();
-    const result = await invoke(tools.applySupportWalletAction, admin, { expiresAt: null, isLocked: true, expectedUpdatedAt: wallet.updatedAt?.toISOString() || null });
+    const result = await invoke(tools.applySupportWalletAction, admin, { isLocked: true, expectedUpdatedAt: wallet.updatedAt?.toISOString() || null });
     assert.equal(result.statusCode, 200, JSON.stringify(result.body));
     const updated = await Wallet.findOne({ userId: customer._id }).lean();
     assert.equal(updated.balance, wallet.balance);
@@ -87,7 +87,7 @@ test("Super Admin changes wallet validity without changing account access or its
     assert.equal(report.body.data.isReconciled, true);
     assert.equal(report.body.data.classification, "matched");
     // Restore the test wallet so later allocation tests exercise the same permissions.
-    await invoke(tools.applySupportWalletAction, admin, { expiresAt: null, isLocked: false, expectedUpdatedAt: updated.updatedAt.toISOString() });
+    await invoke(tools.applySupportWalletAction, admin, { isLocked: false, expectedUpdatedAt: updated.updatedAt.toISOString() });
     await Message.deleteMany({ conversationId: conversation._id });
     await Conversation.updateOne({ _id: conversation._id }, { $set: { nextSequenceNumber: 1 } });
 });
@@ -120,7 +120,7 @@ test("clients cannot grant themselves access", async () => {
     assert.equal(await Message.countDocuments(), 0);
 });
 
-test("extending a blocked account preserves its block and wallet validity and saves a receipt atomically", async () => {
+test("extending a blocked account preserves its block and wallet balance and saves a receipt atomically", async () => {
     await User.collection.updateOne({ _id: customer._id }, { $set: { status: "blocked", accessReason: "Needs review" } });
     const before = await User.findById(customer._id).lean();
     const nextDate = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
@@ -129,7 +129,7 @@ test("extending a blocked account preserves its block and wallet validity and sa
     const account = await User.findById(customer._id).lean();
     assert.equal(account.status, "blocked");
     assert.equal(account.expiresAt.toISOString(), `${nextDate}T23:59:59.999Z`);
-    assert.equal((await Wallet.findOne({ userId: customer._id }).lean()).expiresAt, null);
+    assert.equal((await Wallet.findOne({ userId: customer._id }).lean()).balance, 100);
     const receipt = await Message.findOne({ conversationId: conversation._id }).lean();
     assert.match(receipt.text, /remains blocked/);
     assert.equal(receipt.sequenceNumber, 1);

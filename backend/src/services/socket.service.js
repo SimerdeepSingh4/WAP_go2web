@@ -117,11 +117,20 @@ async function boundedAccess(auth) {
     } finally { clearTimeout(timer); }
 }
 
-async function checkConnectedSocket(socket) {
+async function checkConnectedSocket(socket, force = false) {
+    const now = Date.now();
+    if (!force && socket.data?.lastValidatedAt && (now - socket.data.lastValidatedAt < REVALIDATE_MS)) {
+        if (socket.data.accessDeadline && socket.data.accessDeadline <= now) {
+            endSocket(socket, "Your session or account has expired.");
+            return false;
+        }
+        return true;
+    }
     try {
         const access = await boundedAccess(socket.data.auth);
         if (!socket.connected) return false;
         socket.user = access.user;
+        if (socket.data) socket.data.lastValidatedAt = now;
         syncAccountAccess(socket, access.user);
         armExpiry(socket, access.deadline);
         return true;
@@ -319,7 +328,7 @@ export function initSocket(httpServer) {
     // Idle connections must also lose access when records change outside HTTP handlers.
     const serverIO = io;
     const validationTimer = setInterval(() => {
-        for (const socket of serverIO.sockets.sockets.values()) void checkConnectedSocket(socket);
+        for (const socket of serverIO.sockets.sockets.values()) void checkConnectedSocket(socket, true);
     }, REVALIDATE_MS);
     validationTimer.unref();
     httpServer.once("close", () => clearInterval(validationTimer));

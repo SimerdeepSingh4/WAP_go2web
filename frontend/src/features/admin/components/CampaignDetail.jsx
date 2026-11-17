@@ -206,7 +206,7 @@ export default function CampaignDetail({ id, initialReport, initialStatus, onClo
                       />
                     </div>
                     <CampaignMedia campaign={campaign} />
-                    <CampaignActionLinks link={campaign.campaignLink} phone={campaign.campaignNumber} linkName={campaign.campaignLinkName} />
+                    <CampaignActionLinks link={campaign.campaignLink} phone={campaign.campaignNumber} linkName={campaign.campaignLinkName} phoneName={campaign.campaignNumberName} />
                   </section>
 
                   <CampaignRecipientReview key={campaign._id} campaign={campaign} />

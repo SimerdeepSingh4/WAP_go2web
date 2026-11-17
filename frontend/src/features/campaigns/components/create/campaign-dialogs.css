@@ -9,7 +9,10 @@
   border-radius: 18px;
   box-shadow: 0 24px 80px -24px color-mix(in srgb, var(--foreground) 25.1%, transparent);
 }
-.campaign-review-dialog { max-width: 520px; }
+/* Keep confirmation actions above the app's floating dock. */
+.campaign-review-dialog { z-index: 10000; display: flex; max-width: 500px; max-height: calc(100dvh - 32px); flex-direction: column; overflow: hidden; }
+.campaign-review-dialog > .campaign-dialog-header { flex-shrink: 0; }
+.campaign-review-dialog .campaign-dialog-header [data-slot="dialog-title"] { font-size: 20px; }
 .campaign-schedule-dialog { max-width: 640px; }
 .campaign-schedule-dialog > *, .campaign-review-dialog > * { min-width: 0; }
 .campaign-dialog-header { flex-direction: row; align-items: flex-start; gap: 12px; padding-right: 20px; }
@@ -43,21 +46,35 @@
 .campaign-schedule-summary { display: flex; min-width: 0; flex: 1 1 180px; align-items: flex-start; gap: 7px; margin: 0; color: var(--primary-text); font-size: 11px; line-height: 1.6; }
 .campaign-schedule-summary svg { width: 13px; height: 13px; flex-shrink: 0; }
 .campaign-schedule-summary-invalid { color: var(--destructive); }
-.campaign-review-details { min-width: 0; overflow: hidden; margin: 0; border: 1px solid var(--muted); border-radius: 12px; }
-.campaign-review-details > div { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); align-items: start; gap: 16px; padding: 13px 15px; border-bottom: 1px solid var(--background); }
-.campaign-review-details > div:last-child { border-bottom: 0; }
-.campaign-review-details > div:first-child { grid-template-columns: minmax(0, 1fr); gap: 5px; }
-.campaign-review-details > div:first-child dd { text-align: left; font-size: 13px; }
-.campaign-review-details dt { color: var(--muted-foreground); font-size: 12px; line-height: 1.65; }
-.campaign-review-details dd { min-width: 0; margin: 0; color: var(--foreground); font-size: 12px; font-weight: 500; line-height: 1.65; text-align: right; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
-.campaign-review-details > div[data-highlight="true"] { background: var(--background); }
-.campaign-review-details > div[data-highlight="true"] dd { color: var(--primary-text); font-weight: 650; }
-.campaign-review-message { min-width: 0; border: 1px solid var(--background); border-radius: 11px; padding: 13px 15px; background: var(--background); }
-.campaign-review-message h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; color: var(--primary-text); font-size: 11px; font-weight: 550; }
-.campaign-review-message h3 svg { width: 13px; height: 13px; }
-.campaign-review-message p { max-height: 120px; overflow-y: auto; margin: 0; color: var(--muted-foreground); font-size: 12px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
-.campaign-review-note { display: flex; align-items: flex-start; gap: 7px; margin: 0; color: var(--muted-foreground); font-size: 11px; line-height: 1.7; }
-.campaign-review-note svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; }
+.campaign-review-body { display: grid; min-height: 0; flex: 0 1 auto; gap: 20px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.campaign-review-name > span { color: var(--muted-foreground); font-size: 11px; }
+.campaign-review-name h3 { margin: 5px 0 0; color: var(--foreground); font-size: 15px; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
+.campaign-review-summary { overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: color-mix(in srgb, var(--primary) 4%, var(--card)); }
+.campaign-review-totals { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; padding: 18px 0; }
+.campaign-review-totals > div { min-width: 0; padding: 0 18px; }
+.campaign-review-totals > div + div { border-left: 1px solid var(--border); }
+.campaign-review-totals dt { color: var(--muted-foreground); font-size: 11px; line-height: 1.5; }
+.campaign-review-totals dd { margin: 7px 0 0; color: var(--foreground); font-size: 28px; font-weight: 600; letter-spacing: -.8px; line-height: 1.25; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.campaign-review-totals > div + div dd { color: var(--primary-text); }
+.campaign-review-totals dd > span { font-size: 12px; font-weight: 500; letter-spacing: 0; }
+.campaign-review-totals p { margin: 5px 0 0; color: var(--muted-foreground); font-size: 10px; font-weight: 400; letter-spacing: 0; line-height: 1.5; }
+.campaign-review-balance { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 12px 18px; border-top: 1px solid var(--border); background: var(--card); font-size: 11px; line-height: 1.6; }
+.campaign-review-balance > span { color: var(--muted-foreground); }
+.campaign-review-balance strong { color: var(--foreground); font-weight: 550; text-align: right; font-variant-numeric: tabular-nums; }
+.campaign-review-details { min-width: 0; margin: 0; }
+.campaign-review-details > div { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); align-items: start; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.campaign-review-details > div:first-child { padding-top: 0; }
+.campaign-review-details > div:last-child { border-bottom: 0; padding-bottom: 0; }
+.campaign-review-details dt { display: flex; align-items: center; gap: 8px; color: var(--muted-foreground); font-size: 12px; line-height: 1.6; }
+.campaign-review-details dt svg { width: 14px; height: 14px; flex-shrink: 0; }
+.campaign-review-details dd { min-width: 0; margin: 0; color: var(--foreground); font-size: 12px; font-weight: 500; line-height: 1.6; text-align: right; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.campaign-review-details dd strong { font-weight: 500; }
+.campaign-review-details dd small { display: block; margin-top: 3px; color: var(--muted-foreground); font-size: 11px; font-weight: 400; }
+.campaign-review-note { margin: 0; color: var(--muted-foreground); font-size: 11px; line-height: 1.7; }
+.campaign-review-actions { display: grid; flex-shrink: 0; gap: 12px; }
+.campaign-review-actions [role="alert"] { max-height: 100px; overflow-y: auto; margin: 0; font-size: 12px; }
+.campaign-review-footer { flex-shrink: 0; flex-wrap: nowrap; padding-top: 16px; border-color: var(--border); }
+.campaign-review-footer [data-slot="button"] { min-height: 44px; }
 @media (max-width: 540px) {
   .campaign-schedule-layout { grid-template-columns: minmax(0, 1fr); gap: 18px; }
   .campaign-schedule-time-section { border-left: 0; padding: 0; gap: 18px; }
@@ -70,5 +87,8 @@
   .campaign-dialog-header { gap: 9px; }
   .campaign-dialog-header [data-slot="dialog-title"] { font-size: 16px; }
   .campaign-dialog-footer [data-slot="button"] { flex: 1; min-width: 0; padding-inline: 10px; }
-  .campaign-review-details > div { gap: 10px; padding: 11px 12px; }
+  .campaign-review-details > div { gap: 10px; }
+  .campaign-review-totals > div { padding-inline: 12px; }
+  .campaign-review-totals dd { font-size: 25px; }
+  .campaign-review-balance { padding-inline: 12px; }
 }

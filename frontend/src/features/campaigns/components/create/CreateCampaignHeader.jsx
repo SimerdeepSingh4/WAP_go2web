@@ -1,6 +1,5 @@
 import { ArrowLeft, Check, ChevronRight, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import SupportHelpButton from "@/features/support/components/SupportHelpButton";
 
 export default function CreateCampaignHeader({
   onNavigateBack,
@@ -22,7 +21,6 @@ export default function CreateCampaignHeader({
               <strong>{dailyUsage.remainingToday}</strong> of {dailyUsage.dailyLimit} campaigns left today{dailyUsage.isCustom ? " (Custom)" : ""}
             </span>
           )}
-          <SupportHelpButton area="creating a campaign" />
           <span className="campaign-create-approval"><ShieldCheck aria-hidden="true" />Admin approval required</span>
         </div>
       </div>

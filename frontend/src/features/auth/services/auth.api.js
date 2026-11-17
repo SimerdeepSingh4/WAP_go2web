@@ -85,4 +85,7 @@ export async function removeProfileImage() {
     const response = await apiClient.delete("/users/me/dp-image");
     return response.data;
 }
-
+export async function forgotPassword(identifier) {
+    const response = await apiClient.post("/auth/forgot-password", { identifier });
+    return response.data;
+}

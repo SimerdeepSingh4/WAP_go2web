@@ -26,6 +26,7 @@ import creditReconciliationRouter from "./routes/credit-reconciliation.routes.js
 import { auditRequestContext } from "./services/audit.service.js";
 import { uploadsStatic } from "./middlewares/uploads-static.middleware.js";
 import { isTrustedOrigin, protectBrowserRequest } from "./middlewares/browser-request.middleware.js";
+import reviewPinRouter from "./routes/reviewPin.routes.js";
 
 const app = express();
 if (process.env.TRUST_PROXY) app.set("trust proxy", process.env.TRUST_PROXY.split(",").map((entry) => entry.trim()).filter(Boolean));
@@ -65,6 +66,7 @@ app.use("/api/enterprise", enterpriseRouter);
 app.use("/api/branding", brandingRouter);
 app.use("/api/support", supportRouter);
 app.use("/api/settings", settingsRouter);
+app.use("/api/review-pins", reviewPinRouter);
 
 // Public Health & Keep-Alive endpoints (No auth required)
 app.use("/health", healthRouter);

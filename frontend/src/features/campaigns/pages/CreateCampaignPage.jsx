@@ -12,13 +12,16 @@ import { campaignEstimate, parseRecipients, splitRecipientInput } from "../lib/s
 import CreateCampaignHeader from "../components/create/CreateCampaignHeader";
 import CampaignDetailsSection from "../components/create/CampaignDetailsSection";
 import CampaignMessageEditor, { CHARACTER_LIMIT } from "../components/create/CampaignMessageEditor";
+import CampaignWhatsAppPreview from "../components/create/CampaignWhatsAppPreview";
+import CampaignCtaFields from "../components/create/CampaignCtaFields";
 import CampaignMediaUploader, { mediaKindsForLimits, MB, formatFileSize } from "../components/create/CampaignMediaUploader";
 import useMediaUploadLimits from "../hooks/useMediaUploadLimits";
 import CampaignRecipientsInput from "../components/create/CampaignRecipientsInput";
-import CampaignDeliverySettings from "../components/create/CampaignDeliverySettings";
 import CampaignCostSummary from "../components/create/CampaignCostSummary";
 import CampaignReviewDialog from "../components/create/CampaignReviewDialog";
 import { readCampaignDraft, removeCampaignDraft, writeCampaignDraft } from "../lib/draftStorage";
+import { MAX_CAMPAIGN_MEDIA, SINGLE_MEDIA_MESSAGE } from "../../../../../shared/campaignMedia.js";
+import { CTA_LABEL_LIMIT, DEFAULT_CALL_LABEL, DEFAULT_LINK_LABEL } from "../../../../../shared/campaignCta.js";
 import "../components/create/create-campaign.css";
 
 function htmlToText(html) {
@@ -62,8 +65,9 @@ export default function CreateCampaignPage() {
   const [campaignTitle, setCampaignTitle] = useState("");
   const [campaignDescription, setCampaignDescription] = useState("");
   const [campaignLink, setCampaignLink] = useState("");
-  const [campaignLinkName, setCampaignLinkName] = useState("");
+  const [campaignLinkName, setCampaignLinkName] = useState(DEFAULT_LINK_LABEL);
   const [campaignNumber, setCampaignNumber] = useState("");
+  const [campaignNumberName, setCampaignNumberName] = useState(DEFAULT_CALL_LABEL);
   const [shareProfileDp, setShareProfileDp] = useState(false);
   const [messageBody, setMessageBody] = useState("");
   const recipientTracking = useRecipientTracking();
@@ -76,7 +80,7 @@ export default function CreateCampaignPage() {
   const [draftReady, setDraftReady] = useState(() => !draftKey);
   const draftSaveTimer = useRef(null);
 
-  // Exactly one image, one video, one PDF
+  // One uploaded attachment; profile photo sharing is independent.
   const [media, setMedia] = useState({ image: null, video: null, pdf: null });
 
   useEffect(() => {
@@ -91,8 +95,9 @@ export default function CreateCampaignPage() {
         setCampaignTitle(draft.campaignTitle || "");
         setCampaignDescription(draft.campaignDescription || "");
         setCampaignLink(draft.campaignLink || "");
-        setCampaignLinkName(draft.campaignLinkName || "");
+        setCampaignLinkName(draft.ctaLabelsVersion === 1 ? draft.campaignLinkName ?? DEFAULT_LINK_LABEL : draft.campaignLinkName || DEFAULT_LINK_LABEL);
         setCampaignNumber(draft.campaignNumber || "");
+        setCampaignNumberName(draft.campaignNumberName ?? DEFAULT_CALL_LABEL);
         setShareProfileDp(draft.shareProfileDp === true);
         setMessageBody(draft.messageBody || "");
         restoreRecipients(draft.rawRecipients || "", draft.recipientTracking);
@@ -164,7 +169,8 @@ export default function CreateCampaignPage() {
   const estimatedCost = estimate.cost;
   const remainingBalance = estimate.remaining;
   const hasInsufficientCredits = estimate.insufficient;
-  const totalMediaCount = Object.values(media).filter(Boolean).length + (canShareProfileDp && shareProfileDp ? 1 : 0);
+  const totalMediaCount = Object.values(media).filter(Boolean).length;
+  const hasSharedProfileDp = canShareProfileDp && shareProfileDp;
 
   const scheduleValid =
     scheduleType === "now" ||
@@ -173,14 +179,15 @@ export default function CreateCampaignPage() {
   // What's still missing before "Review campaign" works
   const checks = [
     { ok: Boolean(campaignTitle.trim()), label: "Campaign title" },
-    { ok: (Boolean(messageText) || totalMediaCount > 0) && !isOverCharacterLimit, label: "Message or attachment" },
+    { ok: (Boolean(messageText) || totalMediaCount > 0 || hasSharedProfileDp) && !isOverCharacterLimit, label: "Message or attachment" },
+    ...(totalMediaCount > MAX_CAMPAIGN_MEDIA ? [{ ok: false, label: "Keep only one media attachment" }] : []),
     { ok: validRecipients.length > 0 && invalidCount === 0, label: "Valid recipient numbers" },
     { ok: Boolean(scheduleValid), label: scheduleType === "later" ? "Future schedule time" : "Delivery timing" },
     { ok: !hasInsufficientCredits && !isLocked, label: "Enough credits" },
     ...(!isAdmin && dailyUsage && !dailyUsage.isUnlimited ? [{ ok: !isDailyLimitReached, label: "Daily campaign limit" }] : []),
   ];
 
-  const isDirty = Boolean(campaignTitle || campaignDescription || campaignLink || campaignLinkName || campaignNumber || shareProfileDp || messageText || rawRecipients.trim() || totalMediaCount || scheduleType !== "now" || scheduledTime);
+  const isDirty = Boolean(campaignTitle || campaignDescription || campaignLink || campaignLinkName !== DEFAULT_LINK_LABEL || campaignNumber || campaignNumberName !== DEFAULT_CALL_LABEL || shareProfileDp || messageText || rawRecipients.trim() || totalMediaCount || scheduleType !== "now" || scheduledTime);
 
   useEffect(() => {
     if (!draftReady || !draftKey) return undefined;
@@ -191,11 +198,13 @@ export default function CreateCampaignPage() {
         return;
       }
       writeCampaignDraft(draftKey, {
+        ctaLabelsVersion: 1,
         campaignTitle,
         campaignDescription,
         campaignLink,
         campaignLinkName,
         campaignNumber,
+        campaignNumberName,
         shareProfileDp,
         messageBody,
         rawRecipients,
@@ -210,7 +219,7 @@ export default function CreateCampaignPage() {
       }).catch(() => {});
     }, 300);
     return () => window.clearTimeout(draftSaveTimer.current);
-  }, [draftReady, draftKey, isDirty, campaignTitle, campaignDescription, campaignLink, campaignLinkName, campaignNumber, shareProfileDp, messageBody, rawRecipients, recipientTracking.tracking, scheduleType, scheduledTime, media]);
+  }, [draftReady, draftKey, isDirty, campaignTitle, campaignDescription, campaignLink, campaignLinkName, campaignNumber, campaignNumberName, shareProfileDp, messageBody, rawRecipients, recipientTracking.tracking, scheduleType, scheduledTime, media]);
 
   // Warn before leaving with unsent work
   useEffect(() => {
@@ -247,17 +256,24 @@ export default function CreateCampaignPage() {
       });
       return;
     }
-    setMedia((m) => ({
-      ...m,
+    const attachment = {
+      file,
+      name: file.name,
+      size: file.size,
+      preview: kind === "pdf" ? null : URL.createObjectURL(file),
+    };
+    setMedia({
+      image: null, video: null, pdf: null,
       [kind]: {
-        file,
-        name: file.name,
-        size: file.size,
-        preview: kind === "pdf" ? null : URL.createObjectURL(file),
+        ...attachment,
       },
-    }));
+    });
   };
   const removeMedia = (kind) => setMedia((m) => ({ ...m, [kind]: null }));
+  const toggleShareProfileDp = (checked) => {
+    if (checked && !user?.dp_img) return;
+    setShareProfileDp(checked);
+  };
 
   /* ---- Recipients file ---- */
   const readRecipientsFile = (file) => {
@@ -307,8 +323,6 @@ export default function CreateCampaignPage() {
     },
     onError: (err) => {
       const msg = err?.response?.data?.message || err?.message || "Unable to submit campaign. Please verify your inputs.";
-      setFormError(msg);
-      setReviewPayload(null);
       toast.add({ title: "Campaign submission failed", description: msg, type: "error" });
     },
   });
@@ -325,6 +339,8 @@ export default function CreateCampaignPage() {
       return;
     }
     if (user?.isPreview) return setFormError("Exit account preview to submit a campaign.");
+    if (totalMediaCount > MAX_CAMPAIGN_MEDIA) return setFormError(SINGLE_MEDIA_MESSAGE);
+    if (canShareProfileDp && shareProfileDp && !user?.dp_img) return setFormError("Add a profile photo in Settings before sharing it.");
     if (Object.values(media).some(Boolean) && !uploadLimits.isSuccess) return setFormError("Load the upload limits before continuing.");
     for (const [kind, attachment] of Object.entries(media)) {
       if (attachment && attachment.size > mediaKinds[kind].max) return setFormError(`${mediaKinds[kind].label} exceeds your ${mediaKinds[kind].max / MB} MB limit. Choose a smaller file.`);
@@ -332,6 +348,7 @@ export default function CreateCampaignPage() {
     if (!isAdmin && !balanceQuery.isSuccess) return setFormError("Load your credit balance before continuing.");
     if (scheduleType === "later" && !scheduleValid) return setFormError("Choose a future date and time.");
     if (canAddCampaignLink && campaignLink.trim()) {
+      if (!campaignLinkName.trim() || campaignLinkName.trim().length > CTA_LABEL_LIMIT) return setFormError(`Enter a link button label with 1 to ${CTA_LABEL_LIMIT} characters.`);
       try {
         const parsedLink = new URL(campaignLink.trim());
         if (!["http:", "https:"].includes(parsedLink.protocol)) throw new Error("unsupported protocol");
@@ -340,14 +357,15 @@ export default function CreateCampaignPage() {
       }
     }
     if (canAddCampaignNumber && campaignNumber.trim()) {
+      if (!campaignNumberName.trim() || campaignNumberName.trim().length > CTA_LABEL_LIMIT) return setFormError(`Enter a call button label with 1 to ${CTA_LABEL_LIMIT} characters.`);
       const campaignNumberDigits = campaignNumber.replace(/\D/g, "");
       if (!/^\+?[\d\s().-]+$/.test(campaignNumber.trim()) || campaignNumberDigits.length < 7 || campaignNumberDigits.length > 15) {
         return setFormError("Enter a valid campaign number with 7 to 15 digits.");
       }
     }
-    if (isLocked) return setFormError("Your credit balance is expired and locked. Please contact your administrator.");
+    if (isLocked) return setFormError("Your wallet is locked. Please contact your administrator.");
     if (!campaignTitle.trim()) return setFormError("Please provide a campaign title.");
-    if (!messageText && totalMediaCount === 0) return setFormError("Please provide message content or attach media (image, video, or PDF).");
+    if (!messageText && totalMediaCount === 0 && !hasSharedProfileDp) return setFormError("Please provide message content or attach media (image, video, or PDF).");
     if (isOverCharacterLimit) return setFormError(`Message exceeds the maximum limit of ${CHARACTER_LIMIT} characters (currently ${charCount}). Please shorten it.`);
     if (/\{\{[\s\S]*?\}\}/.test(messageBody)) return setFormError("Dynamic variables like {{...}} are not allowed. Please enter static text only.");
     if (invalidCount > 0) return setFormError(`Correct ${invalidCount} invalid recipient ${invalidCount === 1 ? "line" : "lines"}. Every number must contain 10 to 12 digits and be on its own line.`);
@@ -363,7 +381,10 @@ export default function CreateCampaignPage() {
         formData.append("campaignLinkName", campaignLinkName.trim());
       }
     }
-    if (canAddCampaignNumber && campaignNumber.trim()) formData.append("campaignNumber", campaignNumber.trim());
+    if (canAddCampaignNumber && campaignNumber.trim()) {
+      formData.append("campaignNumber", campaignNumber.trim());
+      formData.append("campaignNumberName", campaignNumberName.trim());
+    }
     if (canShareProfileDp && shareProfileDp) formData.append("shareProfileDp", "true");
     formData.append("messageBody", messageBody.trim());
     formData.append("recipients", JSON.stringify(splitRecipientInput(rawRecipients)));
@@ -380,9 +401,9 @@ export default function CreateCampaignPage() {
   // Redirect only after all hooks have run
   if (isAdmin) return <Navigate to="/admin/campaigns" replace />;
 
-  const previewText = messageText;
   const submitDisabled =
     createCampaignMutation.isPending ||
+    totalMediaCount > MAX_CAMPAIGN_MEDIA ||
     user?.isPreview ||
     (!isAdmin && !balanceQuery.isSuccess) ||
     isLocked ||
@@ -454,7 +475,7 @@ export default function CreateCampaignPage() {
             <div>
               <p className="text-sm font-semibold">Credit wallet locked</p>
               <p className="text-xs text-red-700 dark:text-red-300">
-                Your credit allocation has expired. Campaigns are disabled until the Super Admin renews it.
+                Your wallet is locked. Contact your administrator to restore campaign access.
               </p>
             </div>
           </div>
@@ -469,76 +490,89 @@ export default function CreateCampaignPage() {
             onCampaignTitleChange={setCampaignTitle}
             campaignDescription={campaignDescription}
             onCampaignDescriptionChange={setCampaignDescription}
-            campaignLink={campaignLink}
-            onCampaignLinkChange={canAddCampaignLink ? setCampaignLink : undefined}
-            campaignLinkName={campaignLinkName}
-            onCampaignLinkNameChange={canAddCampaignLink ? setCampaignLinkName : undefined}
-            campaignNumber={campaignNumber}
-            onCampaignNumberChange={canAddCampaignNumber ? setCampaignNumber : undefined}
-          />
-
-          <CampaignMessageEditor
-            quillRef={quillRef}
-            messageBody={messageBody}
-            onMessageBodyChange={setMessageBody}
-
-            charCount={charCount}
-            isOverCharacterLimit={isOverCharacterLimit}
-            quillModules={quillModules}
-            quillFormats={quillFormats}
-          />
-
-          <CampaignMediaUploader
-            mediaKinds={mediaKinds}
-            media={media}
-            onSelectMedia={selectMedia}
-            onRemoveMedia={removeMedia}
-            canShareProfileDp={canShareProfileDp}
-            shareProfileDp={shareProfileDp}
-            onToggleShareProfileDp={setShareProfileDp}
-            userProfileDp={user?.dp_img}
-          />
-
-          <CampaignRecipientsInput
-            fileInputRef={fileInputRef}
-            rawRecipients={rawRecipients}
-            onRawRecipientsChange={setRawRecipients}
-            onRecipientsPaste={(e) => {
-                recipientTracking.onPaste(e);
-                // Show validation after paste so invalid entries are highlighted (but paste is never blocked)
-                setTimeout(() => setValidateRecipients(true), 0);
-              }}
-            onRecipientsBeforeInput={recipientTracking.onBeforeInput}
-            dropActive={dropActive}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDropActive(true);
-            }}
-            onDragLeave={() => setDropActive(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDropActive(false);
-              readRecipientsFile(e.dataTransfer.files?.[0]);
-            }}
-            onReadFile={readRecipientsFile}
-            totalRecipients={validRecipients.length}
-            duplicatesCount={duplicatesCount}
-            invalidCount={invalidCount}
-            invalidEntries={invalidEntries}
-            inputError={recipientTracking.inputError}
-            onBlur={() => {
-              recipientTracking.clearInputError?.();
-              setValidateRecipients(true);
-            }}
-            showValidation={validateRecipients}
-          />
-          <CampaignDeliverySettings
             scheduleType={scheduleType}
             onScheduleTypeChange={setScheduleType}
             scheduledTime={scheduledTime}
             onScheduledTimeChange={setScheduledTime}
             scheduleValid={scheduleValid}
           />
+
+          <div className="campaign-compose-message-preview">
+            <CampaignMessageEditor
+              quillRef={quillRef}
+              messageBody={messageBody}
+              onMessageBodyChange={setMessageBody}
+              charCount={charCount}
+              isOverCharacterLimit={isOverCharacterLimit}
+              quillModules={quillModules}
+              quillFormats={quillFormats}
+            >
+              <CampaignCtaFields
+                campaignLink={campaignLink} onCampaignLinkChange={canAddCampaignLink ? setCampaignLink : undefined}
+                campaignLinkName={campaignLinkName} onCampaignLinkNameChange={setCampaignLinkName}
+                campaignNumber={campaignNumber} onCampaignNumberChange={canAddCampaignNumber ? setCampaignNumber : undefined}
+                campaignNumberName={campaignNumberName} onCampaignNumberNameChange={setCampaignNumberName}
+              />
+            </CampaignMessageEditor>
+            <CampaignWhatsAppPreview
+              messageBody={messageBody}
+              messageText={messageText}
+              media={media}
+              shareProfileDp={canShareProfileDp && shareProfileDp}
+              userProfileDp={user?.dp_img}
+              campaignLink={canAddCampaignLink ? campaignLink : ""}
+              campaignLinkName={campaignLinkName}
+              campaignNumber={canAddCampaignNumber ? campaignNumber : ""}
+              campaignNumberName={campaignNumberName}
+            />
+          </div>
+
+          <div className="campaign-compose-media-recipients">
+            <CampaignMediaUploader
+              mediaKinds={mediaKinds}
+              media={media}
+              onSelectMedia={selectMedia}
+              onRemoveMedia={removeMedia}
+              canShareProfileDp={canShareProfileDp}
+              shareProfileDp={shareProfileDp}
+              onToggleShareProfileDp={toggleShareProfileDp}
+              userProfileDp={user?.dp_img}
+            />
+
+            <CampaignRecipientsInput
+              fileInputRef={fileInputRef}
+              rawRecipients={rawRecipients}
+              onRawRecipientsChange={setRawRecipients}
+              onRecipientsPaste={(e) => {
+                  recipientTracking.onPaste(e);
+                  // Show validation after paste so invalid entries are highlighted (but paste is never blocked)
+                  setTimeout(() => setValidateRecipients(true), 0);
+                }}
+              onRecipientsBeforeInput={recipientTracking.onBeforeInput}
+              dropActive={dropActive}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDropActive(true);
+              }}
+              onDragLeave={() => setDropActive(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDropActive(false);
+                readRecipientsFile(e.dataTransfer.files?.[0]);
+              }}
+              onReadFile={readRecipientsFile}
+              totalRecipients={validRecipients.length}
+              duplicatesCount={duplicatesCount}
+              invalidCount={invalidCount}
+              invalidEntries={invalidEntries}
+              inputError={recipientTracking.inputError}
+              onBlur={() => {
+                recipientTracking.clearInputError?.();
+                setValidateRecipients(true);
+              }}
+              showValidation={validateRecipients}
+            />
+          </div>
         </div>
 
         {/* Final summary and submission */}
@@ -565,13 +599,17 @@ export default function CreateCampaignPage() {
       <CampaignReviewDialog
         isOpen={Boolean(reviewPayload)}
         onClose={() => {
-          if (!createCampaignMutation.isPending) setReviewPayload(null);
+          if (!createCampaignMutation.isPending) {
+            setReviewPayload(null);
+            createCampaignMutation.reset();
+          }
         }}
         isPending={createCampaignMutation.isPending}
         campaignTitle={campaignTitle}
         campaignLink={canAddCampaignLink ? campaignLink : ""}
         campaignLinkName={canAddCampaignLink ? campaignLinkName : ""}
         campaignNumber={canAddCampaignNumber ? campaignNumber : ""}
+        campaignNumberName={campaignNumberName}
         shareProfileDp={canShareProfileDp ? shareProfileDp : false}
         totalRecipients={totalRecipients}
         estimate={estimate}
@@ -581,8 +619,8 @@ export default function CreateCampaignPage() {
         scheduleType={scheduleType}
         scheduledTime={scheduledTime}
         totalMediaCount={totalMediaCount}
-        previewText={previewText}
-        invalidCount={invalidCount}
+        mediaName={Object.values(media).find(Boolean)?.name}
+        duplicatesCount={duplicatesCount}
         error={createCampaignMutation.error}
         onSubmit={() => {
           if (submitting.current) return;

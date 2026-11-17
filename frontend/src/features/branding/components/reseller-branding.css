@@ -49,9 +49,11 @@
 .branding-preview-nav { display:flex; align-items:center; gap:8px; margin-bottom:20px; padding:10px; border:1px solid var(--border); border-radius:8px; background:color-mix(in srgb,var(--preview-secondary) 20%,var(--card)); font-size:11px; }
 .branding-preview-nav svg { width:14px; height:14px; color:var(--preview-primary); }
 .branding-preview-workspace h4 { margin:0 0 4px; font-size:14px; font-weight:600; }
-.branding-preview-stat { margin:16px 0; padding:14px; border:1px solid var(--border); border-radius:10px; background:var(--card); }
-.branding-preview-stat > span { font-size:10px; color:var(--muted-foreground); }
-.branding-preview-stat > strong { display:block; margin-top:6px; font-size:24px; font-weight:600; }
+.branding-preview-stat { margin:16px 0; }
+.branding-preview-stat .overview-metric-card[data-featured="true"] { --metric-text:var(--preview-button-text); --metric-muted:var(--preview-button-text); --metric-icon-surface:var(--preview-button-text); --metric-icon-color:var(--preview-primary); background:var(--preview-primary); }
+.branding-preview-stat .overview-metric-content { min-height:130px; padding:14px; }
+.branding-preview-stat .overview-metric-heading { font-size:11px; }
+.branding-preview-stat .overview-metric-value { font-size:32px; }
 .branding-preview-action { display:flex; align-items:center; justify-content:center; gap:6px; padding:10px; border-radius:8px; background:var(--preview-primary); color:var(--preview-button-text); font-size:11px; font-weight:500; }
 .branding-preview-action svg { width:13px; height:13px; }
 .branding-preview-note { padding:0 18px 18px; }

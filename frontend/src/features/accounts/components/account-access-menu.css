@@ -1,0 +1,46 @@
+.account-state-pill[data-slot="button"], .portal-main [data-slot="table-cell"] .account-state-pill { height:auto; min-height:28px; padding:3px 8px; gap:6px; border-radius:999px; font-size:12px; font-weight:500; }
+.account-state-pill .account-state-dot { width:5px; height:5px; border-radius:50%; background:currentColor; flex-shrink:0; }
+.account-state-pill > svg { width:12px; height:12px; opacity:.65; }
+.account-access-menu[data-slot="dropdown-menu-content"] { width:276px; max-width:calc(100vw - 24px); padding:5px; border-radius:13px; }
+.account-menu-heading { padding:9px 10px 11px; margin-bottom:4px; border-bottom:1px solid var(--border); font-size:11px; color:var(--muted-foreground); font-weight:400; line-height:1.5; }
+.account-menu-heading strong { display:block; margin-top:2px; font-size:13px; font-weight:600; color:var(--foreground); overflow-wrap:anywhere; }
+.account-menu-heading small { display:block; margin-top:4px; font-size:11px; font-weight:400; }
+.account-access-menu .account-menu-option { gap:10px; min-height:49px; padding:9px 10px; border-radius:8px; }
+.account-menu-icon { display:grid; width:28px; height:28px; place-items:center; flex-shrink:0; border:1px solid var(--border); border-radius:8px; background:var(--card); color:var(--muted-foreground); }
+.account-menu-icon > svg { width:14px; height:14px; }
+.account-menu-copy { display:grid; min-width:0; flex:1; gap:2px; }
+.account-menu-copy > span { font-size:13px; font-weight:500; }
+.account-menu-copy small { font-size:11px; line-height:1.45; white-space:normal; color:var(--muted-foreground); }
+.account-menu-option[data-variant="destructive"] .account-menu-icon { color:var(--destructive); }
+.account-menu-current { width:14px; height:14px; color:var(--primary-text,var(--primary)); }
+.account-action-dialog[data-slot="dialog-content"] { display:flex; flex-direction:column; width:480px; max-width:calc(100vw - 24px); max-height:calc(100svh - 24px); padding:0; gap:0; border-radius:18px; overflow:hidden; }
+.account-action-dialog [data-slot="dialog-header"] { padding:22px 48px 18px 22px; border-bottom:1px solid var(--border); flex-shrink:0; }
+.account-action-dialog [data-slot="dialog-title"] { font-size:20px; font-weight:600; letter-spacing:-.4px; line-height:1.35; }
+.account-action-dialog [data-slot="dialog-description"] { font-size:13px; line-height:1.6; }
+.access-action-form { display:flex; flex-direction:column; overflow:hidden; min-height:0; }
+.access-action-body { display:grid; gap:18px; padding:20px 22px; min-height:0; overflow-y:auto; overscroll-behavior:contain; }
+.access-action-body > * { min-width:0; }
+.access-account-identity { display:flex; align-items:center; gap:12px; min-width:0; }
+.access-account-identity > div { min-width:0; }
+.access-account-identity strong { display:block; font-size:14px; font-weight:600; overflow-wrap:anywhere; }
+.access-account-identity > div > span { display:block; font-size:12px; color:var(--muted-foreground); margin-top:3px; overflow-wrap:anywhere; }
+.access-change-summary { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:14px; padding:14px; border:1px solid var(--border); border-radius:11px; background:var(--muted); }
+.access-change-summary > div { min-width:0; display:grid; gap:8px; justify-items:start; }
+.access-change-summary > div > span:first-child { font-size:11px; line-height:1.5; color:var(--muted-foreground); }
+.access-change-summary > svg { width:16px; height:16px; color:var(--muted-foreground); }
+.access-action-note { font-size:12px; line-height:1.65; color:var(--muted-foreground); }
+.access-action-notice { padding:12px 14px; border:1px solid var(--status-warning-border); border-radius:10px; background:var(--status-warning-bg); color:var(--status-warning-text); font-size:12px; line-height:1.6; }
+.access-action-field { display:grid; gap:8px; }
+.access-action-field > label { font-size:12px; font-weight:500; }
+.access-action-field > small { color:var(--muted-foreground); font-size:11px; line-height:1.6; }
+.access-action-field [data-slot="select-trigger"] { width:100%; }
+.access-expiry-preview { display:flex; justify-content:space-between; gap:12px; font-size:12px; line-height:1.6; padding-top:12px; border-top:1px solid var(--border); }
+.access-expiry-preview span { color:var(--muted-foreground); }
+.access-expiry-preview strong { text-align:right; font-weight:500; overflow-wrap:anywhere; }
+.access-subdomain { padding:10px 12px; border:1px solid var(--border); border-radius:9px; font-size:12px; overflow-wrap:anywhere; }
+.access-subdomain span { display:block; color:var(--muted-foreground); font-size:11px; margin-bottom:3px; }
+.access-action-footer { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; padding:15px 22px; border-top:1px solid var(--border); background:var(--card); flex-shrink:0; }
+.access-no-expiry { display:flex; gap:8px; align-items:center; font-size:13px; font-weight:500; cursor:pointer; user-select:none; white-space:nowrap; }
+.access-no-expiry input { accent-color:var(--primary); width:19px; height:19px; cursor:pointer; }
+@container portal (max-width:1000px) { .portal-main .account-list-table .account-state-pill { padding-inline:5px; gap:4px; font-size:11px; } .portal-main .account-list-table .account-state-pill > svg { width:10px; height:10px; } .portal-main .account-list-table .account-state-dot { display:none; } }
+@media(max-width:640px) { .account-action-dialog [data-slot="dialog-header"] { padding:20px 44px 16px 18px; } .access-action-body { padding:18px; } .access-action-footer { padding:14px 18px; } .access-action-footer > button { min-height:44px; flex:1; } .account-state-pill[data-slot="button"] { min-height:36px; } }

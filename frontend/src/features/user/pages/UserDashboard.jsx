@@ -2,6 +2,7 @@ import { useAuth } from "@/features/auth/hooks/useAuth.js";
 import { useQuery } from "@tanstack/react-query";
 import api from "@/api/client";
 import { Link } from "react-router";
+import { OverviewMetricCard } from "@/features/dashboard/components/OverviewMetricCards";
 import {
   Wallet,
   Send,
@@ -45,19 +46,8 @@ function StatusBadge({ status }) {
   );
 }
 
-function KpiCard({ icon: Icon, label, value, sub, accent }) {
-  return (
-    <div className="bg-card border border-border rounded-xl p-5 flex items-start gap-4 shadow-xs">
-      <div className={`p-2.5 rounded-lg ${accent}`}>
-        <Icon size={18} className="text-primary-foreground" />
-      </div>
-      <div>
-        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{label}</p>
-        <p className="text-2xl font-bold text-foreground mt-0.5">{value}</p>
-        {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
-      </div>
-    </div>
-  );
+function KpiCard({ icon, label, value, sub }) {
+  return <OverviewMetricCard icon={icon} label={label} value={value} caption={sub} accent={label === "Credits"} />;
 }
 
 /* ─── main component ───────────────────────────────────── */
@@ -123,34 +113,30 @@ export default function UserDashboard() {
 
       <main className="max-w-5xl mx-auto p-6 space-y-8">
         {/* ── KPI cards ── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="overview-metrics">
           <KpiCard
             icon={Wallet}
             label="Credits"
-            value={balLoading ? "…" : balance.toLocaleString()}
+            value={balLoading ? "…" : balance}
             sub={isLocked ? "⚠ Wallet locked" : "Available balance"}
-            accent="bg-primary"
           />
           <KpiCard
             icon={Send}
             label="Campaigns"
             value={campLoading ? "…" : total}
             sub="All time"
-            accent="bg-primary"
           />
           <KpiCard
             icon={CheckCircle2}
             label="Completed"
             value={campLoading ? "…" : sent}
             sub="Successfully sent"
-            accent="bg-primary"
           />
           <KpiCard
             icon={AlertCircle}
             label="Pending"
             value={campLoading ? "…" : pending}
             sub={`${failed} failed`}
-            accent="bg-primary"
           />
         </div>
 

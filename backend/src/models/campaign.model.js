@@ -2,6 +2,7 @@ import { notificationHooks } from "../helpers/notification-hooks.js";
 import mongoose from "mongoose";
 import { messageTextFromHtml } from "../helpers/message.helper.js";
 import { campaignReference } from "../helpers/campaign-reference.js";
+import { CTA_LABEL_LIMIT } from "../../../shared/campaignCta.js";
 
 const campaignSchema = new mongoose.Schema(
     {
@@ -30,12 +31,22 @@ const campaignSchema = new mongoose.Schema(
         campaignLinkName: {
             type: String,
             trim: true,
-            maxlength: 150,
+            // Keep older campaigns editable without rewriting their saved labels.
+            validate: {
+                validator(value) { return (!this.isNew && !this.isModified("campaignLinkName")) || value.length <= CTA_LABEL_LIMIT; },
+                message: `Button labels must be ${CTA_LABEL_LIMIT} characters or fewer.`,
+            },
             default: "",
         },
         campaignNumber: {
             type: String,
             trim: true,
+            default: "",
+        },
+        campaignNumberName: {
+            type: String,
+            trim: true,
+            maxlength: CTA_LABEL_LIMIT,
             default: "",
         },
         shareProfileDp: {

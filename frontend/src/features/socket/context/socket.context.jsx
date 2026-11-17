@@ -37,7 +37,24 @@ export const SocketProvider = ({ children }) => {
         const refreshNotifications = () => queryClient.invalidateQueries({ queryKey: ["notifications", accountId] });
         const refreshSupport = () => queryClient.invalidateQueries({ queryKey: ["support", accountId] });
         const refreshAccounts = () => {
-            for (const key of ["admin", "reseller", "user", "myWalletBalance", "myBalance", "creditTransactions", "managedUsers", "clientUsers", "dashboardStats"]) queryClient.invalidateQueries({ queryKey: [key] });
+            for (const key of [
+                "admin",
+                "admin-campaigns",
+                "reseller",
+                "reseller-campaigns",
+                "user",
+                "userBalance",
+                "wallet",
+                "myWalletBalance",
+                "myBalance",
+                "creditTransactions",
+                "credit-balance-result",
+                "credit-reconciliation",
+                "managedUsers",
+                "clientUsers",
+                "dashboardStats",
+                "campaignDailyUsage",
+            ]) queryClient.invalidateQueries({ queryKey: [key] });
         };
         const visibility = () => socket.emit("NOTIFICATION_VISIBILITY", { visible: document.visibilityState === "visible" });
         socket.on("connect", () => { setConnectedSocket(socket); void queryClient.invalidateQueries({ queryKey: ["authUser"] }); refreshNotifications(); refreshAccounts(); refreshSupport(); visibility(); });
@@ -112,9 +129,28 @@ export const SocketProvider = ({ children }) => {
         });
         const refreshCampaigns = () => {
             refreshAccounts();
-            for (const key of ["campaignsList", "campaign-detail", "campaign-report"]) queryClient.invalidateQueries({ queryKey: [key] });
+            for (const key of [
+                "campaigns",
+                "campaignsList",
+                "admin-campaigns",
+                "reseller-campaigns",
+                "userCampaigns",
+                "user-campaigns",
+                "campaign",
+                "campaign-detail",
+                "campaign-report",
+                "campaignDailyUsage",
+            ]) queryClient.invalidateQueries({ queryKey: [key] });
         };
-        for (const event of ["CAMPAIGN_UPDATED", "NEW_CAMPAIGN_SUBMITTED", "CLIENT_CAMPAIGN_LAUNCHED"]) socket.on(event, refreshCampaigns);
+        for (const event of [
+            "CAMPAIGN_UPDATED",
+            "NEW_CAMPAIGN_SUBMITTED",
+            "CLIENT_CAMPAIGN_LAUNCHED",
+            "CLIENT_CAMPAIGN_UPDATED",
+        ]) socket.on(event, refreshCampaigns);
+        socket.on("REVIEW_PIN_CHANGED", () => {
+            queryClient.invalidateQueries({ queryKey: ["review-pins"] });
+        });
         socket.on("SESSIONS_CHANGED", () => {
             queryClient.invalidateQueries({ queryKey: ["accountSessions"] });
             queryClient.invalidateQueries({ queryKey: ["activeSessions"] });

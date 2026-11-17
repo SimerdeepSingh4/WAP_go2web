@@ -183,6 +183,8 @@ test("allocation, deduction and reclaim controllers use the same posting path", 
 
 test("campaign creation and cancellation charge and refund exactly once", async () => {
     const user = await account("User", 20);
+    // A date saved by the retired credit-expiry feature must not block campaigns.
+    await Wallet.collection.updateOne({ userId: user._id }, { $set: { expiresAt: new Date("2020-01-01") } });
     const req = { user, body: { campaignTitle: "Credit posting test", messageBody: "A test message", recipients: ["919876543210", "919876543211"], schedule: "now" }, params: {}, query: {}, files: {} }, created = response();
     await operations.retryCreditController(campaigns.createCampaign, { walletIds: [user._id] })(req, created);
     assert.equal(created.statusCode, 201, JSON.stringify(created.body)); assert.equal(await balance(user), 16);
@@ -193,6 +195,139 @@ test("campaign creation and cancellation charge and refund exactly once", async 
     const again = response(); await campaigns.cancelScheduledCampaign({ user, body: {}, params: { id } }, again);
     assert.equal(again.statusCode, 400); assert.equal(await balance(user), 20);
     assert.equal(await Transaction.countDocuments({ campaignId: id, type: "REFUND" }), 1); assert.equal((await view(user)).summary.classification, "matched");
+});
+
+test("multiple campaign media are rejected before uploads, campaign creation or credit charges", async () => {
+    const user = await account("User", 20);
+    Object.assign(user, { featureAccess: { campaignDp: true }, dp_img: "https://example.test/profile.png" });
+    const mediaA = String(oid()), mediaB = String(oid());
+    for (const extra of [
+        { files: { images: [{ size: 1 }], video: [{ size: 1 }] } },
+        { files: { images: [{ size: 1 }], image: [{ size: 1 }] } },
+        { body: { attachments: [mediaA, mediaB] } },
+        { body: { attachments: JSON.stringify([mediaA, mediaB]) } },
+        { body: { attachments: [mediaA], mediaId: mediaB } },
+        { body: { shareProfileDp: true }, files: { images: [{ size: 1 }], pdf: [{ size: 1 }] } },
+        { body: { shareProfileDp: true, mediaId: mediaA, attachments: [mediaB] } },
+    ]) {
+        const req = {
+            user, params: {}, query: {}, files: extra.files || {},
+            body: { campaignTitle: "Media limit test", messageBody: "Hello", recipients: ["919876543210"], schedule: "now", ...extra.body },
+        };
+        const res = response();
+        await operations.retryCreditController(campaigns.createCampaign, { walletIds: [user._id] })(req, res);
+        assert.equal(res.statusCode, 400, JSON.stringify(res.body));
+        assert.equal(res.body.code, "CAMPAIGN_MEDIA_LIMIT");
+        assert.equal(await balance(user), 20);
+        assert.equal(await Campaign.countDocuments({ userId: user._id }), 0);
+    }
+});
+
+test("a shared profile photo is saved independently of campaign media", async () => {
+    const user = await account("User", 20);
+    Object.assign(user, { featureAccess: { campaignDp: true }, dp_img: "https://example.test/profile.png" });
+    const req = { user, params: {}, query: {}, files: {}, body: {
+        campaignTitle: "Profile photo only", shareProfileDp: "true", recipients: ["919876543210"], schedule: "now",
+    } };
+    const res = response();
+    await operations.retryCreditController(campaigns.createCampaign, { walletIds: [user._id] })(req, res);
+    assert.equal(res.statusCode, 201, JSON.stringify(res.body));
+    const saved = await Campaign.findById(res.body.data._id).lean();
+    assert.equal(saved.shareProfileDp, true);
+    assert.equal(saved.profileDp, user.dp_img);
+    assert.equal(saved.images.length + saved.video.length + saved.audio.length + saved.documents.length, 0);
+    assert.equal(await balance(user), 18);
+});
+
+test("profile DP and an uploaded campaign image are saved together", async t => {
+    const user = await account("User", 20);
+    Object.assign(user, { featureAccess: { campaignDp: true }, dp_img: "https://example.test/profile.png" });
+    const { default: cloudinary } = await import("../config/cloudinary.config.js");
+    const { default: sharp } = await import("sharp");
+    const buffer = await sharp({ create: { width: 4, height: 4, channels: 3, background: "#128c7e" } }).png().toBuffer();
+    t.mock.method(cloudinary.uploader, "upload_stream", (options, callback) => ({
+        on() { return this; },
+        end() { callback(null, { secure_url: "https://example.test/campaign.webp", public_id: options.public_id, bytes: 100 }); },
+    }));
+    const names = ["USE_CLOUDINARY", "CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"];
+    const previous = Object.fromEntries(names.map(name => [name, process.env[name]]));
+    Object.assign(process.env, { USE_CLOUDINARY: "true", CLOUDINARY_CLOUD_NAME: "test-only", CLOUDINARY_API_KEY: "test-only", CLOUDINARY_API_SECRET: "test-only" });
+    try {
+        const req = { user, params: {}, query: {}, files: { images: [{ buffer, size: buffer.length, originalname: "offer.png", mimetype: "image/png" }] }, body: {
+            campaignTitle: "DP with campaign photo", shareProfileDp: "true", messageBody: "An offer for you", recipients: ["919876543210"], schedule: "now",
+        } };
+        const res = response();
+        await operations.retryCreditController(campaigns.createCampaign, { walletIds: [user._id] })(req, res);
+        assert.equal(res.statusCode, 201, JSON.stringify(res.body));
+        const saved = await Campaign.findById(res.body.data._id).lean();
+        assert.equal(saved.shareProfileDp, true);
+        assert.equal(saved.profileDp, user.dp_img);
+        assert.equal(saved.images.length, 1);
+        assert.equal(saved.images[0].url, "https://example.test/campaign.webp");
+        assert.equal(await balance(user), 18);
+    } finally {
+        for (const name of names) {
+            if (previous[name] === undefined) delete process.env[name];
+            else process.env[name] = previous[name];
+        }
+    }
+});
+
+test("legacy wallet expiry dates no longer block balance access, allocations or deductions", async () => {
+    const reseller = await account("Reseller", 30), user = await account("User", 10, reseller._id);
+    await User.collection.updateOne({ _id: user._id }, { $set: { expiresAt: new Date("2030-01-01") } });
+    await Wallet.collection.updateMany({ userId: { $in: [reseller._id, user._id] } }, { $set: { expiresAt: new Date("2020-01-01") } });
+    const res = response();
+    await controllers.getBalance({ user, query: {} }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.wallet.isLocked, false);
+    assert.equal(Object.hasOwn(res.body.wallet, "expiresAt"), false);
+    assert.equal(Object.hasOwn(res.body.wallet, "isExpired"), false);
+    const allocation = response();
+    await operations.retryCreditController(controllers.allocateCredits, { walletIds: [reseller._id, user._id] })({
+        user: reseller, body: { toUserId: String(user._id), amount: 5, expiryYears: 2, expiresAt: "2030-01-01" }, params: {}, query: {},
+    }, allocation);
+    assert.equal(allocation.statusCode, 200, JSON.stringify(allocation.body));
+    await move(user, 2, "DEDUCT", `no-wallet-expiry:${user._id}`);
+    assert.equal(await balance(user), 13);
+    assert.equal(await balance(reseller), 25);
+    assert.equal((await view(user)).summary.classification, "matched");
+    assert.equal((await User.findById(user._id).lean()).expiresAt.toISOString(), "2030-01-01T00:00:00.000Z");
+});
+
+test("explicit wallet locks still prevent spending after credit expiry is retired", async () => {
+    const user = await account("User", 10);
+    await Wallet.updateOne({ userId: user._id }, { $set: { isLocked: true } });
+    await assert.rejects(move(user, 1, "DEDUCT", `manual-lock:${user._id}`), /wallet is locked/i);
+    assert.equal(await balance(user), 10);
+});
+
+test("campaign CTA labels survive saving and invalid labels cannot create or charge campaigns", async () => {
+    const user = await account("User", 20);
+    user.featureAccess = { campaignLink: true, campaignNumber: true };
+    const body = { campaignTitle: "CTA labels", messageBody: "An offer for you", recipients: ["919876543210"], schedule: "now", campaignLink: "https://example.test/offer", campaignLinkName: "Claim Deal", campaignNumber: "+1 (415) 555-1234", campaignNumberName: "Speak to Sales" };
+    const invoke = async overrides => {
+        const result = response();
+        await campaigns.createCampaign({ user, body: { ...body, ...overrides }, params: {}, query: {}, files: {} }, result);
+        return result;
+    };
+    const created = await invoke({});
+    assert.equal(created.statusCode, 201, JSON.stringify(created.body));
+    const saved = await Campaign.findById(created.body.data._id).lean();
+    assert.equal(saved.campaignLinkName, "Claim Deal");
+    assert.equal(saved.campaignNumberName, "Speak to Sales");
+    assert.equal(saved.campaignNumber, "+14155551234");
+    const beforeBalance = await balance(user), beforeCount = await Campaign.countDocuments({ userId: user._id });
+    for (const invalid of [{ campaignLinkName: "a".repeat(26) }, { campaignNumberName: "a".repeat(26) }, { campaignNumberName: ["Call Now"] }]) {
+        const rejected = await invoke(invalid);
+        assert.equal(rejected.statusCode, 400, JSON.stringify(rejected.body));
+        assert.equal(await balance(user), beforeBalance);
+        assert.equal(await Campaign.countDocuments({ userId: user._id }), beforeCount);
+    }
+    const noCtas = await invoke({ campaignLink: "", campaignNumber: "", campaignLinkName: "", campaignNumberName: "" });
+    assert.equal(noCtas.statusCode, 201, JSON.stringify(noCtas.body));
+    assert.equal(noCtas.body.data.campaignLinkName, "");
+    assert.equal(noCtas.body.data.campaignNumberName, "");
 });
 
 test("campaign report refund adjustments and reversals preserve the ledger", async () => {

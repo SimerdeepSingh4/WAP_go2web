@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { QueryState, StatusBadge } from "@/features/dashboard/components/shared";
 import { DeliveryChart } from "@/features/admin/components/OverviewCharts";
 import { dateTime, needsReport, number, ownerName, waiting } from "@/lib/format";
+import OverviewMetricCards from "@/features/dashboard/components/OverviewMetricCards";
 
 function CampaignQueue({ query }) {
   const campaigns = query.data?.data || [];
@@ -35,30 +36,10 @@ function CampaignQueue({ query }) {
   return (
     <Card className="min-w-0 gap-0 rounded-lg py-0 shadow-none">
       <QueryState query={query}>
-        <div className="grid grid-cols-3 divide-x border-b bg-muted/30">
-          {shortcuts.map(({ label, count, path, icon: Icon }) => (
-            <Link
-              key={path}
-              to={path}
-              className="group min-w-0 px-3 py-4 transition-colors hover:bg-muted/70 sm:px-5 sm:py-5"
-            >
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <Icon className="size-4 text-muted-foreground" aria-hidden="true" />
-                <ArrowRight
-                  className="size-3.5 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-                  aria-hidden="true"
-                />
-              </div>
-              <p
-                className={`text-2xl font-semibold tabular-nums tracking-tight ${
-                  count ? "text-foreground" : "text-muted-foreground"
-                }`}
-              >
-                {number(count)}
-              </p>
-              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{label}</p>
-            </Link>
-          ))}
+        <div className="border-b bg-muted/30 p-3">
+          <OverviewMetricCards columns={3} label="Campaign queue summary" className="overview-metrics-compact" items={shortcuts.map(({ count, ...item }, index) => ({
+            ...item, value: count, accent: index === 0,
+          }))} />
         </div>
         <CardHeader className="flex flex-row items-center justify-between gap-3 px-4 py-4 sm:px-5">
           <div>

@@ -17,12 +17,15 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import OverviewMetricCards from "@/features/dashboard/components/OverviewMetricCards";
+import { CreditBalancePreview } from "@/features/dashboard/components/ActionReview";
+import "@/features/accounts/components/account-list.css";
 import { useAdminQuery } from "../hooks/useAdmin";
 import {
   PageHeading,
   QueryState,
   FilterSelect,
   SearchBox,
+  ClearFiltersButton,
   StatusBadge,
   DataTable,
   Pager,
@@ -287,14 +290,14 @@ export default function Credits({ activity = false }) {
       label: "Wallet balance",
       sort: (a) => a.wallet?.balance ?? 0,
       render: (a) => {
-        const isLocked = a.wallet?.isLocked || a.wallet?.isExpired;
+        const isLocked = a.wallet?.isLocked;
         return (
           <div className="flex items-center gap-1.5">
             <span className={`tabular-nums font-semibold text-sm ${isLocked ? "text-red-700" : "text-foreground"}`}>
               {number(a.wallet?.balance ?? 0)}
             </span>
             <span className="text-[11px] text-muted-foreground">credits</span>
-            {isLocked && <Lock className="size-3 text-red-600" title="Locked or Expired" />}
+            {isLocked && <Lock className="size-3 text-red-600" title="Wallet locked" />}
           </div>
         );
       },
@@ -306,17 +309,9 @@ export default function Credits({ activity = false }) {
       render: (a) => <span className="tabular-nums text-xs">{number(a.ratePerMsg)}</span>,
     },
     {
-      key: "expiry",
-      label: "Credit validity",
-      render: (a) => {
-        if (!a.wallet?.expiresAt) return <span className="text-xs text-muted-foreground">No expiry</span>;
-        return (
-          <span className={`text-xs ${a.wallet?.isExpired ? "text-destructive font-medium" : "text-muted-foreground"}`}>
-            {dateTime(a.wallet.expiresAt)}
-            {a.wallet.isExpired && " (Expired)"}
-          </span>
-        );
-      },
+      key: "accountExpiry",
+      label: "Account expiry",
+      render: (a) => <span className={a.isExpired ? "text-xs font-medium text-destructive" : "text-xs text-muted-foreground"}>{a.expiresAt ? dateTime(a.expiresAt) : "No expiry"}{a.isExpired ? " · Expired" : ""}</span>,
     },
     {
       key: "status",
@@ -330,14 +325,15 @@ export default function Credits({ activity = false }) {
       render: (a) => (
         <div className="flex items-center justify-end gap-1.5">
           <Button
-            size="icon-sm"
+            size="sm"
             variant="outline"
-            className="size-7 text-foreground"
+            className="text-xs text-foreground"
             onClick={() => update("allocate", a._id)}
-            title="Add credits"
-            aria-label={`Add credits to ${a.username}`}
+            title="Allocate credits"
+            aria-label={`Allocate credits to ${a.username}`}
           >
             <Plus className="size-3.5" />
+            Allocate credits
           </Button>
           <Button
             size="icon-sm"
@@ -373,7 +369,7 @@ export default function Credits({ activity = false }) {
       {/* Credit Allocation Dialog */}
       {allocation && accountsQuery.isSuccess && activeAccounts.length > 0 && (
         <ActionForm
-          title="Add Credits"
+          title="Allocate credits"
           description="Add credits to the selected reseller or user wallet."
           action="allocate"
           successMessage="Credits added successfully"
@@ -382,7 +378,6 @@ export default function Credits({ activity = false }) {
             toUserId: accounts.some((a) => a._id === allocation) ? allocation : "",
             amount: params.get("amount") || "",
             notes: "",
-            expiryYears: "2",
           }}
           fields={[
             {
@@ -396,22 +391,12 @@ export default function Credits({ activity = false }) {
                   .map((a) => ({ value: a._id, label: `${a.username} (${a.role}) · ${a.email}` })),
               ],
             },
-            { key: "amount", label: "Credits to add", required: true, type: "number", min: 0.01, step: 0.01 },
-            {
-              key: "expiryYears",
-              label: "Credit Validity in Years (Type e.g. 2, or 0 for Never)",
-              required: true,
-              type: "number",
-              min: 0,
-              step: "any",
-              hint: "Type validity in years (e.g. 2 for 2 years, 0.5 for 6 months, 0 for never expires).",
-            },
+            { key: "amount", label: "Credits to allocate", required: true, type: "number", min: 0.01, step: 0.01 },
             { key: "notes", label: "Note (Optional)", type: "textarea", maxLength: 500 },
           ]}
           payload={(v) => ({
             toUserId: v.toUserId,
             amount: Number(v.amount),
-            expiryYears: Number(v.expiryYears),
             notes: v.notes.trim(),
           })}
           review={(v) => {
@@ -422,16 +407,14 @@ export default function Credits({ activity = false }) {
                 <p>
                   Add <strong>{number(Number(v.amount))} credits</strong> to this account.
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Validity: <strong>{v.expiryYears === "0" ? "Never expires" : `${v.expiryYears} Year(s)`}</strong> (credits will lock if expired)
-                </p>
                 <p className="whitespace-pre-wrap break-words text-muted-foreground text-xs mt-1">
                   {v.notes || "No note."}
                 </p>
+                <CreditBalancePreview balance={target?.wallet?.balance} amount={v.amount} />
               </>
             );
           }}
-          submitLabel="Add Credits"
+          submitLabel="Allocate credits"
         />
       )}
 
@@ -477,6 +460,7 @@ export default function Credits({ activity = false }) {
                   {target?.username} ({target?.role}).
                 </p>
                 <p className="text-muted-foreground text-xs mt-1">Reason: {v.notes ? v.notes.trim() : "None"}</p>
+                <CreditBalancePreview balance={target?.wallet?.balance} amount={v.amount} deduct />
               </>
             );
           }}
@@ -515,7 +499,7 @@ export default function Credits({ activity = false }) {
                 className="gap-1.5"
               >
                 <Plus className="size-4" />
-                Add Credits
+                Allocate credits
               </Button>
             </div>
           }
@@ -526,8 +510,8 @@ export default function Credits({ activity = false }) {
           <div data-tour="credit-summary">
             <OverviewMetricCards columns={3} label="Credit summary" items={[
               { label: "Super Admin Balance", value: "Unlimited", caption: "Unlimited sending pool", icon: Wallet, accent: true },
-              { label: "Total Credits Given", value: overview.data?.stats?.credits?.totalAllocatedBySuperAdmin, caption: "Total credits added across network", icon: Coins, tone: "blue" },
-              { label: "Circulating Balances", value: overview.data?.stats?.credits?.totalCreditsInCirculation, caption: "Current credits held in user/reseller wallets", icon: TrendingUp, tone: "pink" },
+              { label: "Total Credits Given", value: overview.data?.stats?.credits?.totalAllocatedBySuperAdmin, caption: "Total credits added across network", icon: Coins, tone: "blue-filled" },
+              { label: "Circulating Balances", value: overview.data?.stats?.credits?.totalCreditsInCirculation, caption: "Current credits held in user/reseller wallets", icon: TrendingUp, tone: "rose-filled" },
             ]} />
           </div>
         </QueryState>
@@ -558,10 +542,13 @@ export default function Credits({ activity = false }) {
             </div>
           </div>
 
-          <QueryState query={accountsQuery} empty={!filteredAccounts.length} emptyTitle="No accounts found">
+          <QueryState query={accountsQuery} empty={!accounts.length} emptyTitle="No account wallets yet" emptyDescription="Add a user or reseller account before allocating credits." emptyAction={<Button variant="outline" nativeButton={false} render={<Link to="/admin/users" />}>Manage users</Button>}>
             <DataTable
               caption="Account wallets and balances"
+              className="account-list-table account-list-table-wallets"
               rows={filteredAccounts}
+              emptyTitle="No accounts match your filters"
+              emptyAction={<Button variant="outline" onClick={() => { setWalletSearch(""); setWalletRole("all"); }}>Clear filters</Button>}
               columns={walletColumns}
               pageSize={10}
             />
@@ -598,7 +585,7 @@ export default function Credits({ activity = false }) {
               className="gap-1.5"
             >
               <Plus className="size-4" />
-              Add Credits
+              Allocate credits
             </Button>
           </div>
         }
@@ -644,6 +631,8 @@ export default function Credits({ activity = false }) {
             rows={ledger.data?.transactions || []}
             columns={transactionColumns}
             emptyTitle="No transactions found"
+            emptyDescription={type !== "all" || account !== "all" || transactionId ? "No transactions match your selected filters." : "Allocations, campaign charges, and refunds will appear here."}
+            emptyAction={(type !== "all" || account !== "all" || transactionId) && <ClearFiltersButton keys={["type", "account", "transaction", "page"]} />}
           />
           <Pager
             page={page}

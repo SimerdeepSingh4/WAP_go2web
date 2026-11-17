@@ -15,6 +15,7 @@ export default function CampaignMessageEditor({
   isOverCharacterLimit,
   quillModules,
   quillFormats,
+  children,
 }) {
   const characterPct = Math.min(100, (charCount / CHARACTER_LIMIT) * 100);
 
@@ -104,7 +105,7 @@ export default function CampaignMessageEditor({
             Over the limit by {number(charCount - CHARACTER_LIMIT)} characters. Shorten the message to continue.
           </div>
         </AnimatedCollapse>
-
+        {children}
       </div>
     </SectionCard>
   );

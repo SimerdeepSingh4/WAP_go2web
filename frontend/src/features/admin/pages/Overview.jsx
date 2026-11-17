@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { ArrowUpRight, Building2, Megaphone, RefreshCw, Users, Wallet } from "lucide-react";
+import { ArrowUpRight, Building2, Megaphone, Users, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import OverviewMetricCards from "@/features/dashboard/components/OverviewMetricCards";
 import { useAdminQuery } from "../hooks/useAdmin";
@@ -16,27 +16,11 @@ export default function Overview() {
   const transactionsQuery = useAdminQuery("transactions", { limit: 5 });
 
   const stats = overview.data?.stats;
-  const refreshing = [overview, campaignsQuery, accountsQuery, transactionsQuery].some((query) => query.isFetching);
-
-  async function refresh() {
-    try {
-      const results = await Promise.all([
-        overview.refetch(),
-        campaignsQuery.refetch(),
-        accountsQuery.refetch(),
-        transactionsQuery.refetch(),
-      ]);
-      if (results.some((result) => result.isError)) throw new Error("Some dashboard data could not be refreshed.");
-      toast.add({ title: "Dashboard refreshed", type: "success" });
-    } catch (error) {
-      toast.add({ title: "Refresh incomplete", description: error?.message || "Please try again.", type: "error" });
-    }
-  }
 
   const metrics = [
-    { label: "Total campaigns", value: stats?.campaigns?.totalCampaigns, caption: "Across all accounts", icon: Megaphone, path: "/admin/campaigns", tone: "blue" },
-    { label: "Active resellers", value: stats?.accounts?.activeResellers, caption: `${number(stats?.accounts?.totalResellers)} resellers in network`, icon: Building2, path: "/admin/resellers", tone: "purple" },
-    { label: "User accounts", value: stats?.accounts?.totalUsers, caption: "Managed through resellers", icon: Users, path: "/admin/users", tone: "pink" },
+    { label: "Total campaigns", value: stats?.campaigns?.totalCampaigns, caption: "Across all accounts", icon: Megaphone, path: "/admin/campaigns", tone: "blue-filled" },
+    { label: "Active resellers", value: stats?.accounts?.activeResellers, caption: `${number(stats?.accounts?.totalResellers)} resellers in network`, icon: Building2, path: "/admin/resellers", tone: "purple-filled" },
+    { label: "User accounts", value: stats?.accounts?.totalUsers, caption: "Managed through resellers", icon: Users, path: "/admin/users", tone: "rose-filled" },
     { label: "Credits in circulation", value: stats?.credits?.totalCreditsInCirculation, caption: "Combined account balances", icon: Wallet, path: "/admin/credits", accent: true },
   ];
 
@@ -49,10 +33,6 @@ export default function Overview() {
           <p>Across all accounts</p>
         </div>
         <div className="portal-page-actions items-center gap-2.5">
-          <Button variant="outline" size="sm" onClick={refresh} disabled={refreshing} aria-busy={refreshing}>
-            <RefreshCw className={refreshing ? "animate-spin motion-reduce:animate-none size-3.5" : "size-3.5"} aria-hidden="true" />
-            {refreshing ? "Refreshing…" : "Refresh"}
-          </Button>
           <Button size="sm" nativeButton={false} render={<Link to="/admin/credits?allocate=new" />}>
             Allocate credits
             <ArrowUpRight aria-hidden="true" className="size-3.5 ml-1" />

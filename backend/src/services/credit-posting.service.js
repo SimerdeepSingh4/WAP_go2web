@@ -38,11 +38,11 @@ export async function postCreditMovement({ session, operationKey, type, amount, 
     const systemReclaim = type === "RECLAIM" && target.role === "Super Admin";
     if (systemReclaim && (!same(toUser, performedBy) || actor.role !== "Super Admin")) throw failure("Only Super Admin may reclaim into the system pool.", 403);
     if (allowLockedDebit && actor.role !== "Super Admin" && type !== "RECLAIM") throw failure("Only Super Admin may correct a locked wallet's campaign billing.", 403);
-    for (const field of Object.keys(toWalletSet)) if (!["expiresAt", "isLocked"].includes(field)) throw failure("Unsupported wallet metadata in a credit posting.");
+    for (const field of Object.keys(toWalletSet)) if (!["isLocked"].includes(field)) throw failure("Unsupported wallet metadata in a credit posting.");
     async function debit(userId) {
         const existing = await Wallet.findOne({ userId }).session(session);
         if (!existing) throw failure("The source wallet does not exist.", 409);
-        if (type !== "RECLAIM" && !allowLockedDebit && (existing.isLocked || existing.expiresAt && existing.expiresAt <= new Date())) throw failure("This wallet is locked or its credits have expired.", 403);
+        if (type !== "RECLAIM" && !allowLockedDebit && existing.isLocked) throw failure("This wallet is locked.", 403);
         const wallet = await Wallet.findOneAndUpdate({ userId, balance: { $gte: exactAmount } }, { $inc: { balance: -exactAmount } }, { session, returnDocument: "after" });
         if (!wallet) throw failure("Insufficient credits. No changes were saved.", 400, "CREDIT_INSUFFICIENT");
         return wallet;

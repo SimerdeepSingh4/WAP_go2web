@@ -1,20 +1,7 @@
 import { Users, Coins, FileText, Calendar } from "lucide-react";
 import { number, dateTime } from "@/lib/format";
 import { campaignDetailSummary } from "../../lib/detailSummary";
-
-function MetricCard({ label, value, hint, icon: Icon }) {
-  return (
-    <div className="min-w-0 bg-card px-4 py-4">
-      <dt className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Icon className="size-3.5 shrink-0" />{label}
-      </dt>
-      <dd className="mt-2 break-words text-xl font-semibold tracking-tight text-foreground tabular-nums">
-        {value}
-        {hint && <p className="mt-1 text-[11px] font-normal leading-5 tracking-normal text-muted-foreground">{hint}</p>}
-      </dd>
-    </div>
-  );
-}
+import OverviewMetricCards from "@/features/dashboard/components/OverviewMetricCards";
 
 export default function CampaignDetailMetrics({ campaign }) {
   const scheduleText =
@@ -35,50 +22,19 @@ export default function CampaignDetailMetrics({ campaign }) {
     : "Text";
 
   return (
-    <dl
-      className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2 xl:grid-cols-4"
-      aria-label="Campaign summary"
-    >
-      <MetricCard
-        label="Recipients"
-        icon={Users}
-        value={number(totalAudience)}
-        hint="Submitted audience"
-      />
-
-      <MetricCard
-        label="Credits charged"
-        icon={Coins}
-        value={number(campaign.creditsDeducted || 0)}
-        hint={`${number(rate)} ${rate === 1 ? "credit" : "credits"} / message`}
-      />
-
-      <MetricCard
-        label="Delivery report"
-        icon={FileText}
-        value={
-          report.reportLabel ? (
-            <span className="text-lg font-semibold text-foreground">{report.reportLabel}</span>
-          ) : (
-            <span>
-              {number(report.delivered)}{" "}
-              <span className="text-sm font-medium text-muted-foreground">delivered</span>
-            </span>
-          )
-        }
-        hint={
-          report.refunded > 0
-            ? `${number(report.refunded)} credits refunded · ${number(Math.max(0, report.charged - report.refunded))} net credits used`
-            : campaign.status === "failed" ? "Refund is posted when the failure report is published" : "No refunds recorded"
-        }
-      />
-
-      <MetricCard
-        label="Schedule"
-        icon={Calendar}
-        value={<span className="text-base font-semibold">{scheduleText}</span>}
-        hint={`Format: ${formatType}`}
-      />
-    </dl>
+    <OverviewMetricCards label="Campaign summary" items={[
+      { label: "Recipients", icon: Users, value: totalAudience, caption: "Submitted audience", accent: true },
+      { label: "Credits charged", icon: Coins, value: campaign.creditsDeducted || 0, caption: `${number(rate)} ${rate === 1 ? "credit" : "credits"} / message` },
+      {
+        label: "Delivery report", icon: FileText,
+        value: report.reportLabel || report.delivered,
+        valueSuffix: report.reportLabel ? undefined : "delivered",
+        valueSize: report.reportLabel ? "text" : undefined,
+        caption: report.refunded > 0
+          ? `${number(report.refunded)} credits refunded · ${number(Math.max(0, report.charged - report.refunded))} net credits used`
+          : campaign.status === "failed" ? "Refund is posted when the failure report is published" : "No refunds recorded",
+      },
+      { label: "Schedule", icon: Calendar, value: scheduleText, valueSize: "text", caption: `Format: ${formatType}` },
+    ]} />
   );
 }

@@ -7,8 +7,8 @@ const page = (id, title, description, steps) => ({ id, title, description, steps
 export const userPageTours = {
   overview: page("overview", "Your dashboard", "This is your home page. See your credits and recent campaigns here.", [
     step('.portal-sidebar', "Move between pages", "Use this menu to open your campaigns, credits, notifications, or settings.", "right"),
-    step('.overview-metrics', "Your credits", "See how many credits you have, the cost per recipient, and when your credits expire."),
-    step('.portal-page-actions', "Start a campaign", "Choose Create campaign to send a new message. Refresh checks for the latest information."),
+    step('.overview-metrics', "Your credits", "See how many credits you have and the cost per recipient."),
+    step('.portal-page-actions', "Start a campaign", "Choose Create campaign to send a new message."),
     step('.dashboard-section', "Your recent campaigns", "See your latest campaigns and their status. Select a campaign to learn more, or View all to see the full list."),
     step('.dashboard-note', "Need more credits?", "Choose Request credits to ask your account manager for more credits."),
     step('#tour-topbar-search', "Find something quickly", "Use this search to find a campaign without looking through the full list."),
@@ -24,7 +24,7 @@ export const userPageTours = {
   create: page("campaign-create", "Create a campaign", "Let's look at how to prepare a message and send it for approval.", [
     step(target("create-details"), "Name your campaign", "Give it a name you will recognize later. The description is optional."),
     step(target("create-message"), "Write your message", "This is the message people will receive. Use the toolbar to format it. Keep it within the character limit shown here."),
-    step(target("create-media"), "Add a file if needed", "You can attach one image, one video, and one PDF. Attachments are optional. The file limits are shown here."),
+    step(target("create-media"), "Add a file if needed", "You can attach one image, video, or PDF per campaign. Choosing another file replaces it. Attachments are optional; the file limits are shown here."),
     step(target("create-recipients"), "Add phone numbers", "Paste numbers with their country codes, or upload a CSV or TXT file. Each entered number costs credits, including repeated numbers."),
     step(target("create-timing"), "Choose when to send", "Send now means after admin approval. Choose Schedule to pick a future date and time."),
     step(target("create-summary"), "Check the cost", "See the estimated cost and the credits you will have left. Fix any checklist problems before continuing."),

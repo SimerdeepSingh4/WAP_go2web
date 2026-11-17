@@ -34,12 +34,11 @@ export async function getSupportContext(req, res) {
     try {
         const { account, requester, canManage } = await supportAccount(req);
         const wallet = await Wallet.findOne({ userId: account._id }).lean();
-        const isExpired = Boolean(wallet?.expiresAt && new Date(wallet.expiresAt) <= new Date());
         const restriction = accountRestriction(account);
         return res.json({ success: true, data: {
             account: { id: account._id, username: account.username, role: account.role, status: account.status, restriction, expiresAt: account.expiresAt, accessReason: account.accessReason || "", updatedAt: account.updatedAt },
-            wallet: { balance: wallet?.balance || 0, expiresAt: wallet?.expiresAt || null, isExpired, isLocked: Boolean(wallet?.isLocked || isExpired), lockEnabled: Boolean(wallet?.isLocked), updatedAt: wallet?.updatedAt || null },
-            capabilities: { manageAccount: canManage, allocate: canManage, requestCredits: requester && !restriction && !req.isPreview, manageCreditValidity: canManage && req.user.role === "Super Admin", auditLedger: canManage && req.user.role === "Super Admin", escalate: canManage && req.user.role === "Reseller" },
+            wallet: { balance: wallet?.balance || 0, isLocked: Boolean(wallet?.isLocked), lockEnabled: Boolean(wallet?.isLocked), updatedAt: wallet?.updatedAt || null },
+            capabilities: { manageAccount: canManage, allocate: canManage, requestCredits: requester && !restriction && !req.isPreview, manageWalletLocks: canManage && req.user.role === "Super Admin", auditLedger: canManage && req.user.role === "Super Admin", escalate: canManage && req.user.role === "Reseller" },
             checkedAt: new Date(),
         } });
     } catch (error) { return failure(res, error); }
@@ -58,15 +57,8 @@ export async function getSupportLedger(req, res) {
 export async function applySupportWalletAction(req, res) {
     let session, accountId;
     try {
-        if (req.user.role !== "Super Admin" || req.isPreview || accountRestriction(req.user)) return res.status(403).json({ success: false, message: "Only an active Super Admin can change credit validity or wallet locks." });
-        if (typeof req.body.isLocked !== "boolean" || !Object.hasOwn(req.body, "expectedUpdatedAt")) return res.status(400).json({ success: false, message: "Review the wallet lock and validity settings first." });
-        let expiresAt = null;
-        if (req.body.expiresAt !== null) {
-            const value = req.body.expiresAt;
-            if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return res.status(400).json({ success: false, message: "Choose a future credit expiry date, or no expiry." });
-            expiresAt = new Date(`${value}T23:59:59.999Z`);
-            if (!Number.isFinite(expiresAt.getTime()) || expiresAt.toISOString().slice(0, 10) !== value || expiresAt <= new Date()) return res.status(400).json({ success: false, message: "Credit expiry must be a valid future date." });
-        }
+        if (req.user.role !== "Super Admin" || req.isPreview || accountRestriction(req.user)) return res.status(403).json({ success: false, message: "Only an active Super Admin can change wallet locks." });
+        if (typeof req.body.isLocked !== "boolean" || !Object.hasOwn(req.body, "expectedUpdatedAt")) return res.status(400).json({ success: false, message: "Review the wallet lock settings first." });
         session = await mongoose.startSession();
         await session.withTransaction(async () => {
             const { account, canManage } = await supportAccount(req, session);
@@ -76,15 +68,13 @@ export async function applySupportWalletAction(req, res) {
             const version = wallet?.updatedAt?.toISOString() || null;
             if (version !== req.body.expectedUpdatedAt) throw Object.assign(new Error("Wallet details changed. Refresh and review the settings again."), { statusCode: 409 });
             if (!wallet) wallet = new Wallet({ userId: accountId, balance: 0, resellerId: account.resellerId || null });
-            wallet.expiresAt = expiresAt;
             wallet.isLocked = req.body.isLocked;
             await wallet.save({ session });
             req.body.supportConversationId = req.params.id;
-            const validity = expiresAt ? `through ${req.body.expiresAt}` : "to no expiry";
-            await recordSupportAction(req, session, accountId, `Credit validity updated ${validity}. Wallet ${wallet.isLocked ? "locked" : "unlocked"}. Account access and credit balance are unchanged.`, new mongoose.Types.ObjectId());
+            await recordSupportAction(req, session, accountId, `Wallet ${wallet.isLocked ? "locked" : "unlocked"}. Account access and credit balance are unchanged.`, new mongoose.Types.ObjectId());
         }, creditTransactionOptions);
-        await Promise.allSettled([publishSupportAction(req), notifyUser(accountId, "WALLET_UPDATED", { reason: "EXPIRY_UPDATED" })]);
-        return res.json({ success: true, message: "Credit validity and wallet lock updated." });
+        await Promise.allSettled([publishSupportAction(req), notifyUser(accountId, "WALLET_UPDATED", { reason: "LOCK_UPDATED" })]);
+        return res.json({ success: true, message: "Wallet lock updated." });
     } catch (error) { return failure(res, error); }
     finally { if (session) await session.endSession(); }
 }

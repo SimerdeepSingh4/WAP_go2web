@@ -23,12 +23,12 @@ const schema = new mongoose.Schema({
         default: 500,
         min: 0,
     },
-    creditExpiryValue: {
+    accountExpiryValue: {
         type: Number,
         default: 2,
         min: 0,
     },
-    creditExpiryUnit: {
+    accountExpiryUnit: {
         type: String,
         enum: ["years", "months", "days", "never"],
         default: "years",

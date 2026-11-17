@@ -1,8 +1,9 @@
-import { createBrowserRouter, Navigate, useParams } from "react-router";
+import { createBrowserRouter, Navigate, useParams, useLocation, Outlet } from "react-router";
 import LoginPage from "./features/auth/pages/Login.jsx";
 import { useAuth } from "./features/auth/hooks/useAuth.js";
 import RoleRoute from "./components/guards/RoleRoute.jsx";
 import PreviewBanner from "./components/guards/PreviewBanner.jsx";
+import Skiper46DevButton from "./components/dev/Skiper46DevButton.jsx";
 
 import { lazy, Suspense } from "react";
 import AdminAccess from "./features/admin/guards/AdminAccess.jsx";
@@ -113,15 +114,30 @@ function PublicRoute({ children }) {
   return children;
 }
 
+function RootDevLayout() {
+  const { user, isLoading } = useAuth();
+  const { pathname } = useLocation();
+  const inWorkspace = /^\/(admin|reseller|user)(\/|$)/.test(pathname);
+  return (
+    <>
+      <Outlet />
+      {user && !isLoading && inWorkspace && <Skiper46DevButton />}
+    </>
+  );
+}
+
 export const router = createBrowserRouter([
   {
-    path: "/",
-    element: (
-      <ProtectedRoute>
-        <Dashboard />
-      </ProtectedRoute>
-    ),
-  },
+    element: <RootDevLayout />,
+    children: [
+      {
+        path: "/",
+        element: (
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        ),
+      },
   {
     path: "/admin",
     element: (
@@ -254,5 +270,7 @@ export const router = createBrowserRouter([
   {
     path: "*",
     element: <Navigate to="/" replace />,
+  },
+    ],
   },
 ]);

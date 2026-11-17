@@ -5,7 +5,6 @@ import { useSearchParams, Link } from "react-router";
 import {
   MoreHorizontal,
   FileText,
-  RefreshCw,
   Plus,
   Trash2,
   Image as ImageIcon,
@@ -29,6 +28,7 @@ import {
   FilterSelect,
   QueryState,
   DataTable,
+  ClearFiltersButton,
   StatusBadge,
 } from "@/features/dashboard/components/shared";
 import { useResellerMutation, useResellerQuery } from "../hooks/useReseller";
@@ -268,28 +268,16 @@ export default function ResellerCampaigns({ reports = false }) {
             : "View submissions and published results for your users."
         }
         action={
-          <div className="flex items-center gap-2">
-            {!reports && (
-              <Button
-                nativeButton={false} render={<Link to="/reseller/campaigns/create" />}
-                size="sm"
-                className="gap-1.5 font-semibold shadow-xs"
-              >
-                <Plus className="size-4" />
-                Create campaign
-              </Button>
-            )}
+          !reports ? (
             <Button
-              variant="outline"
+              nativeButton={false} render={<Link to="/reseller/campaigns/create" />}
               size="sm"
-              onClick={() => query.refetch()}
-              disabled={query.isFetching}
-              className="gap-1.5"
+              className="gap-1.5 font-semibold shadow-xs"
             >
-              <RefreshCw className={`size-3.5 ${query.isFetching ? "animate-spin" : ""}`} />
-              Refresh
+              <Plus className="size-4" />
+              Create campaign
             </Button>
-          </div>
+          ) : undefined
         }
       />
 
@@ -336,11 +324,14 @@ export default function ResellerCampaigns({ reports = false }) {
         empty={!all.length}
         emptyTitle={reports ? "No campaign reports yet" : "No campaigns yet"}
         emptyDescription="Campaigns created by you or your users will appear here."
+        emptyAction={<Button nativeButton={false} render={<Link to="/reseller/campaigns/create" />}>Create campaign</Button>}
       >
         <DataTable
           key={`${search}-${status}`}
           caption={reports ? "Campaign performance reports" : "Campaign list"}
           rows={rows}
+          emptyTitle="No campaigns match your filters"
+          emptyAction={<ClearFiltersButton />}
           columns={columns}
           compact={true}
           className="campaign-list-table"

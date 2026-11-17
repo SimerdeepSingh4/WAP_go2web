@@ -19,15 +19,34 @@ import {
   Download,
   Upload,
   Sparkles,
+  Settings,
+  Camera,
+  Mail,
+  Phone,
+  Building2,
+  Clock,
+  Copy,
+  Check,
+  FileText,
 } from "lucide-react";
 import api from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { PageHeading, QueryState, SearchBox, FilterSelect, StatusBadge, DataTable } from "../../dashboard/components/shared";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+} from "@/components/ui/dropdown-menu";
+import { PageHeading, QueryState, SearchBox, FilterSelect, DataTable, ClearFiltersButton } from "../../dashboard/components/shared";
 import ActionForm from "../components/ActionForm";
 import WhiteLabelAccessDialog from "../components/WhiteLabelAccessDialog";
+import WhiteLabelAccessMenu from "../components/WhiteLabelAccessMenu";
 import { AccountMediaLimitsDialog, mediaUploadSummary } from "../components/MediaUploadLimits";
 import useMediaUploadLimits from "@/features/campaigns/hooks/useMediaUploadLimits";
 import { useAdminQuery } from "../hooks/useAdmin";
@@ -46,12 +65,17 @@ import {
 import { useAdminMutation } from "../hooks/useAdmin";
 import { exitFullAccessImpersonation, startFullAccessImpersonation } from "@/features/accounts/services/users.api.js";
 import UserAvatar from "@/features/accounts/components/UserAvatar";
+import AccountStatusMenu, { AccountStatusDialog } from "@/features/accounts/components/AccountStatusMenu";
+import { CreditBalancePreview } from "@/features/dashboard/components/ActionReview";
+import { OverviewMetricCard } from "@/features/dashboard/components/OverviewMetricCards";
+import "@/features/accounts/components/account-list.css";
 import { resolveUserImageUrl } from "@/features/accounts/lib/profileImage";
 
 function AccountDetail({ account, onClose, onAction }) {
   const uploadLimits = useMediaUploadLimits();
   const [showAudit, setShowAudit] = useState(false);
   const [downloadingDp, setDownloadingDp] = useState(false);
+  const [copiedEmail, setCopiedEmail] = useState(false);
   const [dpImage, setDpImage] = useState(account.dp_img || "");
   const dpInput = useRef(null);
   const queryClient = useQueryClient();
@@ -95,138 +119,163 @@ function AccountDetail({ account, onClose, onAction }) {
     }
   }
 
+  function copyEmail() {
+    if (!account.email) return;
+    navigator.clipboard?.writeText(account.email);
+    setCopiedEmail(true);
+    setTimeout(() => setCopiedEmail(false), 2000);
+  }
+
   return (
     <Sheet open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-md">
-        <SheetHeader>
-          <SheetTitle>{account.username}</SheetTitle>
-          <SheetDescription>{account.role} account profile & ledger</SheetDescription>
+      <SheetContent className="w-full sm:max-w-lg p-0 flex flex-col gap-0 overflow-hidden">
+        <SheetHeader className="p-5 border-b border-border bg-card flex-shrink-0">
+          <SheetTitle className="text-base font-semibold">Account Profile & Details</SheetTitle>
+          <SheetDescription className="text-xs text-muted-foreground">{account.role} account profile, parameters, and ledger audit</SheetDescription>
         </SheetHeader>
 
-        <div className="detail-sheet-body space-y-5">
-          <div className="detail-sheet-toolbar">
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold border border-primary/20 bg-primary/10 text-primary">
-                {account.role}
-              </span>
-              <StatusBadge status={account.status} />
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="text-xs h-7 gap-1"
-              onClick={() => {
-                onClose();
-                onAction?.("role", account);
-              }}
-            >
-              <UserCog className="size-3.5" />
-              Change role
-            </Button>
-          </div>
+        <div className="p-5 overflow-y-auto space-y-4 flex-1">
+          {/* Profile Hero Card */}
+          <div className="rounded-2xl border border-border/80 bg-gradient-to-b from-muted/30 via-card to-card p-5 shadow-xs space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="relative group">
+                <UserAvatar
+                  user={{ ...account, dp_img: dpImage }}
+                  className="size-16 rounded-2xl border-2 border-background shadow-sm ring-1 ring-border object-cover"
+                />
+                <input
+                  ref={dpInput}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  aria-label={`Choose DP for ${account.username}`}
+                  disabled={updateDp.isPending}
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 5 * 1024 * 1024) {
+                      toast.add({ title: "Image is too large", description: "Choose an image up to 5 MB.", type: "error" });
+                      event.target.value = "";
+                      return;
+                    }
+                    updateDp.mutate(file);
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={updateDp.isPending || (account.role !== "Super Admin" && account.featureAccess?.campaignDp !== true)}
+                  onClick={() => dpInput.current?.click()}
+                  title={account.role !== "Super Admin" && account.featureAccess?.campaignDp !== true ? "Enable profile DP in Manage account access first" : "Change photo"}
+                  className="absolute -bottom-1 -right-1 size-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-xs hover:scale-105 transition-transform disabled:opacity-50 cursor-pointer"
+                >
+                  <Camera className="size-3" />
+                </button>
+              </div>
 
-          <div className="detail-sheet-profile">
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-              <UserAvatar user={{ ...account, dp_img: dpImage }} className="size-14 border border-border" />
-              <div className="min-w-0">
-                <p className="text-sm font-medium">Profile photo</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{dpImage ? "Uploaded image" : "No profile image uploaded"}</p>
+              <div className="flex flex-col items-end gap-1.5">
+                <div className="flex items-center gap-1.5">
+                  <Badge variant={account.role === "Reseller" ? "default" : "secondary"} className="font-semibold text-xs px-2.5 py-0.5">
+                    {account.role}
+                  </Badge>
+                  <AccountStatusMenu account={account} onSelect={nextStatus => { onClose(); onAction?.("status", account, nextStatus); }} />
+                </div>
+                {dpImage && (
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    className="h-6 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
+                    disabled={downloadingDp}
+                    onClick={downloadDp}
+                  >
+                    <Download className="size-3" />
+                    {downloadingDp ? "Saving…" : "Save DP"}
+                  </Button>
+                )}
               </div>
             </div>
-            <input ref={dpInput} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" aria-label={`Choose DP for ${account.username}`} disabled={updateDp.isPending} onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (!file) return;
-              if (file.size > 5 * 1024 * 1024) {
-                toast.add({ title: "Image is too large", description: "Choose an image up to 5 MB.", type: "error" });
-                event.target.value = "";
-                return;
-              }
-              updateDp.mutate(file);
-            }} />
-            <div className="flex shrink-0 items-center gap-2">
-              <Button size="sm" variant="outline" disabled={updateDp.isPending || (account.role !== "Super Admin" && account.featureAccess?.campaignDp !== true)} onClick={() => dpInput.current?.click()} title={account.role !== "Super Admin" && account.featureAccess?.campaignDp !== true ? "Enable profile DP in Manage account access first" : undefined}>
-                <Upload className="size-3.5" />
-                {updateDp.isPending ? "Uploading…" : dpImage ? "Change photo" : "Add photo"}
+
+            <div>
+              <h2 className="text-xl font-bold tracking-tight text-foreground truncate" title={account.username}>
+                {account.username}
+              </h2>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-xs text-muted-foreground">
+                <button
+                  type="button"
+                  onClick={copyEmail}
+                  className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors cursor-pointer group"
+                  title="Copy email address"
+                >
+                  <Mail className="size-3.5 text-muted-foreground/70" />
+                  <span className="truncate max-w-[200px]">{account.email}</span>
+                  {copiedEmail ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />}
+                </button>
+                {account.phone && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Phone className="size-3 text-muted-foreground/70" />
+                    {account.phone}
+                  </span>
+                )}
+                {account.companyName && (
+                  <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                    <Building2 className="size-3 text-muted-foreground/70" />
+                    {account.companyName}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-2 border-t border-border/60">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="flex-1 h-8 text-xs gap-1.5 font-medium cursor-pointer"
+                onClick={() => { onClose(); onAction?.("edit", account); }}
+              >
+                <Pencil className="size-3.5" />
+                Edit details
               </Button>
-              <Button size="icon" variant="outline" aria-label={downloadingDp ? "Downloading DP" : "Download DP"} title={downloadingDp ? "Downloading DP" : "Download DP"} disabled={!dpImage || downloadingDp || updateDp.isPending} onClick={downloadDp}>
-                <Download className="size-3.5" />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="flex-1 h-8 text-xs gap-1.5 font-medium cursor-pointer"
+                onClick={() => { onClose(); onAction?.("role", account); }}
+              >
+                <UserCog className="size-3.5" />
+                Change role
               </Button>
             </div>
           </div>
 
-          <dl className="detail-sheet-details">
-            {[
-              ["Email", account.email],
-              ["Company", account.companyName || "Not provided"],
-              ["Phone", account.phone || "Not provided"],
-              ["Rate", `${number(account.ratePerMsg)} credits / recipient`],
-              ["Daily campaign limit", account.dailyCampaignLimit ? `${number(account.dailyCampaignLimit)} / day (Custom)` : "Platform default"],
-              ["Campaign upload limits", mediaUploadSummary(account, uploadLimits.defaults)],
-              ["Account expiry", account.expiresAt ? `${dateTime(account.expiresAt)}${account.isExpired ? " (Expired)" : ""}` : "No expiry"],
-              ["Assigned reseller", account.resellerId?.username || "—"],
-              ["Created", dateTime(account.createdAt)],
-              ...(account.role === "Reseller"
-                ? [
-                    [
-                      "White-label access",
-                      account.whiteLabel?.enabled
-                        ? `${account.whiteLabel?.expiresAt ? `Active (Expires ${dateTime(account.whiteLabel.expiresAt)})` : "Active (Unlimited)"}${account.whiteLabel?.subdomain ? ` · Subdomain: ${account.whiteLabel.subdomain}` : ""}`
-                        : "Disabled",
-                    ],
-                  ]
-                : []),
-            ].map(([label, value]) => (
-              <div key={label} className="border-b pb-2">
-                <dt className="text-xs text-muted-foreground">{label}</dt>
-                <dd className="mt-0.5 break-words font-medium">{value}</dd>
-              </div>
-            ))}
-          </dl>
-
-          <div data-locked={Boolean(balance.data?.wallet?.isLocked)} className={`detail-sheet-wallet space-y-2 ${balance.data?.wallet?.isLocked ? "border-red-300 bg-red-50/60" : "bg-muted/30"}`}>
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-medium text-muted-foreground">Available credits</p>
-              {balance.data?.wallet?.isLocked && (
-                <span className="inline-flex items-center gap-1 rounded-md bg-red-100 text-red-800 px-2 py-0.5 text-xs font-semibold">
-                  <Lock className="size-3 text-red-600" /> Locked & Expired
-                </span>
-              )}
-            </div>
+          {/* Wallet Balance Card */}
+          <div data-locked={Boolean(balance.data?.wallet?.isLocked)} className="rounded-2xl border border-border p-3">
             <QueryState query={balance}>
-              <p className={`detail-sheet-wallet-balance font-bold tabular-nums ${balance.data?.wallet?.isLocked ? "text-red-700" : "text-foreground"}`}>
-                {number(balance.data?.wallet?.balance)}{" "}
-                <span className="text-xs font-normal text-muted-foreground">credits</span>
-              </p>
-              {balance.data?.wallet?.expiresAt && (
-                <p className="detail-sheet-wallet-expiry text-muted-foreground mt-1">
-                  Expires on: <strong>{dateTime(balance.data?.wallet?.expiresAt)}</strong>
-                  {balance.data?.wallet?.isExpired && (
-                    <span className="text-red-600 ml-1 font-semibold">(Expired)</span>
-                  )}
-                </p>
-              )}
+              <OverviewMetricCard
+                label="Wallet balance"
+                icon={Wallet}
+                value={balance.data?.wallet?.balance}
+                accent={!balance.data?.wallet?.isLocked}
+                caption={balance.data?.wallet?.isLocked
+                  ? <span className="flex items-center gap-1.5 text-destructive"><Lock className="size-3" aria-hidden="true" />Wallet locked</span>
+                  : "Active · available sending credits"}
+              />
             </QueryState>
-            <div className="detail-sheet-wallet-actions">
+
+            <div className="mt-4 pt-3.5 border-t border-border/60 flex items-center gap-2">
               <Button
                 size="sm"
-                variant="outline"
-                onClick={() => {
-                  onClose();
-                  onAction?.("allocate", account);
-                }}
-                className="text-xs h-8 gap-1.5"
+                onClick={() => { onClose(); onAction?.("allocate", account); }}
+                className="flex-1 h-8 text-xs gap-1.5 font-medium cursor-pointer"
               >
-                <Wallet className="size-3.5 text-primary" />
+                <Plus className="size-3.5" />
                 Allocate credits
               </Button>
               <Button
                 size="sm"
-                variant="ghost"
-                onClick={() => {
-                  onClose();
-                  onAction?.("reclaim", account);
-                }}
-                className="text-xs h-8 gap-1.5 text-amber-700 hover:text-amber-800"
+                variant="outline"
+                onClick={() => { onClose(); onAction?.("reclaim", account); }}
+                className="h-8 text-xs gap-1.5 text-amber-700 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/10 cursor-pointer font-medium"
               >
                 <RotateCcw className="size-3.5" />
                 Reclaim
@@ -234,22 +283,99 @@ function AccountDetail({ account, onClose, onAction }) {
             </div>
           </div>
 
-          {/* Balance Check Section */}
-          <div className="detail-sheet-check space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold">Balance Check</p>
-                <p className="text-xs text-muted-foreground">Check if transactions match wallet balance</p>
+          {/* Account Parameters */}
+          <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-xs space-y-3">
+            <div className="flex items-center gap-2">
+              <FileText className="size-4 text-primary" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Account Parameters</h3>
+            </div>
+
+            <div className="divide-y divide-border/60 text-xs">
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-muted-foreground">Message Rate</span>
+                <span className="font-semibold tabular-nums text-foreground bg-muted/60 px-2 py-0.5 rounded-md border border-border/50">
+                  {number(account.ratePerMsg)} credits / msg
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-muted-foreground">Daily Campaign Limit</span>
+                <span className="font-medium text-foreground">
+                  {account.dailyCampaignLimit ? `${number(account.dailyCampaignLimit)} campaigns / day` : "Platform default"}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-muted-foreground">Account Expiry</span>
+                <span className={account.isExpired ? "font-semibold text-destructive flex items-center gap-1" : "font-medium text-foreground"}>
+                  {account.expiresAt ? dateTime(account.expiresAt) : "No expiry"}
+                  {account.isExpired && " · Expired"}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-muted-foreground">Assigned Reseller</span>
+                {account.resellerId?.username ? (
+                  <span className="font-semibold text-foreground">{account.resellerId.username}</span>
+                ) : account.role === "User" ? (
+                  <Badge variant="secondary" className="gap-1 font-medium text-xs">
+                    <ShieldCheck className="size-3 text-primary" />
+                    Super Admin
+                  </Badge>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-muted-foreground">Upload Limits</span>
+                <span className="font-medium text-foreground max-w-[220px] text-right truncate" title={mediaUploadSummary(account, uploadLimits.defaults)}>
+                  {mediaUploadSummary(account, uploadLimits.defaults)}
+                </span>
+              </div>
+
+              {account.role === "Reseller" && (
+                <div className="flex items-center justify-between py-2.5">
+                  <span className="text-muted-foreground">White-Label Access</span>
+                  {account.whiteLabel?.enabled ? (
+                    <Badge variant="outline" className="gap-1 text-xs border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5">
+                      <Sparkles className="size-3 text-emerald-600" />
+                      {account.whiteLabel?.subdomain ? `${account.whiteLabel.subdomain}.go2web` : "Active"}
+                    </Badge>
+                  ) : (
+                    <span className="text-muted-foreground">Disabled</span>
+                  )}
+                </div>
+              )}
+
+              <div className="flex items-center justify-between py-2.5">
+                <span className="text-muted-foreground">Registered</span>
+                <span className="text-muted-foreground">{dateTime(account.createdAt)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Balance & Ledger Reconciliation */}
+          <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <div className="size-8 rounded-xl bg-muted text-muted-foreground flex items-center justify-center">
+                  <RefreshCw className={`size-4 ${reconcile.isFetching ? "animate-spin text-primary" : ""}`} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Ledger Reconciliation</p>
+                  <p className="text-[11px] text-muted-foreground">Verify transactions against wallet</p>
+                </div>
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setShowAudit(true)}
                 disabled={reconcile.isFetching}
-                className="gap-1.5 text-xs"
+                className="h-8 text-xs gap-1.5 cursor-pointer font-medium"
               >
                 <RefreshCw className={`size-3.5 ${reconcile.isFetching ? "animate-spin" : ""}`} />
-                {showAudit ? "Re-check" : "Check Balance"}
+                {showAudit ? "Re-check" : "Check balance"}
               </Button>
             </div>
 
@@ -257,45 +383,62 @@ function AccountDetail({ account, onClose, onAction }) {
               <QueryState query={reconcile}>
                 {reconcile.data && (
                   <div
-                    className={`rounded-lg border p-3.5 space-y-2.5 text-xs ${
+                    className={`rounded-xl border p-4 space-y-3 text-xs transition-colors ${
                       reconcile.data.report?.isReconciled
-                        ? "border-emerald-200 bg-emerald-50/60 text-emerald-900"
-                        : "border-red-200 bg-red-50 text-red-900"
+                        ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-950 dark:text-emerald-200"
+                        : "border-destructive/30 bg-destructive/5 text-destructive-foreground"
                     }`}
                   >
                     <div className="flex items-center gap-2 font-semibold">
                       {reconcile.data.report?.isReconciled ? (
                         <>
-                          <ShieldCheck className="size-4 text-emerald-600" />
-                          <span>Wallet and recorded ledger match</span>
+                          <ShieldCheck className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <span>Wallet and recorded ledger match cleanly</span>
                         </>
                       ) : (
                         <>
-                          <ShieldAlert className="size-4 text-red-600" />
-                          <span>{reconcile.data.report?.classification === "cannot_confirm" ? "Conflicting records need review" : "Balance mismatch detected"}</span>
+                          <ShieldAlert className="size-4 text-destructive shrink-0" />
+                          <span>
+                            {reconcile.data.report?.classification === "cannot_confirm"
+                              ? "Conflicting records need review"
+                              : "Balance mismatch detected"}
+                          </span>
                         </>
                       )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-muted/50 text-[11px]">
-                      <div>
-                        <span className="text-muted-foreground">Added:</span>{" "}
-                        <strong className="tabular-nums">+{number(reconcile.data.report?.totalInflow)}</strong>
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/40 text-[11px]">
+                      <div className="p-2.5 rounded-lg bg-background/60 border border-border/40">
+                        <span className="text-muted-foreground block text-[10px] uppercase font-medium">Added (Inflow)</span>
+                        <strong className="text-emerald-600 dark:text-emerald-400 font-bold tabular-nums text-xs">
+                          +{number(reconcile.data.report?.totalInflow)}
+                        </strong>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground">Used:</span>{" "}
-                        <strong className="tabular-nums">-{number(reconcile.data.report?.totalOutflow)}</strong>
+                      <div className="p-2.5 rounded-lg bg-background/60 border border-border/40">
+                        <span className="text-muted-foreground block text-[10px] uppercase font-medium">Used (Outflow)</span>
+                        <strong className="text-muted-foreground font-bold tabular-nums text-xs">
+                          -{number(reconcile.data.report?.totalOutflow)}
+                        </strong>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground">Calculated Balance:</span>{" "}
-                        <strong className="tabular-nums">{number(reconcile.data.report?.calculatedBalance)}</strong>
+                      <div className="p-2.5 rounded-lg bg-background/60 border border-border/40">
+                        <span className="text-muted-foreground block text-[10px] uppercase font-medium">Calculated</span>
+                        <strong className="tabular-nums font-bold text-xs">{number(reconcile.data.report?.calculatedBalance)}</strong>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground">Wallet Balance:</span>{" "}
-                        <strong className="tabular-nums">{number(reconcile.data.report?.currentBalance)}</strong>
+                      <div className="p-2.5 rounded-lg bg-background/60 border border-border/40">
+                        <span className="text-muted-foreground block text-[10px] uppercase font-medium">Wallet Balance</span>
+                        <strong className="tabular-nums font-bold text-xs">{number(reconcile.data.report?.currentBalance)}</strong>
                       </div>
                     </div>
-                    <Link to={`/admin/reconciliation?account=${account._id}`} onClick={onClose} className="inline-flex items-center gap-1 underline underline-offset-4">Inspect full ledger and correction options</Link>
+
+                    <div className="pt-1">
+                      <Link
+                        to={`/admin/reconciliation?account=${account._id}`}
+                        onClick={onClose}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline underline-offset-4"
+                      >
+                        Inspect full ledger & correction options →
+                      </Link>
+                    </div>
                   </div>
                 )}
               </QueryState>
@@ -322,6 +465,11 @@ export default function Accounts({ role }) {
     setParams((previous) => { const next = new URLSearchParams(previous); next.delete("account"); return next; }, { replace: true });
   }
   const removeAccount = useAdminMutation("deleteAccount", "Account removed", () => setModal(null));
+  const statusUpdate = useAdminMutation("accountAccess", "Account status updated", () => setModal(null));
+  function selectStatus(account, nextStatus) {
+    statusUpdate.reset();
+    setModal({ type: "status", account, nextStatus });
+  }
   const accessAccount = useMutation({
     mutationFn: ({ id }) => startFullAccessImpersonation(id),
     onSuccess: async (data, { targetWindow }) => {
@@ -367,7 +515,7 @@ export default function Accounts({ role }) {
   const rows = roleAccounts.filter(
     (a) =>
       (status === "all" || (status === "expired" ? a.isExpired : a.status === status)) &&
-      `${a.username} ${a.email} ${a.companyName || ""} ${a.phone || ""} ${a._id} ${a.resellerId?.username || ""}`.toLowerCase().includes(search.toLowerCase())
+      `${a.username} ${a.email} ${a.companyName || ""} ${a.phone || ""} ${a._id} ${a.resellerId?.username || (a.role === "User" ? "super admin" : "")}`.toLowerCase().includes(search.toLowerCase())
   );
 
   function update(key, value) {
@@ -392,12 +540,16 @@ export default function Accounts({ role }) {
       label: "Account",
       sort: (a) => a.username,
       render: (a) => (
+        <div className="min-w-0">
         <button
+          title={a.username}
           className="max-w-48 truncate text-left font-medium hover:underline text-foreground block"
           onClick={() => setDetail(a)}
         >
           {a.username}
         </button>
+        <span className="account-name-secondary" title={a.email}>{a.email}</span>
+        </div>
       ),
     },
     {
@@ -410,11 +562,15 @@ export default function Accounts({ role }) {
           {
             key: "reseller",
             label: "Reseller",
+            sort: (a) => a.resellerId?.username || "Super Admin",
             render: (a) =>
               a.resellerId?.username ? (
                 <span className="text-xs font-medium">{a.resellerId.username}</span>
               ) : (
-                <span className="text-muted-foreground text-xs">Unassigned</span>
+                <Badge variant="secondary" className="gap-1 font-medium text-xs">
+                  <ShieldCheck className="size-3 text-primary" />
+                  Super Admin
+                </Badge>
               ),
           },
         ]
@@ -428,12 +584,12 @@ export default function Accounts({ role }) {
           {
             key: "status",
             label: "Status",
-            render: (a) => <StatusBadge status={a.isExpired ? "expired" : a.status} />,
+            render: (a) => <AccountStatusMenu account={a} disabled={statusUpdate.isPending} onSelect={nextStatus => selectStatus(a, nextStatus)} />,
           },
         ]),
     {
       key: "rate",
-      label: "Credits",
+      label: "Rate",
       sort: (a) => a.ratePerMsg,
       render: (a) => <span className="tabular-nums font-semibold">{number(a.ratePerMsg)}</span>,
     },
@@ -452,38 +608,22 @@ export default function Accounts({ role }) {
           {
             key: "status",
             label: "Status",
-            render: (a) => <StatusBadge status={a.isExpired ? "expired" : a.status} />,
+            render: (a) => <AccountStatusMenu account={a} disabled={statusUpdate.isPending} onSelect={nextStatus => selectStatus(a, nextStatus)} />,
           },
         ]
       : [
           {
             key: "whiteLabel",
             label: "White-Label",
-            render: (a) => {
-              const isEnabled = Boolean(a.whiteLabel?.enabled);
-              const isExpired = Boolean(isEnabled && a.whiteLabel?.expiresAt && new Date(a.whiteLabel.expiresAt) <= new Date());
-              if (!isEnabled) {
-                return <Badge variant="outline" className="text-muted-foreground text-[11px] font-normal">Disabled</Badge>;
-              }
-              if (isExpired) {
-                return (
-                  <Badge variant="outline" className="text-destructive border-destructive/40 text-[11px] font-medium" title={a.whiteLabel?.expiresAt ? `Expired on ${dateTime(a.whiteLabel.expiresAt)}` : "Expired"}>
-                    Expired
-                  </Badge>
-                );
-              }
-              return (
-                <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 text-[11px] font-medium" title={a.whiteLabel?.expiresAt ? `Expires ${dateTime(a.whiteLabel.expiresAt)}` : "Unlimited access"}>
-                  Active {a.whiteLabel?.subdomain ? `(${a.whiteLabel.subdomain})` : ""}
-                </Badge>
-              );
-            },
+            render: (a) => <WhiteLabelAccessMenu account={a} onSelect={intent => setModal({ type: "whiteLabel", account: a, intent })} />,
           },
         ]),
     {
       key: "actions",
       label: <span className="sr-only">Actions</span>,
       render: (a) => (
+        <div className="portal-row-actions">
+        <Button type="button" variant="outline" size="sm" onClick={() => setModal({ type: "allocate", account: a })}>Allocate credits</Button>
         <DropdownMenu>
           <DropdownMenuTrigger
             render={<Button variant="ghost" size="icon" aria-label={`Actions for ${a.username}`} />}
@@ -502,40 +642,35 @@ export default function Accounts({ role }) {
               <Eye className="size-4 mr-2" />
               Account details & audit
             </DropdownMenuItem>
-            <DropdownMenuItem disabled={query.isPending} onClick={() => setModal({ type: "edit", account: a })}>
-              <Pencil className="size-4 mr-2" />
-              Edit account
-            </DropdownMenuItem>
-            <DropdownMenuItem disabled={query.isPending} onClick={() => setModal({ type: "mediaLimits", account: a })}>
-              <Upload className="size-4 mr-2" />
-              Upload limits
-            </DropdownMenuItem>
-            <DropdownMenuItem disabled={query.isPending} onClick={() => setModal({ type: "accountAccess", account: a })}>
-              <Lock className="size-4 mr-2" />
-              Manage access & expiry
-            </DropdownMenuItem>
-            {role === "Reseller" && (
-              <DropdownMenuItem onClick={() => setModal({ type: "whiteLabel", account: a })}>
-                <Sparkles className="size-4 mr-2 text-primary" />
-                White-label access
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuItem onClick={() => setModal({ type: "rate", account: a })}>
-              <Pencil className="size-4 mr-2" />
-              Change rate
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setModal({ type: "role", account: a })}>
-              <UserCog className="size-4 mr-2" />
-              Change role
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setModal({ type: "allocate", account: a })}>
-              <Wallet className="size-4 mr-2" />
-              Allocate credits
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setModal({ type: "reclaim", account: a })}>
               <RotateCcw className="size-4 mr-2 text-amber-600" />
               Reclaim credits
             </DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <Settings className="size-4 mr-2" />
+                Account settings
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-52">
+                <DropdownMenuItem disabled={query.isPending} onClick={() => setModal({ type: "accountAccess", account: a })}>
+                  <Lock className="size-4 mr-2" />
+                  Manage access & expiry
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setModal({ type: "rate", account: a })}>
+                  <Pencil className="size-4 mr-2" />
+                  Change rate
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled={query.isPending} onClick={() => setModal({ type: "mediaLimits", account: a })}>
+                  <Upload className="size-4 mr-2" />
+                  Upload limits
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setModal({ type: "role", account: a })}>
+                  <UserCog className="size-4 mr-2" />
+                  Change role
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
               onClick={() => setModal({ type: "deleteAccount", account: a })}
@@ -545,6 +680,7 @@ export default function Accounts({ role }) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       ),
     },
   ];
@@ -552,11 +688,11 @@ export default function Accounts({ role }) {
   return (
     <>
       <PageHeading
-        title={role === "Reseller" ? "Resellers Network" : "User Accounts"}
+        title={role === "Reseller" ? "Resellers" : "Users"}
         description={
           role === "Reseller"
-            ? "Manage reseller accounts, add credits, set recipient rates, and check balances."
-            : "Manage user accounts, allocate credits directly, configure recipient rates, and audit usage."
+            ? "Find resellers, allocate credits, and manage account access."
+            : "Find users, allocate credits, and manage account access."
         }
         action={
           <Button
@@ -600,11 +736,15 @@ export default function Accounts({ role }) {
         empty={!accounts.some((a) => a.role === role)}
         emptyTitle={`No ${role.toLowerCase()} accounts yet`}
         emptyDescription={`Use Add ${role.toLowerCase()} to create the first account.`}
+        emptyAction={<Button onClick={() => setModal({ type: "create" })}>Add {role.toLowerCase()}</Button>}
       >
         <DataTable
           key={`${role}-${search}-${status}`}
           caption={`${role} accounts`}
+          className={`account-list-table ${role === "Reseller" ? "account-list-table-resellers" : ""}`}
           rows={rows}
+          emptyTitle={`No ${role.toLowerCase()} accounts match your filters`}
+          emptyAction={<ClearFiltersButton />}
           columns={columns}
           mobile={{
             primary: "name",
@@ -614,7 +754,8 @@ export default function Accounts({ role }) {
         />
       </QueryState>
 
-      {detail && <AccountDetail account={detail} onClose={closeDetail} onAction={(type, account) => setModal({ type, account })} />}
+      {detail && <AccountDetail account={detail} onClose={closeDetail} onAction={(type, account, nextStatus) => type === "status" ? selectStatus(account, nextStatus) : setModal({ type, account })} />}
+      {modal?.type === "status" && <AccountStatusDialog change={modal} mutation={statusUpdate} onClose={() => setModal(null)} />}
 
       {modal?.type === "deleteAccount" && (
         <AlertDialog open onOpenChange={(open) => { if (!open && !removeAccount.isPending) setModal(null); }}>
@@ -622,6 +763,7 @@ export default function Accounts({ role }) {
             <AlertDialogHeader>
               <AlertDialogTitle>Delete {modal.account.role.toLowerCase()} account?</AlertDialogTitle>
               <AlertDialogDescription>
+                <strong className="block mb-2 text-foreground break-words">{modal.account.username}</strong>
                 {modal.account.role === "Reseller"
                   ? "This account and its wallet will be permanently deleted. Its client users will remain active as direct admin-managed users."
                   : "This account and its wallet will be permanently deleted."} Campaign and credit history will be retained for audit.
@@ -936,7 +1078,7 @@ export default function Accounts({ role }) {
 
       {modal?.type === "allocate" && (
         <ActionForm
-          title="Add Credits"
+          title="Allocate credits"
           description={`Add credits directly to ${modal.account.username}'s wallet.`}
           action="allocate"
           successMessage="Credits added successfully"
@@ -944,25 +1086,14 @@ export default function Accounts({ role }) {
           initialValues={{
             amount: "",
             notes: "",
-            expiryYears: "2",
           }}
           fields={[
-            { key: "amount", label: "Credits to add", required: true, type: "number", min: 0.01, step: 0.01 },
-            {
-              key: "expiryYears",
-              label: "Credit Validity in Years (Type e.g. 2, or 0 for Never)",
-              required: true,
-              type: "number",
-              min: 0,
-              step: "any",
-              hint: "Type validity in years (e.g. 2 for 2 years, 0.5 for 6 months, 0 for never expires).",
-            },
+            { key: "amount", label: "Credits to allocate", required: true, type: "number", min: 0.01, step: 0.01 },
             { key: "notes", label: "Note (Optional)", type: "textarea", maxLength: 500 },
           ]}
           payload={(v) => ({
             toUserId: modal.account._id,
             amount: Number(v.amount),
-            expiryYears: Number(v.expiryYears),
             notes: v.notes.trim(),
           })}
           review={(v) => (
@@ -971,15 +1102,13 @@ export default function Accounts({ role }) {
               <p className="text-xs mt-1">
                 Add <strong>{number(Number(v.amount))} credits</strong> to this account.
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Validity: <strong>{v.expiryYears === "0" ? "Never expires" : `${v.expiryYears} Year(s)`}</strong>
-              </p>
               <p className="whitespace-pre-wrap break-words text-muted-foreground text-xs mt-1">
                 {v.notes || "No note."}
               </p>
+              <CreditBalancePreview balance={modal.account.wallet?.balance} amount={v.amount} />
             </>
           )}
-          submitLabel="Add Credits"
+          submitLabel="Allocate credits"
         />
       )}
 
@@ -1003,6 +1132,7 @@ export default function Accounts({ role }) {
                 Deducting <strong>{number(Number(v.amount))} credits</strong> from {modal.account.username} ({modal.account.role}).
               </p>
               <p className="text-muted-foreground text-xs mt-1">Reason: {v.notes ? v.notes.trim() : "None"}</p>
+              <CreditBalancePreview balance={modal.account.wallet?.balance} amount={v.amount} deduct />
             </>
           )}
           submitLabel="Reclaim credits"
@@ -1013,10 +1143,8 @@ export default function Accounts({ role }) {
         <WhiteLabelAccessDialog
           open
           account={modal.account}
+          intent={modal.intent}
           onClose={() => setModal(null)}
-          onSuccess={() => {
-            query.refetch();
-          }}
         />
       )}
     </>

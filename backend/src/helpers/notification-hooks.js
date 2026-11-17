@@ -14,14 +14,14 @@ export function getNextNotificationSequence() {
 const watched = {
     campaign: ["status", "publicStatus", "publishedSpreadsheet", "campaignSummary.reportedAt"],
     user: ["status", "role", "ratePerMsg", "expiresAt", "deviceLimit"],
-    wallet: ["balance", "expiresAt", "isLocked"],
+    wallet: ["balance", "isLocked"],
 };
 
 function snapshot(doc, kind) {
     if (kind === "transaction") return { id: doc._id, type: doc.type, amount: doc.amount, requestedFrom: doc.requestedFrom, notes: doc.notes, fromUser: doc.fromUser, toUser: doc.toUser, campaignId: doc.campaignId, performedBy: doc.performedBy };
     if (kind === "campaign") return { id: doc._id, userId: doc.userId, title: doc.campaignTitle, status: doc.status, statusVisible: campaignPublicStatus(doc) === doc.status, total: doc.totalRecipients, publishedAt: doc.publishedSpreadsheet?.publishedAt };
     if (kind === "user") return { id: doc._id, username: doc.username, role: doc.role, status: doc.status, rate: doc.ratePerMsg, expiresAt: doc.expiresAt, createdBy: doc.createdBy, resellerId: doc.resellerId, deviceLimit: doc.deviceLimit };
-    return { id: doc._id, userId: doc.userId, balance: doc.balance, expiresAt: doc.expiresAt, isLocked: doc.isLocked };
+    return { id: doc._id, userId: doc.userId, balance: doc.balance, isLocked: doc.isLocked };
 }
 
 async function enqueue(doc, kind, changeField, isNew, previous, session) {
@@ -51,7 +51,7 @@ export function notificationHooks(schema, kind) {
         }
         let previous;
         const auditBefore = isNew ? null : await this.constructor.findById(this._id).session(this.$session()).lean();
-        if (!isNew && kind === "wallet") previous = await this.constructor.findById(this._id).select("balance expiresAt isLocked").session(this.$session()).lean();
+        if (!isNew && kind === "wallet") previous = await this.constructor.findById(this._id).select("balance isLocked").session(this.$session()).lean();
         if (!isNew && kind === "campaign" && changes.includes("publishedSpreadsheet")) {
             const before = await this.constructor.findById(this._id).select("publishedSpreadsheet.publishedAt").session(this.$session()).lean();
             if (String(before?.publishedSpreadsheet?.publishedAt || "") === String(this.publishedSpreadsheet?.publishedAt || "")) changes.splice(changes.indexOf("publishedSpreadsheet"), 1);
@@ -108,7 +108,7 @@ export function notificationHooks(schema, kind) {
         await auditModelChange(kind, previous, doc, this.getOptions().session);
         const changes = watched.wallet.filter((key) => String(doc[key] ?? "") !== String(previous?.[key] ?? ""));
         for (const field of changes) {
-            await enqueue(doc, kind, field, !previous, previous && { balance: previous.balance, expiresAt: previous.expiresAt, isLocked: previous.isLocked }, this.getOptions().session);
+            await enqueue(doc, kind, field, !previous, previous && { balance: previous.balance, isLocked: previous.isLocked }, this.getOptions().session);
         }
         if (this.notificationOwnedSession) { await this.notificationOwnedSession.commitTransaction(); await this.notificationOwnedSession.endSession(); this.notificationOwnedSession = null; }
     });

@@ -8,6 +8,7 @@ import {
     getMe,
     getActiveSessions,
     changePassword,
+    forgotPassword,
 } from "../controllers/auth.controller.js";
 import { protect, authorizeRoles } from "../middlewares/auth.middleware.js";
 
@@ -16,6 +17,7 @@ const authRouter = Router();
 // Public routes
 authRouter.post("/login", login);
 authRouter.post("/logout", logout);
+authRouter.post("/forgot-password", forgotPassword);
 
 // Protected routes (validates session in MongoDB)
 authRouter.post("/register", protect, authorizeRoles("Super Admin", "Reseller"), register);

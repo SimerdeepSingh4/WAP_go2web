@@ -1,5 +1,5 @@
 import { useSearchParams } from "react-router";
-import { RefreshCw, Search, ChevronRight, Eye } from "lucide-react";
+import { Search, ChevronRight, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PageHeading, QueryState, DataTable, FilterSelect } from "../../dashboard/components/shared";
@@ -24,7 +24,7 @@ export default function AuditLog() {
     });
   }
   return <>
-    <PageHeading title="Activity history" description="See who made a change, what they changed, and when it happened." action={<Button variant="outline" onClick={() => query.refetch()} disabled={query.isFetching}><RefreshCw className={query.isFetching ? "animate-spin" : ""} />Refresh</Button>} />
+    <PageHeading title="Activity history" description="See who made a change, what they changed, and when it happened." />
     <div className="rounded-xl border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">Showing the latest activity first. Choose <span className="font-medium text-foreground">View details</span> to see the previous and new values. This history cannot be edited here.</div>
     <div data-tour="audit-filters" className="flex flex-wrap items-center justify-between gap-3">
       <form key={search} className="flex w-full gap-2 sm:max-w-md" onSubmit={(event) => { event.preventDefault(); update({ search: String(new FormData(event.currentTarget).get("search") || "").trim(), before: "", event: "", verify: "" }); }}>

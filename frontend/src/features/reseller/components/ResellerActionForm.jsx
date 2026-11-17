@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { toast } from "@/components/ui/toast";
 import { useResellerMutation } from "../hooks/useReseller";
 import { Field, FilterSelect, FormError } from "@/features/dashboard/components/shared";
+import ActionReview, { ActionFormProgress, actionReviewLabel } from "@/features/dashboard/components/ActionReview";
 
 export default function ResellerActionForm({ title, description, action, successMessage, fields, initialValues, validate, payload, review, onClose, submitLabel = "Confirm changes" }) {
   const submitting = useRef(false);
@@ -31,25 +32,26 @@ export default function ResellerActionForm({ title, description, action, success
     }
     const message = Object.values(invalid)[0] || validate?.(values) || "";
     setErrors(invalid); setError(message);
-    if (message) { toast.add({ title: "Check the form", description: message, type: "error" }); return; }
+    if (message) { document.getElementById(`reseller-${Object.keys(invalid)[0] || fields[0]?.key}`)?.focus(); toast.add({ title: "Check the form", description: message, type: "error" }); return; }
     setReviewing(true);
   }
   const isAccountForm = ["createAccount", "updateAccount"].includes(action) && fields.some(field => field.key === "username");
   function renderField(field) {
     const Control = isAccountForm && field.type === "password" ? AccountCreationPassword : Input;
     return <Field key={field.key} id={`reseller-${field.key}`} label={isAccountForm ? accountCreationLabel(field.label) : field.label} hint={field.hint}>
-        {field.options ? <FilterSelect id={`reseller-${field.key}`} label={field.label} value={values[field.key]} onChange={(value) => change(field.key, value)} options={field.options} accountSearch={field.key === "resellerId" ? { role: "Reseller" } : ["toUserId", "fromUserId", "userId"].includes(field.key) ? { active: true, purpose: "credits" } : undefined} /> : field.type === "textarea" ? <Textarea id={`reseller-${field.key}`} value={values[field.key]} onChange={(e) => change(field.key, e.target.value)} maxLength={field.maxLength} aria-invalid={Boolean(errors[field.key])} aria-describedby={errors[field.key] ? `error-${field.key}` : undefined} rows={3} /> : <Control placeholder={isAccountForm ? accountCreationPlaceholders[field.key] : undefined} id={`reseller-${field.key}`} type={field.type || "text"} min={field.min} step={field.step} value={values[field.key]} onChange={(e) => change(field.key, e.target.value)} autoComplete={field.type === "password" ? "new-password" : "off"} maxLength={field.maxLength} aria-required={field.required} aria-invalid={Boolean(errors[field.key])} aria-describedby={errors[field.key] ? `error-${field.key}` : field.hint ? `reseller-${field.key}-hint` : undefined} />}
+        {field.options ? <FilterSelect id={`reseller-${field.key}`} label={field.label} invalid={Boolean(errors[field.key])} describedBy={errors[field.key] ? `error-${field.key}` : field.hint ? `reseller-${field.key}-hint` : undefined} value={values[field.key]} onChange={(value) => change(field.key, value)} options={field.options} accountSearch={field.key === "resellerId" ? { role: "Reseller" } : ["toUserId", "fromUserId", "userId"].includes(field.key) ? { active: true, purpose: "credits" } : undefined} /> : field.type === "textarea" ? <Textarea id={`reseller-${field.key}`} value={values[field.key]} onChange={(e) => change(field.key, e.target.value)} maxLength={field.maxLength} aria-invalid={Boolean(errors[field.key])} aria-describedby={errors[field.key] ? `error-${field.key}` : undefined} rows={3} /> : <Control placeholder={isAccountForm ? accountCreationPlaceholders[field.key] : undefined} id={`reseller-${field.key}`} type={field.type || "text"} min={field.min} step={field.step} value={values[field.key]} onChange={(e) => change(field.key, e.target.value)} autoComplete={field.type === "password" ? "new-password" : "off"} maxLength={field.maxLength} aria-required={field.required} aria-invalid={Boolean(errors[field.key])} aria-describedby={errors[field.key] ? `error-${field.key}` : field.hint ? `reseller-${field.key}-hint` : undefined} />}
         {errors[field.key] && <p id={`error-${field.key}`} className="text-xs text-destructive">{errors[field.key]}</p>}
       </Field>;
   }
-  return <Dialog open onOpenChange={(open) => { if (!open && !mutation.isPending) onClose(); }}><DialogContent className={isAccountForm ? "account-create-dialog" : "max-h-[90svh] overflow-y-auto sm:max-w-lg"} showCloseButton={!mutation.isPending}>
+  return <Dialog open onOpenChange={(open) => { if (!open && !mutation.isPending) onClose(); }}><DialogContent className={isAccountForm ? "account-create-dialog" : "action-dialog"} showCloseButton={!mutation.isPending}>
     <DialogHeader><DialogTitle>{reviewing ? `Review: ${title.toLowerCase()}` : title}</DialogTitle><DialogDescription>{description}</DialogDescription></DialogHeader>
-    <form onSubmit={submit} noValidate className={isAccountForm ? "account-create-form" : "space-y-4"}>
-      <div className={isAccountForm ? "account-create-body" : "space-y-4"}>
-      {reviewing ? <div className="space-y-3 rounded-md border bg-muted/50 p-4 text-sm">{review(values)}</div> : (isAccountForm ? <AccountCreationFields fields={fields} renderField={renderField} /> : fields.map(renderField))}
+    <form onSubmit={submit} noValidate className={isAccountForm ? "account-create-form" : "action-dialog-form"}>
+      <div className={isAccountForm ? "account-create-body" : "action-dialog-body"}>
+      <ActionFormProgress reviewing={reviewing} />
+      {reviewing ? <ActionReview action={action} values={values}>{review(values)}</ActionReview> : (isAccountForm ? <AccountCreationFields fields={fields} renderField={renderField} /> : fields.map(renderField))}
       <FormError message={error || mutation.error?.message} />
       </div>
-      <div className={isAccountForm ? "account-create-footer" : "flex flex-wrap justify-end gap-2 border-t pt-4"}>{isAccountForm && <span>{action === "createAccount" ? "Review the details before creating the account." : "Review your changes before saving."}</span>}<div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="outline" disabled={mutation.isPending} onClick={() => reviewing ? setReviewing(false) : onClose()}>{reviewing ? "Back" : "Cancel"}</Button><Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? "Saving…" : reviewing ? submitLabel : isAccountForm ? "Review account" : "Review changes"}</Button></div></div>
+      <div className={isAccountForm ? "account-create-footer" : "action-dialog-footer"}>{isAccountForm && <span>{action === "createAccount" ? "Review the details before creating the account." : "Review your changes before saving."}</span>}<div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="outline" disabled={mutation.isPending} onClick={() => reviewing ? setReviewing(false) : onClose()}>{reviewing ? "Edit details" : "Cancel"}</Button><Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? "Saving…" : reviewing ? submitLabel : isAccountForm ? "Review account" : actionReviewLabel(action)}</Button></div></div>
     </form>
   </DialogContent></Dialog>;
 }

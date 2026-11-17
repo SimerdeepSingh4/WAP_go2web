@@ -1,10 +1,10 @@
 import CampaignReference from "@/features/campaigns/components/CampaignReference";
-import SupportHelpButton from "@/features/support/components/SupportHelpButton";
 import { Link } from "react-router";
 import { ArrowLeft, Check, Clock, FileBarChart2, RefreshCw, RotateCcw, Users, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/features/dashboard/components/shared";
-import { dateTime, number } from "@/lib/format";
+import { dateTime } from "@/lib/format";
+import OverviewMetricCards from "@/features/dashboard/components/OverviewMetricCards";
 
 export default function PendingCampaignReport({ campaign, base, onRefresh, isRefreshing }) {
   const audience = campaign.recipientCount ?? campaign.totalRecipients ?? campaign.recipients?.length ?? 0;
@@ -19,23 +19,15 @@ export default function PendingCampaignReport({ campaign, base, onRefresh, isRef
         <div className="flex flex-wrap items-center gap-2.5">
           <h1 className="min-w-0 break-words text-xl font-semibold tracking-tight text-foreground sm:text-2xl">{campaign.campaignTitle}</h1><CampaignReference campaign={campaign} />
           <StatusBadge status={campaign.status} />
-          <SupportHelpButton campaign={campaign} area="this campaign report" className="ml-auto" />
         </div>
         <p className="text-xs text-muted-foreground">Submitted {dateTime(campaign.createdAt)}</p>
       </header>
 
-      <dl aria-label="Campaign summary" className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-3">
-        {[
-          { label: "Recipients", value: audience, icon: Users, detail: "Submitted audience" },
-          { label: "Credits charged", value: campaign.creditsDeducted || 0, icon: Wallet, detail: "Charged at submission" },
-          { label: "Credits refunded", value: refunded, icon: RotateCcw, detail: refunded > 0 ? "Returned to your wallet" : "No refunds recorded" },
-        ].map(({ label, value, icon: Icon, detail }) => (
-          <div key={label} className="min-w-0 bg-card px-4 py-4 sm:px-5">
-            <dt className="flex items-center gap-2 text-xs text-muted-foreground"><Icon className="size-3.5 shrink-0" />{label}</dt>
-            <dd className="mt-2 text-2xl font-semibold tracking-tight text-foreground tabular-nums">{number(value)}<p className="mt-1 text-[11px] font-normal leading-5 tracking-normal text-muted-foreground">{detail}</p></dd>
-          </div>
-        ))}
-      </dl>
+      <OverviewMetricCards label="Campaign summary" columns={3} items={[
+        { label: "Recipients", value: audience, icon: Users, caption: "Submitted audience", accent: true },
+        { label: "Credits charged", value: campaign.creditsDeducted || 0, icon: Wallet, caption: "Charged at submission" },
+        { label: "Credits refunded", value: refunded, icon: RotateCcw, caption: refunded > 0 ? "Returned to your wallet" : "No refunds recorded" },
+      ]} />
 
       <section aria-labelledby="pending-report-title" className="overflow-hidden rounded-xl border border-border bg-card">
         <div className="flex items-start gap-4 p-5 sm:p-6">

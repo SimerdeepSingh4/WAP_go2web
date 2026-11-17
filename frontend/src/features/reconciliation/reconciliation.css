@@ -28,7 +28,9 @@
 .credit-admin-only { display:inline-flex; align-items:center; gap:5px; margin-left:auto; }
 .credit-admin-only svg { width:12px; height:12px; }
 .credit-accounts-section { min-width:0; overflow:hidden; border:1px solid var(--border); border-radius:13px; background:var(--card); box-shadow:0 2px 4px rgb(0 0 0 / .015); }
-.credit-accounts-toolbar { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:23px 24px 18px; }
+.credit-accounts-toolbar { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:20px; padding:23px 24px 18px; }
+.credit-accounts-heading-wrap { display:flex; flex-wrap:wrap; align-items:center; gap:14px; }
+.credit-accounts-heading-wrap > span { color:var(--muted-foreground); font-size:11px; }
 .credit-accounts-toolbar h2 { margin:0; font-size:16px; font-weight:550; letter-spacing:-.3px; }
 .credit-accounts-toolbar p { margin:6px 0 0; color:var(--muted-foreground); font-size:12px; line-height:1.6; }
 .credit-case-search { display:flex; width:270px; min-width:180px; align-items:center; gap:8px; padding:0 10px; border:1px solid var(--border); border-radius:8px; background:var(--card); }

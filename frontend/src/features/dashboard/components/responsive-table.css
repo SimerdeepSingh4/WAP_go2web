@@ -1,4 +1,7 @@
 .mobile-record-list, .mobile-table-sort { display: none; }
+.portal-table-sort { display:inline-flex; max-width:100%; min-height:24px; align-items:center; justify-content:flex-start; gap:6px; padding:0; text-align:inherit; vertical-align:middle; font:inherit; font-weight:600; line-height:1.4; }
+.portal-table-sort > span { min-width:0; overflow-wrap:normal; word-break:normal; }
+.portal-table-sort > svg { flex:0 0 12px; width:12px; height:12px; }
 
 .portal-main .responsive-data-table :where([data-slot="table-head"], [data-slot="table-cell"]) { padding-inline: 12px; }
 

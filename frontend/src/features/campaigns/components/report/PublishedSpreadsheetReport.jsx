@@ -1,5 +1,4 @@
 import CampaignReference from "@/features/campaigns/components/CampaignReference";
-import SupportHelpButton from "@/features/support/components/SupportHelpButton";
 import { useDeferredValue, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { ArrowDown, ArrowLeft, ArrowUp, ArrowUpDown, Check, CheckCircle2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Download, FileSpreadsheet, Filter, Loader2, RotateCcw, Search, ShieldCheck, Users, Wallet, X } from "lucide-react";
@@ -9,6 +8,7 @@ import { StatusBadge } from "@/features/dashboard/components/shared";
 import { dateTime, number } from "@/lib/format";
 import { toast } from "@/components/ui/toast";
 import api from "@/api/client";
+import OverviewMetricCards from "@/features/dashboard/components/OverviewMetricCards";
 
 const text = (value) => typeof value === "boolean" ? value ? "Yes" : "No" : String(value ?? "");
 const columnLabels = { status: "Message status", category: "Reason", billingAction: "Credits" };
@@ -90,23 +90,20 @@ export default function PublishedSpreadsheetReport({ campaign, base, isAdmin, em
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground"><span>Published {dateTime(sheet.publishedAt)}</span><span className="hidden h-3 border-l border-border sm:block" aria-hidden="true" /><span>{number(overview.total)} recipients</span></div>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <SupportHelpButton campaign={campaign} area="this campaign report" />
             {isAdmin && <Button variant="outline" size="sm" nativeButton={false} render={<Link to={`${base}/campaigns/${campaign._id}`} />}>Edit campaign</Button>}
             <Button type="button" size="sm" disabled={downloading} onClick={download} className="h-8 gap-1.5">{downloading ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}{downloading ? "Downloading..." : "Download Excel"}</Button>
           </div>
         </div>
       </header>}
 
-      <section aria-label="Report summary" className="overflow-hidden rounded-xl border border-border bg-card">
-        <dl className="grid grid-cols-2 gap-px bg-border lg:grid-cols-4">
-          {[
-            { label: "Recipients", value: overview.total, hint: "Numbers in this report", icon: Users },
-            { label: "Delivered", value: overview.delivered, hint: overview.rate + "% delivery rate", icon: CheckCircle2 },
-            { label: "Credits charged", value: creditsCharged, hint: "Charged at submission", icon: Wallet },
-            { label: "Credits refunded", value: creditsRefunded, hint: number(Math.max(0, creditsCharged - creditsRefunded)) + " net credits used", icon: RotateCcw },
-          ].map(({ label, value, hint, icon: Icon }) => <div key={label} className="min-w-0 bg-card p-4 sm:px-5"><dt className="flex items-center gap-2 text-xs text-muted-foreground"><Icon className="size-3.5 shrink-0" />{label}</dt><dd className="mt-2 text-2xl font-semibold tracking-tight text-foreground tabular-nums">{number(value)}<p className="mt-1 text-[11px] font-normal leading-5 tracking-normal text-muted-foreground">{hint}</p></dd></div>)}
-        </dl>
-        <div className="space-y-2.5 border-t border-border px-4 py-3 sm:px-5">
+      <section aria-label="Report summary" className="space-y-3">
+        <OverviewMetricCards label="Report metrics" items={[
+          { label: "Recipients", value: overview.total, caption: "Numbers in this report", icon: Users, accent: true },
+          { label: "Delivered", value: overview.delivered, caption: overview.rate + "% delivery rate", icon: CheckCircle2 },
+          { label: "Credits charged", value: creditsCharged, caption: "Charged at submission", icon: Wallet },
+          { label: "Credits refunded", value: creditsRefunded, caption: number(Math.max(0, creditsCharged - creditsRefunded)) + " net credits used", icon: RotateCcw },
+        ]} />
+        <div className="space-y-2.5 rounded-xl border border-border bg-card px-4 py-3 sm:px-5">
           <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground"><span className="font-medium text-foreground">Delivery results</span><div className="flex flex-wrap gap-x-4 gap-y-1">{[["Delivered", overview.delivered, "bg-emerald-500"], ["Not sent", overview.failed, "bg-rose-400"], ["Other", overview.remaining, "bg-slate-300 dark:bg-slate-600"]].map(([label, value, color]) => <span key={label} className="inline-flex items-center gap-1.5"><span className={"size-1.5 rounded-full " + color} />{label}<strong className="font-medium text-foreground tabular-nums">{number(value)}</strong></span>)}</div></div>
           <div className="flex h-1.5 overflow-hidden rounded-full bg-muted" role="img" aria-label={overview.delivered + " delivered, " + overview.failed + " not sent, " + overview.remaining + " other recipients"}>{[[overview.delivered, "bg-emerald-500"], [overview.failed, "bg-rose-400"], [overview.remaining, "bg-slate-300 dark:bg-slate-600"]].map(([value, color], index) => <span key={index} className={color} style={{ width: (overview.total ? value / overview.total * 100 : 0) + "%" }} />)}</div>
         </div>

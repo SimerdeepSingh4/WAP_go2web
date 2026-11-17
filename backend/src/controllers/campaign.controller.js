@@ -20,9 +20,11 @@ import { failureReportEntries, failureReportSheet } from "../../../shared/campai
 import { campaignContactRows, restoreOriginalCampaignEntries } from "../../../shared/campaignContacts.js";
 import { sanitizeRecipientInputAudit } from "../helpers/recipient-input-audit.js";
 import { normalizeAccountPhone } from "../helpers/account-phone.js";
+import { DEFAULT_CALL_LABEL, DEFAULT_LINK_LABEL, normalizeCampaignCtaLabel } from "../../../shared/campaignCta.js";
 import { campaignMediaCategory } from "../helpers/campaign-media.js";
 import { getAccountMediaUploadLimits } from "../services/media-upload-limits.service.js";
 import { uploadCampaignMedia } from "../helpers/campaign-upload.js";
+import { campaignMediaCount, MAX_CAMPAIGN_MEDIA, normalizeCampaignAttachments, SINGLE_MEDIA_MESSAGE } from "../../../shared/campaignMedia.js";
 import { campaignRecipientError, campaignRecipientLines } from "../../../shared/campaignRecipients.js";
 import { getEffectiveDailyCampaignLimit } from "../services/platform-settings.service.js";
 
@@ -527,6 +529,7 @@ export const createCampaign = async (req, res) => {
             campaignTitle,
             campaignDescription,
             campaignNumber,
+            campaignNumberName,
             campaignLink,
             campaignLinkName,
             templateId,
@@ -535,14 +538,12 @@ export const createCampaign = async (req, res) => {
             schedule,
             scheduledTime,
             thumbnail,
-            attachments,
+            attachments: rawAttachments,
             mediaId,
             variables,
             messageType,
             status,
         } = req.body;
-
-        const uploadedImages = [...(req.files?.images || []), ...(req.files?.image || [])];
 
         let normalizedCampaignNumber = "";
         if (campaignNumber != null && campaignNumber !== "") {
@@ -561,7 +562,15 @@ export const createCampaign = async (req, res) => {
         }
 
         const normalizedCampaignLink = typeof campaignLink === "string" ? campaignLink.trim() : "";
-        const normalizedCampaignLinkName = typeof campaignLinkName === "string" ? campaignLinkName.trim().slice(0, 150) : "";
+        let normalizedCampaignLinkName = "", normalizedCampaignNumberName = "";
+        try {
+            if (normalizedCampaignLink) normalizedCampaignLinkName = normalizeCampaignCtaLabel(campaignLinkName, DEFAULT_LINK_LABEL);
+            if (normalizedCampaignNumber) normalizedCampaignNumberName = normalizeCampaignCtaLabel(campaignNumberName, DEFAULT_CALL_LABEL);
+        } catch (error) {
+            await abortCreditSession(mongoSession);
+            await mongoSession.endSession();
+            return res.status(400).json({ success: false, message: error.message });
+        }
         if (campaignLink != null && typeof campaignLink !== "string") {
             await abortCreditSession(mongoSession);
             await mongoSession.endSession();
@@ -588,6 +597,25 @@ export const createCampaign = async (req, res) => {
             await abortCreditSession(mongoSession);
             await mongoSession.endSession();
             return res.status(403).json({ success: false, message: "Campaign profile DP sharing is not enabled for this account." });
+        }
+
+        let attachments;
+        try {
+            attachments = normalizeCampaignAttachments(rawAttachments);
+        } catch (error) {
+            await abortCreditSession(mongoSession);
+            await mongoSession.endSession();
+            return res.status(400).json({ success: false, message: error.message });
+        }
+        if (campaignMediaCount({ files: req.files, attachments, mediaId }) > MAX_CAMPAIGN_MEDIA) {
+            await abortCreditSession(mongoSession);
+            await mongoSession.endSession();
+            return res.status(400).json({ success: false, message: SINGLE_MEDIA_MESSAGE, code: "CAMPAIGN_MEDIA_LIMIT" });
+        }
+        if (shareProfileDp && !req.user.dp_img) {
+            await abortCreditSession(mongoSession);
+            await mongoSession.endSession();
+            return res.status(400).json({ success: false, message: "Add a profile photo in Settings before sharing it." });
         }
 
         // Safely parse recipients whether sent as JSON array or via multipart/form-data
@@ -798,19 +826,17 @@ export const createCampaign = async (req, res) => {
             rate = creditAmount(senderUser.ratePerMsg ?? 12);
             requiredCredits = creditsForCount(rate, totalRecipients);
 
-            // Check if wallet is expired or locked
+            // Respect explicit wallet locks; credit balances do not expire.
             const currentWallet = await walletModel.findOne({ userId: req.user._id }).session(mongoSession);
-            const isExpired = Boolean(currentWallet && currentWallet.expiresAt && new Date(currentWallet.expiresAt) <= new Date());
-            const isLocked = Boolean(currentWallet && (currentWallet.isLocked || isExpired));
+            const isLocked = Boolean(currentWallet?.isLocked);
 
             if (isLocked) {
                 await abortCreditSession(mongoSession);
                 await mongoSession.endSession();
                 return res.status(403).json({
-                    message: "Your credit balance has expired and is locked. Please contact administrator to renew.",
+                    message: "Your wallet is locked. Please contact your administrator.",
                     success: false,
                     isLocked: true,
-                    expiresAt: currentWallet?.expiresAt,
                 });
             }
 
@@ -877,6 +903,7 @@ export const createCampaign = async (req, res) => {
                     campaignTitle,
                     campaignDescription: campaignDescription || "",
                     campaignNumber: normalizedCampaignNumber,
+                    campaignNumberName: normalizedCampaignNumberName,
                     campaignLink: normalizedCampaignLink,
                     campaignLinkName: normalizedCampaignLink ? normalizedCampaignLinkName : "",
                     shareProfileDp: Boolean(shareProfileDp),

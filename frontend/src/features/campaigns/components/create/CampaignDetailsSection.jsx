@@ -1,7 +1,8 @@
-import { FileText, Link2 } from "lucide-react";
+import { FileText } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import CampaignDeliverySettings from "./CampaignDeliverySettings";
 
 export function SectionCard({ icon: Icon, title, description, aside, children, dataTour }) {
   return (
@@ -28,12 +29,11 @@ export default function CampaignDetailsSection({
   onCampaignTitleChange,
   campaignDescription,
   onCampaignDescriptionChange,
-  campaignLink,
-  onCampaignLinkChange,
-  campaignLinkName,
-  onCampaignLinkNameChange,
-  campaignNumber,
-  onCampaignNumberChange,
+  scheduleType,
+  onScheduleTypeChange,
+  scheduledTime,
+  onScheduledTimeChange,
+  scheduleValid,
 }) {
   return (
     <SectionCard
@@ -42,7 +42,7 @@ export default function CampaignDetailsSection({
       title="Campaign details"
       description="Name your campaign and add a short description."
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label htmlFor="title" className="text-xs font-medium">
             Campaign name <span className="text-destructive">*</span>
@@ -68,55 +68,13 @@ export default function CampaignDetailsSection({
             className="h-10 bg-background text-sm focus-visible:ring-2 focus-visible:ring-ring/20"
           />
         </div>
-        {onCampaignLinkChange && (
-          <>
-            <div className="space-y-1.5">
-              <Label htmlFor="campaign-link" className="text-xs font-medium">
-                Campaign link <span className="text-muted-foreground font-normal">(optional)</span>
-              </Label>
-              <div className="relative">
-                <Link2 aria-hidden="true" className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="campaign-link"
-                  type="url"
-                  placeholder="https://example.com/offer"
-                  value={campaignLink}
-                  onChange={(e) => onCampaignLinkChange(e.target.value)}
-                  className="h-10 bg-background pl-9 text-sm focus-visible:ring-2 focus-visible:ring-ring/20"
-                  maxLength={2048}
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="campaign-link-name" className="text-xs font-medium">
-                Link name <span className="text-muted-foreground font-normal">(optional)</span>
-              </Label>
-              <Input
-                id="campaign-link-name"
-                placeholder="e.g. Website, Book Now, Learn More"
-                value={campaignLinkName || ""}
-                onChange={(e) => onCampaignLinkNameChange?.(e.target.value)}
-                className="h-10 bg-background text-sm focus-visible:ring-2 focus-visible:ring-ring/20"
-                maxLength={150}
-              />
-            </div>
-          </>
-        )}
-        {onCampaignNumberChange && <div className="space-y-1.5">
-          <Label htmlFor="campaign-number" className="text-xs font-medium">
-            Campaign number <span className="text-muted-foreground font-normal">(optional)</span>
-          </Label>
-          <Input
-            id="campaign-number"
-            type="tel"
-            autoComplete="tel"
-            placeholder="+919876543210"
-            value={campaignNumber}
-            onChange={(e) => onCampaignNumberChange(e.target.value)}
-            className="h-10 bg-background text-sm focus-visible:ring-2 focus-visible:ring-ring/20"
-            maxLength={40}
-          />
-        </div>}
+        <CampaignDeliverySettings
+          scheduleType={scheduleType}
+          onScheduleTypeChange={onScheduleTypeChange}
+          scheduledTime={scheduledTime}
+          onScheduledTimeChange={onScheduledTimeChange}
+          scheduleValid={scheduleValid}
+        />
       </div>
     </SectionCard>
   );

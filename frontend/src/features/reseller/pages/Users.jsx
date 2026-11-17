@@ -7,7 +7,6 @@ import {
   Eye,
   Pencil,
   Wallet,
-  RefreshCw,
   Lock,
   ArrowRight,
   MinusCircle,
@@ -16,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { PageHeading, QueryState, SearchBox, FilterSelect, StatusBadge, DataTable } from "@/features/dashboard/components/shared";
+import { PageHeading, QueryState, SearchBox, FilterSelect, DataTable, ClearFiltersButton } from "@/features/dashboard/components/shared";
 import ResellerActionForm from "../components/ResellerActionForm";
 import { useResellerQuery } from "../hooks/useReseller";
 import { number, dateTime } from "@/lib/format";
@@ -32,6 +31,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useResellerMutation } from "../hooks/useReseller";
 import UserAvatar from "@/features/accounts/components/UserAvatar";
+import AccountStatusMenu, { AccountStatusDialog } from "@/features/accounts/components/AccountStatusMenu";
+import { CreditBalancePreview } from "@/features/dashboard/components/ActionReview";
+import "@/features/accounts/components/account-list.css";
 import useMediaUploadLimits from "@/features/campaigns/hooks/useMediaUploadLimits";
 import { resolveMediaUploadLimits } from "../../../../../shared/mediaUploadLimits.js";
 
@@ -41,6 +43,7 @@ function accountUploadSummary(account, defaults) {
 }
 
 function UserDetail({ account, onClose, onAction }) {
+  const { user: signedInUser } = useAuth();
   const uploadLimits = useMediaUploadLimits();
   const balance = useResellerQuery("balance", { id: account._id });
 
@@ -54,13 +57,19 @@ function UserDetail({ account, onClose, onAction }) {
 
         <div className="detail-sheet-body space-y-5">
           <div className="detail-sheet-toolbar">
-            <StatusBadge status={account.status} />
+            <AccountStatusMenu account={account} onSelect={nextStatus => { onClose(); onAction("status", account, nextStatus); }} />
             {account.isExpired && (
               <span className="text-xs font-medium text-destructive">Expired</span>
             )}
           </div>
 
           <div className="detail-sheet-profile"><div className="flex min-w-0 items-center gap-3"><UserAvatar user={account} className="size-14" /><div className="min-w-0"><p className="text-sm font-semibold">{account.username}</p><p className="mt-1 text-xs text-muted-foreground">{account.companyName || "User account"}</p></div></div></div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="text-sm font-semibold">Account details</h3>
+            <Button type="button" variant="outline" size="sm" disabled={signedInUser?.isPreview} onClick={() => { onClose(); onAction("editAccount", account); }}>
+              <Pencil className="size-3.5" aria-hidden="true" />Edit details
+            </Button>
+          </div>
           <dl className="detail-sheet-details">
             {[
               ["Email", account.email],
@@ -84,7 +93,7 @@ function UserDetail({ account, onClose, onAction }) {
               <p className="text-xs font-medium text-muted-foreground">Available credits</p>
               {balance.data?.wallet?.isLocked && (
                 <span className="inline-flex items-center gap-1 rounded-md bg-red-100 text-red-800 px-2 py-0.5 text-xs font-semibold">
-                  <Lock className="size-3 text-red-600" /> Locked & Expired
+                  <Lock className="size-3 text-red-600" /> Wallet locked
                 </span>
               )}
             </div>
@@ -93,14 +102,6 @@ function UserDetail({ account, onClose, onAction }) {
                 {number(balance.data?.wallet?.balance)}{" "}
                 <span className="text-xs font-normal text-muted-foreground">credits</span>
               </p>
-              {balance.data?.wallet?.expiresAt && (
-                <p className="detail-sheet-wallet-expiry text-muted-foreground mt-1">
-                  Expires on: <strong>{dateTime(balance.data?.wallet?.expiresAt)}</strong>
-                  {balance.data?.wallet?.isExpired && (
-                    <span className="text-red-600 ml-1 font-semibold">(Expired)</span>
-                  )}
-                </p>
-              )}
             </QueryState>
           </div>
 
@@ -167,6 +168,11 @@ export default function ResellerUsers() {
     setParams((previous) => { const next = new URLSearchParams(previous); next.delete("account"); return next; }, { replace: true });
   }
   const removeAccount = useResellerMutation("deleteAccount", "User account removed", () => setModal(null));
+  const statusUpdate = useResellerMutation("accountAccess", "Account status updated", () => setModal(null));
+  function selectStatus(account, nextStatus) {
+    statusUpdate.reset();
+    setModal({ type: "status", account, nextStatus });
+  }
 
   const rawAccounts = query.data?.users || [];
   // Reseller only manages User role accounts
@@ -200,12 +206,16 @@ export default function ResellerUsers() {
       label: "Account",
       sort: (a) => a.username,
       render: (a) => (
+        <div className="min-w-0">
         <button
+          title={a.username}
           className="max-w-48 truncate text-left font-medium hover:underline text-foreground cursor-pointer"
           onClick={() => setDetail(a)}
         >
           {a.username}
         </button>
+        <span className="account-name-secondary" title={a.email}>{a.email}</span>
+        </div>
       ),
     },
     {
@@ -215,7 +225,7 @@ export default function ResellerUsers() {
     },
     {
       key: "rate",
-      label: "Credits",
+      label: "Rate",
       sort: (a) => a.ratePerMsg,
       render: (a) => <span className="tabular-nums">{number(a.ratePerMsg)}</span>,
     },
@@ -232,12 +242,14 @@ export default function ResellerUsers() {
     {
       key: "status",
       label: "Status",
-      render: (a) => <StatusBadge status={a.isExpired ? "expired" : a.status} />,
+      render: (a) => <AccountStatusMenu account={a} disabled={statusUpdate.isPending} onSelect={nextStatus => selectStatus(a, nextStatus)} />,
     },
     {
       key: "actions",
       label: <span className="sr-only">Actions</span>,
       render: (a) => (
+        <div className="portal-row-actions">
+        <Button type="button" variant="outline" size="sm" disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "allocate", account: a })}>Allocate credits</Button>
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
@@ -254,10 +266,6 @@ export default function ResellerUsers() {
             <DropdownMenuItem onClick={() => setDetail(a)}>
               <Eye className="size-4 mr-2" />
               Account details
-            </DropdownMenuItem>
-            <DropdownMenuItem disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "editAccount", account: a })}>
-              <Pencil className="size-4 mr-2" />
-              Edit account details
             </DropdownMenuItem>
             <DropdownMenuItem disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "accountAccess", account: a })}>
               <Lock className="size-4 mr-2" />
@@ -285,6 +293,7 @@ export default function ResellerUsers() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       ),
     },
   ];
@@ -293,29 +302,17 @@ export default function ResellerUsers() {
     <>
       <PageHeading
         title="Users"
-        description="Manage your client user accounts, configure per-recipient rates, and allocate wallet credits."
+        description="Find users, allocate credits, and manage account access."
         action={
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => query.refetch()}
-              disabled={query.isFetching}
-              className="gap-1.5"
-            >
-              <RefreshCw className={`size-3.5 ${query.isFetching ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
-            <Button
-              data-tour="reseller-add-user"
-              disabled={signedInUser?.isPreview || query.isPending || query.isError}
-              onClick={() => setModal({ type: "create" })}
-              className="gap-1.5 font-semibold"
-            >
-              <Plus className="size-4" />
-              Add user
-            </Button>
-          </div>
+          <Button
+            data-tour="reseller-add-user"
+            disabled={signedInUser?.isPreview || query.isPending || query.isError}
+            onClick={() => setModal({ type: "create" })}
+            className="gap-1.5 font-semibold"
+          >
+            <Plus className="size-4" />
+            Add user
+          </Button>
         }
       />
 
@@ -363,14 +360,18 @@ export default function ResellerUsers() {
 
       <QueryState
         query={query}
-        empty={!rows.length}
+        empty={!accounts.length}
         emptyTitle="No user accounts yet"
         emptyDescription="Use Add user to create your first client user account."
+        emptyAction={<Button disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "create" })}>Add user</Button>}
       >
         <DataTable
           key={`users-${search}-${status}`}
           caption="Client user accounts"
+          className="account-list-table account-list-table-managed"
           rows={rows}
+          emptyTitle="No users match your filters"
+          emptyAction={<ClearFiltersButton />}
           columns={columns}
           mobile={{
             primary: "name",
@@ -384,16 +385,18 @@ export default function ResellerUsers() {
         <UserDetail
           account={detail}
           onClose={closeDetail}
-          onAction={(type, acc) => setModal({ type, account: acc })}
+          onAction={(type, acc, nextStatus) => type === "status" ? selectStatus(acc, nextStatus) : setModal({ type, account: acc })}
         />
       )}
 
+      {modal?.type === "status" && <AccountStatusDialog change={modal} mutation={statusUpdate} onClose={() => setModal(null)} />}
       {modal?.type === "deleteAccount" && (
         <AlertDialog open onOpenChange={(open) => { if (!open && !removeAccount.isPending) setModal(null); }}>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Delete {modal.account.username}?</AlertDialogTitle>
               <AlertDialogDescription>
+                <strong className="block mb-2 text-foreground break-words">{modal.account.username}</strong>
                 This user account and its wallet will be permanently deleted. Campaign and credit history will be retained for audit.
               </AlertDialogDescription>
             </AlertDialogHeader>
@@ -641,6 +644,7 @@ export default function ResellerUsers() {
               <p className="whitespace-pre-wrap break-words text-xs text-muted-foreground mt-1">
                 {v.notes || "No transaction note provided."}
               </p>
+              <CreditBalancePreview balance={modal.account.wallet?.balance} amount={v.amount} />
             </>
           )}
           submitLabel="Allocate credits"
@@ -691,6 +695,7 @@ export default function ResellerUsers() {
               <p className="text-muted-foreground text-xs mt-1">
                 Reason: <strong>{v.notes}</strong>
               </p>
+              <CreditBalancePreview balance={modal.account.wallet?.balance} amount={v.amount} deduct />
             </>
           )}
           submitLabel="Reclaim credits"

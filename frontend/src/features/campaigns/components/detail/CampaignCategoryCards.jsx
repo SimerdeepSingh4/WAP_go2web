@@ -33,6 +33,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { normalizeDuplicateRows } from "@campaign-sheet";
 import { number } from "@/lib/format";
+import OverviewMetricCards from "@/features/dashboard/components/OverviewMetricCards";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { readCampaignDraft, removeCampaignDraft, writeCampaignDraft } from "../../lib/draftStorage";
 
@@ -594,11 +595,13 @@ export default function CampaignCategoryCards({ campaign }) {
             <Button type="button" size="sm" onClick={() => handleSave("draft", true)} disabled={isSaving || isStarting || originalUploadedNumbers.length === 0}><CheckCircle2 className="size-3.5" /> Save &amp; review report</Button>
           </div>
         </div>
-        <dl data-tour="report-editor-summary" className="grid grid-cols-3 divide-x divide-border border-t border-border bg-muted/15">
-          <div className="px-3 py-3 sm:px-4"><dt className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><Users className="hidden size-3 sm:block" />Audience</dt><dd className="mt-1 text-lg font-semibold tracking-tight text-foreground tabular-nums">{number(liveFinancials.totalAudience)}</dd></div>
-          <div className="px-3 py-3 sm:px-4"><dt className="text-[11px] text-muted-foreground">Keep charged</dt><dd className="mt-1 flex flex-wrap items-baseline gap-x-2 text-lg font-semibold tracking-tight text-foreground tabular-nums">{number(liveFinancials.chargedAmount)}<span className="text-[11px] font-normal text-muted-foreground">credits</span></dd></div>
-          <div className="px-3 py-3 sm:px-4"><dt className="text-[11px] text-muted-foreground">Refund</dt><dd className="mt-1 flex flex-wrap items-baseline gap-x-2 text-lg font-semibold tracking-tight text-foreground tabular-nums">{number(liveFinancials.refundAmount)}<span className="text-[11px] font-normal text-muted-foreground">credits</span></dd></div>
-        </dl>
+        <div data-tour="report-editor-summary" className="border-t border-border bg-muted/15 p-3">
+          <OverviewMetricCards columns={3} className="overview-metrics-compact" label="Report editor summary" items={[
+            { label: "Audience", value: liveFinancials.totalAudience, caption: "Submitted recipients", icon: Users, accent: true },
+            { label: "Keep charged", value: liveFinancials.chargedAmount, caption: "Credits", icon: Wallet },
+            { label: "Refund", value: liveFinancials.refundAmount, caption: "Credits", icon: RotateCcw },
+          ]} />
+        </div>
       </section>
 
       <details className="group overflow-hidden rounded-xl border border-border bg-card">

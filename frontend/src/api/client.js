@@ -1,6 +1,6 @@
 import axios from "axios";
 import { attachCreditRequestKey, settleCreditRequest } from "./creditRequest";
-import { getSessionRequestScope, isSessionRequestCurrent, isSessionControlInProgress } from "./sessionToken";
+import { getSessionRequestScope, isSessionRequestCurrent, isSessionControlInProgress, invalidateSessionRequests } from "./sessionToken";
 import { isSessionRejection } from "@/features/auth/lib/sessionFailure";
 
 const apiClient = axios.create({
@@ -21,6 +21,11 @@ apiClient.interceptors.request.use(
     async (config) => {
         const scope = getSessionRequestScope();
         config.sessionScope = scope;
+        // A cached component or manual refetch must not send review requests
+        // after the browser's verified session has ended.
+        if (/(?:^|\/)review-pins(?:\/|\?|$)/.test(config.url || "") && !scope.accountId) {
+            throw Object.assign(new Error("Sign in to use review pins."), { code: "AUTH_REQUIRED", config });
+        }
         const context = config.accountContextOverride || scope.context;
         if (context) {
             config.headers["X-Account-Context"] = context;
@@ -65,7 +70,9 @@ apiClient.interceptors.response.use(
 
         // Handle 401 Unauthorized (e.g. session evicted when 4th device logged in)
         const isAuthCheck = /\/auth\/me(?:\?|$)/.test(error.config?.url || "");
-        if (!isAuthCheck && !isSessionControlInProgress() && isSessionRejection(error, false)) {
+        const rejectedSession = !error.config?.sessionControl && !isSessionControlInProgress() && isSessionRejection(error, isAuthCheck);
+        if (rejectedSession) invalidateSessionRequests();
+        if (rejectedSession && (!isAuthCheck || error.config?.sessionScope?.accountId)) {
             // Optional: notify app or clear local auth state if needed
             window.dispatchEvent(new CustomEvent("auth:unauthorized", {
                 detail: error.response?.data || { message: "Session expired" }

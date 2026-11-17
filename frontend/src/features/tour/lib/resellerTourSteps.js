@@ -10,7 +10,7 @@ export const resellerPageTours = {
   overview: page("overview", "Your reseller dashboard", "Start here to check your credits, campaigns, and client accounts.", [
     step('.portal-sidebar', "Move between pages", "Use this menu to open campaigns, manage your users, or check credits.", "right"),
     step('.overview-metrics', "Your available credits", "See your balance and the cost per recipient. If your wallet is locked, contact your administrator."),
-    step('.portal-page-actions', "Give credits to a user", "Choose Allocate credits to move credits from your wallet to a user. Refresh checks for the latest information."),
+    step('.portal-page-actions', "Give credits to a user", "Choose Allocate credits to move credits from your wallet to a user."),
     step('.dashboard-two-column > :first-child', "Recent campaigns", "See recent campaigns and their owners. Select a campaign to open it, or View all to see the full list."),
     step('.dashboard-two-column > :last-child', "Your client users", "See your user accounts here. Choose Manage to add users or change their account details."),
     step('#tour-topbar-search', "Find something quickly", "Search for a user or campaign here, then select a result to open it."),

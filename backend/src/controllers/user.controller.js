@@ -11,7 +11,7 @@ import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import cloudinary, { isCloudinaryConfigured } from "../config/cloudinary.config.js";
 import { syncResellerReassignment } from "../helpers/support-reassignment.helper.js";
-import { getDefaultRatePerMsg, calculateDefaultExpiry } from "../services/platform-settings.service.js";
+import { getDefaultRatePerMsg, calculateDefaultAccountExpiry } from "../services/platform-settings.service.js";
 
 /**
  * Get all users accessible by current user:
@@ -39,7 +39,6 @@ export async function getUsers(req, res) {
         const walletMap = new Map(wallets.map((w) => [String(w.userId), w]));
         const usersWithExpiry = users.map((user) => {
             const w = walletMap.get(String(user._id));
-            const isWalletExpired = Boolean(w?.expiresAt && new Date(w.expiresAt) <= now);
             const isWlActive = Boolean(user.whiteLabel?.enabled && (!user.whiteLabel?.expiresAt || new Date(user.whiteLabel.expiresAt) > now));
             const isWlExpired = Boolean(user.whiteLabel?.enabled && user.whiteLabel?.expiresAt && new Date(user.whiteLabel.expiresAt) <= now);
             return {
@@ -49,15 +48,11 @@ export async function getUsers(req, res) {
                 wallet: w
                     ? {
                           balance: w.balance ?? 0,
-                          expiresAt: w.expiresAt || null,
-                          isLocked: Boolean(w.isLocked || isWalletExpired),
-                          isExpired: isWalletExpired,
+                          isLocked: Boolean(w.isLocked),
                       }
                     : {
                           balance: 0,
-                          expiresAt: null,
                           isLocked: false,
-                          isExpired: false,
                       },
                 isExpired: user.status === "expired" || Boolean(user.expiresAt && user.expiresAt <= now),
                 isWhiteLabelActive: isWlActive,
@@ -391,7 +386,7 @@ export async function createUser(req, res) {
                 accountExpiry = parsedExpiry;
             }
         } else {
-            accountExpiry = await calculateDefaultExpiry();
+            accountExpiry = await calculateDefaultAccountExpiry();
         }
 
         const newUser = await userModel.create({
@@ -416,7 +411,6 @@ export async function createUser(req, res) {
                 userId: newUser._id,
                 balance: 0,
                 resellerId: assignedReseller,
-                expiresAt: accountExpiry,
             });
         } catch (walletErr) {
             console.error("Auto-wallet creation error on createUser:", walletErr);

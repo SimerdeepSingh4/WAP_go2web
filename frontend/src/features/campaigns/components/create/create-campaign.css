@@ -18,6 +18,27 @@
 .campaign-compose-step-arrow { width: 13px; height: 13px; flex-shrink: 0; color: var(--muted-foreground); opacity: .5; }
 .campaign-compose-grid { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 24px; }
 .campaign-compose-fields { display: grid; min-width: 0; gap: 20px; }
+.campaign-cta-fields { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr); gap: 16px; margin: 6px 0; }
+.campaign-cta-section { display: grid; min-width: 0; align-content: start; gap: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 10px; }
+.campaign-cta-section legend { display: flex; max-width: 100%; align-items: center; gap: 7px; padding: 0 6px; color: var(--foreground); font-size: 12px; font-weight: 600; }
+.campaign-cta-section legend svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--primary-text); }
+.campaign-cta-section legend > span { margin-left: 4px; color: var(--muted-foreground); font-size: 10px; font-weight: 400; }
+.campaign-compose-message-preview > .campaign-form-section { container: campaign-message / inline-size; }
+@container campaign-message (min-width: 36rem) { .campaign-cta-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.campaign-compose-message-preview { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+.campaign-compose-media-recipients { display: grid; min-width: 0; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+@container portal (min-width: 48rem) {
+  .campaign-compose-media-recipients { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container portal (min-width: 60rem) {
+  .campaign-compose-message-preview { grid-template-columns: minmax(0, 1fr) 320px; align-items: stretch; }
+  .campaign-compose-message-preview > .campaign-form-section > [data-slot="card-content"],
+  .campaign-compose-message-preview > .campaign-form-section > [data-slot="card-content"] > div,
+  .campaign-compose-message-preview .quill-editor-container { display: flex; min-height: 0; flex: 1; flex-direction: column; }
+  .campaign-compose-message-preview .quill { display: flex; min-height: 0; flex: 1; flex-direction: column; }
+  .campaign-compose-message-preview .ql-container { height: auto; flex: 1; }
+  .campaign-compose .campaign-compose-message-preview .ql-editor { min-height: 180px; }
+}
 .campaign-compose-summary { min-width: 0; }
 .campaign-compose [id^="create-"] { scroll-margin-top: 90px; }
 .campaign-compose .campaign-form-section { min-width: 0; border-radius: 14px; }
@@ -28,7 +49,7 @@
 .campaign-compose .campaign-form-section [data-slot="card-content"] { padding: 20px; }
 .campaign-compose .campaign-form-section :where(input:not([type="file"]), textarea) { border-radius: 8px; background: var(--card); }
 .campaign-compose .campaign-form-section :where(label, [data-slot="label"]) { font-size: 11px; line-height: 1.6; }
-.campaign-compose .campaign-form-section input:not([type="file"]) { min-height: 42px; }
+.campaign-compose .campaign-form-section :is(input:not([type="file"]), [data-slot="select-trigger"]) { min-height: 42px; }
 @media (max-width: 767px) {
   .campaign-editor.campaign-compose { gap: 20px; }
   .campaign-create-header { gap: 16px; }
@@ -38,6 +59,7 @@
   .campaign-compose-steps a { min-height: 44px; font-size: 10px; }
   .campaign-compose-step-arrow { display: none; }
   .campaign-compose-fields { gap: 16px; }
+  .campaign-compose-media-recipients { gap: 16px; }
   .campaign-compose .campaign-form-section [data-slot="card-header"], .campaign-compose .campaign-form-section [data-slot="card-content"] { padding: 16px; }
   .campaign-compose .campaign-form-section :where(input:not([type="file"]), textarea) { font-size: 16px; }
   .campaign-compose .ql-toolbar button { width: 32px; height: 34px; }

@@ -8,6 +8,7 @@ import {
 } from "@/features/branding/services/branding.api.js";
 import { useBranding } from "@/features/branding/context/BrandingContext";
 import { applyBrandColors } from "@/features/branding/lib/themeHelper";
+import { OverviewMetricCard } from "@/features/dashboard/components/OverviewMetricCards";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/components/ui/toast";
@@ -329,7 +330,7 @@ export default function ResellerBrandingSettings() {
             <div className="branding-preview-content"><div className="branding-preview-window">
               <div className="branding-preview-browser" aria-hidden="true"><i /><i /><i /><span>{previewAddress}</span><Lock className="size-3 text-muted-foreground" /></div>
               <div className="branding-preview-brand"><img src={currentLogo} alt="" /><strong>{previewName}</strong></div>
-              <div className="branding-preview-workspace"><div className="branding-preview-nav"><LayoutDashboard aria-hidden="true" />Overview</div><h4>Your workspace</h4><p className="branding-help">A look at your brand in the dashboard.</p><div className="branding-preview-stat"><span>Available credits</span><strong>12,500</strong><p className="branding-help">Example balance</p></div><div className="branding-preview-action">Create campaign<ArrowRight aria-hidden="true" /></div></div>
+              <div className="branding-preview-workspace"><div className="branding-preview-nav"><LayoutDashboard aria-hidden="true" />Overview</div><h4>Your workspace</h4><p className="branding-help">A look at your brand in the dashboard.</p><div className="branding-preview-stat"><OverviewMetricCard label="Available credits" value={12500} caption="Example balance" icon={ArrowRight} accent /></div><div className="branding-preview-action">Create campaign<ArrowRight aria-hidden="true" /></div></div>
             </div></div>
             <p className="branding-help branding-preview-note">Colors preview across your dashboard as you choose. Save changes to keep them.</p>
           </aside>

@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/features/dashboard/components/shared";
 import { dateTime, ownerName } from "@/lib/format";
 import UserAvatar from "@/features/accounts/components/UserAvatar";
-import SupportHelpButton from "@/features/support/components/SupportHelpButton";
 
 export default function CampaignReportHeader({
   campaign,
@@ -60,7 +59,6 @@ export default function CampaignReportHeader({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <SupportHelpButton campaign={campaign} area="this campaign report" />
           <Button variant="outline" size="sm" onClick={onExportCSV} className="gap-1.5 text-xs">
             <Download className="size-3.5" />
             Export CSV

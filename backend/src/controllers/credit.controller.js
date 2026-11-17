@@ -1,5 +1,5 @@
 import { postCreditMovement } from "../services/credit-posting.service.js";
-import { notifyUser } from "../services/socket.service.js";
+import { notifyUser, notifyRole } from "../services/socket.service.js";
 import { reconcileWallet as verifyReconcile } from "../helpers/credit.helper.js";
 import mongoose from "mongoose";
 import walletModel from "../models/wallet.model.js";
@@ -66,9 +66,12 @@ export async function getBalance(req, res) {
             });
         }
 
-        // Determine expiry & locked state
-        const isExpired = Boolean(wallet.expiresAt && new Date(wallet.expiresAt) <= new Date());
-        const isLocked = Boolean(wallet.isLocked || isExpired);
+        const isLocked = Boolean(wallet.isLocked);
+
+        const totalTransactions = await transactionModel.countDocuments({
+            $or: [{ fromUser: targetUserId }, { toUser: targetUserId }],
+            type: { $ne: "REQUEST" },
+        });
 
         return res.status(200).json({
             success: true,
@@ -77,14 +80,13 @@ export async function getBalance(req, res) {
                 balance: wallet.balance,
                 resellerId: wallet.resellerId,
                 ratePerMsg: targetUser.ratePerMsg,
-                expiresAt: wallet.expiresAt || null,
-                isExpired,
                 isLocked,
                 messagesRemaining: isLocked
                     ? 0
                     : (targetUser.ratePerMsg > 0
                         ? Math.floor(wallet.balance / targetUser.ratePerMsg)
                         : 0),
+                totalTransactions,
             },
         });
     } catch (error) {
@@ -115,7 +117,7 @@ export async function allocateCredits(req, res) {
     mongoSession.startTransaction(creditTransactionOptions);
 
     try {
-        const { toUserId, amount, notes, password, expiryYears, expiryMonths, expiresAt } = req.body;
+        const { toUserId, amount, notes, password } = req.body;
 
         // ── Validation ──────────────────────────────────────────
         if (!toUserId || !amount) {
@@ -222,11 +224,11 @@ export async function allocateCredits(req, res) {
                 });
             }
 
-            if (fromWallet.expiresAt && new Date(fromWallet.expiresAt) <= new Date()) {
+            if (fromWallet.isLocked) {
                 await abortCreditSession(mongoSession);
                 await mongoSession.endSession();
                 return res.status(403).json({
-                    message: "Your credit balance has expired and is locked. Cannot allocate credits.",
+                    message: "Your wallet is locked. Cannot allocate credits.",
                     success: false,
                     isLocked: true,
                 });
@@ -244,26 +246,11 @@ export async function allocateCredits(req, res) {
 
         }
 
-        // ── Calculate Expiry Date for Target User ─────────────────
-        let targetExpiresAt = undefined;
-        if (expiresAt) {
-            targetExpiresAt = new Date(expiresAt);
-        } else if (expiryYears != null && Number(expiryYears) > 0) {
-            targetExpiresAt = new Date(Date.now() + Number(expiryYears) * 365.25 * 24 * 60 * 60 * 1000);
-        } else if (expiryMonths != null && Number(expiryMonths) > 0) {
-            targetExpiresAt = new Date(Date.now() + Number(expiryMonths) * 30 * 24 * 60 * 60 * 1000);
-        } else if (expiryYears === 0 || expiryYears === "0") {
-            targetExpiresAt = null; // explicit never expires
-        } else if (req.user.role === "Super Admin") {
-            // Default 2 years expiry when allocated by Super Admin
-            targetExpiresAt = new Date(Date.now() + 2 * 365.25 * 24 * 60 * 60 * 1000);
-        }
-
         const posting = await postCreditMovement({
             session: mongoSession, operationKey: creditPostingKey(req, "allocation"), type: "ALLOCATE", amount: creditAmount,
             fromUser: req.user.role === "Super Admin" ? null : req.user._id, toUser: toUserId, performedBy: req.user._id,
             notes: notes || "", rateSnapshot: toUser.ratePerMsg || null,
-            toWalletSet: { isLocked: false, ...(targetExpiresAt !== undefined ? { expiresAt: targetExpiresAt } : {}) },
+            toWalletSet: { isLocked: false },
         });
         balanceAfterFrom = posting.fromWallet?.balance ?? null;
         const balanceAfterTo = posting.toWallet.balance;
@@ -283,6 +270,13 @@ export async function allocateCredits(req, res) {
                 delta: -creditAmount,
                 reason: "ALLOCATE",
                 toUser: toUser.username,
+            });
+        }
+        if (req.user.role === "Super Admin") {
+            notifyRole("Super Admin", "WALLET_UPDATED", {
+                reason: "ALLOCATE",
+                toUser: toUser.username,
+                amount: creditAmount,
             });
         }
         notifyUser(toUserId, "WALLET_UPDATED", {
@@ -348,6 +342,12 @@ export async function requestCredits(req, res) {
       return result;
     }, creditTransactionOptions);
     await publishSupportAction(req);
+    notifyUser(req.user._id, "WALLET_UPDATED", { reason: "REQUEST", amount });
+    if (recipient?._id) {
+      notifyUser(recipient._id, "WALLET_UPDATED", { reason: "CREDIT_REQUEST_RECEIVED", fromUser: req.user.username, amount });
+    } else {
+      notifyRole("Super Admin", "WALLET_UPDATED", { reason: "CREDIT_REQUEST_RECEIVED", fromUser: req.user.username, amount });
+    }
     return res.status(201).json(response);
   } catch (error) {
     console.error("RequestCredits error:", error);
@@ -469,6 +469,31 @@ export async function reclaimCredits(req, res) {
         await saveCreditReceipt(req, mongoSession, 200, { success: true, message: "Credit reclaim processed.", transaction: { id: transaction[0]._id, transactionId: transaction[0].transactionId, amount: reclaimAmount, fromUser: { id: fromUser._id, username: fromUser.username, role: fromUser.role }, balanceAfterFrom, balanceAfterTo } });
         await mongoSession.commitTransaction();
         await mongoSession.endSession();
+
+        // ── Real-Time WebSockets (POST-COMMIT) ────────────────────
+        if (balanceAfterFrom !== null) {
+            notifyUser(fromUserId, "WALLET_UPDATED", {
+                newBalance: balanceAfterFrom,
+                delta: -reclaimAmount,
+                reason: "RECLAIM",
+                byUser: req.user.username,
+            });
+        }
+        if (balanceAfterTo !== null) {
+            notifyUser(req.user._id, "WALLET_UPDATED", {
+                newBalance: balanceAfterTo,
+                delta: +reclaimAmount,
+                reason: "RECLAIM",
+                fromUser: fromUser.username,
+            });
+        }
+        if (req.user.role === "Super Admin") {
+            notifyRole("Super Admin", "WALLET_UPDATED", {
+                reason: "RECLAIM",
+                fromUser: fromUser.username,
+                amount: reclaimAmount,
+            });
+        }
 
         return res.status(200).json({
             success: true,
@@ -615,6 +640,24 @@ export async function deductCredits(req, res) {
         await mongoSession.commitTransaction();
         await mongoSession.endSession();
 
+        // ── Real-Time WebSockets (POST-COMMIT) ────────────────────
+        notifyUser(userId, "WALLET_UPDATED", {
+            newBalance: wallet.balance,
+            delta: -deductionAmount,
+            reason: "DEDUCT",
+        });
+        if (req.user.role === "Reseller" && String(req.user._id) !== String(userId)) {
+            notifyUser(req.user._id, "WALLET_UPDATED", {
+                targetUserId: userId,
+                reason: "DEDUCT",
+            });
+        } else if (req.user.role === "Super Admin") {
+            notifyRole("Super Admin", "WALLET_UPDATED", {
+                targetUserId: userId,
+                reason: "DEDUCT",
+            });
+        }
+
         return res.status(200).json({
             success: true,
             message: `Deducted ${deductionAmount} credits${amount !== undefined && amount !== null ? '' : ` for ${count} recipient(s)`}.`,
@@ -680,22 +723,50 @@ export async function getTransactions(req, res) {
         // Account filters may narrow the authenticated scope, never widen it.
         const ownId = req.user._id;
         if (userId && !mongoose.isValidObjectId(userId)) return res.status(400).json({ success: false, message: "Invalid account filter." });
+        const scopeFilter = {};
         if (req.user.role === "User") {
             if (userId && String(userId) !== String(ownId)) return res.status(403).json({ success: false, message: "You can only view your own transactions." });
             filter.$or = [{ fromUser: ownId }, { toUser: ownId }];
+            scopeFilter.$or = filter.$or;
         } else if (req.user.role === "Reseller") {
             const users = await userModel.find({ role: "User", resellerId: ownId, createdBy: ownId }).select("_id");
             const allowedIds = [ownId, ...users.map((user) => user._id)];
             if (userId && !allowedIds.some((id) => String(id) === String(userId))) return res.status(403).json({ success: false, message: "You can only view your own transactions and those of users you created." });
             const ids = userId ? [userId] : allowedIds;
             filter.$or = [{ fromUser: { $in: ids } }, { toUser: { $in: ids } }];
+            scopeFilter.$or = filter.$or;
         } else if (req.user.role === "Super Admin") {
-            if (userId) filter.$or = [{ fromUser: userId }, { toUser: userId }];
+            const resellers = await userModel.find({ role: "Reseller" }).select("_id").lean();
+            const resellerIds = resellers.map((r) => r._id);
+            const resellerUserExclusion = {
+                $nor: [
+                    { type: "ALLOCATE", fromUser: { $in: resellerIds } },
+                    { type: "RECLAIM", $or: [{ performedBy: { $in: resellerIds } }, { toUser: { $in: resellerIds } }] },
+                    { type: "REQUEST", requestedFrom: { $in: resellerIds } },
+                ],
+            };
+            if (userId) {
+                filter.$and = [
+                    { $or: [{ fromUser: userId }, { toUser: userId }] },
+                    resellerUserExclusion,
+                ];
+                scopeFilter.$and = [
+                    { $or: [{ fromUser: userId }, { toUser: userId }] },
+                    resellerUserExclusion,
+                ];
+            } else {
+                filter.$and = [resellerUserExclusion];
+                scopeFilter.$and = [resellerUserExclusion];
+            }
         } else {
             return res.status(403).json({ success: false, message: "You cannot access credit transactions." });
         }
 
         const total = await transactionModel.countDocuments(filter);
+        const ledgerTotal = await transactionModel.countDocuments({
+            ...scopeFilter,
+            type: { $ne: "REQUEST" },
+        });
 
         const transactions = await transactionModel
             .find(filter)
@@ -719,6 +790,7 @@ export async function getTransactions(req, res) {
                 page: pageNum,
                 limit: limitNum,
                 total,
+                ledgerTotal,
                 totalPages: Math.ceil(total / limitNum),
             },
         });
@@ -854,55 +926,6 @@ export async function reconcileCreditBalance(req, res) {
     }
 }
 
-/**
- * POST /api/credits/update-expiry
- * ------------------------------
- * Super Admin can update the expiry date or lock status of any wallet.
- * Body: { userId, expiresAt, expiryYears, isLocked }
- */
-export async function updateCreditExpiry(req, res) {
-    try {
-        const { userId, expiresAt, expiryYears, isLocked } = req.body;
-        if (!userId) {
-            return res.status(400).json({ message: "userId is required", success: false });
-        }
-
-        let targetExpiresAt = undefined;
-        if (expiresAt !== undefined) {
-            targetExpiresAt = expiresAt ? new Date(expiresAt) : null;
-        } else if (expiryYears != null && Number(expiryYears) > 0) {
-            targetExpiresAt = new Date(Date.now() + Number(expiryYears) * 365.25 * 24 * 60 * 60 * 1000);
-        } else if (expiryYears === 0 || expiryYears === "0") {
-            targetExpiresAt = null;
-        }
-
-        const updateData = {};
-        if (targetExpiresAt !== undefined) updateData.expiresAt = targetExpiresAt;
-        if (isLocked !== undefined) updateData.isLocked = Boolean(isLocked);
-
-        const wallet = await walletModel.findOneAndUpdate(
-            { userId },
-            { $set: updateData },
-            { returnDocument: 'after', upsert: true }
-        );
-
-        notifyUser(userId.toString(), "WALLET_UPDATED", {
-            reason: "EXPIRY_UPDATED",
-            expiresAt: wallet.expiresAt,
-            isLocked: wallet.isLocked,
-        });
-
-        return res.status(200).json({
-            success: true,
-            message: "Credit expiry updated successfully",
-            wallet,
-        });
-    } catch (err) {
-        console.error("Update credit expiry error:", err);
-        return res.status(500).json({ message: "Failed to update credit expiry", success: false });
-    }
-}
-
 export default {
     getBalance,
     allocateCredits,
@@ -910,5 +933,4 @@ export default {
     getTransactions,
     updateRate,
     reconcileCreditBalance,
-    updateCreditExpiry,
 };

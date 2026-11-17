@@ -5,10 +5,24 @@ import { formatNotification, getNotificationGroup, managesUser, mayReadNotificat
 import { notifyUser } from "./socket.service.js";
 
 export async function notificationScope(user) {
-    const filter = { recipientId: user._id, recipientRole: user.role, expiresAt: { $gt: new Date() } };
+    const filter = {
+        recipientId: user._id,
+        recipientRole: user.role,
+        expiresAt: { $gt: new Date() },
+        groupKey: { $ne: `user:${user._id}:creation:account` },
+    };
     if (user.role === "Reseller") {
         const children = await userModel.find({ role: "User", createdBy: user._id, resellerId: user._id }).select("_id").lean();
         filter.$or = [{ managed: false }, { managed: true, subjectUserId: { $in: children.map((child) => child._id) } }];
+    } else if (user.role === "Super Admin") {
+        filter.managed = false;
+        const managedUsers = await userModel.find({ role: "User", resellerId: { $ne: null } }).select("_id").lean();
+        const managedUserIds = managedUsers.map((child) => child._id);
+        if (managedUserIds.length > 0) {
+            filter.$nor = [
+                { itemType: { $in: ["transaction", "wallet"] }, subjectUserId: { $in: managedUserIds } },
+            ];
+        }
     } else filter.managed = false;
     return filter;
 }
@@ -57,7 +71,9 @@ export async function deliverEvent(event) {
         // Escalation reasons are internal staff details. Only Super Admins
         // receive these notifications, regardless of who owns the conversation.
         if (event.kind === "support") continue;
-        put(subject, subject);
+        if (!(event.kind === "user" && d.isNew)) {
+            put(subject, subject);
+        }
         if (creditRequest) {
             const managerId = d.requestedFrom || subject.createdBy;
             if (subject.role === "User" && managerId) {
@@ -69,6 +85,23 @@ export async function deliverEvent(event) {
         if (subject.role === "User" && subject.resellerId && sameId(subject.resellerId, subject.createdBy)) {
             const parent = await userModel.findById(subject.resellerId).lean();
             if (managesUser(parent, subject)) put(parent, subject, true);
+        }
+    }
+    if (event.kind === "transaction") {
+        const fromAccount = participants.find((p) => sameId(p._id, d.fromUser));
+        const toAccount = participants.find((p) => sameId(p._id, d.toUser));
+        const actorAccount = participants.find((p) => sameId(p._id, d.performedBy));
+        if (
+            (d.type === "ALLOCATE" && fromAccount?.role === "Reseller" && toAccount?.role === "User") ||
+            (d.type === "RECLAIM" && (actorAccount?.role === "Reseller" || toAccount?.role === "Reseller") && fromAccount?.role === "User") ||
+            (d.type === "REQUEST" && d.requestedFrom)
+        ) {
+            notifyAdmins = false;
+        }
+    } else if (event.kind === "wallet") {
+        const walletOwner = subjects.find((s) => sameId(s._id, d.userId));
+        if (walletOwner?.role === "User" && walletOwner?.resellerId) {
+            notifyAdmins = false;
         }
     }
     const mainSubject = subjects.find((user) => user.role === "User") || subjects.find((user) => user.role !== "Super Admin") || subjects[0];

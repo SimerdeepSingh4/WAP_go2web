@@ -6,7 +6,7 @@ import { useAuth } from "@/features/auth/hooks/useAuth";
 import { getAccountOptions } from "@/features/accounts/services/accountPicker.api.js";
 import "./account-picker.css";
 
-export default function AccountPicker({ id, label, value, onChange, options, disabled, accountSearch }) {
+export default function AccountPicker({ id, label, value, onChange, options, disabled, accountSearch, invalid, describedBy }) {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -35,7 +35,7 @@ export default function AccountPicker({ id, label, value, onChange, options, dis
   const visible = [...special, ...results];
   const selected = options.find(option => String(option.value) === String(value)) || null;
   return <Combobox.Root items={visible} filteredItems={visible} value={selected} isItemEqualToValue={(a, b) => a.value === b.value} onValueChange={option => { if (option) onChange(option.value); }} inputValue={search} onInputValueChange={setSearch} open={open} onOpenChange={next => { setOpen(next); if (!next) { setSearch(""); setDebounced(""); } }} disabled={disabled}>
-    <Combobox.Trigger id={id} aria-label={label} className="account-picker-trigger" data-slot="select-trigger">
+    <Combobox.Trigger id={id} aria-label={label} aria-invalid={invalid || undefined} aria-describedby={describedBy} className="account-picker-trigger" data-slot="select-trigger">
       <span>{selected?.label || "Select account"}</span><ChevronsUpDown aria-hidden="true" />
     </Combobox.Trigger>
     <Combobox.Portal><Combobox.Positioner align="start" sideOffset={6} className="account-picker-positioner"><Combobox.Popup className="ui-motion-popup account-picker-popup">

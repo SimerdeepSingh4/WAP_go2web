@@ -4,8 +4,8 @@ export const DEFAULT_PLATFORM_SETTINGS = {
     dailyCampaignLimit: 10,
     defaultRatePerMsg: 1,
     lowBalanceThreshold: 500,
-    creditExpiryValue: 2,
-    creditExpiryUnit: "years",
+    accountExpiryValue: 2,
+    accountExpiryUnit: "years",
     maxAllowedDevices: 3,
     autoRefundEnabled: true,
     strictOverdraftProtection: true,
@@ -22,8 +22,8 @@ export async function getPlatformSettingsDoc() {
         dailyCampaignLimit: doc.dailyCampaignLimit ?? DEFAULT_PLATFORM_SETTINGS.dailyCampaignLimit,
         defaultRatePerMsg: doc.defaultRatePerMsg ?? DEFAULT_PLATFORM_SETTINGS.defaultRatePerMsg,
         lowBalanceThreshold: doc.lowBalanceThreshold ?? DEFAULT_PLATFORM_SETTINGS.lowBalanceThreshold,
-        creditExpiryValue: doc.creditExpiryValue ?? DEFAULT_PLATFORM_SETTINGS.creditExpiryValue,
-        creditExpiryUnit: doc.creditExpiryUnit ?? DEFAULT_PLATFORM_SETTINGS.creditExpiryUnit,
+        accountExpiryValue: doc.accountExpiryValue ?? doc.creditExpiryValue ?? DEFAULT_PLATFORM_SETTINGS.accountExpiryValue,
+        accountExpiryUnit: doc.accountExpiryUnit ?? doc.creditExpiryUnit ?? DEFAULT_PLATFORM_SETTINGS.accountExpiryUnit,
         maxAllowedDevices: doc.maxAllowedDevices ?? DEFAULT_PLATFORM_SETTINGS.maxAllowedDevices,
         autoRefundEnabled: doc.autoRefundEnabled ?? DEFAULT_PLATFORM_SETTINGS.autoRefundEnabled,
         strictOverdraftProtection: doc.strictOverdraftProtection ?? DEFAULT_PLATFORM_SETTINGS.strictOverdraftProtection,
@@ -56,10 +56,10 @@ export async function getDefaultRatePerMsg() {
         : 1;
 }
 
-export async function calculateDefaultExpiry(baseDate = new Date()) {
+export async function calculateDefaultAccountExpiry(baseDate = new Date()) {
     const settings = await platformSettings.findById("platform").lean();
-    const unit = settings?.creditExpiryUnit ?? "years";
-    const val = Number(settings?.creditExpiryValue ?? 2);
+    const unit = settings?.accountExpiryUnit ?? settings?.creditExpiryUnit ?? "years";
+    const val = Number(settings?.accountExpiryValue ?? settings?.creditExpiryValue ?? 2);
 
     if (unit === "never" || !val || val <= 0) return null;
 

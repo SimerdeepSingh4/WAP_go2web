@@ -21,6 +21,9 @@ export const managesUser = (viewer, subject) => viewer?.role === "Reseller" && s
 
 export function mayReadNotification(viewer, notification, subject) {
     if (!sameId(viewer._id, notification.recipientId) || viewer.role !== notification.recipientRole) return false;
+    if (viewer.role === "Super Admin" && ["transaction", "wallet"].includes(notification.itemType)) {
+        if (subject?.role === "User" && subject?.resellerId) return false;
+    }
     return !notification.managed || managesUser(viewer, subject);
 }
 
@@ -89,7 +92,7 @@ export function getNotificationGroup(event, changeField) {
 
     if (kind === "wallet") {
         const walletId = String(d.id || d.userId || d._id);
-        const field = changeField || (d.changes?.includes("isLocked") ? "isLocked" : d.changes?.includes("expiresAt") ? "expiresAt" : "lowBalance");
+        const field = changeField || (d.changes?.includes("isLocked") ? "isLocked" : "lowBalance");
         const changeType = field === "lowBalance" ? "balance" : "setting";
         return {
             groupKey: `wallet:${walletId}:${changeType}:${field}`,
@@ -261,6 +264,7 @@ export function formatNotification(event, viewer, subject, threshold = 100, part
                 : `${base}/users?search=${encodeURIComponent(d.username || "")}`;
 
         if (d.isNew) {
+            if (isSelf) return null;
             const title = `New ${d.role || "user"} created: ${d.username}`;
             const body = `New ${d.role || "user"} account "${d.username}" was created.`;
             return result("accounts", title, body, href);
@@ -312,13 +316,6 @@ export function formatNotification(event, viewer, subject, threshold = 100, part
                 : `Wallet for ${subjectLabel} is ${d.isLocked ? "locked. Campaign submission is unavailable." : "now unlocked and available again."}`;
             return result("credits", title, body, `${base}/credits`);
         }
-        if (d.changes?.includes("expiresAt")) {
-            const title = isSelf ? "Credit expiry updated" : `Credit expiry updated • ${subjectName}`;
-            const body = isSelf
-                ? "The credit expiry date has changed."
-                : `Credit expiry date for ${subjectLabel} has changed.`;
-            return result("credits", title, body, `${base}/credits`);
-        }
         if (threshold > 0 && Number(d.balance) < threshold && Number(d.previous?.balance) >= threshold) {
             const title = isSelf ? "Low credit balance" : `Low credit balance • ${subjectName}`;
             const body = isSelf
@@ -329,13 +326,14 @@ export function formatNotification(event, viewer, subject, threshold = 100, part
     }
 
     if (event.kind === "expiry") {
+        if (d.kind === "wallet") return null; // Ignore queued notices for retired credit expiry.
         const title = isSelf
-            ? (d.expired ? "Credits or account expired" : "Expiry approaching")
+            ? (d.expired ? "Account expired" : "Expiry approaching")
             : `${d.expired ? "Account expired" : "Expiry approaching"} • ${subjectName}`;
         const body = isSelf
-            ? (d.expired ? "Access or credits have expired. Contact your account manager." : "Access or credits expire within seven days.")
-            : `Access or credits for ${subjectLabel} ${d.expired ? "have expired." : "expire within seven days."}`;
-        return result("accounts", title, body, `${base}/credits`);
+            ? (d.expired ? "Your account has expired. Contact your account manager." : "Your account expires within seven days.")
+            : `Account access for ${subjectLabel} ${d.expired ? "have expired." : "expire within seven days."}`;
+        return result("accounts", title, body, `${base}/settings`);
     }
 
     if (event.kind === "operations") return result("system", "Notification delivery needs attention", "Some deliveries exhausted their retries. Open the notification centre to inspect and retry them.", `${base}/notifications`);

@@ -59,7 +59,7 @@ export const AuthProvider = ({ children }) => {
         },
         retry: false,
         staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-        refetchInterval: 30000,
+        refetchInterval: query => query.state.data ? 30000 : false,
     });
 
     const identityPending = previousIdentity.current !== undefined && identityKey(authData) !== previousIdentity.current;
@@ -134,9 +134,29 @@ export const AuthProvider = ({ children }) => {
             }
             finally { syncing.current = false; setTransitioning(false); }
         };
-        const handleUnauthorized = () => { void synchronize(); };
+        const handleUnauthorized = () => {
+            // A public-page 401 or several rejected requests from the same
+            // expired session must not keep remounting the signed-out app.
+            if (syncing.current || !queryClient.getQueryData(["authUser"])) return;
+            // The server already rejected this session. End it locally instead
+            // of verifying it again and starting another /auth/me -> 401 cycle.
+            void queryClient.cancelQueries();
+            clearCurrentSessionToken();
+            invalidateSessionRequests();
+            previousIdentity.current = "";
+            rememberVerifiedSession(null);
+            queryClient.setQueryData(["authUser"], null);
+            setWorkspaceGeneration(value => value + 1);
+            void clearWorkspace();
+        };
         const handleBrowserChange = () => { void synchronize(true); };
-        const recheck = () => { if (document.visibilityState !== "hidden") void queryClient.invalidateQueries({ queryKey: ["authUser"] }); };
+        const recheck = () => {
+            // Signed-out pages stay idle. Initial load, explicit login/retry and
+            // browser-session notifications still verify a new session.
+            if (document.visibilityState !== "hidden" && queryClient.getQueryData(["authUser"])) {
+                void queryClient.invalidateQueries({ queryKey: ["authUser"] });
+            }
+        };
         const unsubscribe = subscribeBrowserSessionChanges(handleBrowserChange);
 
         const handleAccountExpired = (event) => {

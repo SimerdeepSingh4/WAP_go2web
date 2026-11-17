@@ -2,7 +2,7 @@ import CampaignReference from "@/features/campaigns/components/CampaignReference
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CheckCircle2, Loader2, Pencil, RefreshCw } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Loader2, Pencil } from "lucide-react";
 import api from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -68,7 +68,6 @@ export default function AdminCampaignReportEditor({ campaign, base, onRefresh, i
           <p className="inline-flex items-center gap-2 text-xs text-muted-foreground"><UserAvatar user={campaign.userId} className="size-7" />{ownerName(campaign.userId)}{publishedAt ? ` | Last published ${dateTime(publishedAt)}` : " | Not published"}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="ghost" size="sm" onClick={onRefresh} disabled={isRefreshing || publish.isPending}><RefreshCw className={"size-3.5 " + (isRefreshing ? "animate-spin" : "")} /> Refresh</Button>
           <Button variant="outline" size="sm" nativeButton={false} render={<Link to={`${base}/campaigns/${campaign._id}/report/create`} />}><Pencil className="size-3.5" /> Edit report</Button>
           <Button type="button" size="sm" onClick={() => setConfirmOpen(true)} disabled={publish.isPending || isRefreshing || !sheet?.rows.length || justPublished || missingFailureReason}>{publish.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}{justPublished ? "Published" : publishedAt ? "Publish updates" : "Publish report"}</Button>
         </div>
