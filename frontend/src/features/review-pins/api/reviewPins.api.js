@@ -5,6 +5,10 @@ export const reviewPinsApi = {
     apiClient
       .get("/review-pins", { params: { page }, signal })
       .then((r) => r.data.pins),
+  listAll: (signal) =>
+    apiClient
+      .get("/review-pins/all", { signal })
+      .then((r) => r.data.pins),
   create: (body) =>
     apiClient.post("/review-pins", body).then((r) => r.data.pin),
   delete: (id) =>

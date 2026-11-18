@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { useLocation } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { useAuthContext } from "@/features/auth/context/auth.context";
 import { useBranding } from "@/features/branding/context/BrandingContext";
 import { toast } from "@/components/ui/toast";
-import { X, GripHorizontal, Pin, Eye, EyeOff } from "lucide-react";
-import { useReviewPins, useCreatePin, useDeletePin, useResolvePin } from "@/features/review-pins/hooks/useReviewPins";
+import { X, GripHorizontal, Pin, Eye, EyeOff, Globe, MapPin, CheckCircle2, ExternalLink, HelpCircle } from "lucide-react";
+import { useReviewPins, useAllReviewPins, useCreatePin, useDeletePin, useResolvePin } from "@/features/review-pins/hooks/useReviewPins";
+import { useLeadDev } from "@/features/review-pins/lib/leadDev";
+import { startReviewPinsTour } from "@/features/review-pins/lib/reviewPinsTour";
 import { readResolverName, rememberResolverName } from "@/features/review-pins/lib/resolverIdentity";
 import { computeAnchor, resolveElement } from "@/features/review-pins/lib/pinAnchor";
 import { PinPlacementOverlay } from "@/features/review-pins/components/PinPlacementOverlay";
@@ -28,6 +30,7 @@ export default function ReviewPinsButton() {
   const [activePopoverPin, setActivePopoverPin] = useState(null);
   const hasDragged = useRef(false);
 
+  const navigate = useNavigate();
   const location = useLocation();
   const pathname = location.pathname;
   const { user } = useAuthContext();
@@ -36,6 +39,11 @@ export default function ReviewPinsButton() {
   const resolverName = resolverIdentity.userId === userId ? resolverIdentity.name : readResolverName(userId);
   const { branding } = useBranding();
 
+  // Lead Developer mode state & global tracking
+  const { isLeadDev } = useLeadDev();
+  const [devTab, setDevTab] = useState("page"); // "page" | "all"
+  const [filterStatus, setFilterStatus] = useState("all"); // "all" | "open" | "resolved"
+
   const brandLogo =
     branding?.logoUrl ||
     "https://res.cloudinary.com/dyfjy8kmv/image/upload/v1793689940/Navy_Blue_Bird_Chat_Logo_n0udpf.webp";
@@ -43,10 +51,88 @@ export default function ReviewPinsButton() {
 
   // Fetch pins for current page
   const { data: pins = [], isLoading: pinsLoading } = useReviewPins();
+  // Fetch all pins for Lead Developer mode
+  const { data: allPins = [], isLoading: allPinsLoading } = useAllReviewPins(isLeadDev);
+
   const createPin = useCreatePin();
   const deletePin = useDeletePin();
   const resolvePin = useResolvePin();
   const activePin = activePopoverPin && (pins.find(pin => pin._id === activePopoverPin._id) || activePopoverPin);
+
+  const unresolvedAllCount = allPins.filter((p) => p.status !== "resolved").length;
+
+  // Driver.js Tour for onboarding & pointing out mistakes / improvements
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      const tourParam = url.searchParams.get("tour");
+      const forceTour = tourParam === "1" || tourParam === "true";
+      if (forceTour) {
+        url.searchParams.delete("tour");
+        window.history.replaceState({}, document.title, url.pathname + (url.search ? url.search : "") + url.hash);
+      }
+      const timer = setTimeout(() => {
+        startReviewPinsTour(forceTour);
+      }, 1200);
+      return () => clearTimeout(timer);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Jump to pin (scrolls or navigates across pages)
+  function handleJumpToPin(pin) {
+    if (!pin) return;
+    setIsOpen(false);
+    if (pin.page === pathname) {
+      setActivePopoverPin(pin);
+      if (pin.elementSelector) {
+        const el = document.querySelector(pin.elementSelector);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          return;
+        }
+      }
+      if (typeof pin.scrollY === "number") {
+        window.scrollTo({ top: pin.scrollY, behavior: "smooth" });
+      }
+    } else {
+      try {
+        sessionStorage.setItem("target_review_pin_id", pin._id);
+      } catch {
+        // ignore
+      }
+      navigate(pin.page);
+    }
+  }
+
+  // Auto-scroll and open pin popover if navigated with target_review_pin_id
+  useEffect(() => {
+    try {
+      const targetId = sessionStorage.getItem("target_review_pin_id");
+      if (targetId && pins.length > 0) {
+        const target = pins.find((p) => p._id === targetId);
+        if (target) {
+          sessionStorage.removeItem("target_review_pin_id");
+          setActivePopoverPin(target);
+          setTimeout(() => {
+            if (target.elementSelector) {
+              const el = document.querySelector(target.elementSelector);
+              if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "center" });
+                return;
+              }
+            }
+            if (typeof target.scrollY === "number") {
+              window.scrollTo({ top: target.scrollY, behavior: "smooth" });
+            }
+          }, 350);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [pathname, pins]);
 
   function handleResolvePin(pin, name) {
     if (!pin?._id || !name.trim() || resolvePin.isPending) return;
@@ -269,7 +355,7 @@ export default function ReviewPinsButton() {
                 }}
                 animate={{
                   y: -56,
-                  width: 280,
+                  width: isLeadDev && devTab === "all" ? 340 : 280,
                   height: "auto",
                   borderRadius: 16,
                   transition: {
@@ -299,7 +385,7 @@ export default function ReviewPinsButton() {
                   animate={{ opacity: 1, filter: "blur(0px)" }}
                   exit={{ opacity: 0, filter: "blur(4px)" }}
                   transition={{ duration: 0.18, delay: 0.12 }}
-                  className="w-[280px] p-4 text-xs font-sans text-neutral-200 space-y-3"
+                  className={`${isLeadDev && devTab === "all" ? "w-[340px]" : "w-[280px]"} p-4 text-xs font-sans text-neutral-200 space-y-3`}
                 >
                   {/* Card Header */}
                   <div className="flex items-center justify-between pb-2 border-b border-neutral-800">
@@ -311,9 +397,19 @@ export default function ReviewPinsButton() {
                           className="size-5 object-contain"
                         />
                       </div>
-                      <span className="font-semibold text-white tracking-tight text-[13px]">
-                        Review Pins
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-white tracking-tight text-[13px]">
+                          Review Pins
+                        </span>
+                        {isLeadDev && (
+                          <span
+                            title="Lead Developer Mode active on this browser"
+                            className="text-[9px] px-1.5 py-0.5 rounded font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                          >
+                            👑 Lead Dev
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <button
                       type="button"
@@ -328,108 +424,268 @@ export default function ReviewPinsButton() {
                     </button>
                   </div>
 
-                  {/* Status Bar */}
-                  <div className="bg-neutral-900/90 rounded-lg px-2.5 py-2 border border-neutral-800/80 flex items-center justify-between gap-2">
-                    <span className="text-[11px] text-emerald-400 font-medium shrink-0">
-                      {pinsLoading
-                        ? "Loading…"
-                        : pins.length === 0
-                        ? "No pins yet"
-                        : `${pins.length} pin${pins.length !== 1 ? "s" : ""} on this page`}
-                    </span>
-                    <span className="font-mono text-[10px] text-neutral-500 truncate text-right max-w-[120px]">
-                      {pageDisplayPath}
-                    </span>
-                  </div>
+                  {/* Lead Developer Tab Switcher */}
+                  {isLeadDev && (
+                    <div className="grid grid-cols-2 p-0.5 bg-neutral-900/90 rounded-lg border border-neutral-800/80">
+                      <button
+                        type="button"
+                        onClick={() => setDevTab("page")}
+                        className={`py-1 text-[11px] font-medium rounded-md transition-colors flex items-center justify-center gap-1.5 ${
+                          devTab === "page"
+                            ? "bg-neutral-800 text-white shadow-sm"
+                            : "text-neutral-400 hover:text-neutral-200"
+                        }`}
+                      >
+                        <MapPin className="size-3 text-amber-400" />
+                        <span>This Page ({pins.length})</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDevTab("all")}
+                        className={`py-1 text-[11px] font-medium rounded-md transition-colors flex items-center justify-center gap-1.5 ${
+                          devTab === "all"
+                            ? "bg-neutral-800 text-white shadow-sm"
+                            : "text-neutral-400 hover:text-neutral-200"
+                        }`}
+                      >
+                        <Globe className="size-3 text-blue-400" />
+                        <span>All Pins ({allPins.length})</span>
+                      </button>
+                    </div>
+                  )}
 
-                  {/* Action Buttons */}
-                  <div className="grid grid-cols-2 gap-2">
-                    {/* Add Pin */}
+                  {/* TAB 1: This Page View (Standard View) */}
+                  {(!isLeadDev || devTab === "page") && (
+                    <>
+                      {/* Status Bar */}
+                      <div className="bg-neutral-900/90 rounded-lg px-2.5 py-2 border border-neutral-800/80 flex items-center justify-between gap-2">
+                        <span className="text-[11px] text-emerald-400 font-medium shrink-0">
+                          {pinsLoading
+                            ? "Loading…"
+                            : pins.length === 0
+                            ? "No pins yet"
+                            : `${pins.length} pin${pins.length !== 1 ? "s" : ""} on this page`}
+                        </span>
+                        <span className="font-mono text-[10px] text-neutral-500 truncate text-right max-w-[120px]">
+                          {pageDisplayPath}
+                        </span>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="grid grid-cols-2 gap-2">
+                        {/* Add Pin */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsOpen(false);
+                            setPlacingPin(true);
+                          }}
+                          className="flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-100 transition-all text-[11px] font-medium"
+                        >
+                          <Pin className="size-4 text-amber-400" />
+                          Add pin
+                        </button>
+
+                        {/* Show / Hide Pins */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPinsVisible((v) => !v);
+                          }}
+                          className={`flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-lg border transition-all text-[11px] font-medium ${
+                            pinsVisible
+                              ? "bg-neutral-800 hover:bg-neutral-700 border-neutral-700 text-neutral-100"
+                              : "bg-neutral-900 hover:bg-neutral-800 border-neutral-800 text-neutral-400"
+                          }`}
+                        >
+                          {pinsVisible ? (
+                            <EyeOff className="size-4 text-blue-400" />
+                          ) : (
+                            <Eye className="size-4 text-blue-400" />
+                          )}
+                          {pinsVisible ? "Hide pins" : "Show pins"}
+                        </button>
+                      </div>
+
+                      {/* Pin List (compact, scrollable) */}
+                      {pins.length > 0 && (
+                        <div className="space-y-1">
+                          <span className="text-[10px] uppercase tracking-wider text-neutral-500 font-semibold">
+                            Pins on this page
+                          </span>
+                          <div
+                            className="overflow-y-auto space-y-0.5 pr-0.5"
+                            style={{ maxHeight: 160 }}
+                          >
+                            {pins.map((pin, i) => {
+                              const isLocationUnavailable =
+                                pin.anchorLost ||
+                                Boolean(pin.elementSelector && !resolveElement(pin.elementSelector).found);
+                              return (
+                                <button
+                                  key={pin._id}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActivePopoverPin(pin);
+                                    setIsOpen(false);
+                                  }}
+                                  className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-md bg-neutral-900 hover:bg-neutral-800 border border-neutral-800/60 text-left transition-colors"
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span className="text-[10px] font-mono text-neutral-500 shrink-0 w-4 text-center">
+                                      {i + 1}
+                                    </span>
+                                    <span className="text-[11px] text-neutral-300 truncate">
+                                      {pin.description}
+                                    </span>
+                                  </div>
+                                  {pin.status === "resolved" && <span title={`Resolved by ${pin.resolvedByName || "Unknown reviewer"}`} className="shrink-0 rounded border border-emerald-800/60 bg-emerald-950/60 px-1 py-0.5 text-[9px] font-medium text-emerald-300">Resolved</span>}
+                                  {isLocationUnavailable && (
+                                    <span className="text-[9px] font-medium text-amber-400 bg-amber-950/60 border border-amber-800/60 px-1 py-0.5 rounded shrink-0">
+                                      Location unavailable
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* TAB 2: All Pins Feed (Lead Developer Only) */}
+                  {isLeadDev && devTab === "all" && (
+                    <div className="space-y-2">
+                      {/* Sub-filters */}
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setFilterStatus("all")}
+                          className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                            filterStatus === "all"
+                              ? "bg-neutral-700 text-white"
+                              : "bg-neutral-900 text-neutral-400 hover:text-neutral-200"
+                          }`}
+                        >
+                          All ({allPins.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFilterStatus("open")}
+                          className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                            filterStatus === "open"
+                              ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                              : "bg-neutral-900 text-neutral-400 hover:text-neutral-200"
+                          }`}
+                        >
+                          Open ({unresolvedAllCount})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFilterStatus("resolved")}
+                          className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                            filterStatus === "resolved"
+                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                              : "bg-neutral-900 text-neutral-400 hover:text-neutral-200"
+                          }`}
+                        >
+                          Resolved ({allPins.length - unresolvedAllCount})
+                        </button>
+                      </div>
+
+                      {/* Pins list across all pages */}
+                      <div
+                        className="overflow-y-auto space-y-1.5 pr-0.5"
+                        style={{ maxHeight: 220 }}
+                      >
+                        {allPinsLoading ? (
+                          <div className="py-8 text-center text-neutral-500 text-[11px]">
+                            Loading all website pins…
+                          </div>
+                        ) : allPins.length === 0 ? (
+                          <div className="py-8 text-center text-neutral-500 text-[11px]">
+                            No review pins placed yet on any page.
+                          </div>
+                        ) : (
+                          allPins
+                            .filter((p) => {
+                              if (filterStatus === "open") return p.status !== "resolved";
+                              if (filterStatus === "resolved") return p.status === "resolved";
+                              return true;
+                            })
+                            .map((pin) => {
+                              const isCurrentPage = pin.page === pathname;
+                              return (
+                                <div
+                                  key={pin._id}
+                                  onClick={() => handleJumpToPin(pin)}
+                                  className="group cursor-pointer p-2 rounded-lg bg-neutral-900/90 hover:bg-neutral-800 border border-neutral-800/80 hover:border-neutral-700 transition-all text-left"
+                                >
+                                  <div className="flex items-center justify-between gap-1.5 mb-1">
+                                    <span
+                                      title={pin.page}
+                                      className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-blue-950/70 border border-blue-800/50 text-blue-300 truncate max-w-[160px]"
+                                    >
+                                      {pin.page}
+                                    </span>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      {pin.status === "resolved" ? (
+                                        <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-950/60 text-emerald-300 border border-emerald-800/50 flex items-center gap-0.5">
+                                          <CheckCircle2 className="size-2.5" />
+                                          Resolved
+                                        </span>
+                                      ) : (
+                                        <span className="text-[9px] px-1 py-0.2 rounded bg-amber-950/60 text-amber-300 border border-amber-800/50">
+                                          Open
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <p className="text-[11px] text-neutral-200 line-clamp-2 leading-relaxed">
+                                    {pin.description}
+                                  </p>
+
+                                  <div className="mt-1.5 flex items-center justify-between text-[10px] text-neutral-500 pt-1 border-t border-neutral-800/50">
+                                    <span className="truncate">
+                                      By <strong className="text-neutral-400 font-medium">{pin.testerName}</strong>
+                                    </span>
+                                    <span className="flex items-center gap-0.5 text-blue-400 group-hover:underline font-medium">
+                                      {isCurrentPage ? "Jump on page" : "Go to page"}
+                                      <ExternalLink className="size-2.5" />
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Drag Handle & Tour footer */}
+                  <div className="pt-2 flex items-center justify-between text-[10px] text-neutral-500 border-t border-neutral-800/60">
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         setIsOpen(false);
-                        setPlacingPin(true);
+                        startReviewPinsTour(true);
                       }}
-                      className="flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-lg bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-100 transition-all text-[11px] font-medium"
+                      className="flex items-center gap-1 text-neutral-400 hover:text-emerald-400 transition-colors"
+                      title="Replay Driver.js Tour"
                     >
-                      <Pin className="size-4 text-amber-400" />
-                      Add pin
+                      <HelpCircle className="size-3" />
+                      <span>How to use</span>
                     </button>
-
-                    {/* Show / Hide Pins */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPinsVisible((v) => !v);
-                      }}
-                      className={`flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-lg border transition-all text-[11px] font-medium ${
-                        pinsVisible
-                          ? "bg-neutral-800 hover:bg-neutral-700 border-neutral-700 text-neutral-100"
-                          : "bg-neutral-900 hover:bg-neutral-800 border-neutral-800 text-neutral-400"
-                      }`}
-                    >
-                      {pinsVisible ? (
-                        <EyeOff className="size-4 text-blue-400" />
-                      ) : (
-                        <Eye className="size-4 text-blue-400" />
-                      )}
-                      {pinsVisible ? "Hide pins" : "Show pins"}
-                    </button>
-                  </div>
-
-                  {/* Pin List (compact, scrollable) */}
-                  {pins.length > 0 && (
-                    <div className="space-y-1">
-                      <span className="text-[10px] uppercase tracking-wider text-neutral-500 font-semibold">
-                        Pins on this page
-                      </span>
-                      <div
-                        className="overflow-y-auto space-y-0.5 pr-0.5"
-                        style={{ maxHeight: 160 }}
-                      >
-                        {pins.map((pin, i) => {
-                          const isLocationUnavailable =
-                            pin.anchorLost ||
-                            Boolean(pin.elementSelector && !resolveElement(pin.elementSelector).found);
-                          return (
-                            <button
-                              key={pin._id}
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActivePopoverPin(pin);
-                                setIsOpen(false);
-                              }}
-                              className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-md bg-neutral-900 hover:bg-neutral-800 border border-neutral-800/60 text-left transition-colors"
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="text-[10px] font-mono text-neutral-500 shrink-0 w-4 text-center">
-                                  {i + 1}
-                                </span>
-                                <span className="text-[11px] text-neutral-300 truncate">
-                                  {pin.description}
-                                </span>
-                              </div>
-                              {pin.status === "resolved" && <span title={`Resolved by ${pin.resolvedByName || "Unknown reviewer"}`} className="shrink-0 rounded border border-emerald-800/60 bg-emerald-950/60 px-1 py-0.5 text-[9px] font-medium text-emerald-300">Resolved</span>}
-                              {isLocationUnavailable && (
-                                <span className="text-[9px] font-medium text-amber-400 bg-amber-950/60 border border-amber-800/60 px-1 py-0.5 rounded shrink-0">
-                                  Location unavailable
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
+                    <div className="flex items-center gap-1 cursor-grab active:cursor-grabbing">
+                      <GripHorizontal className="size-3 opacity-60" />
+                      <span>Drag to move</span>
                     </div>
-                  )}
-
-                  {/* Drag Handle footer */}
-                  <div className="pt-1.5 flex items-center justify-center text-[10px] text-neutral-500 gap-1 cursor-grab active:cursor-grabbing border-t border-neutral-800/60">
-                    <GripHorizontal className="size-3 opacity-60" />
-                    <span>Drag button to reposition</span>
                   </div>
                 </motion.div>
               </motion.div>
@@ -438,6 +694,7 @@ export default function ReviewPinsButton() {
 
           {/* Trigger Button with Brand Logo */}
           <button
+            id="review-pins-gooey-trigger"
             type="button"
             onClick={(e) => {
               e.stopPropagation();
@@ -456,6 +713,13 @@ export default function ReviewPinsButton() {
               alt={brandName}
               className="size-7 object-contain drop-shadow"
             />
+
+            {/* Unresolved pins counter badge for Lead Developer */}
+            {isLeadDev && unresolvedAllCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-amber-500 text-neutral-950 font-bold text-[10px] flex items-center justify-center shadow-lg border-2 border-black pointer-events-none">
+                {unresolvedAllCount > 99 ? "99+" : unresolvedAllCount}
+              </span>
+            )}
 
             {/* Placement-active pulsing ring */}
             {placingPin && (

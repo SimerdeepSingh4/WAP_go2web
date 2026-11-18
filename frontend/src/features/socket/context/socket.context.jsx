@@ -148,8 +148,16 @@ export const SocketProvider = ({ children }) => {
             "CLIENT_CAMPAIGN_LAUNCHED",
             "CLIENT_CAMPAIGN_UPDATED",
         ]) socket.on(event, refreshCampaigns);
-        socket.on("REVIEW_PIN_CHANGED", () => {
-            queryClient.invalidateQueries({ queryKey: ["review-pins"] });
+        socket.on("REVIEW_PIN_CHANGED", (data) => {
+            if (accountId) queryClient.invalidateQueries({ queryKey: ["review-pins"] });
+            if (typeof window !== "undefined" && localStorage.getItem("review_lead_dev") === "true" && data?.action === "create") {
+                const desc = data.description ? (data.description.length > 60 ? data.description.slice(0, 57) + "…" : data.description) : "New review pin";
+                toast.add({
+                    title: `📍 New Pin (${data.testerName || "Tester"})`,
+                    description: `On ${data.page || "page"}: "${desc}"`,
+                    type: "info",
+                });
+            }
         });
         socket.on("SESSIONS_CHANGED", () => {
             queryClient.invalidateQueries({ queryKey: ["accountSessions"] });

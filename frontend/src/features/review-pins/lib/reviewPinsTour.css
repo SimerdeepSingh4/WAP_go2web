@@ -1,0 +1,109 @@
+/* Dark Theme Styling for Driver.js Review Pins Tour */
+
+.review-pins-driver-popover.driver-popover {
+  background-color: #121214 !important;
+  color: #f4f4f5 !important;
+  border: 1px solid #27272a !important;
+  border-radius: 14px !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+  padding: 16px !important;
+  max-width: 320px !important;
+  font-family: inherit !important;
+}
+
+.review-pins-driver-popover .driver-popover-title {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  margin-bottom: 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  letter-spacing: -0.01em !important;
+}
+
+.review-pins-driver-popover .driver-popover-description {
+  font-size: 12px !important;
+  line-height: 1.55 !important;
+  color: #a1a1aa !important;
+  margin-bottom: 12px !important;
+}
+
+.review-pins-driver-popover .driver-popover-footer {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  margin-top: 12px !important;
+  padding-top: 10px !important;
+  border-top: 1px solid #27272a !important;
+}
+
+.review-pins-driver-popover .driver-popover-progress-text {
+  font-size: 11px !important;
+  color: #71717a !important;
+  margin-right: auto !important;
+}
+
+.review-pins-driver-popover .driver-popover-close-btn {
+  color: #71717a !important;
+  transition: color 0.15s ease !important;
+  font-size: 18px !important;
+}
+
+.review-pins-driver-popover .driver-popover-close-btn:hover {
+  color: #ffffff !important;
+}
+
+.review-pins-driver-popover .driver-popover-prev-btn {
+  background-color: #27272a !important;
+  color: #e4e4e7 !important;
+  border: 1px solid #3f3f46 !important;
+  border-radius: 8px !important;
+  padding: 5px 12px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+.review-pins-driver-popover .driver-popover-prev-btn:hover {
+  background-color: #3f3f46 !important;
+  color: #ffffff !important;
+}
+
+.review-pins-driver-popover .driver-popover-next-btn {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  padding: 6px 14px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
+  transition: all 0.15s ease !important;
+}
+
+.review-pins-driver-popover .driver-popover-next-btn:hover {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
+}
+
+/* Arrow styling */
+.review-pins-driver-popover .driver-popover-arrow-side-left {
+  border-left-color: #27272a !important;
+}
+
+.review-pins-driver-popover .driver-popover-arrow-side-right {
+  border-right-color: #27272a !important;
+}
+
+.review-pins-driver-popover .driver-popover-arrow-side-top {
+  border-top-color: #27272a !important;
+}
+
+.review-pins-driver-popover .driver-popover-arrow-side-bottom {
+  border-bottom-color: #27272a !important;
+}

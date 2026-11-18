@@ -39,6 +39,25 @@ export async function listPins(req, res) {
     }
 }
 
+// GET /api/review-pins/all
+export async function listAllPins(req, res) {
+    try {
+        const query = {};
+        if (req.user.role !== "Super Admin") {
+            query.tenantId = getTenantId(req.user);
+        }
+
+        const pins = await ReviewPin.find(query)
+            .sort({ createdAt: -1 })
+            .lean();
+
+        return res.json({ success: true, pins });
+    } catch (err) {
+        console.error("[ReviewPin] listAllPins error:", err);
+        return res.status(500).json({ success: false, message: "Internal server error." });
+    }
+}
+
 // POST /api/review-pins
 export async function createPin(req, res) {
     try {
@@ -78,7 +97,14 @@ export async function createPin(req, res) {
             scrollY: scrollY ?? null,
         });
 
-        broadcastAll("REVIEW_PIN_CHANGED", { action: "create", page, pinId: pin._id });
+        broadcastAll("REVIEW_PIN_CHANGED", {
+            action: "create",
+            page,
+            pinId: pin._id,
+            testerName: pin.testerName,
+            description: pin.description,
+            createdByUserId: pin.createdByUserId?.toString(),
+        });
         return res.status(201).json({ success: true, pin });
     } catch (err) {
         console.error("[ReviewPin] createPin error:", err);

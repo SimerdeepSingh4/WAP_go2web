@@ -55,6 +55,10 @@ apiClient.interceptors.response.use(
     },
     (error) => {
         if (!isSessionRequestCurrent(error.config?.sessionScope, error.config?.sessionControl)) return Promise.reject(sessionChangedError());
+        // Review pins are an optional UI tool; their failures must never trigger auth logout loops or browser session changes
+        if (/(?:^|\/)review-pins(?:\/|\?|$)/.test(error.config?.url || "")) {
+            return Promise.reject(error);
+        }
         if (error.response?.data?.code === "BROWSER_SESSION_CHANGED") {
             window.dispatchEvent(new CustomEvent("auth:session-changed"));
             return Promise.reject(sessionChangedError());

@@ -6,16 +6,30 @@ import { useAuthContext } from "@/features/auth/context/auth.context";
 export function usePins() {
   const { pathname } = useLocation();
   const { user, isLoading } = useAuthContext();
+  const inWorkspace = /^\/(admin|reseller|user)(\/|$)/.test(pathname);
   return useQuery({
     queryKey: ["review-pins", pathname],
     queryFn: ({ signal }) => reviewPinsApi.list(pathname, signal),
-    enabled: Boolean(user) && !isLoading,
-    retry: (failureCount, error) => !["AUTH_REQUIRED", "BROWSER_SESSION_CHANGED"].includes(error.code) && ![401, 403].includes(error.response?.status) && failureCount < 1,
+    enabled: Boolean(user?._id || user?.id) && !isLoading && inWorkspace,
+    retry: false,
     staleTime: 30_000,
   });
 }
 
 export const useReviewPins = usePins;
+
+export function useAllReviewPins(enabled = true) {
+  const { pathname } = useLocation();
+  const { user, isLoading } = useAuthContext();
+  const inWorkspace = /^\/(admin|reseller|user)(\/|$)/.test(pathname);
+  return useQuery({
+    queryKey: ["review-pins", "all"],
+    queryFn: ({ signal }) => reviewPinsApi.listAll(signal),
+    enabled: Boolean(user?._id || user?.id) && !isLoading && inWorkspace && Boolean(enabled),
+    retry: false,
+    staleTime: 15_000,
+  });
+}
 
 export function useCreatePin() {
   const qc = useQueryClient();
