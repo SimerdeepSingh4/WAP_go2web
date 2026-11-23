@@ -18,7 +18,7 @@ import { LEGACY_CREDITS } from "../helpers/credit-categories.js";
 import { startCreditSession, saveCreditReceipt, creditPostingKey, creditErrorDetails, abortCreditSession, runCreditTransaction } from "../helpers/credit-operation.js";
 import { campaignPublicStatus, publicCampaignView } from "../helpers/campaign-visibility.js";
 import { failureReportEntries, failureReportSheet } from "../../../shared/campaignFailure.js";
-import { campaignContactRows, originalCampaignEntries, restoreOriginalCampaignEntries } from "../../../shared/campaignContacts.js";
+import { campaignContactRows, initialCampaignReportRows, originalCampaignEntries, originalReportRowsByIndex, restoreOriginalCampaignEntries } from "../../../shared/campaignContacts.js";
 import { sanitizeRecipientInputAudit } from "../helpers/recipient-input-audit.js";
 import { isValidPhoneNumber } from "libphonenumber-js/max";
 import { campaignLinkError, campaignNumberError, DEFAULT_CALL_LABEL, DEFAULT_LINK_LABEL, normalizeCampaignCtaLabel } from "../../../shared/campaignCta.js";
@@ -1091,72 +1091,7 @@ export const getCampaignById = async (req, res) => {
         }
         // Initialize permanent row numbers for recipientEntries if not yet established
         if (!campaign.recipientEntries || campaign.recipientEntries.length === 0) {
-            const reportMap = new Map();
-            for (const rec of campaign.recipientReport?.records || []) {
-                if (rec.phoneNumber) {
-                    reportMap.set(String(rec.phoneNumber).replace(/\D/g, ""), {
-                        category: rec.category,
-                        billingAction: rec.billingAction,
-                    });
-                }
-            }
-
-            const initialEntries = [];
-            let rowCounter = 1;
-
-            // 1. Valid/queued recipients submitted
-            for (const r of campaign.recipients || []) {
-                const clean = String(r.phoneNumber || "").replace(/\D/g, "");
-                if (!clean) continue;
-                const info = reportMap.get(clean);
-                const isDelivered = r.status === "delivered";
-                const isFailed = r.status === "failed";
-                initialEntries.push({
-                    rowNumber: rowCounter++,
-                    phoneNumber: clean,
-                    status: r.status || "queued",
-                    classification: isDelivered ? "delivered" : isFailed ? "wrong" : "pending",
-                    category: info?.category || (isDelivered ? "Delivered" : isFailed ? "Wrong number" : "Queued"),
-                    tabKey: isDelivered ? "delivered" : isFailed ? "wrong" : "all",
-                    billingAction: info?.billingAction || (isFailed ? "refund" : "keep"),
-                    tags: isFailed ? ["Failed"] : [],
-                });
-            }
-
-            // 2. Duplicate numbers submitted
-            for (const dup of campaign.recipientStats?.duplicatesList || []) {
-                const clean = String(dup).replace(/\D/g, "");
-                if (!clean) continue;
-                const info = reportMap.get(clean);
-                initialEntries.push({
-                    rowNumber: rowCounter++,
-                    phoneNumber: clean,
-                    status: "failed",
-                    classification: "duplicate",
-                    category: info?.category || "Duplicate number",
-                    tabKey: "duplicate",
-                    billingAction: info?.billingAction || "refund",
-                    tags: ["Duplicate"],
-                });
-            }
-
-            // 3. Invalid format numbers submitted
-            for (const inv of campaign.recipientStats?.invalidList || []) {
-                const clean = String(inv).replace(/\D/g, "") || String(inv).trim();
-                if (!clean) continue;
-                const info = reportMap.get(clean);
-                initialEntries.push({
-                    rowNumber: rowCounter++,
-                    phoneNumber: clean,
-                    status: "failed",
-                    classification: "wrong",
-                    category: info?.category || "Wrong number",
-                    tabKey: "wrong",
-                    billingAction: info?.billingAction || "refund",
-                    tags: ["Wrong Number"],
-                });
-            }
-
+            const initialEntries = initialCampaignReportRows(campaign);
             if (initialEntries.length > 0) {
                 campaign.recipientEntries = initialEntries;
                 // Initial indexes are deterministic; persist the first edit as a draft.
@@ -1947,20 +1882,21 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
         campaign.recipientEntries = restoreOriginalCampaignEntries(campaign);
         if (categorized && !spreadsheetSave) throw reportError("Save a draft or publish the recipient report.", 409);
         if (categorized) {
-            const originals = originalCampaignEntries(campaign);
+            const originals = originalReportRowsByIndex(campaign);
             const reported = new Set();
             entries = entries.map(entry => {
                 const rowNumber = Number(entry.rowNumber);
-                const original = originals[rowNumber - 1];
+                const original = originals.get(rowNumber);
                 const phone = String(entry.phoneNumber ?? "").trim();
-                if (!Number.isSafeInteger(rowNumber) || rowNumber < 1 || reported.has(rowNumber)
-                    || (original ? phone !== original.phoneNumber : entry.billingAction === "refund")) {
-                    throw reportError("Refunds and original recipient rows must match their permanent All index and number.");
-                }
+                const cleanPhone = phone.replace(/\D/g, "") || phone;
+                const originalPhone = original ? (String(original.phoneNumber ?? "").replace(/\D/g, "") || String(original.phoneNumber ?? "").trim()) : "";
+                if (!Number.isSafeInteger(rowNumber) || rowNumber < 1 || reported.has(rowNumber)) throw reportError("Each recipient needs a unique, positive All index.");
+                if (original && cleanPhone !== originalPhone) throw reportError(`The number on All row ${rowNumber} differs from the original. Reload the report to check this row.`);
+                if (!original && entry.billingAction === "refund") throw reportError(`All row ${rowNumber} was added after upload and cannot receive a refund.`);
                 reported.add(rowNumber);
                 return { ...entry, rowNumber };
             });
-            if (!originals.every(row => reported.has(row.rowNumber))) {
+            if (![...originals.keys()].every(rowNumber => reported.has(rowNumber))) {
                 throw reportError("Keep all original recipient rows in the report.");
             }
         }

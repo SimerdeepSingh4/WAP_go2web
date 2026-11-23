@@ -1,7 +1,7 @@
 import fs from "fs";
 import mongoose from "mongoose";
 import CreditPurchase from "../models/credit-purchase.model.js";
-import { queueRechargeAlerts } from "../services/recharge-whatsapp.service.js";
+import { buyerRechargeChatLink, queueRechargeAlerts } from "../services/recharge-whatsapp.service.js";
 import userModel from "../models/user.model.js";
 import walletModel from "../models/wallet.model.js";
 import { CREDIT_CATEGORIES, isCreditQuantity } from "../helpers/credit-categories.js";
@@ -421,7 +421,7 @@ export async function getPurchaseById(req, res) {
 
         const purchase = await CreditPurchase.findById(id).select("+paymentProofKey +paymentInstructions")
             .populate("buyerId", "username email role")
-            .populate("sellerId", "username email role paymentInstructions")
+            .populate("sellerId", "username email role paymentInstructions status expiresAt +rechargeWhatsAppNumber")
             .populate("reviewedBy", "username email role")
             .populate("fulfillmentTransactionId");
 
@@ -450,6 +450,7 @@ export async function getPurchaseById(req, res) {
                 createdAt: purchase.createdAt,
                 reviewedAt: purchase.reviewedAt || null,
                 buyer: purchase.buyerId,
+                whatsappChatUrl: buyerRechargeChatLink(purchase, req.user._id),
                 seller: purchase.sellerId ? (req.user.role === "User" ? {
                     id: purchase.sellerId._id,
                     username: purchase.sellerId.role === "Super Admin" ? "Admin" : `Admin (${purchase.sellerId.username})`,

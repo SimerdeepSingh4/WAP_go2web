@@ -148,12 +148,12 @@ a.overview-metric-content:hover .overview-metric-icon svg { transform: translate
   overflow-wrap: anywhere;
 }
 .overview-metric-value[data-size="text"] { font-size: 22px; line-height: 1.3; letter-spacing: -.5px; }
-.overview-metric-value-suffix { font-size: 14px; font-weight: 400; letter-spacing: normal; }
+.overview-metric-value-suffix { font-size: 14px; font-weight: 400; letter-spacing: normal; margin-inline-start: 6px; }
 .overview-metric-rate-card .overview-metric-value-suffix {
   color: var(--metric-muted);
   font-size: clamp(14px, 1.2vw, 18px);
   font-weight: 500;
-  margin-inline-start: 2px;
+  margin-inline-start: 6px;
 }
 .overview-metric-split {
   display: grid;
@@ -197,7 +197,7 @@ a.overview-metric-content:hover .overview-metric-icon svg { transform: translate
   font-weight: 400;
   letter-spacing: normal;
   opacity: 0.9;
-  margin-inline-start: 2px;
+  margin-inline-start: 6px;
 }
 .overview-metric-footer {
   margin-top: auto;

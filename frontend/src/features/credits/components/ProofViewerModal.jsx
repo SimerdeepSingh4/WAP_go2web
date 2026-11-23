@@ -8,6 +8,7 @@ import { dateTime, number } from "@/lib/format";
 import { creditCategoryNames } from "../lib/creditTransactionDisplay";
 import PurchaseStatus from "./PurchaseStatus";
 import PurchaseReceipt from "./PurchaseReceipt";
+import RechargeWhatsAppLink from "./RechargeWhatsAppLink";
 import "./payment-proof-modal.css";
 
 const paymentCurrency = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" });
@@ -55,6 +56,7 @@ export default function ProofViewerModal({
         </DialogHeader>
 
         <div className="payment-proof-body">
+          {!isReviewer && awaitingReview && <RechargeWhatsAppLink purchaseId={id} />}
           <div className="flex flex-wrap items-center justify-between gap-2"><PurchaseStatus purchase={purchase} />
             {purchase.fixedAt && <span className="text-xs text-muted-foreground">Corrected {dateTime(purchase.fixedAt)}</span>}</div>
           {purchase.status === "FLAGGED" && <div className="payment-proof-notice">

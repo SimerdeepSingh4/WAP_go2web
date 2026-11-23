@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { getRechargeAlertSettings, updateRechargeAlertSettings } from "../controllers/recharge-alert-settings.controller.js";
 import { creditRequest, retryCreditController } from "../helpers/credit-operation.js";
 import { ownCreditBalanceResult } from "../controllers/credit-reconciliation.controller.js";
 import {
@@ -39,6 +40,11 @@ const creditRouter = Router();
 
 // All credit routes require authentication
 creditRouter.use(protect);
+
+creditRouter.route("/recharge-alert-settings")
+    .all(authorizeRoles("Super Admin", "Reseller"))
+    .get(getRechargeAlertSettings)
+    .put(blockInPreviewMode("WhatsApp alert settings update"), updateRechargeAlertSettings);
 
 // GET /api/credits/balance — Any logged-in user can check their own balance
 // Super Admin / Reseller can also pass ?userId=xxx to check another user's balance

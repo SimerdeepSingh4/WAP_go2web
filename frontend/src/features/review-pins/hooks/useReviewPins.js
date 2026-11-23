@@ -42,10 +42,13 @@ export function useCreatePin() {
 
 export function useDeletePin() {
   const qc = useQueryClient();
-  const { pathname } = useLocation();
   return useMutation({
     mutationFn: (id) => reviewPinsApi.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["review-pins", pathname] }),
+    onSuccess: (_, id) => {
+      const filter = { queryKey: ["review-pins"] };
+      qc.setQueriesData(filter, pins => pins?.filter(pin => pin._id !== id));
+      return qc.invalidateQueries(filter);
+    },
   });
 }
 

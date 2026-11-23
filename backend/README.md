@@ -170,7 +170,7 @@ Configure the backend environment and restart the backend and notification worke
 - `WHATSAPP_GRAPH_VERSION` is the Graph API version enabled for your app, such as `v25.0`.
 - `WHATSAPP_RECHARGE_TEMPLATE` is the approved template name. Set `WHATSAPP_TEMPLATE_LANGUAGE` to its language code (default `en_US`).
 - `WHATSAPP_PANEL_URL` is the public HTTPS origin of the panel.
-- `WHATSAPP_RECHARGE_RECIPIENTS` is a JSON object mapping each opted-in seller's account ID to their confirmed international WhatsApp number, for example `{"<seller-account-id>":"+15550100123"}`. Both reseller and Super Admin accounts use this setting. Removing an entry disables WhatsApp alerts for that reviewer.
+- Super Admins and resellers manage their own destination under **Credits → Rates & Bank Details → WhatsApp recharge alerts**. Save an international number to enable alerts or clear it and save to turn them off. Changes apply to subsequent deliveries immediately. Existing `WHATSAPP_RECHARGE_RECIPIENTS` entries supply the initial destination until that account saves its website setting.
 
 Use a body-only template with eight positional parameters in this order:
 

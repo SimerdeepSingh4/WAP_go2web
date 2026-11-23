@@ -37,6 +37,30 @@ export function campaignContactRows(campaign) {
     });
 }
 
+// Earlier reports assigned All indexes to valid numbers first, followed by
+// duplicates and invalid inputs. Keep established indexes only when the
+// stored original slots contain exactly the submitted occurrences.
+export function originalReportRowsByIndex(campaign) {
+    const originals = originalCampaignEntries(campaign);
+    const byIndex = new Map(originals.map(row => [row.rowNumber, row]));
+    const stored = campaign.recipientEntries || [];
+    if (!stored.length) return byIndex;
+    const counts = new Map();
+    for (const row of originals) {
+        const phone = keyOf(row.phoneNumber);
+        counts.set(phone, (counts.get(phone) || 0) + 1);
+    }
+    const established = new Map();
+    for (const row of stored) {
+        if (!byIndex.has(row.rowNumber)) continue;
+        const phone = keyOf(row.phoneNumber);
+        if (established.has(row.rowNumber) || !counts.get(phone)) return byIndex;
+        counts.set(phone, counts.get(phone) - 1);
+        established.set(row.rowNumber, row);
+    }
+    return established.size === originals.length ? established : byIndex;
+}
+
 // Older drafts could drop invalid inputs when stripping non-digits. Restore
 // missing submitted occurrences without renumbering any existing report rows.
 export function restoreOriginalCampaignEntries(campaign) {
@@ -51,4 +75,34 @@ export function restoreOriginalCampaignEntries(campaign) {
         rows.push({ rowNumber: next++, phoneNumber: original.phoneNumber, status: invalid || duplicate ? "failed" : "queued", classification: invalid ? "wrong" : duplicate ? "duplicate" : "pending", category: invalid ? "Wrong number" : duplicate ? "Duplicate number" : "All", tabKey: invalid ? "wrong" : duplicate ? "duplicate" : "all", billingAction: invalid || duplicate ? "refund" : "keep", notes: "", cells: {} });
     }
     return rows;
+}
+
+export function initialCampaignReportRows(campaign) {
+    const reportMap = new Map();
+    for (const rec of campaign.recipientReport?.records || []) {
+        if (rec.phoneNumber) {
+            reportMap.set(String(rec.phoneNumber).replace(/\D/g, ""), {
+                category: rec.category,
+                billingAction: rec.billingAction,
+            });
+        }
+    }
+
+    const recipients = new Map((campaign.recipients || []).map(row => [String(row.phoneNumber).replace(/\D/g, ""), row]));
+    return originalCampaignEntries(campaign).map(({ rowNumber, phoneNumber, kind }) => {
+        const phone = phoneNumber.replace(/\D/g, "") || phoneNumber.trim();
+        const info = reportMap.get(phone);
+        const status = kind === "submitted" ? recipients.get(phone)?.status || "queued" : "failed";
+        const duplicate = kind === "duplicate";
+        const failed = status === "failed";
+        const delivered = status === "delivered";
+        return {
+            rowNumber, phoneNumber: phone, status,
+            classification: duplicate ? "duplicate" : failed ? "wrong" : delivered ? "delivered" : "pending",
+            category: info?.category || (duplicate ? "Duplicate number" : failed ? "Wrong number" : delivered ? "Delivered" : "Queued"),
+            tabKey: duplicate ? "duplicate" : failed ? "wrong" : delivered ? "delivered" : "all",
+            billingAction: info?.billingAction || (failed ? "refund" : "keep"),
+            tags: duplicate ? ["Duplicate"] : kind === "invalid" ? ["Wrong Number"] : failed ? ["Failed"] : [],
+        };
+    });
 }
