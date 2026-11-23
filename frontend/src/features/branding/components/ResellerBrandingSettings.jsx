@@ -179,6 +179,11 @@ export default function ResellerBrandingSettings() {
     e.preventDefault();
     setError("");
 
+    if (form.brandName && form.brandName.trim().length > 30) {
+      setError("Website name cannot exceed 30 characters.");
+      return;
+    }
+
     if (!isSuperAdmin && form.subdomain && !/^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$/i.test(form.subdomain)) {
       setError("Subdomain must be 3-30 lowercase characters, numbers or hyphens.");
       return;
@@ -297,9 +302,12 @@ export default function ResellerBrandingSettings() {
               <div className="branding-section-header"><span className="branding-section-icon"><ImageIcon aria-hidden="true" /></span><div><h3 id="branding-identity-heading">Brand identity</h3><p>Give your workspace a familiar name and logo.</p></div></div>
               <div className="branding-section-body">
                 <div className="branding-field">
-                  <label htmlFor="reseller-brand-name">Website name</label>
-                  <Input id="reseller-brand-name" placeholder="e.g. Acme Marketing" value={form.brandName} onChange={e => setForm({ ...form, brandName: e.target.value })} maxLength={100} aria-describedby="branding-name-help" />
-                  <p id="branding-name-help" className="branding-help">Shown as your website name in the sidebar and browser tab.</p>
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="reseller-brand-name">Website name</label>
+                    <span className="text-[11px] text-muted-foreground font-mono">{form.brandName.length}/30</span>
+                  </div>
+                  <Input id="reseller-brand-name" placeholder="e.g. Acme Marketing" value={form.brandName} onChange={e => setForm({ ...form, brandName: e.target.value.slice(0, 30) })} maxLength={30} aria-describedby="branding-name-help" />
+                  <p id="branding-name-help" className="branding-help">Shown as your website name in the sidebar and browser tab (max 30 characters).</p>
                 </div>
                 <div className="branding-field"><span>Company logo</span>
                   <div className="branding-logo-upload">

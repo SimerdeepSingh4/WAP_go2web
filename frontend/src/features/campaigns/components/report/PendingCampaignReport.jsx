@@ -1,6 +1,5 @@
 import CampaignReference from "@/features/campaigns/components/CampaignReference";
-import { Link } from "react-router";
-import { ArrowLeft, Check, Coins, RefreshCw, RotateCcw, Users, Wallet } from "lucide-react";
+import { Check, Coins, RefreshCw, RotateCcw, Users, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { dateTime, statusLabels } from "@/lib/format";
 import OverviewMetricCards from "@/features/dashboard/components/OverviewMetricCards";
@@ -83,19 +82,6 @@ export default function PendingCampaignReport({ campaign, base, onRefresh, isRef
 
   return (
     <div className="mx-auto w-full min-w-0 max-w-6xl space-y-6 pb-8">
-      {/* Breadcrumb Navigation */}
-      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Link
-          to={`${base}/campaigns`}
-          className="inline-flex items-center gap-1.5 font-medium transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" />
-          Campaigns
-        </Link>
-        <span className="text-muted-foreground/60">/</span>
-        <span className="text-muted-foreground">Campaign report</span>
-      </nav>
-
       {/* Campaign Header: Title + Status Badge on left, Reference + Date on right */}
       <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-3">

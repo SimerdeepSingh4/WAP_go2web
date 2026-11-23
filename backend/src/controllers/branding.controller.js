@@ -221,7 +221,14 @@ export async function updateResellerBranding(req, res) {
 
         // Brand Name validation
         if (Object.hasOwn(req.body, "brandName")) {
-            user.whiteLabel.brandName = String(brandName || "").trim().slice(0, 100);
+            const trimmed = String(brandName || "").trim();
+            if (trimmed.length > 30) {
+                return res.status(400).json({
+                    message: "Website name cannot exceed 30 characters.",
+                    success: false,
+                });
+            }
+            user.whiteLabel.brandName = trimmed;
         }
 
         // Color validation (hex format e.g. #245e59)

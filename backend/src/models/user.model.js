@@ -107,7 +107,7 @@ const userSchema = new mongoose.Schema(
                 type: String,
                 trim: true,
                 default: "",
-                maxlength: 100,
+                maxlength: 30,
             },
             logoUrl: {
                 type: String,

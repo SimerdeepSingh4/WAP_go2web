@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router";
 import { ArrowLeft, ListChecks, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ export default function NumberFilteringDetail({ id, base, admin }) {
   const creditsCharged = request?.creditsCharged ?? (request?.chargeTransactionId ? request.submittedRowCount : null);
   const chargeDisplay = creditsCharged === 0 ? "Cleared by credit reset" : number(creditsCharged);
   const canReview = admin && user?.role === "Super Admin" && !user?.isPreview;
+  const [isEditing, setIsEditing] = useState(false);
 
   return (
     <>
@@ -46,8 +48,19 @@ export default function NumberFilteringDetail({ id, base, admin }) {
             <OriginalUploadPreview numbers={request.submittedNumbers} count={request.submittedRowCount} actions={request.submittedNumbers && (
               <FilteringNumberActions numbers={request.submittedNumbers} fileName={`filtering-${request.id}-submitted.txt`} />
             )} />
-            {canReview && <FilteringResultEditor request={request} />}
-            {request.publishedAt && <FilteringPublishedResults request={request} />}
+            {canReview && (!request.publishedAt || isEditing) && (
+              <FilteringResultEditor
+                request={request}
+                onCancel={request.publishedAt ? () => setIsEditing(false) : undefined}
+                onPublished={() => setIsEditing(false)}
+              />
+            )}
+            {request.publishedAt && !isEditing && (
+              <FilteringPublishedResults
+                request={request}
+                onEdit={canReview ? () => setIsEditing(true) : undefined}
+              />
+            )}
             {!canReview && !request.publishedAt && (
               <SectionCard icon={ListChecks} title="Filtering results">
                 <div className="space-y-3">
