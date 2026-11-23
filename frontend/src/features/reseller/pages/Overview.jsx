@@ -1,11 +1,13 @@
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { Link } from "react-router";
-import { Plus, Megaphone, Users, Coins, Wallet } from "lucide-react";
+import { Coins, Plus, Megaphone, Users, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { QueryState } from "@/features/dashboard/components/shared";
 import { RecentCampaigns, AccountList } from "@/features/dashboard/components/OverviewPanels";
 import OverviewMetricCards from "@/features/dashboard/components/OverviewMetricCards";
 import { useResellerQuery } from "../hooks/useReseller";
+import { useCreditRates } from "@/features/credits/hooks/useCredits";
+import { formatCreditRatePaisa } from "@/lib/format";
 import DashboardGreeting from "@/features/dashboard/components/DashboardGreeting";
 
 export default function Overview() {
@@ -13,17 +15,75 @@ export default function Overview() {
   const campaigns = useResellerQuery("campaigns");
   const accounts = useResellerQuery("accounts");
   const balance = useResellerQuery("myBalance");
+  const rates = useCreditRates();
+  const purchaseRates = rates.data?.purchaseRates;
   const wallet = balance.data?.wallet;
   const username = signedInUser?.username || "Reseller";
 
-  return <>
-    <DashboardGreeting username={username} description="Manage your users and their available credits." action={<Button disabled={signedInUser?.isPreview} nativeButton={false} render={<Link to="/reseller/credits?allocate=new" />}><Plus />Allocate credits</Button>} />
-    <QueryState query={balance}><OverviewMetricCards items={[
-      { label: "Available credits", value: wallet?.balance, caption: wallet?.isLocked ? "Locked · contact your administrator" : "Available for allocation", icon: Wallet, path: "/reseller/credits", accent: true },
-      { label: "Total campaigns", value: campaigns.isSuccess ? (campaigns.data?.data || []).length : null, loading: campaigns.isPending, caption: "Your workspace campaigns", icon: Megaphone, path: "/reseller/campaigns", tone: "blue" },
-      { label: "User accounts", value: accounts.isSuccess ? (accounts.data?.users || []).filter(account => account.role === "User").length : null, loading: accounts.isPending, caption: "Managed by you", icon: Users, path: "/reseller/users", tone: "pink" },
-      { label: "Your rate", value: wallet?.ratePerMsg, caption: "Credits per recipient", icon: Coins, path: "/reseller/credits", tone: "purple" },
+  const campaignList = campaigns.data?.data || [];
+  const totalCampaigns = campaigns.isSuccess ? campaignList.length : null;
+  const completedCampaigns = campaigns.isSuccess
+    ? campaignList.filter(campaign => ["completed", "sent"].includes(campaign.status)).length
+    : null;
+
+  const userList = accounts.isSuccess
+    ? (accounts.data?.users || []).filter(account => account.role === "User")
+    : [];
+  const totalUsers = accounts.isSuccess ? userList.length : null;
+  const activeUsers = accounts.isSuccess
+    ? userList.filter(account => account.status === "active" && !account.isExpired).length
+    : null;
+
+  const campaignCredits = wallet?.creditBalances?.CAMPAIGN?.available ?? 0;
+  const filteringCredits = wallet?.creditBalances?.NUMBER_FILTERING?.available ?? 0;
+
+  return <div className="portal-overview reseller-overview">
+    <DashboardGreeting username={username} description="Manage campaigns, client accounts, and credits." action={<><Button variant="outline" nativeButton={false} render={<Link to="/reseller/credits?recharge=new" />}><Wallet />Recharge credits</Button><Button disabled={signedInUser?.isPreview} nativeButton={false} render={<Link to="/reseller/credits?allocate=new" />}><Plus />Allocate credits</Button></>} />
+    <QueryState query={balance} variant="cards"><OverviewMetricCards className="dashboard-summary-metrics" columns={4} items={[
+      {
+        label: "Available Credits",
+        metrics: [
+          { label: "Campaign", value: campaignCredits },
+          { label: "Filtering", value: filteringCredits },
+        ],
+        caption: wallet?.isLocked ? "Locked · contact your administrator" : "Available for allocation",
+        icon: Wallet,
+        path: "/reseller/credits",
+        accent: true,
+      },
+      {
+        label: "Campaigns",
+        metrics: [
+          { label: "Total", value: totalCampaigns, loading: campaigns.isPending },
+          { label: "Completed", value: completedCampaigns, loading: campaigns.isPending },
+        ],
+        icon: Megaphone,
+        path: "/reseller/campaigns",
+        tone: "blue",
+      },
+      {
+        label: "User accounts",
+        metrics: [
+          { label: "Active", value: activeUsers, loading: accounts.isPending },
+          { label: "Total", value: totalUsers, loading: accounts.isPending },
+        ],
+        icon: Users,
+        path: "/reseller/users",
+        tone: "pink",
+      },
+      {
+        label: "Purchase rates",
+        metrics: [
+          { label: "Campaign", value: formatCreditRatePaisa(purchaseRates?.CAMPAIGN?.unitPriceInr), valueSuffix: "Paisa", loading: rates.isPending },
+          { label: "Filtering", value: formatCreditRatePaisa(purchaseRates?.NUMBER_FILTERING?.unitPriceInr), valueSuffix: "Paisa", loading: rates.isPending },
+        ],
+        caption: rates.isError ? "Pricing unavailable" : "Your purchase price per credit",
+        icon: Coins,
+        path: "/reseller/credits?recharge=new",
+        tone: "purple",
+        className: "reseller-purchase-rates",
+      },
     ]} /></QueryState>
-    <div className="dashboard-two-column"><RecentCampaigns query={campaigns} base="/reseller" showOwner /><AccountList query={accounts} base="/reseller" role="User" /></div>
-  </>;
+    <div className="dashboard-two-column"><RecentCampaigns query={campaigns} base="/reseller" showOwner cards /><AccountList query={accounts} base="/reseller" role="User" /></div>
+  </div>;
 }

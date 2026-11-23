@@ -31,13 +31,13 @@ function PortalIcon({ type = "network", className = "size-5" }) {
 
 function PanelBrand({ name, logo }) {
   return (
-    <div className="inline-flex items-center gap-3 text-foreground">
+    <div className="inline-flex min-w-0 max-w-full items-center gap-3 text-foreground">
       <img
         src={logo || "https://res.cloudinary.com/dyfjy8kmv/image/upload/v1793689940/Navy_Blue_Bird_Chat_Logo_n0udpf.webp"}
-        alt={`${name} Logo`}
+        alt=""
         className="size-12 sm:size-14 object-contain shrink-0"
       />
-      <span className="text-2xl sm:text-[26px] font-bold tracking-tight text-foreground">
+      <span className="min-w-0 wrap-anywhere text-2xl sm:text-[26px] font-bold tracking-tight text-foreground">
         {name}
       </span>
     </div>
@@ -82,14 +82,7 @@ function CampaignWorkflowIllustration() {
               <PortalIcon type={stage.icon} className="size-4.5" />
             </span>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[13.5px] font-semibold text-foreground">
-                  {stage.title}
-                </p>
-                <span className="font-mono text-[11px] font-semibold text-primary">
-                  0{index + 1}
-                </span>
-              </div>
+              <p className="text-[13.5px] font-semibold text-foreground">{stage.title}</p>
               <p className="text-xs leading-normal text-muted-foreground mt-0.5">
                 {stage.description}
               </p>
@@ -110,6 +103,7 @@ export default function LoginPage({ onLogin, panelName: propPanelName }) {
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const errorRef = useRef(null);
+  const identifierRef = useRef(null);
 
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [forgotIdentifier, setForgotIdentifier] = useState("");
@@ -119,6 +113,13 @@ export default function LoginPage({ onLogin, panelName: propPanelName }) {
   const [forgotError, setForgotError] = useState("");
 
   const { login, isLoggingIn } = useAuth();
+
+  function returnToSignIn() {
+    setIsForgotPassword(false);
+    setForgotSent(false);
+    setForgotError("");
+    requestAnimationFrame(() => identifierRef.current?.focus());
+  }
 
   async function handleForgotSubmit(e) {
     e.preventDefault();
@@ -165,19 +166,19 @@ export default function LoginPage({ onLogin, panelName: propPanelName }) {
   }
 
   const inputClasses =
-    "min-h-[46px] w-full rounded-lg border border-border bg-card px-3.5 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary focus:ring-3 focus:ring-primary/15 disabled:cursor-wait disabled:bg-muted transition-all";
+    "min-h-[46px] w-full rounded-lg border border-border bg-card px-3.5 py-2.5 text-base text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-ring focus:ring-3 focus:ring-ring/20 disabled:cursor-wait disabled:bg-muted transition-colors md:text-sm";
 
   return (
-    <main className="grid h-screen max-h-screen w-full bg-background font-sans text-foreground antialiased selection:bg-primary/20 selection:text-primary md:grid-cols-[0.95fr_1.05fr] lg:grid-cols-2 overflow-hidden">
+    <main className="grid min-h-dvh w-full bg-background font-sans text-foreground antialiased selection:bg-primary/20 selection:text-primary-text md:grid-cols-[0.95fr_1.05fr] lg:grid-cols-2">
       {/* Left Column: Branding & Editorial Story */}
       <section
         aria-label="About your business messaging portal"
-        className="hidden min-w-0 h-full flex-col justify-between border-r border-border bg-muted/40 px-10 py-10 md:flex lg:px-14 xl:px-20 lg:py-12 overflow-hidden"
+        className="hidden min-w-0 flex-col justify-between border-r border-border bg-muted/40 px-10 py-10 md:flex lg:px-14 xl:px-20 lg:py-12"
       >
         <PanelBrand name={panelName} logo={brandLogo} />
 
         <div className="w-full max-w-[480px] my-auto py-4">
-          <p className="text-xs font-semibold uppercase tracking-[2px] text-primary">
+          <p className="text-xs font-semibold uppercase tracking-[2px] text-primary-text">
             Connect • Broadcast • Engage
           </p>
           <h1 className="mt-3.5 mb-3.5 text-3xl lg:text-[40px] xl:text-[44px] leading-[1.12] font-semibold tracking-tight text-foreground">
@@ -199,7 +200,7 @@ export default function LoginPage({ onLogin, panelName: propPanelName }) {
       {/* Right Column: Clean Editorial Form */}
       <section
         aria-labelledby={isForgotPassword ? "forgot-heading" : "login-heading"}
-        className="flex h-full min-w-0 flex-col justify-between bg-background px-8 py-10 sm:px-12 md:px-12 lg:px-16 xl:px-24 lg:py-12 overflow-y-auto md:overflow-hidden"
+        className="flex min-w-0 flex-col justify-between bg-background px-5 py-6 sm:px-12 sm:py-10 lg:px-16 xl:px-24 lg:py-12"
       >
         <div className="md:hidden">
           <PanelBrand name={panelName} logo={brandLogo} />
@@ -209,7 +210,7 @@ export default function LoginPage({ onLogin, panelName: propPanelName }) {
           <div className="w-full max-w-[420px]">
             {isForgotPassword ? (
               <>
-                <p className="text-[11px] font-semibold uppercase tracking-[2px] text-primary">
+                <p className="text-[11px] font-semibold uppercase tracking-[2px] text-primary-text">
                   Account Recovery
                 </p>
                 <h2
@@ -224,8 +225,8 @@ export default function LoginPage({ onLogin, panelName: propPanelName }) {
 
                 {forgotSent ? (
                   <div className="space-y-5">
-                    <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm text-foreground flex items-start gap-3">
-                      <CheckCircle2 className="size-5 text-primary shrink-0 mt-0.5" />
+                    <div role="status" className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm text-foreground flex items-start gap-3">
+                      <CheckCircle2 className="size-5 text-primary-text shrink-0 mt-0.5" aria-hidden="true" />
                       <div className="space-y-1">
                         <p className="font-semibold text-foreground">Request sent</p>
                         <p className="text-xs text-muted-foreground leading-relaxed">
@@ -236,11 +237,7 @@ export default function LoginPage({ onLogin, panelName: propPanelName }) {
 
                     <button
                       type="button"
-                      onClick={() => {
-                        setIsForgotPassword(false);
-                        setForgotSent(false);
-                        setForgotError("");
-                      }}
+                      onClick={returnToSignIn}
                       className="flex min-h-[46px] w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-primary hover:bg-primary-hover px-5 py-3 text-sm font-semibold text-primary-foreground transition-all shadow-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                     >
                       <ArrowLeft className="size-4" />
@@ -266,6 +263,9 @@ export default function LoginPage({ onLogin, panelName: propPanelName }) {
                         id="forgot-identifier"
                         name="forgot-identifier"
                         type="text"
+                        autoComplete="username"
+                        autoCapitalize="none"
+                        spellCheck={false}
                         autoFocus
                         required
                         value={forgotIdentifier}
@@ -299,10 +299,7 @@ export default function LoginPage({ onLogin, panelName: propPanelName }) {
                     <div className="pt-2 text-center">
                       <button
                         type="button"
-                        onClick={() => {
-                          setIsForgotPassword(false);
-                          setForgotError("");
-                        }}
+                        onClick={returnToSignIn}
                         className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
                       >
                         <ArrowLeft className="size-3.5" />
@@ -314,7 +311,7 @@ export default function LoginPage({ onLogin, panelName: propPanelName }) {
               </>
             ) : (
               <>
-                <p className="text-[11px] font-semibold uppercase tracking-[2px] text-primary">
+                <p className="text-[11px] font-semibold uppercase tracking-[2px] text-primary-text">
                   Messaging Workspace
                 </p>
                 <h2
@@ -345,6 +342,7 @@ export default function LoginPage({ onLogin, panelName: propPanelName }) {
                       Email or Username
                     </label>
                     <input
+                      ref={identifierRef}
                       id="identifier"
                       name="identifier"
                       type="text"
@@ -375,7 +373,7 @@ export default function LoginPage({ onLogin, panelName: propPanelName }) {
                           setForgotMsg("");
                           setForgotError("");
                         }}
-                        className="text-xs font-medium text-primary hover:text-primary-hover hover:underline cursor-pointer transition-colors"
+                        className="text-xs font-medium text-primary-text hover:underline cursor-pointer transition-colors"
                       >
                         Forgot password?
                       </button>
@@ -400,7 +398,7 @@ export default function LoginPage({ onLogin, panelName: propPanelName }) {
                         aria-label={showPassword ? "Hide password" : "Show password"}
                         aria-controls="password"
                         aria-pressed={showPassword}
-                        className="absolute inset-y-1 right-1.5 flex items-center justify-center w-9 cursor-pointer rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none transition-colors"
+                        className="absolute inset-y-1 right-1.5 flex items-center justify-center w-9 cursor-pointer rounded-md text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring transition-colors"
                       >
                         {showPassword ? (
                           <EyeOff className="size-4.5" aria-hidden="true" />

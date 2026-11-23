@@ -14,13 +14,14 @@ import xlsx from "xlsx";
 import { loadSpreadsheetRows, saveSpreadsheetRows } from "../helpers/spreadsheet-storage.js";
 import { normalizeColumns, buildPublishedSheet, normalizeDuplicateRows } from "../../../shared/campaignSpreadsheet.js";
 import { creditAmount, creditsForCount, creditDifference, creditTransactionOptions } from "../helpers/credit-amount.js";
+import { LEGACY_CREDITS } from "../helpers/credit-categories.js";
 import { startCreditSession, saveCreditReceipt, creditPostingKey, creditErrorDetails, abortCreditSession, runCreditTransaction } from "../helpers/credit-operation.js";
 import { campaignPublicStatus, publicCampaignView } from "../helpers/campaign-visibility.js";
 import { failureReportEntries, failureReportSheet } from "../../../shared/campaignFailure.js";
-import { campaignContactRows, restoreOriginalCampaignEntries } from "../../../shared/campaignContacts.js";
+import { campaignContactRows, originalCampaignEntries, restoreOriginalCampaignEntries } from "../../../shared/campaignContacts.js";
 import { sanitizeRecipientInputAudit } from "../helpers/recipient-input-audit.js";
-import { normalizeAccountPhone } from "../helpers/account-phone.js";
-import { DEFAULT_CALL_LABEL, DEFAULT_LINK_LABEL, normalizeCampaignCtaLabel } from "../../../shared/campaignCta.js";
+import { isValidPhoneNumber } from "libphonenumber-js/max";
+import { campaignLinkError, campaignNumberError, DEFAULT_CALL_LABEL, DEFAULT_LINK_LABEL, normalizeCampaignCtaLabel } from "../../../shared/campaignCta.js";
 import { campaignMediaCategory } from "../helpers/campaign-media.js";
 import { getAccountMediaUploadLimits } from "../services/media-upload-limits.service.js";
 import { uploadCampaignMedia } from "../helpers/campaign-upload.js";
@@ -353,7 +354,7 @@ export const exportRecipientDraft = async (req, res) => {
         if (!Array.isArray(entries) || !entries.length) return res.status(400).json({ success: false, message: "Add recipient numbers before downloading." });
         if (!Array.isArray(cards) || cards.length > 40 || cards.some((card) => !card || typeof card.key !== "string" || typeof card.label !== "string")) return res.status(400).json({ success: false, message: "Invalid recipient cards." });
         if (!Array.isArray(originalEntries)) return res.status(400).json({ success: false, message: "Invalid original recipient list." });
-        const sheet = buildPublishedSheet(normalizeDuplicateRows(entries), spreadsheetColumns);
+        const sheet = buildPublishedSheet(usesCampaignCredits(campaign) ? entries : normalizeDuplicateRows(entries), spreadsheetColumns);
         const workbook = xlsx.utils.book_new();
         const names = new Set();
         const append = (label, rows) => {
@@ -527,7 +528,6 @@ export const createCampaign = async (req, res) => {
         }
         const {
             campaignTitle,
-            campaignDescription,
             campaignNumber,
             campaignNumberName,
             campaignLink,
@@ -552,13 +552,13 @@ export const createCampaign = async (req, res) => {
                 await mongoSession.endSession();
                 return res.status(403).json({ success: false, message: "Campaign number access is not enabled for this account." });
             }
-            try {
-                normalizedCampaignNumber = normalizeAccountPhone(campaignNumber);
-            } catch (error) {
+            const error = campaignNumberError(campaignNumber, isValidPhoneNumber);
+            if (error) {
                 await abortCreditSession(mongoSession);
                 await mongoSession.endSession();
-                return res.status(400).json({ success: false, message: error.message , ...creditErrorDetails(error, req) });
+                return res.status(400).json({ success: false, message: error });
             }
+            if (campaignNumber.trim()) normalizedCampaignNumber = "+" + campaignNumber.replace(/\D/g, "");
         }
 
         const normalizedCampaignLink = typeof campaignLink === "string" ? campaignLink.trim() : "";
@@ -571,25 +571,16 @@ export const createCampaign = async (req, res) => {
             await mongoSession.endSession();
             return res.status(400).json({ success: false, message: error.message });
         }
-        if (campaignLink != null && typeof campaignLink !== "string") {
-            await abortCreditSession(mongoSession);
-            await mongoSession.endSession();
-            return res.status(400).json({ success: false, message: "Campaign link must be a URL string." });
-        }
         if (normalizedCampaignLink && req.user.role !== "Super Admin" && req.user.featureAccess?.campaignLink !== true) {
             await abortCreditSession(mongoSession);
             await mongoSession.endSession();
             return res.status(403).json({ success: false, message: "Campaign link access is not enabled for this account." });
         }
-        if (normalizedCampaignLink) {
-            try {
-                const parsedLink = new URL(normalizedCampaignLink);
-                if (!["http:", "https:"].includes(parsedLink.protocol) || normalizedCampaignLink.length > 2048) throw new Error("Invalid campaign link.");
-            } catch {
-                await abortCreditSession(mongoSession);
-                await mongoSession.endSession();
-                return res.status(400).json({ success: false, message: "Enter a valid HTTP or HTTPS campaign link." });
-            }
+        const linkError = campaignLinkError(campaignLink);
+        if (linkError) {
+            await abortCreditSession(mongoSession);
+            await mongoSession.endSession();
+            return res.status(400).json({ success: false, message: linkError });
         }
 
         const shareProfileDp = req.body.shareProfileDp === true || req.body.shareProfileDp === "true";
@@ -684,6 +675,28 @@ export const createCampaign = async (req, res) => {
                 invalidCount: invalidEntries.length,
                 invalidEntries: invalidEntries.slice(0, 10),
             });
+        }
+
+        const totalRecipients = recipients.length;
+        const requiredCredits = req.user.role === "Super Admin" ? 0 : totalRecipients;
+        if (requiredCredits > 0) {
+            const currentWallet = await walletModel.findOne({ userId: req.user._id }).session(mongoSession);
+            const campaignAvailable = currentWallet?.creditBalances?.CAMPAIGN?.available ?? 0;
+            if (currentWallet?.isLocked || campaignAvailable < requiredCredits) {
+                await abortCreditSession(mongoSession);
+                await mongoSession.endSession();
+                return res.status(currentWallet?.isLocked ? 403 : 400).json({
+                    message: currentWallet?.isLocked
+                        ? "Your wallet is locked. Please contact your administrator."
+                        : 'Insufficient Campaign Credits to create campaign. Required: ' + requiredCredits + ', available: ' + campaignAvailable + '.',
+                    success: false,
+                    isLocked: Boolean(currentWallet?.isLocked),
+                    required: requiredCredits,
+                    available: campaignAvailable,
+                    totalRecipients,
+                });
+            }
+
         }
 
         // 2. Validate the complete batch before uploading any media to Cloudinary.
@@ -800,75 +813,31 @@ export const createCampaign = async (req, res) => {
         }
 
         // Charge every submitted occurrence; dispatch only valid first occurrences.
-        const totalRecipients = recipients.length;
         const duplicateOccurrences = duplicatesList.length;
         const invalidCount = invalidList.length;
         let creditDeduction = null;
         let updatedWallet = null;
-        let rate = null;
-        let requiredCredits = 0;
+        let campaignCreditCharge;
 
-        // Check and deduct credits for User and Reseller roles (Super Admin has unlimited pool)
-        if (req.user.role !== "Super Admin") {
-            const senderUser = await userModel
-                .findById(req.user._id)
-                .session(mongoSession);
-
-            if (!senderUser) {
-                await abortCreditSession(mongoSession);
-                await mongoSession.endSession();
-                return res.status(404).json({
-                    message: "Sender user not found.",
-                    success: false,
-                });
-            }
-
-            rate = creditAmount(senderUser.ratePerMsg ?? 12);
-            requiredCredits = creditsForCount(rate, totalRecipients);
-
-            // Respect explicit wallet locks; credit balances do not expire.
-            const currentWallet = await walletModel.findOne({ userId: req.user._id }).session(mongoSession);
-            const isLocked = Boolean(currentWallet?.isLocked);
-
-            if (isLocked) {
-                await abortCreditSession(mongoSession);
-                await mongoSession.endSession();
-                return res.status(403).json({
-                    message: "Your wallet is locked. Please contact your administrator.",
-                    success: false,
-                    isLocked: true,
-                });
-            }
-
-            if (requiredCredits > 0) {
+        if (requiredCredits > 0) {
             const posting = await postCreditMovement({
-                session: mongoSession, operationKey: creditPostingKey(req, "campaign-charge"), type: "DEDUCT", amount: requiredCredits,
-                fromUser: req.user._id, toUser: req.user._id, performedBy: req.user._id, campaignId: req.creditCampaignId,
-                notes: `Campaign "${campaignTitle}": ${totalRecipients} submitted number(s), including ${duplicateOccurrences} repeat occurrence(s), at rate ${rate} credits/recipient`, rateSnapshot: rate,
+                session: mongoSession,
+                operationKey: creditPostingKey(req, "campaign-charge"),
+                type: "DEDUCT",
+                category: "CAMPAIGN",
+                amount: requiredCredits,
+                toUser: req.user._id,
+                performedBy: req.user._id,
+                campaignId: req.creditCampaignId,
+                notes: 'Campaign charge for ' + totalRecipients + ' submitted rows, including ' + duplicateOccurrences + ' duplicates.',
             });
             updatedWallet = posting.wallet;
-
-            if (!updatedWallet) {
-                const currentWallet = await walletModel.findOne({ userId: req.user._id }).session(mongoSession);
-                const available = currentWallet ? currentWallet.balance : 0;
-                await abortCreditSession(mongoSession);
-                await mongoSession.endSession();
-                return res.status(400).json({
-                    message: `Insufficient credits to launch campaign. Required: ${requiredCredits} credits (${totalRecipients} recipients × ${rate} credits/recipient), Available: ${available} credits.`,
-                    success: false,
-                    required: requiredCredits,
-                    available,
-                    totalRecipients,
-                    duplicatesFiltered: duplicateOccurrences,
-                });
-            }
-
+            campaignCreditCharge = { transactionId: posting.transaction._id, submittedRowCount: totalRecipients };
             creditDeduction = {
                 amount: requiredCredits,
-                remainingBalance: updatedWallet.balance,
-                ratePerMsg: rate,
+                remainingBalance: updatedWallet.creditBalances.CAMPAIGN.available,
+                category: "CAMPAIGN",
             };
-            }
         }
 
         // Determine inferred messageType if not specified
@@ -901,7 +870,6 @@ export const createCampaign = async (req, res) => {
                     _id: req.creditCampaignId,
                     userId: req.user._id,
                     campaignTitle,
-                    campaignDescription: campaignDescription || "",
                     campaignNumber: normalizedCampaignNumber,
                     campaignNumberName: normalizedCampaignNumberName,
                     campaignLink: normalizedCampaignLink,
@@ -911,7 +879,7 @@ export const createCampaign = async (req, res) => {
                     templateId: templateId || null,
                     messageBody: messageBody || "",
                     recipients: sanitizedRecipients,
-                    originalRecipients: recipients.map((number) => String(number)),
+                    originalRecipients: recipients.map(recipient => typeof recipient === "string" ? recipient : recipient.phoneNumber),
                     recipientInputAudit,
                     recipientStats: {
                         totalSubmitted: recipients.length,
@@ -933,7 +901,8 @@ export const createCampaign = async (req, res) => {
                     variables: variables || [],
                     totalRecipients,
                     creditsDeducted: creditDeduction ? creditDeduction.amount : 0,
-                    rateSnapshot: rate,
+                    category: "CAMPAIGN",
+                    campaignCreditCharge,
                     messageType: resolvedMessageType,
                     status: resolvedStatus,
                     campaignStartDate: resolvedStatus === "ongoing" ? new Date() : null,
@@ -952,7 +921,9 @@ export const createCampaign = async (req, res) => {
         // ── Real-Time WebSockets (POST-COMMIT) ────────────────────
         if (creditDeduction && updatedWallet) {
             notifyUser(req.user._id, "WALLET_UPDATED", {
-                newBalance: updatedWallet.balance,
+                newBalance: creditDeduction.remainingBalance,
+                category: "CAMPAIGN",
+                transactionId: campaignCreditCharge.transactionId,
                 delta: -requiredCredits,
                 reason: "DEDUCT",
                 campaignTitle,
@@ -1200,15 +1171,19 @@ export const getCampaignById = async (req, res) => {
         try {
             const accounting = await getCampaignRefundAccounting(campaign, undefined, { strict: false });
             view.settledRefundCredits = accounting.settled;
+            view.chargedCredits = accounting.charged;
+            view.netCredits = Math.max(0, accounting.charged - accounting.settled);
             if (isSuperAdmin) view.refundAccounting = accounting;
         } catch (accErr) {
             console.warn(`[getCampaignById] Ledger reconciliation notice for ${campaign._id}:`, accErr.message);
             view.settledRefundCredits = creditAmount(campaign.campaignSummary?.creditsRefunded || 0);
+            view.chargedCredits = creditAmount(campaign.creditsDeducted || 0);
+            view.netCredits = Math.max(0, view.chargedCredits - view.settledRefundCredits);
             if (isSuperAdmin) {
                 view.refundAccounting = {
-                    charged: creditAmount(campaign.creditsDeducted || 0),
+                    charged: view.chargedCredits,
                     settled: view.settledRefundCredits,
-                    remaining: creditDifference(creditAmount(campaign.creditsDeducted || 0), view.settledRefundCredits),
+                    remaining: creditDifference(view.chargedCredits, view.settledRefundCredits),
                     reconciled: false,
                 };
             }
@@ -1244,6 +1219,40 @@ export const getCampaignById = async (req, res) => {
  * Update status of any campaign.
  * STRICTLY RESTRICTED: Only Super Admin can change campaign status.
  */
+const usesCampaignCredits = campaign => campaign.category === "CAMPAIGN" || Boolean(campaign.campaignCreditCharge);
+const reportError = (message, statusCode = 400) => Object.assign(new Error(message), { statusCode });
+const originalCampaignDebit = (campaign, session) => transactionModel.findOne({
+    ...(campaign.campaignCreditCharge ? { _id: campaign.campaignCreditCharge.transactionId } : {}),
+    campaignId: campaign._id, type: "DEDUCT", refundOperationId: { $exists: false },
+}).session(session);
+
+async function settleCategoryReport(campaign, refundCount, actorId, session) {
+    const { charged, settled } = await getCampaignRefundAccounting(campaign, session);
+    const netRefundDelta = refundCount - settled;
+    if (refundCount > charged) throw reportError("The report refunds exceed the original campaign charge.", 409);
+    campaign.campaignSummary.creditsRefunded = refundCount;
+    if (!netRefundDelta) return null;
+
+    const debit = await originalCampaignDebit(campaign, session);
+    if (!debit || debit.category !== "CAMPAIGN") throw reportError("The original Campaign Credit debit could not be verified.", 409);
+    const { transaction, wallet } = await postCreditMovement({
+        session,
+        operationKey: 'campaign:' + campaign._id + ':report:' + ((campaign.spreadsheetRevision || 0) + 1),
+        type: netRefundDelta > 0 ? "REFUND" : "DEDUCT",
+        category: "CAMPAIGN",
+        amount: Math.abs(netRefundDelta),
+        toUser: campaign.userId,
+        performedBy: actorId,
+        campaignId: campaign._id,
+        originalTransactionId: debit._id,
+        notes: netRefundDelta > 0 ? "Rejected recipient report refund." : "Published recipient report correction reversing an earlier refund.",
+    });
+    return {
+        netRefundDelta, targetRefundAmount: refundCount, previousRefundAmount: settled,
+        newBalance: wallet.creditBalances.CAMPAIGN.available, category: "CAMPAIGN", transactionId: transaction._id,
+    };
+}
+
 async function getCampaignRefundAccounting(campaign, session, { strict = true } = {}) {
     // A report/category amount can be a plan. Only posted wallet transactions
     // count as money returned; debit adjustments reverse earlier refunds.
@@ -1280,8 +1289,9 @@ function validateCampaignBillingStatus(campaign, status) {
 }
 
 async function campaignBillingRate(campaign, owner, session) {
+    if (campaign.campaignCreditCharge || campaign.category === "CAMPAIGN") return 1;
     if (creditAmount(campaign.creditsDeducted || 0) === 0) return creditAmount(campaign.rateSnapshot || owner?.ratePerMsg || 12);
-    const original = await transactionModel.findOne({ campaignId: campaign._id, type: "DEDUCT", refundOperationId: { $exists: false }, $or: [{ fromUser: campaign.userId }, { toUser: campaign.userId }] }).sort({ createdAt: 1, _id: 1 }).select("amount rateSnapshot").session(session).lean();
+    const original = await transactionModel.findOne({ ...LEGACY_CREDITS, campaignId: campaign._id, type: "DEDUCT", refundOperationId: { $exists: false }, $or: [{ fromUser: campaign.userId }, { toUser: campaign.userId }] }).sort({ createdAt: 1, _id: 1 }).select("amount rateSnapshot").session(session).lean();
     const saved = original?.rateSnapshot ?? campaign.rateSnapshot;
     const snapshot = campaign.rateSnapshot;
     const validRate = typeof saved === "number" && Number.isFinite(saved) && saved > 0;
@@ -1324,7 +1334,6 @@ export const updateCampaignStatus = async (req, res) => {
         const session = await mongoose.startSession();
         let campaign;
         let previousStatus;
-        const refundInfo = null;
         try {
             await session.withTransaction(async () => {
                 campaign = await campaignModel.findById(id).session(session);
@@ -1354,15 +1363,6 @@ export const updateCampaignStatus = async (req, res) => {
             }
         } catch (error) { console.error("[BullMQ] Status saved, but queue update failed:", error.message); }
 
-        if (refundInfo) {
-            notifyUser(campaign.userId, "WALLET_UPDATED", {
-                campaignId: campaign._id,
-                newBalance: refundInfo.newBalance,
-                delta: refundInfo.amount,
-                reason: "REFUND",
-            });
-        }
-
         notifyUser(campaign.userId, "CAMPAIGN_UPDATED", {
             campaignId: campaign._id,
             campaignTitle: campaign.campaignTitle,
@@ -1382,7 +1382,7 @@ export const updateCampaignStatus = async (req, res) => {
         return res.status(200).json({
             success: true,
             message: `Campaign status updated from "${previousStatus}" to "${status}" successfully.`,
-            refundInfo,
+            refundInfo: null,
             data: {
                 id: campaign._id,
                 campaignTitle: campaign.campaignTitle,
@@ -1462,49 +1462,10 @@ export const updateCampaignMetrics = async (req, res) => {
             });
         }
 
-        // ── Automated Wrong / Failed Number Refund Flow ───────────
-        let refundInfo = null;
-        let updatedUserWallet = null;
-
         validateCampaignBillingStatus(campaign, req.body.status);
         if (campaign.status === "failed" || req.body.status === "failed") { const error = new Error("Publish the failure report to finalize the campaign and refund its credits."); error.statusCode = 409; throw error; }
+
         const campaignOwner = await userModel.findById(campaign.userId).session(mongoSession);
-        const isEligibleForRefund = campaignOwner && campaignOwner.role !== "Super Admin";
-
-        const wholeCampaignFailed = status === "failed" || campaign.status === "failed";
-        if (isEligibleForRefund && (numFailed > 0 || wholeCampaignFailed)) {
-            const alreadyRefunded = (await getCampaignRefundAccounting(campaign, mongoSession)).settled;
-
-            {
-                const rate = await campaignBillingRate(campaign, campaignOwner, mongoSession);
-                let refundAmount = wholeCampaignFailed ? campaign.creditsDeducted || 0 : creditsForCount(rate, numFailed);
-
-                if (refundAmount > (campaign.creditsDeducted || 0)) {
-                    refundAmount = campaign.creditsDeducted;
-                }
-                refundAmount = Math.max(0, creditDifference(refundAmount, alreadyRefunded));
-
-                if (refundAmount > 0) {
-                    const posting = await postCreditMovement({
-                        session: mongoSession, operationKey: campaignPostingReference(campaign, "status-refund", refundAmount), type: "REFUND", amount: refundAmount,
-                        fromUser: req.user._id, toUser: campaign.userId, performedBy: req.user._id, campaignId: campaign._id,
-                        notes: wholeCampaignFailed ? `Remaining credit refund: campaign "${campaign.campaignTitle}" marked failed.` : `Automated refund for ${numFailed} failed/wrong number(s) on campaign "${campaign.campaignTitle}" at rate ${rate} credits/recipient`, rateSnapshot: rate,
-                    });
-                    updatedUserWallet = posting.wallet;
-                    const refundTransaction = [posting.transaction];
-
-                    campaign.campaignSummary.creditsRefunded = alreadyRefunded + refundAmount;
-                    refundInfo = {
-                        amount: refundAmount,
-                        failedCount: numFailed,
-                        rate,
-                        newBalance: updatedUserWallet.balance,
-                        transactionId: refundTransaction[0]._id,
-                    };
-                }
-            }
-        }
-
         // Update campaign summary metrics
         campaign.campaignSummary.sent = numSent;
         campaign.campaignSummary.delivered = numDelivered;
@@ -1540,17 +1501,6 @@ export const updateCampaignMetrics = async (req, res) => {
         await mongoSession.endSession();
 
         // ── Real-Time WebSockets (POST-COMMIT) ────────────────────
-        if (refundInfo && updatedUserWallet) {
-            notifyUser(campaign.userId, "WALLET_UPDATED", {
-                newBalance: updatedUserWallet.balance,
-                delta: +refundInfo.amount,
-                reason: "REFUND",
-                campaignTitle: campaign.campaignTitle,
-                campaignId: campaign._id,
-                failedCount: numFailed,
-            });
-        }
-
         notifyUser(campaign.userId, "CAMPAIGN_UPDATED", {
             campaignId: campaign._id,
             campaignTitle: campaign.campaignTitle,
@@ -1583,7 +1533,7 @@ export const updateCampaignMetrics = async (req, res) => {
 
         return res.status(200).json({
             success: true,
-            message: "Campaign delivery metrics recorded successfully." + (refundInfo ? ` ${refundInfo.amount} credits refunded for ${refundInfo.failedCount} failed messages.` : ""),
+            message: "Campaign delivery metrics recorded successfully.",
             data: {
                 id: campaign._id,
                 campaignTitle: campaign.campaignTitle,
@@ -1591,7 +1541,7 @@ export const updateCampaignMetrics = async (req, res) => {
                 campaignSummary: campaign.campaignSummary,
                 updatedAt: campaign.updatedAt,
             },
-            refund: refundInfo,
+            refund: null,
         });
     } catch (error) {
         await abortCreditSession(mongoSession);
@@ -1654,11 +1604,47 @@ export const saveCampaignReport = async (req, res) => {
 
         validateCampaignBillingStatus(campaign, req.body.status);
         if (campaign.status === "failed" || req.body.status === "failed") { const error = new Error("Publish the failure report to finalize the campaign and refund its credits."); error.statusCode = 409; throw error; }
+        if (usesCampaignCredits(campaign)) {
+            const originals = originalCampaignEntries(campaign);
+            const byNumber = new Map();
+            for (const row of originals) {
+                const matches = byNumber.get(row.phoneNumber) || { rows: [], matched: 0 };
+                matches.rows.push(row);
+                byNumber.set(row.phoneNumber, matches);
+            }
+            const entries = originals.map(row => ({
+                ...row, category: "All", tabKey: "all", status: "queued", billingAction: "keep",
+            }));
+            for (const group of categories) {
+                const refund = group.billingAction === "refund";
+                for (const value of Array.isArray(group.numbers) ? group.numbers : []) {
+                    const phone = String(value).trim();
+                    if (!phone) continue;
+                    const matches = byNumber.get(phone);
+                    const matched = matches?.rows[matches.matched++];
+                    if (!matched) throw reportError("Every report number must match an unused original recipient row.");
+                    Object.assign(entries[matched.rowNumber - 1], {
+                        category: typeof group.name === "string" ? group.name.trim() : "General",
+                        status: refund ? "failed" : "delivered", tabKey: refund ? "wrong" : "delivered",
+                        billingAction: refund ? "refund" : "keep",
+                    });
+                }
+            }
+            await abortCreditSession(mongoSession);
+            await mongoSession.endSession();
+            req.body = {
+                ...req.body, entries, saveMode: "publish", status: "completed", reportNotes: adminNotes,
+                spreadsheetColumns: campaign.spreadsheetColumns, spreadsheetRevision: campaign.spreadsheetRevision || 0,
+            };
+            return updateCampaignRecipientsManagement(req, res);
+        }
+
         const campaignOwner = await userModel.findById(campaign.userId).session(mongoSession);
         const rate = await campaignBillingRate(campaign, campaignOwner, mongoSession);
 
         // Sanitize and process numbers per category
         const seenInReport = new Set();
+        const originalNumbers = new Set(originalCampaignEntries(campaign).map(row => row.phoneNumber));
         let totalRefundNumbersCount = 0;
         let totalDeductNumbersCount = 0;
         let deliveredCount = 0;
@@ -1674,6 +1660,7 @@ export const saveCampaignReport = async (req, res) => {
             for (const num of rawNumbers) {
                 const clean = String(num).replace(/\D/g, "");
                 if (!clean) continue;
+                if (!originalNumbers.has(clean)) throw reportError("Every report number must match an original recipient.");
                 if (seenInReport.has(clean)) continue;
                 seenInReport.add(clean);
                 sanitizedCategoryNumbers.push(clean);
@@ -1786,6 +1773,7 @@ export const saveCampaignReport = async (req, res) => {
         if (refundInfo && updatedUserWallet) {
             notifyUser(campaign.userId, "WALLET_UPDATED", {
                 newBalance: updatedUserWallet.balance,
+                transactionId: refundInfo.transactionId,
                 delta: refundInfo.netRefundDelta,
                 reason: refundInfo.netRefundDelta > 0 ? "REFUND" : "DEDUCT",
                 campaignTitle: campaign.campaignTitle,
@@ -1841,13 +1829,39 @@ async function saveFailureReport(req, res, campaign, session) {
         const owner = await userModel.findById(campaign.userId).session(session);
         if (!owner) throw new Error("Campaign creator not found");
         if (accounting.remaining > 0 && owner.role !== "Super Admin") {
-            const posting = await postCreditMovement({
-                session, operationKey: campaignPostingReference(campaign, "failure-report", accounting.remaining), type: "REFUND", amount: accounting.remaining,
-                fromUser: req.user._id, toUser: campaign.userId, performedBy: req.user._id, campaignId: campaign._id,
-                notes: `Full credit refund: failure report published for campaign "${campaign.campaignTitle}".`, rateSnapshot: campaign.rateSnapshot,
-            });
+            const originalCharge = await originalCampaignDebit(campaign, session);
+            const isCategorized = originalCharge
+                ? originalCharge.category === "CAMPAIGN"
+                : Boolean(campaign.campaignCreditCharge || campaign.category === "CAMPAIGN");
+
+            let posting;
+            if (isCategorized) {
+                posting = await postCreditMovement({
+                    session,
+                    operationKey: campaignPostingReference(campaign, "failure-report", accounting.remaining),
+                    type: "REFUND",
+                    category: "CAMPAIGN",
+                    amount: accounting.remaining,
+                    toUser: campaign.userId,
+                    performedBy: req.user._id,
+                    campaignId: campaign._id,
+                    originalTransactionId: originalCharge._id,
+                    notes: `Full credit refund: failure report published for campaign "${campaign.campaignTitle}" (Campaign Credits).`,
+                });
+            } else {
+                posting = await postCreditMovement({
+                    session, operationKey: campaignPostingReference(campaign, "failure-report", accounting.remaining), type: "REFUND", amount: accounting.remaining,
+                    fromUser: req.user._id, toUser: campaign.userId, performedBy: req.user._id, campaignId: campaign._id,
+                    notes: `Full credit refund: failure report published for campaign "${campaign.campaignTitle}".`, rateSnapshot: campaign.rateSnapshot,
+                });
+            }
             const wallet = posting.wallet, transaction = posting.transaction;
-            refundInfo = { amount: accounting.remaining, newBalance: wallet.balance, transactionId: transaction._id };
+            refundInfo = {
+                amount: accounting.remaining,
+                category: posting.transaction.category,
+                newBalance: isCategorized ? (wallet.creditBalances?.CAMPAIGN?.available ?? wallet.balance) : wallet.balance,
+                transactionId: transaction._id,
+            };
         }
         const sheet = failureReportSheet(campaign, notes);
         const publishedAt = new Date();
@@ -1865,7 +1879,7 @@ async function saveFailureReport(req, res, campaign, session) {
     await session.endSession();
     if (mode === "publish") {
         notifyUser(campaign.userId, "CAMPAIGN_UPDATED", { campaignId: campaign._id, campaignTitle: campaign.campaignTitle, status: "failed", reportUpdated: true });
-        if (refundInfo) notifyUser(campaign.userId, "WALLET_UPDATED", { campaignId: campaign._id, reason: "REFUND", delta: refundInfo.amount, newBalance: refundInfo.newBalance });
+        if (refundInfo) notifyUser(campaign.userId, "WALLET_UPDATED", { campaignId: campaign._id, reason: "REFUND", delta: refundInfo.amount, newBalance: refundInfo.newBalance, category: refundInfo.category, transactionId: refundInfo.transactionId });
     }
     notifyRole("Super Admin", "CAMPAIGN_UPDATED", { campaignId: campaign._id, status: "failed", reportUpdated: true });
     const view = campaign.toObject ? campaign.toObject() : { ...campaign };
@@ -1892,7 +1906,8 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
 
         const { id } = req.params;
         let { entries } = req.body;
-        const { customTabs, deletedTabKeys, saveMode, spreadsheetColumns, spreadsheetRevision, reportNotes, recipientCategoryLabels } = req.body;
+        const { customTabs, deletedTabKeys, spreadsheetColumns, spreadsheetRevision, reportNotes, recipientCategoryLabels } = req.body;
+        const { saveMode } = req.body;
 
         if (!entries || !Array.isArray(entries)) {
             await abortCreditSession(mongoSession);
@@ -1916,7 +1931,8 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
         if (campaign.status === "failed") return await saveFailureReport(req, res, campaign, mongoSession);
         if (req.body.status === "failed") { const error = new Error("Select Failed on the campaign before preparing its failure report."); error.statusCode = 409; throw error; }
 
-        entries = normalizeDuplicateRows(entries);
+        const categorized = usesCampaignCredits(campaign);
+        if (!categorized) entries = normalizeDuplicateRows(entries);
         const spreadsheetSave = saveMode === "draft" || saveMode === "publish";
         if (saveMode === "publish" && req.body.status && req.body.status !== "completed") { const error = new Error("A completed report must be published as Completed. Use the failure report for a failed campaign."); error.statusCode = 400; throw error; }
         if (saveMode && !spreadsheetSave) throw new Error("Invalid spreadsheet save mode.");
@@ -1929,6 +1945,25 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
             campaign.recipientEntries = await loadSpreadsheetRows(campaign._id, "draft", mongoSession);
         }
         campaign.recipientEntries = restoreOriginalCampaignEntries(campaign);
+        if (categorized && !spreadsheetSave) throw reportError("Save a draft or publish the recipient report.", 409);
+        if (categorized) {
+            const originals = originalCampaignEntries(campaign);
+            const reported = new Set();
+            entries = entries.map(entry => {
+                const rowNumber = Number(entry.rowNumber);
+                const original = originals[rowNumber - 1];
+                const phone = String(entry.phoneNumber ?? "").trim();
+                if (!Number.isSafeInteger(rowNumber) || rowNumber < 1 || reported.has(rowNumber)
+                    || (original ? phone !== original.phoneNumber : entry.billingAction === "refund")) {
+                    throw reportError("Refunds and original recipient rows must match their permanent All index and number.");
+                }
+                reported.add(rowNumber);
+                return { ...entry, rowNumber };
+            });
+            if (!originals.every(row => reported.has(row.rowNumber))) {
+                throw reportError("Keep all original recipient rows in the report.");
+            }
+        }
         let sheetColumns;
         let publishedSheet;
         if (spreadsheetSave) {
@@ -1995,39 +2030,62 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
         let refundInfo = null;
 
         if (isEligibleForBilling && saveMode !== "draft") {
-            let targetRefundAmount = campaign.status === "failed" || req.body.status === "failed" ? campaign.creditsDeducted || 0 : creditsForCount(rate, refundCount);
-            if (targetRefundAmount > (campaign.creditsDeducted || 0)) {
-                targetRefundAmount = campaign.creditsDeducted;
+            if (categorized) {
+                refundInfo = await settleCategoryReport(campaign, refundCount, req.user._id, mongoSession);
+            } else {
+                const originalOccurrences = new Map();
+                if (campaign.originalRecipients?.length || campaign.recipients?.length) {
+                    for (const row of originalCampaignEntries(campaign)) {
+                        const number = row.phoneNumber.replace(/\D/g, "");
+                        originalOccurrences.set(number, (originalOccurrences.get(number) || 0) + 1);
+                    }
+                }
+                const refundedIds = new Set();
+                for (const row of flatRecords) {
+                    if (row.billingAction !== "refund") continue;
+                    const remaining = originalOccurrences.get(row.phoneNumber) || 0;
+                    const rowNumber = Number(row.rowNumber);
+                    if (!remaining || !Number.isSafeInteger(rowNumber) || rowNumber < 1 || refundedIds.has(rowNumber)) {
+                        throw reportError("Every refund must match a distinct original recipient row.");
+                    }
+                    refundedIds.add(rowNumber);
+                    originalOccurrences.set(row.phoneNumber, remaining - 1);
+                }
+
+                let targetRefundAmount = campaign.status === "failed" || req.body.status === "failed" ? campaign.creditsDeducted || 0 : creditsForCount(rate, refundCount);
+                if (targetRefundAmount > (campaign.creditsDeducted || 0)) {
+                    targetRefundAmount = campaign.creditsDeducted;
+                }
+
+                const previousRefundAmount = (await getCampaignRefundAccounting(campaign, mongoSession)).settled;
+                const netRefundDelta = creditDifference(targetRefundAmount, previousRefundAmount);
+
+                if (netRefundDelta !== 0) {
+                    const txType = netRefundDelta > 0 ? "REFUND" : "DEDUCT";
+                    const absAmount = Math.abs(netRefundDelta);
+                    const txNotes =
+                        netRefundDelta > 0
+                            ? `Recipient number management: Refund for ${refundCount} entry(s) on "${campaign.campaignTitle}" (+${netRefundDelta} credits)`
+                            : `Recipient number management: Debit adjustment of -${absAmount} credits on "${campaign.campaignTitle}"`;
+
+                    const posting = await postCreditMovement({
+                        session: mongoSession, operationKey: campaignPostingReference(campaign, "recipient-adjustment", netRefundDelta), type: txType, amount: absAmount,
+                        fromUser: netRefundDelta > 0 ? req.user._id : campaign.userId, toUser: campaign.userId, performedBy: req.user._id,
+                        campaignId: campaign._id, refundOperationId: true, notes: txNotes, rateSnapshot: rate, allowLockedDebit: netRefundDelta < 0,
+                    });
+                    const updatedUserWallet = posting.wallet, refundTx = posting.transaction;
+
+                    refundInfo = {
+                        netRefundDelta,
+                        targetRefundAmount,
+                        previousRefundAmount,
+                        newBalance: updatedUserWallet.balance,
+                        transactionId: refundTx._id,
+                    };
+                }
+
+                campaign.campaignSummary.creditsRefunded = targetRefundAmount;
             }
-
-            const previousRefundAmount = (await getCampaignRefundAccounting(campaign, mongoSession)).settled;
-            const netRefundDelta = creditDifference(targetRefundAmount, previousRefundAmount);
-
-            if (netRefundDelta !== 0) {
-                const txType = netRefundDelta > 0 ? "REFUND" : "DEDUCT";
-                const absAmount = Math.abs(netRefundDelta);
-                const txNotes =
-                    netRefundDelta > 0
-                        ? `Recipient number management: Refund for ${refundCount} entry(s) on "${campaign.campaignTitle}" (+${netRefundDelta} credits)`
-                        : `Recipient number management: Debit adjustment of -${absAmount} credits on "${campaign.campaignTitle}"`;
-
-                const posting = await postCreditMovement({
-                    session: mongoSession, operationKey: campaignPostingReference(campaign, "recipient-adjustment", netRefundDelta), type: txType, amount: absAmount,
-                    fromUser: netRefundDelta > 0 ? req.user._id : campaign.userId, toUser: campaign.userId, performedBy: req.user._id,
-                    campaignId: campaign._id, refundOperationId: true, notes: txNotes, rateSnapshot: rate, allowLockedDebit: netRefundDelta < 0,
-                });
-                const updatedUserWallet = posting.wallet, refundTx = posting.transaction;
-
-                refundInfo = {
-                    netRefundDelta,
-                    targetRefundAmount,
-                    previousRefundAmount,
-                    newBalance: updatedUserWallet.balance,
-                    transactionId: refundTx._id,
-                };
-            }
-
-            campaign.campaignSummary.creditsRefunded = targetRefundAmount;
         }
 
         // Always store large recipient sets (>500 rows) in chunked spreadsheet storage
@@ -2092,6 +2150,7 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
 
         if (refundInfo) notifyUser(campaign.userId, "WALLET_UPDATED", {
             campaignId: campaign._id, newBalance: refundInfo.newBalance, delta: refundInfo.netRefundDelta,
+            category: refundInfo.category, transactionId: refundInfo.transactionId,
             reason: refundInfo.netRefundDelta > 0 ? "REFUND" : "DEDUCT",
         });
         if (saveMode === "publish") {
@@ -2157,22 +2216,50 @@ export const cancelScheduledCampaign = async (req, res) => {
 
                 const owner = await userModel.findById(liveCampaign.userId).session(session);
                 if (owner && owner.role !== "Super Admin") {
+                    const originalCharge = await transactionModel.findOne({
+                        campaignId: liveCampaign._id,
+                        type: "DEDUCT",
+                    }).session(session);
+
+                    const isCategorized = originalCharge
+                        ? originalCharge.category === "CAMPAIGN"
+                        : Boolean(liveCampaign.campaignCreditCharge || liveCampaign.category === "CAMPAIGN");
+
                     const alreadyRefunded = (await getCampaignRefundAccounting(liveCampaign, session)).settled;
                     const totalCharged = liveCampaign.creditsDeducted || 0;
                     const remainingRefund = Math.max(0, totalCharged - alreadyRefunded);
                     if (remainingRefund > 0) {
-                        const rate = await campaignBillingRate(liveCampaign, owner, session);
-                        const posting = await postCreditMovement({
-                            session, operationKey: campaignPostingReference(liveCampaign, "cancellation", remainingRefund), type: "REFUND", amount: remainingRefund,
-                            fromUser: req.user._id, toUser: liveCampaign.userId, performedBy: req.user._id, campaignId: liveCampaign._id,
-                            notes: `Cancellation refund: campaign "${liveCampaign.campaignTitle}" cancelled before launch.`, rateSnapshot: rate,
-                        });
+                        let posting;
+                        if (isCategorized) {
+                            posting = await postCreditMovement({
+                                session,
+                                operationKey: campaignPostingReference(liveCampaign, "cancellation", remainingRefund),
+                                type: "REFUND",
+                                category: "CAMPAIGN",
+                                amount: remainingRefund,
+                                toUser: liveCampaign.userId,
+                                performedBy: req.user._id,
+                                campaignId: liveCampaign._id,
+                                originalTransactionId: originalCharge._id,
+                                notes: `Cancellation refund: ${remainingRefund} Campaign Credits refunded for campaign "${liveCampaign.campaignTitle}".`,
+                            });
+                        } else {
+                            const rate = await campaignBillingRate(liveCampaign, owner, session);
+                            posting = await postCreditMovement({
+                                session, operationKey: campaignPostingReference(liveCampaign, "cancellation", remainingRefund), type: "REFUND", amount: remainingRefund,
+                                fromUser: req.user._id, toUser: liveCampaign.userId, performedBy: req.user._id, campaignId: liveCampaign._id,
+                                notes: `Cancellation refund: campaign "${liveCampaign.campaignTitle}" cancelled before launch.`, rateSnapshot: rate,
+                            });
+                        }
                         const updatedWallet = posting.wallet, refundTx = posting.transaction;
                         if (!liveCampaign.campaignSummary) liveCampaign.campaignSummary = {};
                         liveCampaign.campaignSummary.creditsRefunded = alreadyRefunded + remainingRefund;
                         refundInfo = {
                             amount: remainingRefund,
-                            newBalance: updatedWallet.balance,
+                            category: refundTx.category,
+                            newBalance: isCategorized
+                                ? (updatedWallet.creditBalances?.CAMPAIGN?.available ?? updatedWallet.balance)
+                                : updatedWallet.balance,
                             transactionId: refundTx._id,
                         };
                     }
@@ -2188,6 +2275,8 @@ export const cancelScheduledCampaign = async (req, res) => {
             notifyUser(campaign.userId, "WALLET_UPDATED", {
                 campaignId: campaign._id,
                 newBalance: refundInfo.newBalance,
+                category: refundInfo.category,
+                transactionId: refundInfo.transactionId,
                 delta: refundInfo.amount,
                 reason: "REFUND",
             });

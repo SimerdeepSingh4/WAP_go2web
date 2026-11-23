@@ -10,7 +10,6 @@ import {
   Download,
   Play,
   Loader2,
-  ChevronDown,
   Pencil,
   FolderPlus,
   RotateCcw,
@@ -36,6 +35,7 @@ import { number } from "@/lib/format";
 import OverviewMetricCards from "@/features/dashboard/components/OverviewMetricCards";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { readCampaignDraft, removeCampaignDraft, writeCampaignDraft } from "../../lib/draftStorage";
+import OriginalUploadPreview from "../report/OriginalUploadPreview";
 
 const digits = (v) => String(v ?? "").replace(/\D/g, "") || String(v ?? "").trim();
 
@@ -75,9 +75,11 @@ export default function CampaignCategoryCards({ campaign }) {
   const [draftReady, setDraftReady] = useState(false);
   const draftSaveTimer = useRef(null);
 
-  const rate =
-    campaign.rateSnapshot ||
-    (campaign.userId?.ratePerMsg > 0 ? campaign.userId.ratePerMsg : 12);
+  const isCategorized = Boolean(campaign.campaignCreditCharge || campaign.category === "CAMPAIGN");
+  const rate = isCategorized
+    ? 1
+    : campaign.rateSnapshot ||
+      (campaign.userId?.ratePerMsg > 0 ? campaign.userId.ratePerMsg : 12);
 
   /* ---------------- 1. Extract Original Upload Sequence ---------------- */
   // Preserves the EXACT sequence in which the user uploaded their phone numbers
@@ -604,10 +606,12 @@ export default function CampaignCategoryCards({ campaign }) {
         </div>
       </section>
 
-      <details className="group overflow-hidden rounded-xl border border-border bg-card">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-xs [&::-webkit-details-marker]:hidden"><span className="flex flex-wrap items-center gap-2"><span className="font-medium text-foreground">Original upload</span><span className="text-muted-foreground">{number(originalUploadedNumbers.length)} numbers</span><span className="hidden text-[10px] text-muted-foreground sm:inline">Read only</span></span><ChevronDown className="size-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" /></summary>
-        <div className="space-y-2 border-t border-border p-4"><div className="flex items-center justify-between gap-3"><p className="text-[11px] text-muted-foreground">Original upload order</p><Button type="button" variant="ghost" size="xs" onClick={() => handleCopyText("all", allContactsText, "All Contacts")} disabled={!allContactsText}>{copiedCard === "all" ? <Check className="size-3" /> : <Copy className="size-3" />}{copiedCard === "all" ? "Copied" : "Copy list"}</Button></div><textarea aria-label="Original uploaded numbers" readOnly rows={4} value={allContactsText} spellCheck={false} className="block h-28 max-h-48 min-h-20 w-full resize-y overflow-y-auto rounded-lg border border-input bg-muted/20 px-3 py-2 font-mono text-xs leading-6 text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30" placeholder="No numbers submitted" /></div>
-      </details>
+      <OriginalUploadPreview numbers={allContactsText} count={originalUploadedNumbers.length} actions={
+        <Button type="button" variant="ghost" size="xs" onClick={() => handleCopyText("all", allContactsText, "All Contacts")} disabled={!allContactsText}>
+          {copiedCard === "all" ? <Check className="size-3" /> : <Copy className="size-3" />}
+          {copiedCard === "all" ? "Copied" : "Copy list"}
+        </Button>
+      } />
 
       <div data-tour="report-categories" className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         {allCards.map((card) => {

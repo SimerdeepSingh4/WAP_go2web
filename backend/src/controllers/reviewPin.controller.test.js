@@ -1,8 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { Types } from "mongoose";
-import ReviewPin from "../models/reviewPin.model.js";
-import { resolvePin } from "./reviewPin.controller.js";
+
+Object.assign(process.env, {
+  MONGO_URI: process.env.MONGO_URI || "mongodb://127.0.0.1:1/unused",
+  JWT_SECRET: process.env.JWT_SECRET || "test-jwt-secret",
+  REDIS_HOST: process.env.REDIS_HOST || "127.0.0.1",
+  REDIS_PORT: process.env.REDIS_PORT || "6379",
+  REDIS_PASSWORD: process.env.REDIS_PASSWORD || "test-only",
+  DOTENV_CONFIG_QUIET: "true",
+});
+
+const { Types } = await import("mongoose");
+const { default: ReviewPin } = await import("../models/reviewPin.model.js");
+const { resolvePin } = await import("./reviewPin.controller.js");
 
 const pinId = new Types.ObjectId().toString();
 const userId = new Types.ObjectId();

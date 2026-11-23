@@ -27,6 +27,7 @@ import { auditRequestContext } from "./services/audit.service.js";
 import { uploadsStatic } from "./middlewares/uploads-static.middleware.js";
 import { isTrustedOrigin, protectBrowserRequest } from "./middlewares/browser-request.middleware.js";
 import reviewPinRouter from "./routes/reviewPin.routes.js";
+import numberFilteringRouter from "./routes/number-filtering.routes.js";
 
 const app = express();
 if (process.env.TRUST_PROXY) app.set("trust proxy", process.env.TRUST_PROXY.split(",").map((entry) => entry.trim()).filter(Boolean));
@@ -56,6 +57,7 @@ app.use("/api/users", userRouter);
 app.use("/api/credits", creditRouter);
 app.use("/api/credit-reconciliation", creditReconciliationRouter);
 app.use("/api/campaigns", campaignRouter);
+app.use("/api/number-filtering", numberFilteringRouter);
 app.use("/api/templates", templateRouter);
 app.use("/api/groups", groupRouter);
 app.use("/api/contacts", contactRouter);

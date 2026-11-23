@@ -1,0 +1,316 @@
+.credit-workspace-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  width: fit-content;
+  max-width: 100%;
+  margin-block: 1rem;
+  padding: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 0.875rem;
+  background: var(--surface-subtle);
+}
+
+.credit-workspace-nav button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  min-height: 2.375rem;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 0.625rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.3;
+  text-align: start;
+  cursor: pointer;
+}
+
+.credit-workspace-nav button:hover { color: var(--foreground); }
+.credit-workspace-nav button:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
+.credit-workspace-nav svg { flex: none; width: 1rem; height: 1rem; }
+
+.credit-workspace-nav button[aria-pressed="true"] {
+  border-color: var(--border);
+  background: var(--card);
+  color: var(--primary-text);
+  font-weight: 650;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
+}
+
+.credit-workspace-count {
+  display: inline-grid;
+  flex: none;
+  min-width: 1.375rem;
+  min-height: 1.375rem;
+  padding-inline: 0.3125rem;
+  place-items: center;
+  border: 1px solid var(--status-warning-border);
+  border-radius: 9999px;
+  background: var(--status-warning-bg);
+  color: var(--status-warning-text);
+  font-size: 0.75rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.credit-settings { min-width: 0; container: credit-settings / inline-size; }
+
+.credit-settings-layout {
+  --credit-settings-gutter: clamp(1rem, 2.25cqi, 1.5rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem;
+}
+
+.credit-settings-panel {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--card);
+}
+
+.credit-settings-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1rem var(--credit-settings-gutter);
+  border-bottom: 1px solid var(--border);
+}
+
+.credit-settings-heading h2 {
+  font-size: 1.0625rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.credit-settings-heading p {
+  margin-top: 0.25rem;
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.credit-settings-icon,
+.credit-rate-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  background: color-mix(in srgb, var(--primary) 9%, var(--card));
+  color: var(--primary-text);
+}
+
+.credit-settings-icon { width: 2.5rem; height: 2.5rem; border-radius: 0.75rem; }
+.credit-settings-icon svg { width: 1.125rem; height: 1.125rem; }
+.credit-rate-icon { width: 1.875rem; height: 1.875rem; border-radius: 0.5rem; }
+.credit-rate-icon svg { width: 0.9375rem; height: 0.9375rem; }
+
+.credit-settings-rates,
+.credit-settings-payment-body { padding: var(--credit-settings-gutter); }
+
+.credit-rates-list { display: grid; gap: 0.75rem; }
+.credit-rate-field { display: grid; min-width: 0; gap: 0.5rem; }
+
+.credit-settings-rates .credit-rate-field {
+  padding: 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface-subtle);
+}
+
+.credit-settings-rates .credit-rate-field:focus-within {
+  border-color: var(--input);
+}
+
+.credit-rate-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.credit-rate-purchase-price {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.125rem 0.375rem;
+  margin-top: 0.375rem;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.credit-rate-purchase-price dd { color: var(--foreground); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+.credit-rate-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.5rem;
+}
+
+.credit-rate-input {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding-inline: 0.625rem;
+  border: 1px solid var(--input);
+  border-radius: 0.625rem;
+  background: var(--card);
+}
+
+.credit-rate-input:focus-within { outline: 2px solid var(--ring); outline-offset: 1px; }
+.credit-rate-input > span { flex: none; color: var(--muted-foreground); font-size: 0.75rem; white-space: nowrap; }
+
+.credit-rate-input > input {
+  flex: 1 1 0%;
+  width: 0;
+  min-width: 0;
+  min-height: 2.625rem;
+  padding-inline: 0.375rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.credit-rate-input > input:focus-visible { outline: none; box-shadow: none; }
+
+.credit-rate-controls button,
+.credit-settings-save button { height: auto; min-height: 2.625rem; padding: 0.5rem 0.75rem; }
+
+.credit-rate-hint,
+.credit-settings-save p { color: var(--muted-foreground); font-size: 0.75rem; }
+
+.credit-settings-payment-body,
+.credit-settings-other-fields { display: grid; min-width: 0; align-content: start; gap: 0.875rem; }
+
+.credit-settings-method {
+  min-width: 0;
+  padding: 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface-subtle);
+}
+
+.credit-settings-method-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.credit-settings-method-heading h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.credit-settings-method-heading svg { flex: none; width: 1rem; height: 1rem; color: var(--primary-text); }
+
+.credit-settings-method-status {
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  background: var(--card);
+  color: var(--muted-foreground);
+  font-size: 0.6875rem;
+  font-weight: 500;
+}
+
+.credit-settings-method-status[data-status="saved"] {
+  border-color: var(--status-success-border);
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+}
+
+.credit-settings-method-status[data-status="partial"] {
+  border-color: var(--status-warning-border);
+  background: var(--status-warning-bg);
+  color: var(--status-warning-text);
+}
+
+.credit-settings-bank-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.875rem;
+}
+
+.credit-settings-payment-body label { font-size: 0.8125rem; }
+.credit-settings-payment-body input { min-height: 2.625rem; background: var(--card); }
+.credit-settings-payment-body textarea { min-height: 4.5rem; }
+
+.credit-settings-save {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem 1rem;
+  padding: 0.875rem var(--credit-settings-gutter);
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 1rem 1rem;
+  background: var(--surface-subtle);
+}
+
+.credit-settings-save p { margin-inline-end: auto; }
+
+.credit-settings-load {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+}
+
+.credit-settings-load svg { flex: none; width: 1rem; height: 1rem; }
+.credit-settings-load [role="alert"] { color: var(--destructive); }
+
+@container credit-settings (min-width: 34rem) {
+  .credit-settings-bank-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@container credit-settings (min-width: 43rem) {
+  .credit-settings-rates .credit-rates-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@container credit-settings (min-width: 54rem) {
+  .credit-settings-payment-body {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    align-items: stretch;
+  }
+}
+
+@container credit-settings (min-width: 74rem) {
+  .credit-settings-rates .credit-rate-field {
+    grid-template-columns: minmax(0, 1fr) minmax(15rem, 1.2fr);
+    align-items: center;
+    column-gap: 0.875rem;
+  }
+  .credit-settings-rates .credit-rate-hint { grid-column: 2; }
+}
+
+@media (max-width: 43rem) {
+  .credit-workspace-nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+  .credit-workspace-nav button { min-height: 2.75rem; padding-inline: 0.5rem; }
+  .credit-workspace-nav button:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+
+@media (max-width: 23rem) {
+  .credit-rate-controls { grid-template-columns: minmax(0, 1fr); }
+  .credit-rate-controls button { justify-self: end; }
+  .credit-settings-save button { width: 100%; }
+}

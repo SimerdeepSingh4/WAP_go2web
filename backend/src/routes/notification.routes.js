@@ -39,8 +39,9 @@ router.get("/", route(async (req, res) => {
         const subject = item.subjectUserId;
         const identity = publicAccountIdentity(subject, req.user.role);
         if (identity === subject) return item;
-        const displayText = text => subject.username && subject.username !== "Super Admin"
-            ? text?.replaceAll(subject.username, "Super Admin")
+        const targetLabel = req.user.role === "User" && subject?.role === "Super Admin" ? "Admin" : (identity?.username || "Super Admin");
+        const displayText = text => subject?.username && subject.username !== targetLabel
+            ? text?.replaceAll(subject.username, targetLabel)
             : text;
         return { ...item, subjectUserId: identity, title: displayText(item.title), body: displayText(item.body) };
     });

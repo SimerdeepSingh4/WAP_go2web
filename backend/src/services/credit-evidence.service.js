@@ -3,18 +3,118 @@ import mongoose from "mongoose";
 import User from "../models/user.model.js";
 import Wallet from "../models/wallet.model.js";
 import Transaction from "../models/transaction.model.js";
+import Campaign from "../models/campaign.model.js";
+import CreditPurchase from "../models/credit-purchase.model.js";
+import NumberFilterRequest from "../models/number-filter-request.model.js";
 import { AuditEvent, AuditHead } from "../models/audit.model.js";
 import { CreditRecovery, CreditCaseEvent } from "../models/credit-reconciliation.model.js";
 import { canonical, validAuditHash } from "./audit.service.js";
 import { creditMinor } from "../helpers/credit-amount.js";
 import { recoveryReferenceKey } from "../helpers/credit-recovery-reference.js";
+import { categoryBalances, CAMPAIGN_CREDITS, CREDIT_BUCKETS, CREDIT_CATEGORIES, NUMBER_FILTERING_CREDITS, validCategoryBalance } from "../helpers/credit-categories.js";
+import { buildCategoryPostings } from "../helpers/category-ledger-postings.js";
 
+// Bump when reconciliation rules change so the monitor rechecks stored cases.
+export const CREDIT_EVIDENCE_VERSION = 2;
+export const staleCreditEvidence = { "summary.evidenceVersion": { $not: { $gte: CREDIT_EVIDENCE_VERSION } } };
 export const evidenceHash = value => createHash("sha256").update(JSON.stringify(canonical(value))).digest("hex");
 export const reconciliationError = (message, statusCode = 400) => Object.assign(new Error(message), { statusCode });
 const same = (a, b) => String(a) === String(b);
 const credits = value => value / 100;
 
+function categoryEvidence(wallet, userId) {
+    const balances = categoryBalances(wallet);
+    const lanes = Object.fromEntries(CREDIT_CATEGORIES.map(category => [category, {
+        quantities: { available: 0n, reserved: 0n }, transactionCount: 0, invalidCount: 0,
+    }]));
+    let unsupported = false;
+    return {
+        record(row) {
+            const lane = Object.hasOwn(lanes, row.category) ? lanes[row.category] : null;
+            if (!lane) { unsupported = true; return; }
+            lane.transactionCount++;
+            try {
+                const expected = buildCategoryPostings(row, { systemReclaim: row.type === "RECLAIM" && row.balanceAfterTo == null });
+                if (evidenceHash(expected) !== evidenceHash(row.postings || [])) throw new Error("Category ledger mismatch");
+                for (const posting of expected) {
+                    if (posting.userId && same(posting.userId, userId)) lane.quantities[posting.bucket] += BigInt(posting.deltaQuantity);
+                }
+            } catch {
+                lane.invalidCount++;
+            }
+        },
+        summary(concerns) {
+            if (unsupported) concerns.push("A ledger entry has an unsupported credit category.");
+            return Object.fromEntries(CREDIT_CATEGORIES.map(category => {
+                const { quantities, transactionCount, invalidCount } = lanes[category];
+                const walletBalance = balances[category];
+                const expectedBalance = Object.fromEntries(CREDIT_BUCKETS.map(bucket => {
+                    const value = quantities[bucket];
+                    return [bucket, value < 0n || value > BigInt(Number.MAX_SAFE_INTEGER) ? null : Number(value)];
+                }));
+                const invalidBalance = !validCategoryBalance(walletBalance) || !validCategoryBalance(expectedBalance);
+                const matches = !invalidCount && !invalidBalance && CREDIT_BUCKETS.every(bucket => walletBalance[bucket] === expectedBalance[bucket]);
+                if (!matches) concerns.push(`${category} credit quantities require reconciliation against their own ledger.`);
+                return [category, { walletBalance, expectedBalance, transactionCount, invalidCount, matches }];
+            }));
+        },
+    };
+}
+
+async function checkPurchaseHolds(user, userId, movements, categorized, session, updateDigest, concerns) {
+    if (user?.role !== "Reseller" && !movements.size) return;
+    const expectedHeld = Object.fromEntries(CREDIT_CATEGORIES.map(category => [category, 0]));
+    let mismatch = false;
+    const orders = CreditPurchase.find({ sellerId: userId })
+        .select("sellerId buyerId status category quantity reservationFree reviewReason fulfillmentTransactionId").sort({ _id: 1 }).session(session).lean();
+    for await (const order of orders.cursor()) {
+        const key = String(order._id);
+        const postings = movements.get(key) || [];
+        const needsHold = !order.reservationFree && user?.role === "Reseller" && order.reviewReason !== "LATE_PROOF"
+            && ["QUOTED", "PENDING", "REVIEW_REQUIRED", "FLAGGED"].includes(order.status);
+        const held = postings.reduce((sum, row) => sum + (row.type === "RESERVE" ? row.amount : -row.amount), 0);
+        if (needsHold && Object.hasOwn(expectedHeld, order.category)) expectedHeld[order.category] += order.quantity;
+        if (held !== (needsHold ? order.quantity : 0)
+            || new Set(postings.map(row => row.type)).size !== postings.length
+            || postings.some(row => row.category !== order.category || row.amount !== order.quantity
+                || (row.type === "ALLOCATE" ? !same(row.toUser, order.buyerId) || !same(row._id, order.fulfillmentTransactionId) : !same(row.toUser, userId)))) mismatch = true;
+        movements.delete(key);
+        updateDigest(order);
+    }
+    if (mismatch || movements.size || CREDIT_CATEGORIES.some(category => expectedHeld[category] !== categorized[category].walletBalance.reserved)) {
+        concerns.push("Recharge orders do not match the credits held for them.");
+    }
+}
+
+async function checkCampaignAdjustments(userId, movements, session, updateDigest, concerns) {
+    let mismatch = movements.has("null") || movements.has("undefined");
+    const campaigns = Campaign.find({ userId, $or: [{ category: CAMPAIGN_CREDITS }, { "campaignCreditCharge.transactionId": { $exists: true } }] })
+        .select("creditsDeducted campaignCreditCharge campaignSummary.creditsRefunded").sort({ _id: 1 }).session(session).lean();
+    function valid(rows, campaign) {
+        const original = rows.filter(row => row.type === "DEDUCT" && !row.originalTransactionId && !row.refundOperationId);
+        if (!rows.length) return campaign?.creditsDeducted === 0;
+        if (original.length !== 1) return false;
+        const [debit] = original;
+        const adjustments = rows.filter(row => row !== debit);
+        if (adjustments.some(row => !same(row.originalTransactionId, debit._id) || !["DEDUCT", "REFUND"].includes(row.type))) return false;
+        const refunded = adjustments.reduce((sum, row) => sum + (row.type === "REFUND" ? row.amount : -row.amount), 0);
+        if (refunded < 0 || refunded > debit.amount) return false;
+        if (!campaign) return true; // Deleting a published campaign preserves its ledger.
+        const charge = campaign.campaignCreditCharge;
+        return debit.amount === campaign.creditsDeducted && (!charge || (same(charge.transactionId, debit._id) && charge.submittedRowCount === debit.amount))
+            && (campaign.campaignSummary?.creditsRefunded || 0) === refunded;
+    }
+    for await (const campaign of campaigns.cursor()) {
+        const key = String(campaign._id);
+        if (!valid(movements.get(key) || [], campaign)) mismatch = true;
+        movements.delete(key);
+        updateDigest(campaign);
+    }
+    if (mismatch || [...movements.values()].some(rows => !valid(rows))) concerns.push("Campaign settlements do not match their original debits and recorded refunds.");
+}
+
 export function ledgerDelta(row, userId) {
+    if (row.category != null) throw reconciliationError("Categorized credit movements require category reconciliation.");
     const from = same(row.fromUser, userId), to = same(row.toUser, userId);
     const amount = creditMinor(row.amount);
     let typed = 0;
@@ -23,12 +123,17 @@ export function ledgerDelta(row, userId) {
     else if (row.type === "DEDUCT" && (from || (!row.fromUser && to))) typed = -amount;
     else if (row.type === "RECLAIM") typed = (to ? amount : 0) - (from ? amount : 0);
     else if (row.type !== "REQUEST") throw reconciliationError("An entry has an unsupported credit movement.");
-    const postings = row.postings || [];
-    const delta = postings.length ? postings.filter(entry => same(entry.userId, userId)).reduce((sum, entry) => sum + entry.deltaMinor, 0) : typed;
-    const valid = amount > 0 && Number.isSafeInteger(delta) && delta === typed && (row.amountMinor == null || row.amountMinor === amount)
-        && (!postings.length || postings.every(entry => Number.isSafeInteger(entry.deltaMinor)) && postings.reduce((sum, entry) => sum + entry.deltaMinor, 0) === 0);
+    const postings = row.postings ?? [];
+    const hasPostings = Array.isArray(postings) && postings.length > 0;
+    const validPostings = Array.isArray(postings) && postings.every(entry => Number.isSafeInteger(entry?.deltaMinor));
+    // Keep totals finite when historical postings are malformed. The invalid
+    // evidence still prevents a repair based on this calculation.
+    const postedDelta = hasPostings && validPostings ? postings.filter(entry => same(entry.userId, userId)).reduce((sum, entry) => sum + entry.deltaMinor, 0) : typed;
+    const delta = Number.isSafeInteger(postedDelta) ? postedDelta : typed;
+    const valid = validPostings && amount > 0 && Number.isSafeInteger(postedDelta) && postedDelta === typed && (row.amountMinor == null || row.amountMinor === amount)
+        && (!hasPostings || postings.reduce((sum, entry) => sum + entry.deltaMinor, 0) === 0);
     const after = row.type === "REQUEST" ? null : from && to ? row.balanceAfterTo ?? row.balanceAfterFrom : to ? row.balanceAfterTo : row.balanceAfterFrom;
-    return { delta, typed, valid, recordedAfterMinor: after == null ? null : creditMinor(after), legacy: !postings.length };
+    return { delta, typed, valid, recordedAfterMinor: after == null ? null : creditMinor(after), legacy: validPostings && !hasPostings };
 }
 
 // All evidence, both independent calculations and the wallet are read from one
@@ -55,7 +160,7 @@ export async function inspectCreditAccount(userId, session, options = {}) {
     // Wallet recovery takes effect when it is confirmed. Preserve the original
     // date as source evidence without changing earlier saved wallet snapshots.
     recoveries.sort((a, b) => new Date(recoveryTime(a)) - new Date(recoveryTime(b)) || String(a._id).localeCompare(String(b._id)));
-    updateDigest({ userId, wallet, recoveries });
+    updateDigest({ evidenceVersion: CREDIT_EVIDENCE_VERSION, userId, wallet, recoveries });
 
     let auditCount = 0, auditValid = true, auditHash = "GENESIS", auditSequence = 0, zeroOpening = false;
     if (wallet) {
@@ -86,9 +191,16 @@ export async function inspectCreditAccount(userId, session, options = {}) {
     const page = Math.max(1, Math.floor(Number(options.page) || 1)), limit = Math.min(100, Math.max(1, Math.floor(Number(options.limit) || 50)));
     const search = String(options.search || "").trim().toLowerCase().slice(0, 120);
     const type = String(options.type || "");
+    const category = String(options.category || "");
     const entries = [];
+    const categorized = categoryEvidence(wallet, userId);
+    const filteringCharges = new Map();
+    const campaignMovements = new Map();
+    const purchaseMovements = new Map();
+    let filteringMismatch = false;
     function include(entry) {
         if (type && entry.type !== type) return;
+        if (category && (entry.category || "LEGACY") !== category) return;
         if (search && !`${entry.reference} ${entry.sourceReference || ""} ${entry.notes || ""} ${entry.campaignId || ""} ${entry.performedBy || ""}`.toLowerCase().includes(search)) return;
         if (matchedCount >= (page - 1) * limit && entries.length < limit) entries.push(entry);
         matchedCount++;
@@ -104,6 +216,39 @@ export async function inspectCreditAccount(userId, session, options = {}) {
     const filter = { $or: [{ fromUser: userId }, { toUser: userId }, { "postings.userId": userId }] };
     for await (const row of Transaction.find(filter).sort({ createdAt: 1, _id: 1 }).session(session).lean().cursor()) {
         updateDigest(row);
+        if (row.category != null) {
+            categorized.record(row);
+            if (row.category === NUMBER_FILTERING_CREDITS && row.type === "DEDUCT" && same(row.toUser, userId)) {
+                const key = String(row.filterRequestId);
+                if (filteringCharges.has(key)) filteringMismatch = true;
+                filteringCharges.set(key, row);
+            }
+            if (row.campaignId && same(row.toUser, userId)) {
+                const key = String(row.campaignId);
+                const movements = campaignMovements.get(key) || [];
+                movements.push(row);
+                campaignMovements.set(key, movements);
+            }
+            if (row.purchaseId && same(row.fromUser, userId) && (["RESERVE", "RELEASE"].includes(row.type) || row.fromReserved)) {
+                const key = String(row.purchaseId);
+                const movements = purchaseMovements.get(key) || [];
+                movements.push(row);
+                purchaseMovements.set(key, movements);
+            }
+            const buckets = (row.postings || []).filter(posting => posting.userId && same(posting.userId, userId))
+                .map(posting => ({
+                    bucket: posting.bucket, delta: posting.deltaQuantity,
+                    before: posting.balanceBeforeQuantity, after: posting.balanceAfterQuantity,
+                }));
+            include({
+                id: String(row._id), reference: 'TXN-' + String(row._id).toUpperCase(), type: row.type, category: row.category,
+                delta: buckets.reduce((sum, posting) => sum + posting.delta, 0), buckets, createdAt: row.createdAt,
+                performedBy: row.performedBy, campaignId: row.campaignId,
+                purchaseId: row.purchaseId, filterRequestId: row.filterRequestId, originalTransactionId: row.originalTransactionId,
+                sourceReference: row.purchaseId || row.filterRequestId || row.campaignId,
+            });
+            continue;
+        }
         while (recoveryIndex < recoveries.length && recoveryTime(recoveries[recoveryIndex]) <= row.createdAt) applyRecovery(recoveries[recoveryIndex++]);
         let movement;
         try { movement = ledgerDelta(row, userId); }
@@ -135,6 +280,18 @@ export async function inspectCreditAccount(userId, session, options = {}) {
     while (recoveryIndex < recoveries.length) applyRecovery(recoveries[recoveryIndex++]);
     if (invalidCount || running !== typedRunning) concerns.push("Transaction amounts and ledger postings disagree. Resolve this evidence conflict before a correction.");
     if (!Number.isSafeInteger(running) || !Number.isSafeInteger(typedRunning) || openingMinor < 0) concerns.push("The recorded credit totals or opening balance are invalid.");
+    for await (const request of NumberFilterRequest.find({ userId }).select("submittedRowCount chargeTransactionId creditResetAt").sort({ _id: 1 }).session(session).lean().cursor()) {
+        const key = String(request._id);
+        updateDigest(request);
+        if (request.creditResetAt && !request.chargeTransactionId) continue;
+        const charge = filteringCharges.get(key);
+        if (!charge || charge.amount !== request.submittedRowCount || !same(charge._id, request.chargeTransactionId)) filteringMismatch = true;
+        filteringCharges.delete(key);
+    }
+    if (filteringMismatch || filteringCharges.size) concerns.push("Number filtering requests do not match their recorded charges.");
+    const categories = categorized.summary(concerns);
+    await checkPurchaseHolds(user, userId, purchaseMovements, categories, session, updateDigest, concerns);
+    await checkCampaignAdjustments(userId, campaignMovements, session, updateDigest, concerns);
     const differenceMinor = walletMinor - running;
     // Legacy test accounts follow the same zero-opening policy as new accounts.
     // Missing old creation records alone never creates a warning or blocks repair.
@@ -142,6 +299,7 @@ export async function inspectCreditAccount(userId, session, options = {}) {
     const needsReview = Boolean(differenceMinor || minorMismatch || evidenceConflict);
     const classification = !needsReview ? "matched" : concerns.length ? "cannot_confirm" : "confirmed";
     const summary = {
+        evidenceVersion: CREDIT_EVIDENCE_VERSION,
         account: { id: String(userId), username: user?.username || "Missing account", role: user?.role || "Unknown" },
         walletId: wallet ? String(wallet._id) : null, walletBalance: credits(walletMinor), walletMinor,
         expectedBalance: credits(running), expectedMinor: running, difference: credits(differenceMinor), differenceMinor,
@@ -149,7 +307,7 @@ export async function inspectCreditAccount(userId, session, options = {}) {
         totals: Object.fromEntries(Object.entries(totals).map(([key, value]) => [key, key === "requestCount" ? value : credits(value)])),
         transactionCount: count, recoveryCount: recoveries.length, legacyCount, invalidCount,
         independentBalance: credits(typedRunning), calculationsAgree: invalidCount === 0 && typedRunning === running,
-        minorMismatch, evidenceConflict, needsReview, classification, concerns, firstBreak, firstEntry, lastEntry,
+        minorMismatch, evidenceConflict, needsReview, classification, concerns, firstBreak, firstEntry, lastEntry, categories,
         audit: { count: auditCount, verified: auditCount ? auditValid : null }, checkedAt: new Date(),
     };
     updateDigest({ openingMinor, openingVerified, auditValid });

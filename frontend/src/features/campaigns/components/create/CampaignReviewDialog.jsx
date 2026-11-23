@@ -19,6 +19,7 @@ export default function CampaignReviewDialog({
   estimate,
   estimatedCost,
   isAdmin,
+  availableCredits,
   remainingBalance,
   scheduleType,
   scheduledTime,
@@ -45,15 +46,16 @@ export default function CampaignReviewDialog({
         <div className="campaign-review-body">
           <div className="campaign-review-name"><span>Campaign</span><h3>{campaignTitle}</h3></div>
 
-          <section className="campaign-review-summary" aria-label="Recipients and estimated cost">
+          <section className="campaign-review-summary" aria-label="Recipients and Campaign Credits">
             <dl className="campaign-review-totals">
-              <div><dt>Numbers entered</dt><dd>{number(totalRecipients)}
-                {duplicatesCount > 0 && <p>{number(duplicatesCount)} repeated {duplicatesCount === 1 ? "entry" : "entries"} included</p>}</dd>
+              <div><dt>Submitted rows</dt><dd>{number(totalRecipients)}
+                {duplicatesCount > 0 && <p>{number(duplicatesCount)} {duplicatesCount === 1 ? "duplicate" : "duplicates"} included</p>}</dd>
               </div>
-              <div><dt>Estimated cost</dt><dd>{number(estimatedCost)} <span>credits</span>
-                <p>{number(estimate.rate)} {estimate.rate === 1 ? "credit" : "credits"} per number</p></dd>
+              <div><dt>Required Campaign Credits</dt><dd>{number(estimatedCost)} <span>credits</span>
+                <p>1 credit per submitted row</p></dd>
               </div>
             </dl>
+            <div className="campaign-review-balance"><span>Available credits</span><strong>{isAdmin ? "Unlimited" : `${number(availableCredits ?? estimate?.available)} credits`}</strong></div>
             <div className="campaign-review-balance"><span>Balance after submission</span><strong>{isAdmin ? "Unlimited" : `${number(remainingBalance)} credits`}</strong></div>
           </section>
 
@@ -66,6 +68,13 @@ export default function CampaignReviewDialog({
           </dl>
 
           <p className="campaign-review-note">Credits are deducted when you submit. Your campaign needs admin approval before delivery.</p>
+
+          {!isAdmin && (
+            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-amber-900 dark:text-amber-200 text-xs font-medium mt-3">
+              <Clock3 className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+              <span>It will take 30-45 minutes to complete and report will be generated and visible to you after that.</span>
+            </div>
+          )}
         </div>
 
         <div className="campaign-review-actions">

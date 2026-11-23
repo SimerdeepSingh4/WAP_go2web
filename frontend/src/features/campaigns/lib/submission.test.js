@@ -3,25 +3,24 @@ import assert from "node:assert/strict";
 import { campaignEstimate, parseRecipients, splitRecipientInput, recipientEditError } from "./submission.js";
 import { recipientMarkTokens, recipientNumberFlags } from "./recipientInputAudit.js";
 
-test("review charges the actual account rate and detects insufficient funds", () => {
-  assert.deepEqual(campaignEstimate({ role: "User", ratePerMsg: 2.5, balance: 10, recipients: 5 }), { rate: 2.5, cost: 12.5, remaining: -2.5, insufficient: true });
-  assert.equal(campaignEstimate({ role: "Reseller", ratePerMsg: 4, balance: 12, recipients: 3 }).insufficient, false);
+test("review charges one Campaign Credit per row and checks the category balance", () => {
+  assert.deepEqual(campaignEstimate({ role: "User", ratePerMsg: 2.5, balance: 100, availableCredits: 4, recipients: 5 }), { rate: 1, cost: 5, remaining: -1, insufficient: true, available: 4 });
+  assert.equal(campaignEstimate({ role: "Reseller", availableCredits: 3, recipients: 3 }).insufficient, false);
 });
-test("admin submission is free and missing rates follow the existing server fallback", () => {
-  assert.deepEqual(campaignEstimate({ role: "Super Admin", balance: 0, recipients: 100 }), { rate: 0, cost: 0, remaining: null, insufficient: false });
-  assert.equal(campaignEstimate({ role: "User", ratePerMsg: 0, balance: 50, recipients: 2 }).cost, 24);
+test("Super Admin submission is exempt and buyers need no legacy rate", () => {
+  assert.deepEqual(campaignEstimate({ role: "Super Admin", availableCredits: 0, recipients: 100 }), { rate: 1, cost: 0, remaining: null, insufficient: false, available: 0 });
+  assert.equal(campaignEstimate({ role: "User", availableCredits: 50, recipients: 2 }).cost, 2);
 });
-test("review reports invalid line numbers without repairing or discarding invalid input", () => {
-  const raw = '919876543210\n\n91987654321\n9198765432100\n987654321\n+919876543210\n919876543210';
+test("review accepts 10 to 12 digits and reports invalid line numbers", () => {
+  const raw = '919876543210\n\n91987654321\n9198765432\n9198765432100\n987654321\n+919876543210\n919876543210';
   const result = parseRecipients(raw);
-  assert.deepEqual(result.validRecipients, ['919876543210']);
+  assert.deepEqual(result.validRecipients, ['919876543210', '91987654321', '9198765432']);
   assert.equal(result.duplicatesCount, 1);
-  assert.equal(result.invalidCount, 4);
-  assert.equal(result.enteredCount, 6);
-  assert.deepEqual(result.invalidEntries.map(entry => entry.lineNumber), [3, 4, 5, 6]);
-  assert.match(result.invalidEntries[0].message, /11 digits/);
-  assert.match(result.invalidEntries[1].message, /13 digits/);
-  assert.match(result.invalidEntries[2].message, /9 digits/);
+  assert.equal(result.invalidCount, 3);
+  assert.equal(result.enteredCount, 7);
+  assert.deepEqual(result.invalidEntries.map(entry => entry.lineNumber), [5, 6, 7]);
+  assert.match(result.invalidEntries[0].message, /13 digits/);
+  assert.match(result.invalidEntries[1].message, /9 digits/);
   assert.deepEqual(splitRecipientInput(raw), raw.split('\n').filter(Boolean));
   assert.deepEqual(parseRecipients(''), { validRecipients: [], duplicatesCount: 0, invalidCount: 0, invalidEntries: [], enteredCount: 0 });
 });

@@ -3,7 +3,7 @@ import { ArrowUpRight } from "lucide-react";
 import AnimatedMetricValue from "./AnimatedMetricValue";
 import "./overview-metrics.css";
 
-export function OverviewMetricCard({ label, value, caption, icon: Icon, path, accent = false, tone, loading, valueSize, signDisplay, valueSuffix, className = "" }) {
+export function OverviewMetricCard({ label, value, caption, icon: Icon, path, accent = false, tone, loading, valueSize, signDisplay, valueSuffix, className = "", metrics }) {
   // Navigation gets an arrow; informational cards retain their metric icon.
   const Indicator = path ? ArrowUpRight : Icon;
   const content = <>
@@ -11,10 +11,34 @@ export function OverviewMetricCard({ label, value, caption, icon: Icon, path, ac
       <span>{label}</span>
       {Indicator && <span className="overview-metric-icon"><Indicator aria-hidden="true" /></span>}
     </div>
-    <p className="overview-metric-value" data-size={valueSize} aria-busy={loading || undefined}>
-      {loading ? <span role="status" className="overview-metric-skeleton"><span className="sr-only">Loading {label}</span></span> : value == null || (typeof value === "number" && !Number.isFinite(value)) ? "—" : typeof value === "number" ? <AnimatedMetricValue value={value} signDisplay={signDisplay} /> : value}
-      {!loading && value != null && valueSuffix && <span className="overview-metric-value-suffix"> {valueSuffix}</span>}
-    </p>
+    {metrics && Array.isArray(metrics) ? (
+      <div className="overview-metric-split">
+        {metrics.map((m, idx) => (
+          <div key={idx} className="overview-metric-sub">
+            <span className="overview-metric-sub-label">{m.label}</span>
+            <div className="overview-metric-sub-value" aria-busy={m.loading || loading || undefined}>
+              {loading || m.loading ? (
+                <span role="status" className="overview-metric-skeleton"><span className="sr-only">Loading {m.label}</span></span>
+              ) : m.value == null || (typeof m.value === "number" && !Number.isFinite(m.value)) ? (
+                "—"
+              ) : typeof m.value === "number" ? (
+                <AnimatedMetricValue value={m.value} signDisplay={m.signDisplay} />
+              ) : (
+                m.value
+              )}
+              {!loading && !m.loading && m.value != null && m.valueSuffix && (
+                <span className="overview-metric-value-suffix"> {m.valueSuffix}</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <p className="overview-metric-value" data-size={valueSize} aria-busy={loading || undefined}>
+        {loading ? <span role="status" className="overview-metric-skeleton"><span className="sr-only">Loading {label}</span></span> : value == null || (typeof value === "number" && !Number.isFinite(value)) ? "—" : typeof value === "number" ? <AnimatedMetricValue value={value} signDisplay={signDisplay} /> : value}
+        {!loading && value != null && valueSuffix && <span className="overview-metric-value-suffix"> {valueSuffix}</span>}
+      </p>
+    )}
     {caption && <div className="overview-metric-footer">{caption}</div>}
   </>;
 

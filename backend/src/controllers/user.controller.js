@@ -10,8 +10,9 @@ import sharp from "sharp";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import cloudinary, { isCloudinaryConfigured } from "../config/cloudinary.config.js";
-import { syncResellerReassignment } from "../helpers/support-reassignment.helper.js";
 import { getDefaultRatePerMsg, calculateDefaultAccountExpiry } from "../services/platform-settings.service.js";
+import { categoryBalances, validCategoryBalance } from "../helpers/credit-categories.js";
+import { runCreditTransaction } from "../helpers/credit-operation.js";
 
 /**
  * Get all users accessible by current user:
@@ -48,10 +49,12 @@ export async function getUsers(req, res) {
                 wallet: w
                     ? {
                           balance: w.balance ?? 0,
+                          creditBalances: categoryBalances(w),
                           isLocked: Boolean(w.isLocked),
                       }
                     : {
                           balance: 0,
+                          creditBalances: categoryBalances(),
                           isLocked: false,
                       },
                 isExpired: user.status === "expired" || Boolean(user.expiresAt && user.expiresAt <= now),
@@ -349,6 +352,10 @@ export async function createUser(req, res) {
         } else if (req.user.role === "Super Admin") {
             assignedReseller = req.body.resellerId || null;
             assignedRole = role || "User";
+            if (assignedReseller && (assignedRole !== "User" || !mongoose.isValidObjectId(assignedReseller)
+                || !await userModel.exists({ _id: assignedReseller, role: "Reseller" }))) {
+                return res.status(400).json({ message: "Choose a valid reseller for this user.", success: false });
+            }
         }
 
         const platformRate = await getDefaultRatePerMsg();
@@ -401,6 +408,12 @@ export async function createUser(req, res) {
             maxVideoSizeMB: customMaxVideoSizeMB,
             dailyCampaignLimit: customDailyCampaignLimit,
             mediaUploadLimits: req.user.role === "Super Admin" && req.body.maxVideoSizeMB != null && req.body.maxVideoSizeMB !== "" ? { videoMB: customMaxVideoSizeMB } : undefined,
+            featureAccess: req.user.role === "Super Admin" && req.body.featureAccess ? {
+                campaignDp: req.body.featureAccess.campaignDp === true,
+                campaignNumber: req.body.featureAccess.campaignNumber === true,
+                campaignLink: req.body.featureAccess.campaignLink === true,
+                reclaimCredit: req.body.featureAccess.reclaimCredit === true,
+            } : undefined,
             expiresAt: accountExpiry,
             createdBy: req.user._id,
         });
@@ -512,15 +525,16 @@ export async function updateUserAccess(req, res) {
             }
 
             const featureAccess = req.body.featureAccess;
-            const allowedFeatures = ["campaignDp", "campaignNumber", "campaignLink"];
+            const allowedFeatures = ["campaignDp", "campaignNumber", "campaignLink", "reclaimCredit"];
             if (!featureAccess || typeof featureAccess !== "object" || Array.isArray(featureAccess) || Object.keys(featureAccess).some((key) => !allowedFeatures.includes(key)) || Object.values(featureAccess).some((enabled) => typeof enabled !== "boolean")) {
-                return res.status(400).json({ message: "Feature access must contain boolean DP, phone, or campaign link settings.", success: false });
+                return res.status(400).json({ message: "Feature access must contain boolean DP, phone, campaign link, or reclaim credit settings.", success: false });
             }
 
             updates.featureAccess = {
                 campaignDp: targetUser.featureAccess?.campaignDp === true,
                 campaignNumber: targetUser.featureAccess?.campaignNumber === true,
                 campaignLink: targetUser.featureAccess?.campaignLink === true,
+                reclaimCredit: targetUser.featureAccess?.reclaimCredit === true,
                 ...featureAccess,
             };
 
@@ -559,6 +573,7 @@ export async function updateUserAccess(req, res) {
         }
 
         Object.assign(targetUser, updates);
+        targetUser.$locals.actor = { _id: req.user._id, role: req.user.role, username: req.user.username };
         await targetUser.save();
         await notifyUser(targetUser._id, "ACCOUNT_ACCESS_CHANGED", {});
 
@@ -631,6 +646,7 @@ export async function updateWhiteLabelAccess(req, res) {
             }
         }
 
+        targetUser.$locals.actor = { _id: req.user._id, role: req.user.role, username: req.user.username };
         await targetUser.save();
 
         notifyUser(targetUser._id, "WHITE_LABEL_ACCESS_UPDATED", {
@@ -744,6 +760,7 @@ export async function updateManagedUserProfile(req, res) {
         }
 
         Object.assign(targetUser, updates);
+        targetUser.$locals.actor = { _id: req.user._id, role: req.user.role, username: req.user.username };
         await targetUser.save();
 
         await notifyUser(targetUser._id, "ACCOUNT_ACCESS_CHANGED", {});
@@ -814,33 +831,13 @@ export async function updateUserRole(req, res) {
             });
         }
 
+        if (targetUser.resellerId || targetUser.role === "Reseller" && await userModel.exists({ resellerId: targetUser._id })) {
+            return res.status(409).json({ success: false, message: "This role change would alter account ownership." });
+        }
+
         const previousRole = targetUser.role;
         targetUser.role = newRole;
-
-        // If converting Reseller -> User:
-        // Client users previously under this reseller are unlinked (resellerId: null - direct admin accounts)
-        if (previousRole === "Reseller" && newRole === "User") {
-            await userModel.updateMany(
-                { resellerId: targetUser._id },
-                { $set: { resellerId: null } }
-            );
-            await walletModel.updateMany(
-                { resellerId: targetUser._id },
-                { $set: { resellerId: null } }
-            );
-            targetUser.resellerId = null;
-        }
-
-        // If converting User -> Reseller:
-        // A reseller is directly under Super Admin, not under another reseller
-        if (newRole === "Reseller") {
-            targetUser.resellerId = null;
-            await walletModel.updateOne(
-                { userId: targetUser._id },
-                { $set: { resellerId: null } }
-            );
-        }
-
+        targetUser.$locals.actor = { _id: req.user._id, role: req.user.role, username: req.user.username };
         await targetUser.save();
 
         // Evict active sessions so the target user is forced to re-login into the proper dashboard
@@ -876,46 +873,33 @@ export async function updateUserRole(req, res) {
 export async function deleteUser(req, res) {
     try {
         const { id } = req.params;
-        const targetUser = await userModel.findById(id);
+        const result = await runCreditTransaction(async session => {
+            const targetUser = await userModel.findById(id).session(session);
+            if (!targetUser) return { status: 404, message: "Account not found" };
+            const ownsUser = req.user.role === "Reseller" && targetUser.role === "User" && String(targetUser.resellerId) === String(req.user._id);
+            if (req.user.role !== "Super Admin" && !ownsUser) {
+                return { status: 403, message: "You can only remove user accounts assigned to your reseller account." };
+            }
+            if (targetUser.role === "Super Admin") return { status: 403, message: "Super Admin accounts cannot be deleted." };
 
-        if (!targetUser) {
-            return res.status(404).json({ message: "Account not found", success: false });
-        }
+            const wallet = await walletModel.findOne({ userId: id }).session(session).lean();
+            if (Object.values(categoryBalances(wallet)).some(balance => !validCategoryBalance(balance) || balance.available || balance.reserved)) {
+                return { status: 409, message: "Resolve the remaining campaign and number filtering credits before removing this account." };
+            }
+            if (targetUser.role === "Reseller" && await userModel.exists({ resellerId: targetUser._id }).session(session)) {
+                return { status: 409, message: "A reseller with assigned accounts cannot be deleted." };
+            }
+            await sessionModel.deleteMany({ userId: targetUser._id }, { session });
+            await walletModel.deleteOne({ userId: targetUser._id }, { session });
+            await targetUser.deleteOne({ session });
+            return { status: 200, role: targetUser.role };
+        }, { walletIds: [id] });
+        if (result.status !== 200) return res.status(result.status).json({ message: result.message, success: false });
 
-        const isSuperAdmin = req.user.role === "Super Admin";
-        const ownsUser = req.user.role === "Reseller" &&
-            targetUser.role === "User" &&
-            String(targetUser.resellerId) === String(req.user._id);
-        if (!isSuperAdmin && !ownsUser) {
-            return res.status(403).json({
-                message: "You can only remove user accounts assigned to your reseller account.",
-                success: false,
-            });
-        }
-
-        if (targetUser.role === "Super Admin") {
-            return res.status(403).json({ message: "Super Admin accounts cannot be deleted.", success: false });
-        }
-
-        if (targetUser.role === "Reseller") {
-            await userModel.updateMany(
-                { resellerId: targetUser._id },
-                { $set: { resellerId: null } }
-            );
-            await walletModel.updateMany(
-                { resellerId: targetUser._id },
-                { $set: { resellerId: null } }
-            );
-        }
-
-        await sessionModel.deleteMany({ userId: targetUser._id });
-        notifyUser(targetUser._id, "SESSION_EXPIRED", { reason: "Your account has been deleted." });
-        await walletModel.deleteOne({ userId: targetUser._id });
-        await targetUser.deleteOne();
-
+        notifyUser(id, "SESSION_EXPIRED", { reason: "Your account has been deleted." });
         return res.status(200).json({
             success: true,
-            message: `${targetUser.role} account was permanently deleted. Campaign and credit history was retained.`,
+            message: `${result.role} account was permanently deleted. Campaign and credit history was retained.`,
         });
     } catch (error) {
         console.error("DeleteUser error:", error);
@@ -1143,7 +1127,7 @@ export async function exitPreviewMode(req, res) {
 export async function updateUser(req, res) {
     try {
         const { id } = req.params;
-        const { username, email, password, ratePerMsg, expiresAt, status, resellerId } = req.body;
+        const { username, email, password, ratePerMsg, expiresAt, status, resellerId, createdBy } = req.body;
 
         const targetUser = await userModel.findById(id);
         if (!targetUser) {
@@ -1157,6 +1141,11 @@ export async function updateUser(req, res) {
 
         if (!isSuperAdmin && !ownsUser) {
             return res.status(403).json({ message: "You can only edit your own assigned users.", success: false });
+        }
+
+        if ((Object.hasOwn(req.body, "resellerId") && String(resellerId || "") !== String(targetUser.resellerId || ""))
+            || (Object.hasOwn(req.body, "createdBy") && String(createdBy || "") !== String(targetUser.createdBy || ""))) {
+            return res.status(409).json({ message: "Account ownership is fixed at creation.", success: false });
         }
 
         if (targetUser.role === "Super Admin" && !isSuperAdmin) {
@@ -1204,7 +1193,7 @@ export async function updateUser(req, res) {
         if (ratePerMsg !== undefined && ratePerMsg !== null && ratePerMsg !== "") {
             const parsedRate = Number(ratePerMsg);
             if (isNaN(parsedRate) || parsedRate < 0) {
-                return res.status(400).json({ message: "Rate per recipient must be a non-negative number", success: false });
+                return res.status(400).json({ message: "Rate per campaign credit must be a non-negative number", success: false });
             }
             targetUser.ratePerMsg = parsedRate;
         }
@@ -1252,25 +1241,6 @@ export async function updateUser(req, res) {
             }
         }
 
-        // 7. Update resellerId (Super Admin only for User role)
-        let didChangeReseller = false;
-        let oldResellerId = targetUser.resellerId;
-        let newResellerId = oldResellerId;
-        if (isSuperAdmin && targetUser.role === "User" && Object.hasOwn(req.body, "resellerId")) {
-            newResellerId = req.body.resellerId || null;
-            if (newResellerId) {
-                const reseller = await userModel.findOne({ _id: newResellerId, role: "Reseller" });
-                if (!reseller) {
-                    return res.status(400).json({ message: "Selected reseller not found", success: false });
-                }
-            }
-            if (String(oldResellerId || "") !== String(newResellerId || "")) {
-                didChangeReseller = true;
-            }
-            targetUser.resellerId = newResellerId;
-            await walletModel.updateOne({ userId: targetUser._id }, { $set: { resellerId: newResellerId } });
-        }
-
         // 8. Update maxVideoSizeMB (Super Admin only)
         // Handle per‑user video upload limit
         if (Object.hasOwn(req.body, "maxVideoSizeMB")) {
@@ -1312,6 +1282,7 @@ export async function updateUser(req, res) {
                     campaignDp: targetUser.featureAccess?.campaignDp === true,
                     campaignNumber: targetUser.featureAccess?.campaignNumber === true,
                     campaignLink: targetUser.featureAccess?.campaignLink === true,
+                    reclaimCredit: targetUser.featureAccess?.reclaimCredit === true,
                     ...featureAccess,
                 };
                 if (targetUser.featureAccess.campaignDp === false && targetUser.dp_img) {
@@ -1322,11 +1293,8 @@ export async function updateUser(req, res) {
             }
         }
 
+        targetUser.$locals.actor = { _id: req.user._id, role: req.user.role, username: req.user.username };
         await targetUser.save();
-
-        if (didChangeReseller) {
-            await syncResellerReassignment(targetUser._id, oldResellerId, newResellerId, req.user._id);
-        }
 
         await notifyUser(targetUser._id, "ACCOUNT_ACCESS_CHANGED", {});
 

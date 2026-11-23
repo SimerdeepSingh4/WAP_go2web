@@ -1,11 +1,18 @@
 import { campaignRecipientError, campaignRecipientLines } from "../../../../../shared/campaignRecipients.js";
 
-// Keep estimates aligned with createCampaign in the existing server controller.
-export function campaignEstimate({ role, ratePerMsg, balance, recipients }) {
+// Replace rate-multiplied usage calculation with submitted row count (1 Campaign Credit per submitted row).
+export function campaignEstimate({ role, ratePerMsg, balance, recipients, availableCredits }) {
   const unlimited = role === "Super Admin";
-  const rate = unlimited ? 0 : Number(ratePerMsg) > 0 ? Number(ratePerMsg) : 12;
-  const cost = recipients * rate;
-  return { rate, cost, remaining: unlimited ? null : Number(balance) - cost, insufficient: !unlimited && cost > Number(balance) };
+  const rate = 1;
+  const cost = unlimited ? 0 : Number(recipients) || 0;
+  const effectiveBalance = availableCredits != null ? Number(availableCredits) : Number(balance) || 0;
+  return {
+    rate,
+    cost,
+    remaining: unlimited ? null : effectiveBalance - cost,
+    insufficient: !unlimited && cost > effectiveBalance,
+    available: effectiveBalance,
+  };
 }
 
 export function splitRecipientInput(raw) {

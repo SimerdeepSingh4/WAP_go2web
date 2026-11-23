@@ -1,55 +1,10 @@
 import { useState, useRef } from "react";
-import { Upload, Image as ImageIcon, Video as VideoIcon, FileText, Trash2, RefreshCw } from "lucide-react";
+import { Upload, Image as ImageIcon, Trash2, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SectionCard } from "./CampaignDetailsSection";
 import { resolveUserImageUrl } from "@/features/accounts/lib/profileImage";
-import { DEFAULT_MEDIA_UPLOAD_LIMITS } from "../../../../../../shared/mediaUploadLimits.js";
-
-export const MB = 1024 * 1024;
-
-export const MEDIA_KINDS = {
-  image: {
-    label: "Image",
-    hint: "PNG, JPG, WebP",
-    accept: "image/png,image/jpeg,image/webp",
-    types: ["image/png", "image/jpeg", "image/webp"],
-    max: DEFAULT_MEDIA_UPLOAD_LIMITS.imageMB * MB,
-    icon: ImageIcon,
-    tone: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  },
-  video: {
-    label: "Video",
-    hint: "MP4, MOV, WebM",
-    accept: "video/mp4,video/quicktime,video/webm",
-    types: ["video/mp4", "video/quicktime", "video/webm"],
-    max: DEFAULT_MEDIA_UPLOAD_LIMITS.videoMB * MB,
-    icon: VideoIcon,
-    tone: "bg-sky-500/10 text-sky-600 dark:text-sky-400",
-  },
-  pdf: {
-    label: "PDF document",
-    hint: "PDF only",
-    accept: "application/pdf,.pdf",
-    types: ["application/pdf"],
-    max: DEFAULT_MEDIA_UPLOAD_LIMITS.pdfMB * MB,
-    icon: FileText,
-    tone: "bg-red-500/10 text-red-600 dark:text-red-400",
-  },
-};
-
-export function formatFileSize(bytes) {
-  if (!bytes) return "0 B";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < MB) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / MB).toFixed(1)} MB`;
-}
-
-export function mediaKindsForLimits(limits) {
-  return Object.fromEntries(Object.entries(MEDIA_KINDS).map(([kind, config]) => [kind, {
-    ...config, max: limits[{ image: "imageMB", video: "videoMB", pdf: "pdfMB" }[kind]] * MB,
-  }]));
-}
+import { MEDIA_KINDS, MB, formatFileSize } from "../../lib/mediaKinds";
 
 export default function CampaignMediaUploader({
   media, onSelectMedia, onRemoveMedia, canShareProfileDp, shareProfileDp,
@@ -85,8 +40,8 @@ export default function CampaignMediaUploader({
   return <SectionCard
     dataTour="create-media"
     icon={Upload}
-    title="Campaign media"
-    description="Optional. Add one image, video, or PDF to this campaign."
+    title="Attachment"
+    description="Choose one image, video, or PDF."
     aside={<Badge variant="outline" className="text-xs tabular-nums" data-media-count={count}>{count} / 1 attached</Badge>}
   >
     <input
@@ -130,9 +85,9 @@ export default function CampaignMediaUploader({
           </div>
         </div>
       ) : (
-        <div className="flex flex-col items-center gap-3 py-3 text-center">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="grid size-11 place-items-center rounded-full border bg-card text-primary-text"><Upload className="size-5" aria-hidden="true" /></span>
-          <div><p className="text-sm font-medium">Drop your media here</p><p className="mt-1 text-xs text-muted-foreground">One attachment per campaign. Text-only campaigns are welcome too.</p></div>
+          <p className="min-w-32 flex-1 text-sm font-medium">Drop a file here</p>
           <Button type="button" variant="outline" size="sm" onClick={() => inputRef.current?.click()}>Choose media</Button>
         </div>
       )}

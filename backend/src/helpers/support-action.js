@@ -7,7 +7,7 @@ import { emitSupportEvent, notifyUser, notifyRole } from "../services/socket.ser
 // Action receipts share the transaction with the actual account/credit change.
 // A rolled-back action must never leave a success message in the conversation.
 export async function recordSupportAction(req, session, accountId, text, operationId) {
-    const id = req.body.supportConversationId;
+    const id = req?.body?.supportConversationId;
     if (!id) return;
     if (!mongoose.isObjectIdOrHexString(id)) throw Object.assign(new Error("Invalid support conversation."), { statusCode: 400 });
     const conversation = await Conversation.findById(id).session(session);

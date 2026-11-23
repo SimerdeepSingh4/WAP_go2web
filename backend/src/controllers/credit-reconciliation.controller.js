@@ -5,10 +5,11 @@ import Campaign from "../models/campaign.model.js";
 import Transaction from "../models/transaction.model.js";
 import { AuditEvent } from "../models/audit.model.js";
 import { CreditCase, CreditCaseEvent, CreditAuditJob, CreditAuditState, CreditBalanceResult, CreditRepairPlan, CreditRepair } from "../models/credit-reconciliation.model.js";
-import { inspectCreditAccount, reconciliationError } from "../services/credit-evidence.service.js";
+import { CREDIT_EVIDENCE_VERSION, inspectCreditAccount, reconciliationError, staleCreditEvidence } from "../services/credit-evidence.service.js";
 import { checkCreditAccount, prepareCreditRepair, executeCreditRepair, requireReconciliationAdmin } from "../services/credit-reconciliation.service.js";
 import { requestCreditFullScan } from "../workers/credit-reconciliation.worker.js";
 import { creditTransactionOptions } from "../helpers/credit-amount.js";
+import { pendingCreditCheck } from "../helpers/credit-audit-job.js";
 import { appendAudit } from "../services/audit.service.js";
 
 export function reconciliationAdminOnly(req, res, next) {
@@ -22,21 +23,23 @@ const handle = fn => async (req, res) => {
         return res.status(error.statusCode || 500).json({ success: false, message: error.statusCode ? error.message : "The credit check could not complete. Refresh the evidence before trying again." });
     }
 };
-// Also excludes old matching flags immediately, before the next worker recheck
-// records their resolved status and permanent clearance event.
-const reviewFilter = { state: "open", $or: [{ "summary.difference": { $ne: 0 } }, { "summary.minorMismatch": true }, { "summary.evidenceConflict": true }, { "summary.calculationsAgree": false }, { "summary.audit.verified": false }, { "summary.walletId": null }] };
+const refundDelta = row => row.type === "REFUND" ? Math.round(row.amount * 100) : row.type === "DEDUCT" && row.refundOperationId ? -Math.round(row.amount * 100) : 0;
+const currentCreditEvidence = { "summary.evidenceVersion": { $gte: CREDIT_EVIDENCE_VERSION } };
+const reviewFilter = { ...currentCreditEvidence, state: "open", $or: [{ "summary.difference": { $ne: 0 } }, { "summary.minorMismatch": true }, { "summary.evidenceConflict": true }, { "summary.calculationsAgree": false }, { "summary.audit.verified": false }, { "summary.walletId": null }] };
 export const reconciliationSummary = handle(async (_req, res) => {
-    const [open, confirmed, unverified, matched, pending, retrying, monitor, postingFailures] = await Promise.all([
+    const [open, confirmed, unverified, matched, rechecking, pending, retrying, monitor, postingFailures] = await Promise.all([
         CreditCase.countDocuments(reviewFilter), CreditCase.countDocuments({ ...reviewFilter, classification: "confirmed" }),
         CreditCase.countDocuments({ ...reviewFilter, classification: "cannot_confirm" }), CreditCase.countDocuments({ ...reviewFilter, classification: "matched" }),
-        CreditAuditJob.countDocuments({ dirty: true }), CreditAuditJob.countDocuments({ dirty: true, attempts: { $gt: 0 } }), CreditAuditState.findById("monitor").lean(),
+        CreditCase.countDocuments(staleCreditEvidence), CreditAuditJob.countDocuments(pendingCreditCheck),
+        CreditAuditJob.countDocuments({ ...pendingCreditCheck, attempts: { $gt: 0 } }), CreditAuditState.findById("monitor").lean(),
         AuditEvent.countDocuments({ action: "credit.posting_blocked", occurredAt: { $gte: new Date(Date.now() - 15 * 60000) } }),
     ]);
-    res.json({ success: true, open, confirmed, unverified, matched, pending, retrying, postingFailures, monitor: monitor ? { state: monitor.scanState, lastTickAt: monitor.lastTickAt, lastScanAt: monitor.scanFinishedAt, nextScanAt: monitor.nextFullScanAt, queued: monitor.scanQueued, error: monitor.error, healthy: Boolean(monitor.lastTickAt && Date.now() - new Date(monitor.lastTickAt).getTime() < 90000) } : { state: "not_started", healthy: false } });
+    const lastTickAt = monitor?.lastEvidenceTickAt;
+    res.json({ success: true, open, confirmed, unverified, matched, rechecking, pending, retrying, postingFailures, monitor: monitor ? { state: monitor.scanState, lastTickAt, lastScanAt: monitor.scanFinishedAt, nextScanAt: monitor.nextFullScanAt, queued: monitor.scanQueued, error: monitor.error, healthy: Boolean(lastTickAt && Date.now() - new Date(lastTickAt).getTime() < 90000) } : { state: "not_started", healthy: false } });
 });
 export const listReconciliationCases = handle(async (req, res) => {
     const page = Math.max(1, Math.floor(Number(req.query.page) || 1)), limit = 25;
-    const filter = {};
+    const filter = { ...currentCreditEvidence };
     if (req.query.state !== "all") Object.assign(filter, req.query.state === "resolved" ? { state: "resolved" } : reviewFilter);
     if (["confirmed", "cannot_confirm", "matched"].includes(req.query.classification)) filter.classification = req.query.classification;
     const search = String(req.query.search || "").trim().slice(0, 100);
@@ -85,14 +88,14 @@ export const reconciliationEvidence = handle(async (req, res) => {
             const related = campaignIds.length ? await Transaction.find({ campaignId: { $in: campaignIds }, $or: [{ fromUser: userId }, { toUser: userId }] }).select("campaignId type amount createdAt refundOperationId").session(session).lean() : [];
             const campaignMap = new Map(campaigns.map(campaign => {
                 const rows = related.filter(row => String(row.campaignId) === String(campaign._id));
-                const charged = rows.filter(row => row.type === "DEDUCT").reduce((sum, row) => sum + Math.round(row.amount * 100), 0) / 100;
-                const refunded = rows.filter(row => row.type === "REFUND").reduce((sum, row) => sum + Math.round(row.amount * 100), 0) / 100;
+                const charged = rows.filter(row => row.type === "DEDUCT" && !row.refundOperationId).reduce((sum, row) => sum + Math.round(row.amount * 100), 0) / 100;
+                const refunded = rows.reduce((sum, row) => sum + refundDelta(row), 0) / 100;
                 return [String(campaign._id), { id: String(campaign._id), title: campaign.campaignTitle, currentRecipientCount: campaign.totalRecipients, originalCharge: campaign.creditsDeducted, totalCharged: charged, totalRefunded: refunded, remainingCharged: Math.round((charged - refunded) * 100) / 100 }];
             }));
             const actorMap = new Map(actors.map(actor => [String(actor._id), { name: actor.username, role: actor.role, id: String(actor._id) }]));
             result.entries = result.entries.map(row => ({ ...row, actor: actorMap.get(String(row.performedBy)) || { name: "Not recorded", role: "Unknown" }, campaign: campaignMap.get(String(row.campaignId)) || null,
                 billedCount: row.rate > 0 && Number.isSafeInteger(Math.abs(row.delta) / row.rate) ? Math.abs(row.delta) / row.rate : null,
-                previousCampaignRefunds: row.campaignId ? related.filter(item => item.type === "REFUND" && String(item.campaignId) === String(row.campaignId) && item.createdAt < row.createdAt).reduce((sum, item) => sum + Math.round(item.amount * 100), 0) / 100 : null }));
+                previousCampaignRefunds: row.campaignId ? related.filter(item => String(item.campaignId) === String(row.campaignId) && item.createdAt < row.createdAt).reduce((sum, item) => sum + refundDelta(item), 0) / 100 : null }));
         }, creditTransactionOptions);
         const { wallet, ...publicResult } = result;
         res.json({ success: true, ...publicResult });

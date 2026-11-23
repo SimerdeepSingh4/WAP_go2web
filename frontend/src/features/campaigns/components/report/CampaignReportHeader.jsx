@@ -21,13 +21,6 @@ export default function CampaignReportHeader({
 
   return (
     <header className="space-y-3">
-      <Link
-        to={isAdmin ? `${base}/campaigns/${id}` : `${base}/campaigns`}
-        className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="size-3.5" />
-        {isAdmin ? "Back to campaign details" : "Back to campaigns"}
-      </Link>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 space-y-1.5">
           <div className="flex flex-wrap items-center gap-3">

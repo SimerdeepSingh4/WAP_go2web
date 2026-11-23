@@ -298,20 +298,6 @@ export default function CampaignDetailHeader({ campaign, base, id }) {
 
   return (
     <header data-tour="campaign-header" className="campaign-detail-heading">
-      {/* Back button */}
-      <div>
-        <Button
-          variant="ghost"
-          size="sm"
-          nativeButton={false}
-          render={<Link to={`${base}/campaigns`} />}
-          className="campaign-detail-back gap-2 text-xs text-muted-foreground"
-        >
-          <ArrowLeft className="size-3.5" />
-          Back to campaigns
-        </Button>
-      </div>
-
       <div className="campaign-detail-heading-layout">
         {/* Title & Metadata */}
         <div className="campaign-detail-heading-copy">

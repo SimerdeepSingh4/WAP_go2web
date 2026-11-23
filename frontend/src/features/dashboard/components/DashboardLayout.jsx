@@ -2,14 +2,16 @@ import NotificationBell from "@/features/notifications/components/NotificationBe
 import GlobalSearch from "./GlobalSearch";
 import ThemeToggle from "../../branding/components/ThemeToggle";
 import HelpMenu from "./HelpMenu";
+import Breadcrumbs from "@/components/navigation/Breadcrumbs";
 import { Suspense, useState } from "react";
 import { Link, NavLink, Navigate, Outlet, useLocation } from "react-router";
-import { LayoutDashboard, Megaphone, Users, Building2, Wallet, ReceiptText, Settings, LogOut, ChevronDown, PanelLeftClose, PanelLeftOpen, Bell, HelpCircle, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Megaphone, Users, Building2, Wallet, ReceiptText, Settings, LogOut, ChevronDown, PanelLeftClose, PanelLeftOpen, Bell, HelpCircle, ShieldCheck, ListFilter, X } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useBranding } from "@/features/branding/context/BrandingContext";
 import { useNotifications } from "@/features/notifications/hooks/useNotifications";
 import UserAvatar from "@/features/accounts/components/UserAvatar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { PageSkeleton, DashboardSkeleton } from "@/components/ui/page-skeletons";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { SidebarProvider, Sidebar, SidebarHeader, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarInset, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { toast } from "@/components/ui/toast";
@@ -26,6 +28,7 @@ const navigation = {
   "Super Admin": [
     ["Dashboard", "", LayoutDashboard],
     ["Campaigns", "/campaigns", Megaphone],
+    ["Number Filtering", "/number-filtering", ListFilter],
     ["Contacts", "/contacts", Users],
     // Temporarily hidden; keep the Administrators page for future staff management.
     // ["Super admins", "/administrators", Users],
@@ -41,6 +44,7 @@ const navigation = {
   Reseller: [
     ["Dashboard", "", LayoutDashboard],
     ["Campaigns", "/campaigns", Megaphone],
+    ["Number Filtering", "/number-filtering", ListFilter],
     ["Users", "/users", Users],
     ["Credits", "/credits", Wallet],
     ["Notifications", "/notifications", Bell],
@@ -49,6 +53,7 @@ const navigation = {
   User: [
     ["Dashboard", "", LayoutDashboard],
     ["Campaigns", "/campaigns", Megaphone],
+    ["Number Filtering", "/number-filtering", ListFilter],
     ["Credits", "/credits", Wallet],
     ["Notifications", "/notifications", Bell],
     ["Settings", "/settings", Settings],
@@ -57,9 +62,11 @@ const navigation = {
 
 function Navigation({ role, base, items }) {
   const { pathname } = useLocation();
-  const { setOpenMobile, toggleSidebar, state } = useSidebar();
+  const { setOpenMobile, toggleSidebar, state, isMobile } = useSidebar();
   const { branding } = useBranding();
-  const isCollapsed = state === "collapsed";
+  const isCollapsed = !isMobile && state === "collapsed";
+  const toggleLabel = isMobile ? "Close navigation" : isCollapsed ? "Expand sidebar" : "Collapse sidebar";
+  const CollapseIcon = isMobile ? X : PanelLeftClose;
   const brandLogo = branding.logoUrl || "https://res.cloudinary.com/dyfjy8kmv/image/upload/v1793689940/Navy_Blue_Bird_Chat_Logo_n0udpf.webp";
   const brandTitle = branding.brandName || "Promotion";
 
@@ -69,8 +76,8 @@ function Navigation({ role, base, items }) {
         onClick={toggleSidebar}
         role="button"
         tabIndex={0}
-        aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        aria-label={toggleLabel}
+        title={toggleLabel}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
@@ -95,21 +102,14 @@ function Navigation({ role, base, items }) {
           </div>
         ) : (
           <div className="flex items-center gap-3 w-full min-w-0">
-            <div className="portal-sidebar-logo-toggle group">
-              <span className="portal-logo-layer portal-logo-default">
-                <img
-                  src={brandLogo}
-                  alt={brandTitle}
-                />
-              </span>
-              <span className="portal-logo-layer portal-logo-hover">
-                <PanelLeftClose className="size-5" aria-hidden="true" />
-              </span>
+            <div className="portal-brand-mark">
+              <img src={brandLogo} alt="" />
             </div>
             <div className="portal-brand-copy flex-1 min-w-0">
-              <strong>{brandTitle}<span>.</span></strong>
+              <strong title={brandTitle}>{brandTitle}<span>.</span></strong>
               <span>{role === "Super Admin" ? "Super admin" : role}</span>
             </div>
+            <CollapseIcon className="portal-sidebar-collapse-icon" aria-hidden="true" />
           </div>
         )}
       </SidebarHeader>
@@ -120,7 +120,7 @@ function Navigation({ role, base, items }) {
             <SidebarMenu className="gap-1">
               {items.map(([label, path, Icon]) => (
                 <SidebarMenuItem key={path}>
-                  <SidebarMenuButton isActive={path ? pathname.startsWith(`${base}${path}`) : pathname === base} tooltip={label} render={<NavLink to={`${base}${path}`} end={!path} />} onClick={() => setOpenMobile(false)} className="portal-nav-link">
+                  <SidebarMenuButton isActive={pathname === `${base}${path}` || (path ? pathname.startsWith(`${base}${path}/`) : pathname === `${base}/`)} aria-label={label} tooltip={label} render={<NavLink to={`${base}${path}`} end={!path} />} onClick={() => setOpenMobile(false)} className="portal-nav-link">
                     <Icon aria-hidden="true" />
                     <span className="portal-nav-text">{label}</span>
                   </SidebarMenuButton>
@@ -182,7 +182,7 @@ export default function DashboardLayout({ role }) {
                 <GlobalSearch />
               </div>
               <div className="portal-topbar-actions ml-auto flex items-center gap-2">
-                <div id="tour-notification-bell" className="hidden md:block">
+                <div id="tour-notification-bell">
                   <NotificationBell base={base} />
                 </div>
                 <ThemeToggle />
@@ -202,15 +202,7 @@ export default function DashboardLayout({ role }) {
                       />
                     }
                   >
-                    <div className="relative">
-                      <UserAvatar user={user} className="size-8.5 rounded-full border border-border bg-transparent shrink-0" />
-                      {unreadNotifications > 0 && (
-                        <span
-                          className="md:hidden absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-red-500 border-2 border-background"
-                          aria-label={`${unreadNotifications} unread notifications`}
-                        />
-                      )}
-                    </div>
+                    <UserAvatar user={user} className="size-8.5 rounded-full border border-border bg-transparent shrink-0" />
                     <ChevronDown className="size-3.5 text-muted-foreground transition-transform portal-profile-chevron" aria-hidden="true" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="portal-account-menu w-60 p-2">
@@ -261,9 +253,10 @@ export default function DashboardLayout({ role }) {
             <AccountAccessBanner />
             {role === "Super Admin" && <ReconciliationBanner />}
             <CreditBalanceResult />
+            <Breadcrumbs base={base} role={role} />
             <main id="dashboard-main" tabIndex={-1} className="portal-main">
               <ReadOnlyContext.Provider key={readOnly ? "restricted" : "editable"} value={readOnly ? { restriction, onBlocked: showReadOnlyNotice } : null}>
-                <Suspense fallback={<div role="status" className="py-8 text-sm text-muted-foreground">Loading page…</div>}>
+                <Suspense fallback={pathname === base || pathname === `${base}/` ? <DashboardSkeleton /> : <PageSkeleton />}>
                   {readOnly ? <fieldset className="account-readonly-content" aria-label="Read-only dashboard" onClickCapture={blockReadOnlyAction} onSubmitCapture={event => { event.preventDefault(); event.stopPropagation(); showReadOnlyNotice(); }}><Outlet /></fieldset> : <Outlet />}
                 </Suspense>
               </ReadOnlyContext.Provider>

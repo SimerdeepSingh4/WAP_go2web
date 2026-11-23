@@ -1,137 +1,298 @@
+import TransactionAmount from "@/features/credits/components/TransactionAmount";
+import TransactionDetails from "@/features/credits/components/TransactionDetails";
 import TransactionReference from "@/features/credits/components/TransactionReference";
 import { useSearchParams } from "react-router";
 import { useState } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { useUserQuery, useUserMutation } from "../hooks/useUser";
-import { PageHeading, QueryState, FilterSelect, DataTable, Pager, Field, FormError, ClearFiltersButton } from "@/features/dashboard/components/shared";
+import { useUserQuery } from "../hooks/useUser";
+import { PageHeading, QueryState, FilterSelect, DataTable, Pager, ClearFiltersButton } from "@/features/dashboard/components/shared";
 import OverviewMetricCards from "@/features/dashboard/components/OverviewMetricCards";
-import ActionReview, { ActionFormProgress } from "@/features/dashboard/components/ActionReview";
-import { Wallet, Lock, Coins, History, MoreHorizontal, FileText } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { Lock, Coins, Send, PhoneCall, Zap, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { dateTime, number, ownerName } from "@/lib/format";
-import { getTransactionDisplay } from "@/features/credits/lib/creditTransactionDisplay";
+import { number, formatCreditRatePaisa } from "@/lib/format";
+import { getAccountBalanceAfter, getTransactionDisplay, getCategoryDisplay } from "@/features/credits/lib/creditTransactionDisplay";
+import RechargeModal from "@/features/credits/components/RechargeModal";
+import PurchasesTable from "@/features/credits/components/PurchasesTable";
+import { useCreditRates } from "@/features/credits/hooks/useCredits";
 import "@/features/credits/components/credit-history.css";
 
-const labels = { ALLOCATE: "Allocation", DEDUCT: "Campaign charge", REFUND: "Refund", RECLAIM: "Reclaim", REQUEST: "Credit request" };
+const labels = { ALLOCATE: "Allocation", DEDUCT: "Credit usage", REFUND: "Refund", RECLAIM: "Reclaim", REQUEST: "Credit request (Legacy)" };
+
 export default function UserCredits({ activity = false }) {
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
-  const [amount, setAmount] = useState("");
-  const [note, setNote] = useState("");
-  const [review, setReview] = useState(false);
-  const [noteTransaction, setNoteTransaction] = useState(null);
+  const [rechargeOpen, setRechargeOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("history"); // 'history' | 'recharges'
+
   const page = Math.max(1, Number(params.get("page")) || 1);
   const type = params.get("type") || "all";
+  const categoryFilter = params.get("category") || "all";
   const transactionId = params.get("transaction");
+  const rechargeParam = params.get("recharge");
+  const rechargeCategory = rechargeParam === "number-filtering" ? "NUMBER_FILTERING" : undefined;
+
   const balance = useUserQuery("myBalance", {}, !activity);
-  const ledger = useUserQuery("transactions", { page, limit: 10, ...(transactionId ? { transactionId } : {}), ...(type === "all" ? {} : { type }) });
-  function update(key, value) { setParams(old => { const next = new URLSearchParams(old); value ? next.set(key, value) : next.delete(key); if (key === "type") next.delete("page"); return next; }, { replace: true }); }
-  const request = useUserMutation("requestCredits", "Credit request submitted", () => { update("request", ""); setAmount(""); setNote(""); setReview(false); });
+  const ratesQuery = useCreditRates({}, !activity);
+  const ledger = useUserQuery("transactions", {
+    page,
+    limit: 10,
+    ...(transactionId ? { transactionId } : {}),
+    ...(type !== "all" ? { type } : {}),
+    ...(categoryFilter !== "all" ? { category: categoryFilter } : {}),
+  });
+
+  function update(key, value) {
+    setParams(old => {
+      const next = new URLSearchParams(old);
+      value ? next.set(key, value) : next.delete(key);
+      if (key === "type" || key === "category") next.delete("page");
+      return next;
+    }, { replace: true });
+  }
+
   const accountId = user?.id || user?._id;
+
   const columns = [
-    { key: "transactionId", label: "Transaction", className: "credit-ledger-col-reference", render: transaction => <div className="credit-ledger-reference"><TransactionReference transaction={transaction} /><span className="credit-ledger-date">{dateTime(transaction.createdAt)}</span></div> },
-    { key: "type", label: "Type", className: "credit-ledger-col-type", render: transaction => {
-      const info = getTransactionDisplay(transaction, { allocationReceived: true });
-      const Icon = info.icon;
-      return <span className={`credit-ledger-badge inline-flex items-center gap-1.5 rounded border px-2 py-0.5 text-xs font-medium ${info.badgeClass}`}><Icon className="size-3 shrink-0" aria-hidden="true" />{info.label}</span>;
-    } },
-    { key: "account", label: "Account", className: "credit-ledger-col-account", render: t => <span className="credit-ledger-account text-xs font-medium" title={ownerName(t.fromUser || t.toUser)}>{ownerName(t.fromUser || t.toUser)}</span> },
-    { key: "amount", label: "Credits", className: "credit-ledger-col-amount text-right", render: transaction => {
-      const info = getTransactionDisplay(transaction, { allocationReceived: true });
-      return <span className={`tabular-nums text-sm ${info.amountClass}`}>{info.sign}{number(transaction.amount)}</span>;
-    } },
-    { key: "balance", label: "Your balance after", className: "credit-ledger-col-balance text-right", render: t => <span className="text-sm tabular-nums">{number(t.type === "REQUEST" ? null : String(t.fromUser?._id || t.fromUser) === String(accountId) ? t.balanceAfterFrom : t.balanceAfterTo)}</span> },
-    { key: "actions", label: "Actions", className: "credit-ledger-col-action text-right", render: transaction => (
-      <DropdownMenu>
-        <DropdownMenuTrigger render={<Button type="button" variant="ghost" size="icon-sm" aria-label="Transaction actions" />}>
-          <MoreHorizontal className="size-4" aria-hidden="true" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-40">
-          <DropdownMenuItem onClick={() => setNoteTransaction(transaction)}>
-            <FileText className="size-4" aria-hidden="true" />View note
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    ) },
+    {
+      key: "transactionId",
+      label: "Transaction",
+      render: transaction => <TransactionReference transaction={transaction} showDate />,
+    },
+    {
+      key: "type",
+      label: "Type",
+      render: transaction => {
+        const info = getTransactionDisplay(transaction, user);
+        const Icon = info.icon;
+        return (
+          <span className={`credit-ledger-badge ${info.badgeClass}`}>
+            <Icon className="size-3 shrink-0" aria-hidden="true" />
+            {info.label}
+          </span>
+        );
+      },
+    },
+    {
+      key: "category",
+      label: "Category",
+      render: transaction => {
+        const catInfo = getCategoryDisplay(transaction.category);
+        return (
+          <span className={`credit-ledger-badge ${catInfo.badgeClass}`}>
+            {catInfo.label}
+          </span>
+        );
+      },
+    },
+    {
+      key: "amount",
+      label: "Credits",
+      className: "text-right",
+      render: t => <TransactionAmount transaction={t} viewer={user} />,
+    },
+    {
+      key: "balance",
+      label: "Balance after",
+      className: "text-right",
+      render: t => <span className="text-sm tabular-nums">{number(getAccountBalanceAfter(t, accountId))}</span>,
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      className: "text-right",
+      render: transaction => <TransactionDetails transaction={transaction} />,
+    },
   ];
-  return <>
-    <PageHeading title={activity ? "Transactions" : "Credits"} description={activity ? "Your credit allocations, charges and requests." : "Your available balance and credit history."} action={!activity ? <div className="flex flex-wrap items-center gap-2"><Button data-tour="request-credits" disabled={user?.isPreview} onClick={() => { request.reset(); setReview(false); update("request", "new"); }}>Request credits</Button></div> : undefined} />
-    {!activity && (
-      <QueryState query={balance}>
-        <div data-tour="user-credit-summary">
-          <OverviewMetricCards
-            columns={3}
-            label="Credit summary"
-            items={[
-              {
-                label: "Available credits",
-                value: balance.data?.wallet?.balance,
-                loading: balance.isPending,
-                caption: balance.data?.wallet?.isLocked
-                  ? "Locked · contact your reseller"
-                  : "Available for campaigns",
-                icon: balance.data?.wallet?.isLocked ? Lock : Wallet,
-                accent: true,
-              },
-              {
-                label: "Rate per recipient",
-                tone: "purple-filled",
-                value: balance.data?.wallet?.ratePerMsg,
-                loading: balance.isPending,
-                caption: "Credits deducted per recipient",
-                icon: Coins,
-              },
-              {
-                label: "Total transactions",
-                tone: "blue-filled",
-                value:
-                  balance.data?.wallet?.totalTransactions ??
-                  ledger.data?.pagination?.ledgerTotal ??
-                  null,
-                loading: balance.isPending,
-                caption: "Recorded in your ledger",
-                icon: History,
-              },
-            ]}
-          />
-        </div>
-      </QueryState>
-    )}
-    <section className="credit-history" aria-labelledby="user-transactions-title">
-      <div className="credit-ledger-toolbar">
-        <div className="credit-ledger-heading"><h2 id="user-transactions-title" className="text-sm font-semibold text-foreground">Transaction history</h2><p>Allocations, credit requests and campaign usage.</p></div>
-        <div className="credit-ledger-filters"><div className="credit-ledger-type-filter"><FilterSelect label="Transaction type" value={type} onChange={v => update("type", v)} options={[{ value: "all", label: "All transaction types" }, ...Object.entries(labels).map(([value, label]) => ({ value, label }))]} /></div></div>
-      </div>
-    {transactionId && <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm"><span>Showing selected transaction</span><button type="button" className="font-medium text-indigo-700 underline" onClick={() => setParams((previous) => { const next = new URLSearchParams(previous); next.delete("transaction"); next.delete("page"); return next; }, { replace: true })}>View all transactions</button></div>}
-      <QueryState query={ledger}><div className="credit-ledger" data-compact="true"><DataTable caption="Credit transactions" rows={ledger.data?.transactions || []} columns={columns} mobile={{ primary: "transactionId", secondary: "account", featured: ["amount", "type"] }} paginated={false} emptyTitle="No transactions found" emptyDescription={type !== "all" || transactionId ? "No transactions match your selected filters." : "Your credit allocations, campaign charges, and refunds will appear here."} emptyAction={(type !== "all" || transactionId) && <ClearFiltersButton keys={["type", "transaction", "page"]} />} /><Pager page={page} totalPages={ledger.data?.pagination?.totalPages || 1} total={ledger.data?.pagination?.total || 0} onChange={p => update("page", String(p))} disabled={ledger.isFetching} /></div></QueryState>
-    </section>
-    <Dialog open={Boolean(noteTransaction)} onOpenChange={open => { if (!open) setNoteTransaction(null); }}>
-      <DialogContent>
-        <DialogHeader className="pr-6">
-          <DialogTitle>Transaction note</DialogTitle>
-          <DialogDescription>Additional information recorded for this transaction.</DialogDescription>
-        </DialogHeader>
-        {noteTransaction && <>
-          <div className="credit-ledger-reference">
-            <TransactionReference transaction={noteTransaction} />
-            <span className="credit-ledger-date">{dateTime(noteTransaction.createdAt)}</span>
+
+  const campaignCredits = balance.data?.wallet?.creditBalances?.CAMPAIGN?.available ?? 0;
+  const filteringCredits = balance.data?.wallet?.creditBalances?.NUMBER_FILTERING?.available ?? 0;
+
+  const campaignPaisa = formatCreditRatePaisa(ratesQuery.data?.purchaseRates?.CAMPAIGN?.unitPriceInr);
+  const filterPaisa = formatCreditRatePaisa(ratesQuery.data?.purchaseRates?.NUMBER_FILTERING?.unitPriceInr);
+
+  return (
+    <>
+      <PageHeading
+        title={activity ? "Transactions" : "Credits & Recharge"}
+        description={activity ? "Your credit allocations, charges and history." : "Your available balances across campaign broadcast and number filtering, recharge quotes, and credit history."}
+        action={!activity ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              data-tour="recharge-credits"
+              className="credit-recharge-button gap-1.5 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white"
+              disabled={user?.isPreview}
+              onClick={() => setRechargeOpen(true)}
+            >
+              <Zap className="size-4" /> Recharge Credits
+            </Button>
           </div>
-          <p className="max-h-64 overflow-y-auto whitespace-pre-wrap break-words rounded-lg bg-muted/40 p-4 text-sm leading-relaxed">
-            {noteTransaction.notes || "No note was added for this transaction."}
-          </p>
-        </>}
-      </DialogContent>
-    </Dialog>
-    {params.get("request") && !user?.isPreview && <Dialog open onOpenChange={open => { if (!open && !request.isPending) update("request", ""); }}><DialogContent className="action-dialog" showCloseButton={!request.isPending}><DialogHeader><DialogTitle>{review ? "Review credit request" : "Request credits"}</DialogTitle><DialogDescription>A request does not change your balance. Your account manager allocates credits separately.</DialogDescription></DialogHeader>
-      <form className="action-dialog-form" onSubmit={e => { e.preventDefault(); if (request.isPending) return; if (review) request.mutate({ amount: Number(amount), note: note.trim() }); else setReview(true); }}>
-        <div className="action-dialog-body"><ActionFormProgress reviewing={review} />
-        {review ? <ActionReview action="requestCredits" values={{}}><p>Account: <strong>{user?.username}</strong></p><p>Requested credits: <strong>{number(Number(amount))}</strong></p>{note && <p className="whitespace-pre-wrap break-words">{note}</p>}</ActionReview> : <><Field id="request-amount" label="Credits requested"><Input id="request-amount" type="number" min="0.01" step="0.01" required value={amount} onChange={e => setAmount(e.target.value)} /></Field><Field id="request-note" label="Note (optional)"><Textarea id="request-note" rows={3} maxLength={500} value={note} onChange={e => setNote(e.target.value)} /></Field></>}
-        <FormError message={request.error?.message} /></div><div className="action-dialog-footer"><div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="outline" disabled={request.isPending} onClick={() => review ? setReview(false) : update("request", "")}>{review ? "Edit details" : "Cancel"}</Button><Button type="submit" disabled={request.isPending}>{request.isPending ? "Submitting..." : review ? "Submit request" : "Review request"}</Button></div></div>
-      </form>
-    </DialogContent></Dialog>}
-  </>;
+        ) : undefined}
+      />
+
+      {!activity && (
+        <QueryState query={balance} variant="cards">
+          <div data-tour="user-credit-summary">
+            <OverviewMetricCards
+              columns={4}
+              label="Credit summary"
+              items={[
+                {
+                  label: "Campaign Credits",
+                  value: campaignCredits,
+                  loading: balance.isPending,
+                  caption: balance.data?.wallet?.isLocked
+                    ? "Locked · contact your admin"
+                    : "Available for broadcast campaigns",
+                  icon: balance.data?.wallet?.isLocked ? Lock : Send,
+                  accent: true,
+                },
+                {
+                  label: "Filtering Credits",
+                  tone: "purple-filled",
+                  value: filteringCredits,
+                  loading: balance.isPending,
+                  caption: "Available for number filtering",
+                  icon: PhoneCall,
+                },
+                {
+                  label: "Rate per campaign credit",
+                  tone: "blue-filled",
+                  value: campaignPaisa != null ? campaignPaisa : "—",
+                  valueSuffix: campaignPaisa != null ? "Paisa" : undefined,
+                  loading: ratesQuery.isPending,
+                  caption: campaignPaisa != null ? "Price per campaign broadcast credit" : "Rate not configured",
+                  icon: Coins,
+                },
+                {
+                  label: "Rate per filter campaign",
+                  tone: "rose-filled",
+                  value: filterPaisa != null ? filterPaisa : "—",
+                  valueSuffix: filterPaisa != null ? "Paisa" : undefined,
+                  loading: ratesQuery.isPending,
+                  caption: filterPaisa != null ? "Price per number verification credit" : "Rate not configured",
+                  icon: PhoneCall,
+                },
+              ]}
+            />
+          </div>
+        </QueryState>
+      )}
+
+      {/* Tabs between Ledger and Recharge Orders */}
+      {!activity && (
+        <div className="flex border-b border-border my-4 gap-4">
+          <button
+            type="button"
+            className={`pb-2.5 text-sm font-semibold transition-colors border-b-2 -mb-px ${
+              activeTab === "history"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+            onClick={() => setActiveTab("history")}
+          >
+            Transaction History
+          </button>
+          <button
+            type="button"
+            className={`pb-2.5 text-sm font-semibold transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${
+              activeTab === "recharges"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+            onClick={() => setActiveTab("recharges")}
+          >
+            <ShoppingCart className="size-4" />
+            My Recharge Orders
+          </button>
+        </div>
+      )}
+
+      {activeTab === "recharges" && !activity ? (
+        <PurchasesTable scope="my" title="My Recharge Orders" description="Status of your credit purchase quotes and payment proofs." />
+      ) : (
+        <section className="credit-history" aria-labelledby="user-transactions-title">
+          <div className="credit-ledger-toolbar">
+            <div className="credit-ledger-heading">
+              <h2 id="user-transactions-title" className="text-sm font-semibold text-foreground">Transaction history</h2>
+              <p>Allocations, recharges and credit usage.</p>
+            </div>
+            <div className="credit-ledger-filters flex items-center gap-2">
+              <FilterSelect
+                label="Category"
+                value={categoryFilter}
+                onChange={v => update("category", v)}
+                options={[
+                  { value: "all", label: "All Categories" },
+                  { value: "CAMPAIGN", label: "Campaign Credits" },
+                  { value: "NUMBER_FILTERING", label: "Number Filtering Credits" },
+                  { value: "legacy", label: "Legacy Credits" },
+                ]}
+              />
+              <FilterSelect
+                label="Transaction type"
+                value={type}
+                onChange={v => update("type", v)}
+                options={[
+                  { value: "all", label: "All transaction types" },
+                  ...Object.entries(labels).map(([value, label]) => ({ value, label })),
+                ]}
+              />
+            </div>
+          </div>
+
+          {transactionId && (
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm">
+              <span>Showing selected transaction</span>
+              <button
+                type="button"
+                className="font-medium text-indigo-700 underline"
+                onClick={() => setParams((previous) => { const next = new URLSearchParams(previous); next.delete("transaction"); next.delete("page"); return next; }, { replace: true })}
+              >
+                View all transactions
+              </button>
+            </div>
+          )}
+
+          <QueryState query={ledger}>
+            <div className="credit-ledger">
+              <DataTable
+                caption="Credit transactions"
+                compact
+                rows={ledger.data?.transactions || []}
+                columns={columns}
+                mobile={{ primary: "transactionId", featured: ["amount", "balance", "type", "category"] }}
+                paginated={false}
+                emptyTitle="No transactions found"
+                emptyDescription={type !== "all" || categoryFilter !== "all" || transactionId ? "No transactions match your selected filters." : "Your credit allocations, campaign charges, and refunds will appear here."}
+                emptyAction={(type !== "all" || categoryFilter !== "all" || transactionId) && <ClearFiltersButton keys={["type", "category", "transaction", "page"]} />}
+              />
+              <Pager
+                page={page}
+                totalPages={ledger.data?.pagination?.totalPages || 1}
+                total={ledger.data?.pagination?.total || 0}
+                onChange={p => update("page", String(p))}
+                disabled={ledger.isFetching}
+              />
+            </div>
+          </QueryState>
+        </section>
+      )}
+
+      {/* Recharge Modal */}
+      <RechargeModal
+        key={rechargeCategory}
+        initialCategory={rechargeCategory}
+        onViewOrders={() => {
+          setRechargeOpen(false);
+          if (rechargeParam) update("recharge", "");
+          setActiveTab("recharges");
+        }}
+        open={rechargeOpen || Boolean(rechargeParam)}
+        onOpenChange={(open) => {
+          setRechargeOpen(open);
+          if (!open && rechargeParam) update("recharge", "");
+        }}
+      />
+    </>
+  );
 }

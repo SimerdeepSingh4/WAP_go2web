@@ -4,12 +4,15 @@ import { useAuth } from "./features/auth/hooks/useAuth.js";
 import RoleRoute from "./components/guards/RoleRoute.jsx";
 import PreviewBanner from "./components/guards/PreviewBanner.jsx";
 import Skiper46DevButton from "./components/dev/Skiper46DevButton.jsx";
+import WorkspacePageError from "./components/ui/workspace-page-error.jsx";
 
-import { lazy, Suspense } from "react";
+import { lazy } from "react";
 import AdminAccess from "./features/admin/guards/AdminAccess.jsx";
 import ImpersonationHandoff from "./features/auth/pages/ImpersonationHandoff.jsx";
 
-const AdminLayout = lazy(() => import("./features/admin/components/AdminLayout.jsx"));
+import AdminLayout from "./features/admin/components/AdminLayout.jsx";
+import ResellerLayout from "./features/reseller/components/ResellerLayout.jsx";
+import UserLayout from "./features/user/components/UserLayout.jsx";
 const AdminOverview = lazy(() => import("./features/admin/pages/Overview.jsx"));
 const AdminCampaigns = lazy(() => import("./features/admin/pages/Campaigns.jsx"));
 const AdminContacts = lazy(() => import("./features/admin/pages/Contacts.jsx"));
@@ -21,13 +24,12 @@ const AdminAccounts = lazy(() => import("./features/admin/pages/Accounts.jsx"));
 const AdminCredits = lazy(() => import("./features/admin/pages/Credits.jsx"));
 const AdminOperatingRules = lazy(() => import("./features/admin/pages/OperatingRules.jsx"));
 
-const ResellerLayout = lazy(() => import("./features/reseller/components/ResellerLayout.jsx"));
 const ResellerOverview = lazy(() => import("./features/reseller/pages/Overview.jsx"));
 const ResellerUsers = lazy(() => import("./features/reseller/pages/Users.jsx"));
 const ResellerCredits = lazy(() => import("./features/reseller/pages/Credits.jsx"));
 const ResellerCampaigns = lazy(() => import("./features/reseller/pages/Campaigns.jsx"));
 const ResellerSettings = lazy(() => import("./features/reseller/pages/Settings.jsx"));
-const UserLayout = lazy(() => import("./features/user/components/UserLayout.jsx"));
+
 const UserOverview = lazy(() => import("./features/user/pages/UserOverview.jsx"));
 const UserCredits = lazy(() => import("./features/user/pages/Credits.jsx"));
 const UserCampaigns = lazy(() => import("./features/user/pages/Campaigns.jsx"));
@@ -39,6 +41,10 @@ const CreateCampaignPage = lazy(() => import("./features/campaigns/pages/CreateC
 const CampaignDetailPage = lazy(() => import("./features/campaigns/pages/CampaignDetailPage.jsx"));
 const CampaignReportPage = lazy(() => import("./features/campaigns/pages/CampaignReportPage.jsx"));
 const CreateCampaignReportPage = lazy(() => import("./features/campaigns/pages/CreateCampaignReportPage.jsx"));
+const NumberFilteringPage = lazy(() => import("./features/number-filtering/pages/NumberFilteringPage.jsx"));
+const supportError = <WorkspacePageError title="Support chat couldn’t open" reloadLabel="Reload chat" />;
+const filteringError = <WorkspacePageError title="Number Filtering couldn’t open" />;
+const settingsError = <WorkspacePageError title="Settings couldn’t open" reloadLabel="Reload settings" />;
 
 function RoleCampaignDetailRedirect() {
   const { user } = useAuth();
@@ -77,11 +83,7 @@ function ProtectedRoute({ children }) {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-primary">
-        <div className="animate-spin size-8 border-4 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
+    return <div className="min-h-screen bg-background" />;
   }
 
   if (!user) {
@@ -100,11 +102,7 @@ function PublicRoute({ children }) {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-primary">
-        <div className="animate-spin size-8 border-4 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
+    return <div className="min-h-screen bg-background" />;
   }
 
   if (user) {
@@ -143,9 +141,7 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <AdminAccess>
-          <Suspense fallback={<div role="status" className="p-8 text-sm text-muted-foreground">Loading workspace…</div>}>
-            <AdminLayout />
-          </Suspense>
+          <AdminLayout />
         </AdminAccess>
       </ProtectedRoute>
     ),
@@ -155,6 +151,8 @@ export const router = createBrowserRouter([
       { path: "campaigns/:id", element: <CampaignDetailPage /> },
       { path: "campaigns/:id/report/create", element: <CreateCampaignReportPage /> },
       { path: "campaigns/:id/report", element: <CampaignReportPage /> },
+      { path: "number-filtering", element: <NumberFilteringPage base="/admin" />, errorElement: filteringError },
+      { path: "number-filtering/:id", element: <NumberFilteringPage base="/admin" />, errorElement: filteringError },
       { path: "contacts", element: <AdminContacts /> },
       { path: "reports", element: <Navigate to="/admin/campaigns?status=unreported" replace /> },
       // { path: "administrators", element: <Administrators /> },
@@ -165,7 +163,7 @@ export const router = createBrowserRouter([
       { path: "credits", element: <AdminCredits key="credits" /> },
       { path: "activity", element: <AdminCredits key="activity" activity /> },
       { path: "notifications", element: <NotificationsPage /> },
-      { path: "support", element: <SupportChatPage /> },
+      { path: "support", element: <SupportChatPage />, errorElement: supportError },
       { path: "settings", element: <AdminOperatingRules /> },
     ],
   },
@@ -184,12 +182,15 @@ export const router = createBrowserRouter([
       { path: "campaigns/:id", element: <CampaignDetailPage /> },
       { path: "campaigns/:id/report", element: <CampaignReportPage /> },
       { path: "reports", element: <Navigate to="/reseller/campaigns?status=unreported" replace /> },
+      { path: "number-filtering", element: <NumberFilteringPage base="/reseller" />, errorElement: filteringError },
+      { path: "number-filtering/new", element: <NumberFilteringPage base="/reseller" create />, errorElement: filteringError },
+      { path: "number-filtering/:id", element: <NumberFilteringPage base="/reseller" />, errorElement: filteringError },
       { path: "users", element: <ResellerUsers /> },
       { path: "credits", element: <ResellerCredits key="credits" /> },
       { path: "activity", element: <Navigate to="/reseller/credits" replace /> },
       { path: "notifications", element: <NotificationsPage /> },
-      { path: "support", element: <SupportChatPage /> },
-      { path: "settings", element: <ResellerSettings /> },
+      { path: "support", element: <SupportChatPage />, errorElement: supportError },
+      { path: "settings", element: <ResellerSettings />, errorElement: settingsError },
     ],
   },
   {
@@ -206,11 +207,14 @@ export const router = createBrowserRouter([
       { path: "campaigns/new", element: <CreateCampaignPage /> },
       { path: "campaigns/:id", element: <CampaignDetailPage /> },
       { path: "campaigns/:id/report", element: <CampaignReportPage /> },
+      { path: "number-filtering", element: <NumberFilteringPage base="/user" />, errorElement: filteringError },
+      { path: "number-filtering/new", element: <NumberFilteringPage base="/user" create />, errorElement: filteringError },
+      { path: "number-filtering/:id", element: <NumberFilteringPage base="/user" />, errorElement: filteringError },
       { path: "credits", element: <UserCredits key="credits" /> },
       { path: "activity", element: <Navigate to="/user/credits" replace /> },
       { path: "notifications", element: <NotificationsPage /> },
-      { path: "support", element: <SupportChatPage /> },
-      { path: "settings", element: <UserSettings /> },
+      { path: "support", element: <SupportChatPage />, errorElement: supportError },
+      { path: "settings", element: <UserSettings />, errorElement: settingsError },
     ],
   },
   // ── Standalone campaign routes for direct access ──

@@ -1,28 +1,58 @@
-.campaign-whatsapp-preview { display: flex; min-width: 0; flex-direction: column; padding: 18px 16px; border: 1px solid var(--border); border-radius: 14px; background: color-mix(in srgb, var(--muted) 35%, var(--card)); }
-.wa-preview-heading { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 16px; }
-.wa-preview-heading h2 { margin: 0; color: var(--foreground); font-size: 13px; font-weight: 600; }
-.wa-preview-heading p { margin: 4px 0 0; color: var(--muted-foreground); font-size: 10px; }
-.wa-preview-phone { display: flex; width: 100%; max-width: 286px; height: 526px; margin: auto; flex-shrink: 0; flex-direction: column; overflow: hidden; border: 6px solid #272d30; border-radius: 34px; outline: 1px solid #50585c; background: #f7f8fa; color: #17272d; box-shadow: 0 12px 24px -14px #0b141a66, inset 0 0 0 1px #fff; font-family: Arial, sans-serif; color-scheme: light; }
-.wa-preview-status { position: relative; display: flex; height: 30px; padding: 0 16px; flex: 0 0 auto; align-items: center; justify-content: space-between; background: #f7f8fa; font-size: 10px; font-weight: 600; }
-.wa-preview-status > div { display: flex; align-items: center; gap: 4px; }
+.campaign-whatsapp-preview {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--primary-text) 10%, var(--card)), var(--card) 78%);
+}
+.wa-preview-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.wa-preview-heading h2 { display: flex; align-items: center; gap: 9px; margin: 0; color: var(--foreground); font-size: 15px; font-weight: 600; letter-spacing: -.02em; }
+.wa-preview-heading h2 svg { box-sizing: content-box; width: 16px; height: 16px; padding: 7px; border-radius: 9px; background: var(--muted); color: var(--primary-text); }
+.wa-preview-phone {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 286px;
+  height: 526px;
+  flex-shrink: 0;
+  margin: 18px auto 22px;
+  overflow: hidden;
+  border: 4px solid #263837;
+  border-radius: 30px;
+  background: #f5f5f1;
+  box-shadow: 0 10px 20px -12px #122d2a66, 0 0 0 1px #83908e;
+  color: #17272d;
+  color-scheme: light;
+  font-family: Arial, sans-serif;
+}
+.wa-preview-status, .wa-preview-chat-header { background: #07564d; color: #fff; }
+.wa-preview-status { position: relative; display: flex; align-items: center; justify-content: space-between; flex: none; height: 26px; padding: 1px 18px 0; font-size: 10px; font-weight: 600; }
+.wa-preview-status > div { display: flex; align-items: center; gap: 3px; }
 .wa-preview-status svg { width: 12px; height: 12px; }
-.wa-preview-status .wa-preview-camera { position: absolute; top: 8px; left: calc(50% - 4px); width: 8px; height: 8px; border-radius: 50%; background: #272d30; box-shadow: inset 0 0 0 2px #11181b; }
-.wa-preview-chat-header { display: flex; min-height: 54px; padding: 8px; flex: 0 0 auto; align-items: center; gap: 9px; background: #f7f8fa; border-bottom: 1px solid #dfe3e5; }
-.wa-preview-chat-header > svg { width: 16px; height: 16px; flex-shrink: 0; }
-.wa-preview-chat-header > svg:first-child { width: 17px; }
-.wa-preview-avatar { display: grid; width: 30px; height: 30px; flex-shrink: 0; place-items: center; border-radius: 50%; background: #dce5e7; color: #758a91; }
-.wa-preview-avatar svg { width: 21px; height: 21px; }
-.wa-preview-avatar img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
-.wa-preview-contact { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
-.wa-preview-contact strong { overflow: hidden; font-size: 11px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
-.wa-preview-contact > span { color: #667781; font-size: 9px; }
-.wa-preview-chat { display: flex; min-height: 0; padding: 12px 12px 20px; flex: 1; flex-direction: column; align-items: flex-start; gap: 15px; overflow: auto; overscroll-behavior: contain; background-color: #efeae2; background-position: center; background-size: 100% auto; scrollbar-width: thin; scrollbar-color: #b8b4ad transparent; }
+.wa-preview-camera { position: absolute; top: 8px; left: 50%; width: 7px; height: 7px; transform: translateX(-50%); border-radius: 50%; background: #103531; }
+.wa-preview-chat-header { display: flex; align-items: center; gap: 8px; padding: 5px 12px 10px; }
+.wa-preview-chat-header > svg { width: 15px; height: 15px; flex: none; }
+.wa-preview-avatar { display: grid; place-items: center; flex: none; width: 33px; height: 33px; overflow: hidden; border-radius: 50%; background: #d0ebe0; color: #165c4a; }
+.wa-preview-avatar svg { width: 18px; height: 18px; }
+.wa-preview-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.wa-preview-contact { display: grid; min-width: 0; flex: 1; gap: 2px; }
+.wa-preview-contact strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; line-height: 1.3; }
+.wa-preview-contact > span { color: #c6e4dc; font-size: 10px; }
+.wa-preview-chat { display: flex; min-height: 0; flex: 1; flex-direction: column; align-items: flex-start; gap: 13px; padding: 14px 12px; overflow: auto; overscroll-behavior: contain; background-color: #efeae2; background-position: center; background-size: auto, 100% auto; scrollbar-width: thin; scrollbar-color: #b8b4ad transparent; }
 .wa-preview-chat:focus-visible { outline: 2px solid #128c7e; outline-offset: -2px; }
-.wa-preview-day { align-self: center; padding: 5px 9px; border-radius: 6px; background: #ffffffed; color: #55646b; box-shadow: 0 1px 1px #0b141a18; font-size: 9px; line-height: 1.1; }
-.wa-preview-bubble { position: relative; width: fit-content; max-width: calc(100% - 8px); padding: 4px; flex-shrink: 0; border-radius: 0 8px 8px; background: #fff; box-shadow: 0 1px 1px #0b141a24; color: #111b21; overflow-wrap: anywhere; }
-.wa-preview-bubble::before { position: absolute; top: 0; left: -6px; width: 7px; height: 9px; background: #fff; clip-path: polygon(0 0, 100% 0, 100% 100%); content: ""; }
-.wa-preview-message, .wa-preview-empty { padding: 5px 5px 0; font-size: 12px; line-height: 1.5; }
-.wa-preview-message { white-space: pre-wrap; word-break: normal; overflow-wrap: break-word; }
+.wa-preview-day { align-self: center; padding: 4px 11px; border-radius: 14px; background: #fff; color: #54625f; font-size: 10px; box-shadow: 0 1px 2px #0b141a14; }
+.wa-preview-bubble { position: relative; width: fit-content; max-width: calc(100% - 5px); padding: 5px; flex: none; border-radius: 0 12px 12px; background: #fff; box-shadow: 0 1px 3px #0b141a29; color: #172522; overflow-wrap: anywhere; }
+.wa-preview-bubble::before { position: absolute; top: 0; left: -6px; width: 7px; height: 8px; background: #fff; clip-path: polygon(0 0, 100% 0, 100% 100%); content: ""; }
+.wa-preview-message { padding: 5px 6px 0; font-size: 13px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 .wa-preview-message p { min-height: 1em; margin: 0; }
 .wa-preview-message :is(ol, ul) { margin: 2px 0; padding-left: 20px; list-style-position: outside; }
 .wa-preview-message ol { list-style-type: decimal; }
@@ -30,10 +60,9 @@
 .wa-preview-message blockquote { margin: 4px 0; padding-left: 8px; border-left: 3px solid #a5b9c1; color: #53616a; }
 .wa-preview-message pre { margin: 4px 0; padding: 5px; border-radius: 4px; background: #f0f2f5; font: 11px/1.5 monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
 .wa-preview-code-line { display: block; min-height: 1.5em; }
-.wa-preview-message-time { padding: 2px 5px 1px 12px; color: #667781; font-size: 8px; line-height: 1.4; text-align: right; }
-.wa-preview-empty { display: grid; gap: 5px; color: #667781; }
-.wa-preview-empty strong { color: #45565f; font-size: 12px; font-weight: 500; }
-.wa-preview-empty > span { font-size: 11px; }
+.wa-preview-message-time { padding: 2px 6px; color: #63726c; font-size: 10px; text-align: right; }
+.wa-preview-empty { display: flex; align-items: flex-start; gap: 8px; padding: 9px 7px; color: #52625c; font-size: 12px; line-height: 1.5; }
+.wa-preview-empty svg { width: 16px; height: 16px; margin-top: 1px; flex: none; color: #548073; }
 .wa-preview-image, .wa-preview-video { display: block; width: 100%; max-height: 245px; border-radius: 5px; background: #edf0f2; object-fit: contain; }
 .wa-preview-image { min-width: 160px; }
 .wa-preview-document { display: flex; min-width: 0; align-items: center; gap: 9px; padding: 10px; border-radius: 5px; background: #f0f2f5; }
@@ -44,14 +73,17 @@
 .wa-preview-document strong { font-size: 11px; font-weight: 500; }
 .wa-preview-document div > span { color: #667781; font-size: 9px; }
 .wa-preview-bubble:has(.wa-preview-ctas) { width: 100%; }
-.wa-preview-ctas { display: grid; margin: 5px -4px -4px; }
-.wa-preview-cta { display: flex; min-height: 37px; align-items: center; justify-content: center; gap: 7px; padding: 9px 8px; border-top: 1px solid #e9edef; color: #128c7e; font-size: 12px; line-height: 1.4; font-weight: 600; text-align: center; }
-.wa-preview-cta svg { width: 15px; height: 15px; flex-shrink: 0; }
+.wa-preview-ctas { display: grid; gap: 3px; margin-top: 4px; }
+.wa-preview-cta { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 35px; padding: 7px 10px; border-radius: 6px; background: #eff7f3; color: #096451; font-size: 13px; font-weight: 600; line-height: 1.4; text-align: center; }
+.wa-preview-cta svg { width: 14px; height: 14px; flex: none; }
 .wa-preview-cta > span { min-width: 0; overflow-wrap: anywhere; }
-.wa-preview-composer { display: flex; padding: 7px 6px; flex: 0 0 auto; align-items: center; gap: 5px; background: #efeae2; }
-.wa-preview-composer > div { display: flex; min-width: 0; height: 34px; padding: 0 9px; flex: 1; align-items: center; gap: 10px; border-radius: 24px; background: #fff; color: #7c8b92; }
-.wa-preview-composer svg { width: 17px; height: 17px; flex-shrink: 0; }
-.wa-preview-composer div > span { flex: 1; color: #86939a; font-size: 11px; }
-.wa-preview-mic { display: grid; width: 34px; height: 34px; flex-shrink: 0; place-items: center; border-radius: 50%; background: #008069; color: #fff; }
-.wa-preview-home { display: grid; height: 16px; flex: 0 0 auto; place-items: center; background: #f7f8fa; }
-.wa-preview-home span { width: 80px; height: 3px; border-radius: 4px; background: #263238; }
+.wa-preview-composer { display: flex; gap: 5px; align-items: center; padding: 6px 7px; background: #f4f1eb; }
+.wa-preview-composer > div { display: flex; flex: 1; min-width: 0; height: 33px; align-items: center; gap: 8px; padding: 0 10px; border-radius: 20px; background: #fff; color: #6b7972; box-shadow: 0 1px 2px #0b141a14; }
+.wa-preview-composer svg { width: 16px; height: 16px; flex: none; }
+.wa-preview-composer div > span { flex: 1; font-size: 12px; }
+.wa-preview-mic { display: grid; place-items: center; width: 33px; height: 33px; border-radius: 50%; background: #087864; color: #fff; }
+.wa-preview-home { display: grid; place-items: center; height: 13px; background: #f4f1eb; }
+.wa-preview-home span { width: 70px; height: 3px; border-radius: 3px; background: #52605c; }
+@container portal (max-width: 53.999rem) {
+  .campaign-whatsapp-preview[data-expanded="false"] .wa-preview-heading { border-bottom-color: transparent; }
+}

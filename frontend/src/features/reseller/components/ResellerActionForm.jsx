@@ -27,6 +27,7 @@ export default function ResellerActionForm({ title, description, action, success
       if (field.required && !value.trim()) invalid[field.key] = `${field.label} is required.`;
       else if (value && field.type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) invalid[field.key] = "Enter a valid email address.";
       else if (field.type === "number" && value && (!Number.isFinite(Number(value)) || (field.min != null && Number(value) < field.min))) invalid[field.key] = `Enter a number of at least ${field.min ?? 0}.`;
+      else if (field.type === "number" && field.step === 1 && value && (value.includes(".") || !Number.isInteger(Number(value)))) invalid[field.key] = `${field.label} cannot have decimal values. Enter a whole number.`;
       else if (field.type === "tel" && value && !/^\+?\d{7,15}$/.test(value.trim().replace(/[\s().-]/g, ""))) invalid[field.key] = "Enter a phone number with 7 to 15 digits, including country code.";
       else if (field.maxLength && value.length > field.maxLength) invalid[field.key] = `Use at most ${field.maxLength} characters.`;
     }
@@ -38,8 +39,24 @@ export default function ResellerActionForm({ title, description, action, success
   const isAccountForm = ["createAccount", "updateAccount"].includes(action) && fields.some(field => field.key === "username");
   function renderField(field) {
     const Control = isAccountForm && field.type === "password" ? AccountCreationPassword : Input;
+    const isAllocationAmount = action === "allocate" && field.key === "amount";
     return <Field key={field.key} id={`reseller-${field.key}`} label={isAccountForm ? accountCreationLabel(field.label) : field.label} hint={field.hint}>
-        {field.options ? <FilterSelect id={`reseller-${field.key}`} label={field.label} invalid={Boolean(errors[field.key])} describedBy={errors[field.key] ? `error-${field.key}` : field.hint ? `reseller-${field.key}-hint` : undefined} value={values[field.key]} onChange={(value) => change(field.key, value)} options={field.options} accountSearch={field.key === "resellerId" ? { role: "Reseller" } : ["toUserId", "fromUserId", "userId"].includes(field.key) ? { active: true, purpose: "credits" } : undefined} /> : field.type === "textarea" ? <Textarea id={`reseller-${field.key}`} value={values[field.key]} onChange={(e) => change(field.key, e.target.value)} maxLength={field.maxLength} aria-invalid={Boolean(errors[field.key])} aria-describedby={errors[field.key] ? `error-${field.key}` : undefined} rows={3} /> : <Control placeholder={isAccountForm ? accountCreationPlaceholders[field.key] : undefined} id={`reseller-${field.key}`} type={field.type || "text"} min={field.min} step={field.step} value={values[field.key]} onChange={(e) => change(field.key, e.target.value)} autoComplete={field.type === "password" ? "new-password" : "off"} maxLength={field.maxLength} aria-required={field.required} aria-invalid={Boolean(errors[field.key])} aria-describedby={errors[field.key] ? `error-${field.key}` : field.hint ? `reseller-${field.key}-hint` : undefined} />}
+        {field.options ? <FilterSelect id={`reseller-${field.key}`} label={field.label} invalid={Boolean(errors[field.key])} describedBy={errors[field.key] ? `error-${field.key}` : field.hint ? `reseller-${field.key}-hint` : undefined} value={values[field.key]} onChange={(value) => change(field.key, value)} options={field.options} accountSearch={field.key === "resellerId" ? { role: "Reseller" } : ["toUserId", "fromUserId", "userId"].includes(field.key) ? { active: true, purpose: "credits" } : undefined} /> : field.type === "textarea" ? <Textarea id={`reseller-${field.key}`} value={values[field.key]} onChange={(e) => change(field.key, e.target.value)} maxLength={field.maxLength} aria-invalid={Boolean(errors[field.key])} aria-describedby={errors[field.key] ? `error-${field.key}` : undefined} rows={3} /> : <Control
+          placeholder={isAccountForm ? accountCreationPlaceholders[field.key] : undefined}
+          id={`reseller-${field.key}`}
+          type={field.type || "text"}
+          min={field.min}
+          step={field.step}
+          value={values[field.key]}
+          onWheel={isAllocationAmount ? (event) => event.currentTarget.blur() : undefined}
+          onKeyDown={field.step === 1 ? (e) => { if (["e", "E", "+", "-", "."].includes(e.key)) e.preventDefault(); } : undefined}
+          onChange={(e) => change(field.key, e.target.value)}
+          autoComplete={field.type === "password" ? "new-password" : "off"}
+          maxLength={field.maxLength}
+          aria-required={field.required}
+          aria-invalid={Boolean(errors[field.key])}
+          aria-describedby={errors[field.key] ? `error-${field.key}` : field.hint ? `reseller-${field.key}-hint` : undefined}
+        />}
         {errors[field.key] && <p id={`error-${field.key}`} className="text-xs text-destructive">{errors[field.key]}</p>}
       </Field>;
   }

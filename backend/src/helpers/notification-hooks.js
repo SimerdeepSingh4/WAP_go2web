@@ -18,10 +18,43 @@ const watched = {
 };
 
 function snapshot(doc, kind) {
-    if (kind === "transaction") return { id: doc._id, type: doc.type, amount: doc.amount, requestedFrom: doc.requestedFrom, notes: doc.notes, fromUser: doc.fromUser, toUser: doc.toUser, campaignId: doc.campaignId, performedBy: doc.performedBy };
+    const actor = doc.$locals?.actor;
+    if (kind === "transaction") return {
+        id: doc._id,
+        type: doc.type,
+        amount: doc.amount,
+        requestedFrom: doc.requestedFrom,
+        notes: doc.notes,
+        fromUser: doc.fromUser,
+        toUser: doc.toUser,
+        campaignId: doc.campaignId,
+        performedBy: doc.performedBy,
+        category: doc.category,
+    };
     if (kind === "campaign") return { id: doc._id, userId: doc.userId, title: doc.campaignTitle, status: doc.status, statusVisible: campaignPublicStatus(doc) === doc.status, total: doc.totalRecipients, publishedAt: doc.publishedSpreadsheet?.publishedAt };
-    if (kind === "user") return { id: doc._id, username: doc.username, role: doc.role, status: doc.status, rate: doc.ratePerMsg, expiresAt: doc.expiresAt, createdBy: doc.createdBy, resellerId: doc.resellerId, deviceLimit: doc.deviceLimit };
-    return { id: doc._id, userId: doc.userId, balance: doc.balance, isLocked: doc.isLocked };
+    if (kind === "user") return {
+        id: doc._id,
+        username: doc.username,
+        role: doc.role,
+        status: doc.status,
+        rate: doc.ratePerMsg,
+        expiresAt: doc.expiresAt,
+        createdBy: doc.createdBy,
+        resellerId: doc.resellerId,
+        deviceLimit: doc.deviceLimit,
+        performedBy: actor?._id || doc.performedBy,
+        actorRole: actor?.role,
+        actorUsername: actor?.username,
+    };
+    return {
+        id: doc._id,
+        userId: doc.userId,
+        balance: doc.balance,
+        isLocked: doc.isLocked,
+        performedBy: actor?._id || doc.performedBy,
+        actorRole: actor?.role,
+        actorUsername: actor?.username,
+    };
 }
 
 async function enqueue(doc, kind, changeField, isNew, previous, session) {
@@ -63,7 +96,9 @@ export function notificationHooks(schema, kind) {
         if (!event) return;
         await auditModelChange(kind, event.auditBefore, doc, doc.$session());
         if (event.isNew) {
-            await enqueue(doc, kind, null, true, null, doc.$session());
+            if (kind !== "transaction" || !["RESERVE", "RELEASE"].includes(doc.type)) {
+                await enqueue(doc, kind, null, true, null, doc.$session());
+            }
         } else {
             for (const field of event.changes) {
                 await enqueue(doc, kind, field, false, event.previous, doc.$session());

@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { randomUUID } from "node:crypto";
 import { creditMinor } from "./credit-amount.js";
+import { categoryBalances, CREDIT_BUCKETS, CREDIT_CATEGORIES, creditBalancePath, validCategoryBalance } from "./credit-categories.js";
 
 const states = new WeakMap();
 export const creditInvariantError = message => Object.assign(new Error(message), { statusCode: 503, code: "CREDIT_INVARIANT_FAILED", hasErrorLabel: () => false });
@@ -41,19 +42,42 @@ export function guardCreditSession(session) {
     return states.get(session);
 }
 
+function walletAmounts(wallet) {
+    const amounts = { balance: creditMinor(wallet?.balance ?? 0) };
+    const balances = categoryBalances(wallet);
+    for (const category of CREDIT_CATEGORIES) {
+        if (!validCategoryBalance(balances[category])) throw creditInvariantError("The saved category balance is invalid.");
+        for (const bucket of CREDIT_BUCKETS) amounts[creditBalancePath(category, bucket)] = balances[category][bucket];
+    }
+    return amounts;
+}
+
 export function recordWalletMovement(session, before, after) {
-    const beforeMinor = creditMinor(before?.balance ?? 0), afterMinor = creditMinor(after.balance);
+    const beforeAmounts = walletAmounts(before), afterAmounts = walletAmounts(after);
     const state = guardCreditSession(session), walletId = String(after._id), previous = state.wallets.get(walletId);
-    if (previous && previous.afterMinor !== beforeMinor) throw creditInvariantError("Wallet movements are not consecutive within the operation.");
     if (before && String(before.userId) !== String(after.userId)) throw creditInvariantError("A wallet cannot change its owning account.");
-    state.wallets.set(walletId, { walletId: after._id, userId: after.userId, afterMinor });
-    if (beforeMinor !== afterMinor) state.movements.push({ walletId, userId: String(after.userId), deltaMinor: afterMinor - beforeMinor, beforeMinor, afterMinor });
+    state.wallets.set(walletId, { walletId: after._id, userId: after.userId, amounts: afterAmounts, balanceMinor: after.balanceMinor });
+    for (const [path, afterAmount] of Object.entries(afterAmounts)) {
+        const beforeAmount = beforeAmounts[path];
+        if (previous && previous.amounts[path] !== beforeAmount) throw creditInvariantError("Wallet movements are not consecutive within the operation.");
+        if (beforeAmount !== afterAmount) state.movements.push({ userId: String(after.userId), path, delta: afterAmount - beforeAmount, before: beforeAmount, after: afterAmount });
+    }
 }
 
 export function recordLedgerPostings(session, transaction) {
     if (transaction.type === "REQUEST") return;
     const state = guardCreditSession(session);
-    for (const row of transaction.postings || []) if (row.userId) state.postings.push({ userId: String(row.userId), deltaMinor: row.deltaMinor, beforeMinor: row.balanceBeforeMinor, afterMinor: row.balanceAfterMinor });
+    for (const row of transaction.postings || []) {
+        if (!row.userId) continue;
+        const categorized = transaction.category != null;
+        state.postings.push({
+            userId: String(row.userId),
+            path: categorized ? creditBalancePath(row.category, row.bucket) : "balance",
+            delta: categorized ? row.deltaQuantity : row.deltaMinor,
+            before: categorized ? row.balanceBeforeQuantity : row.balanceBeforeMinor,
+            after: categorized ? row.balanceAfterQuantity : row.balanceAfterMinor,
+        });
+    }
 }
 
 // Reconciliation is an explicit, separately audited exception to ordinary
@@ -66,15 +90,19 @@ export function recordApprovedRepair(session, { wallet, afterBalance, planId, mo
 async function verifyCreditSession(session, state) {
     const unmatched = [...state.movements];
     for (const posting of state.postings) {
-        const index = unmatched.findIndex(row => row.userId === posting.userId && row.deltaMinor === posting.deltaMinor && row.beforeMinor === posting.beforeMinor && row.afterMinor === posting.afterMinor);
+        const index = unmatched.findIndex(row => row.userId === posting.userId && row.path === posting.path && row.delta === posting.delta && row.before === posting.before && row.after === posting.after);
         if (index < 0) throw creditInvariantError("A ledger posting has no matching wallet movement and balance snapshots.");
         unmatched.splice(index, 1);
     }
     if (unmatched.length) throw creditInvariantError("A wallet movement has no equal ledger posting.");
     const Wallet = mongoose.model("Wallet");
     for (const entry of state.wallets.values()) {
-        const wallet = await Wallet.findById(entry.walletId).select("userId balance balanceMinor").session(session).lean();
-        if (!wallet || String(wallet.userId) !== String(entry.userId) || creditMinor(wallet.balance) !== entry.afterMinor || wallet.balanceMinor !== entry.afterMinor) throw creditInvariantError("The saved wallet does not match the operation's final balance.");
+        const wallet = await Wallet.findById(entry.walletId).select("userId balance balanceMinor creditBalances").session(session).lean();
+        const actual = walletAmounts(wallet);
+        if (!wallet || String(wallet.userId) !== String(entry.userId) || wallet.balanceMinor !== entry.balanceMinor
+            || Object.entries(entry.amounts).some(([path, amount]) => actual[path] !== amount)) {
+            throw creditInvariantError("The saved wallet does not match the operation's final balance.");
+        }
     }
     for (const repair of state.repairs) {
         const receipt = await mongoose.model("CreditRepair").findOne({ planId: repair.planId, userId: repair.userId, mode: repair.mode }).session(session).lean();

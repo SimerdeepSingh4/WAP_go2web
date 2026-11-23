@@ -96,7 +96,7 @@ export async function auditAuthenticatedRequest(req, res, next) {
     if (["GET", "HEAD", "OPTIONS"].includes(req.method) && !["Super Admin", "Reseller"].includes(req.user?.role)) return next();
     const stream = `request:${req.auditRequestId || randomUUID()}`;
     try {
-        await appendAudit({ stream, action: "request.started", data: { method: req.method, path: req.path, input: req.body } });
+        await appendAudit({ stream, action: "request.started", data: { method: req.method, path: req.path, input: req.auditInput ?? req.body } });
         const originalEnd = res.end;
         let ending = false;
         res.end = function (...args) {

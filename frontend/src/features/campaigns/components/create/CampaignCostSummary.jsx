@@ -5,7 +5,7 @@ import { number } from "@/lib/format";
 import "./campaign-cost-summary.css";
 
 export default function CampaignCostSummary({
-  enteredCount, totalRecipients, estimate, estimatedCost, hasInsufficientCredits,
+  enteredCount, totalRecipients, estimatedCost, hasInsufficientCredits,
   isAdmin, currentBalance, remainingBalance, checks, submitDisabled, isPending, onCancel,
 }) {
   const completed = checks.filter((check) => check.ok).length;
@@ -15,7 +15,7 @@ export default function CampaignCostSummary({
     <header className="campaign-cost-heading">
       <div className="campaign-cost-heading-copy">
         <span className="campaign-cost-icon"><Coins aria-hidden="true" /></span>
-        <div><h2>Campaign summary</h2><p>Check the cost and details before you continue.</p></div>
+        <h2>Campaign summary</h2>
       </div>
       <span className="campaign-cost-readiness" data-ready={ready}>
         {ready && <CheckCircle2 aria-hidden="true" />}
@@ -26,23 +26,23 @@ export default function CampaignCostSummary({
     <div className="campaign-cost-body">
       <section className="campaign-cost-breakdown" aria-label="Campaign credit estimate">
         <div className="campaign-cost-estimate" data-insufficient={hasInsufficientCredits}>
-          <span className="campaign-cost-eyebrow">Estimated cost</span>
+          <span className="campaign-cost-eyebrow">Required Campaign Credits</span>
           <p className="campaign-cost-amount">{number(estimatedCost)} <span>credits</span></p>
-          <p className="campaign-cost-calculation">{number(count)} {count === 1 ? "number" : "numbers"}<span aria-hidden="true">×</span>{number(estimate.rate)} {estimate.rate === 1 ? "credit" : "credits"} each</p>
+          <p className="campaign-cost-calculation">{number(count)} {count === 1 ? "recipient" : "recipients"} (1 credit each)</p>
         </div>
         <dl className="campaign-cost-wallet">
-          <div><dt>Wallet balance</dt><dd>{isAdmin ? "Unlimited" : number(currentBalance)}{!isAdmin && <span> credits</span>}</dd></div>
+          <div><dt>Available credits</dt><dd>{isAdmin ? "Unlimited" : number(currentBalance)}{!isAdmin && <span> credits</span>}</dd></div>
           <div><dt>After submission</dt><dd data-negative={!isAdmin && remainingBalance < 0}>{isAdmin ? "Unlimited" : number(remainingBalance)}{!isAdmin && <span> credits</span>}</dd></div>
         </dl>
-        {isAdmin && <p className="campaign-cost-billing-note"><Info aria-hidden="true" /><span>Every entered number is charged, including repeats.</span></p>}
-        {hasInsufficientCredits && <p className="campaign-cost-alert" role="alert">You need <strong>{number(estimatedCost - currentBalance)} more credits</strong> to submit this campaign.</p>}
+        {isAdmin && <p className="campaign-cost-billing-note"><Info aria-hidden="true" /><span>Every entered row is charged, including duplicates.</span></p>}
+        {hasInsufficientCredits && <p className="campaign-cost-alert" role="alert">You need <strong>{number(estimatedCost - currentBalance)} more Campaign Credits</strong> to submit this campaign.</p>}
       </section>
 
       <section className="campaign-cost-checklist" aria-labelledby="campaign-checklist-heading">
         <div className="campaign-cost-checklist-heading"><h3 id="campaign-checklist-heading">Before you continue</h3><span>{completed}/{checks.length}</span></div>
         <ul aria-label="Submission checklist">{checks.map((check) => <li key={check.label} data-complete={check.ok}>
           {check.ok ? <CheckCircle2 aria-hidden="true" /> : <Circle aria-hidden="true" />}
-          <span>{check.label}</span><small>{check.ok ? "Complete" : "Needed"}</small>
+          <span>{check.ok || !check.target || check.target === "create-summary" ? check.label : <a className="underline underline-offset-4" href={`#${check.target}`}>{check.label}</a>}</span><small>{check.ok ? "Complete" : "Needed"}</small>
         </li>)}</ul>
       </section>
     </div>

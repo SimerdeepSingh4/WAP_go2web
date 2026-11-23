@@ -176,8 +176,8 @@ export default function CampaignRecipientsTable({ campaign, trackedRows, tracked
         {focusedPhone && <Button size="sm" variant="ghost" onClick={() => { onClearFocus?.(); setSearch(""); setPage(0); }}>Show all recipients</Button>}
         <label className="flex items-center gap-2 text-xs text-muted-foreground">Rows per page<select aria-label="Contacts per page" value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value)); setPage(0); }} className="h-8 rounded-lg border border-input bg-background px-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30">{[10, 25, 50, 100].map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
       </div>
-      <p className="recipient-scroll-hint">Swipe sideways to see all contact details and copy actions.</p><Table className="recipient-comparison min-w-[370px] table-fixed [&_th]:px-3! [&_td]:px-3! [&_td]:py-2.5! [&_th]:py-3!">
-        <TableHeader className="bg-muted/40"><TableRow className="hover:bg-transparent"><TableHead className="recipient-index w-12 text-center text-[11px]">#</TableHead><TableHead className="recipient-phone text-[11px]">Phone number</TableHead><TableHead className="w-28 text-[11px] sm:w-36">Status</TableHead><TableHead className="w-12 text-center"><span className="sr-only">Copy</span></TableHead></TableRow></TableHeader>
+      <Table className="compact-inline-table [&_td]:py-2.5 [&_th]:py-3">
+        <TableHeader className="bg-muted/40"><TableRow className="hover:bg-transparent"><TableHead className="recipient-index text-center text-[11px]">#</TableHead><TableHead className="text-[11px]">Phone number</TableHead><TableHead className="recipient-status text-[11px]">Status</TableHead><TableHead className="recipient-copy text-center"><span className="sr-only">Copy</span></TableHead></TableRow></TableHeader>
         <TableBody>{rows.length ? rows.map((row) => {
           const tracked = user?.role === "Super Admin" ? trackedRows?.get(row.phoneNumber.replace(/\D/g, "")) : undefined;
           return <TableRow key={row.rowNumber} className="hover:bg-muted/25">

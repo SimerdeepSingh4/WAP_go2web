@@ -5,6 +5,7 @@ import User from "../models/user.model.js";
 import Transaction from "../models/transaction.model.js";
 import { creditMinor } from "../helpers/credit-amount.js";
 import { guardCreditSession } from "../helpers/credit-session-guard.js";
+import { postCategoryCreditMovement } from "./category-credit-posting.service.js";
 
 const failure = (message, statusCode = 400, code = "CREDIT_POSTING_REJECTED") => Object.assign(new Error(message), { statusCode, code });
 const same = (a, b) => String(a ?? "") === String(b ?? "");
@@ -12,9 +13,11 @@ const hash = value => createHash("sha256").update(value).digest("hex");
 
 // All production economic movements use this function. Business controllers
 // validate the purpose; this service derives both sides from one exact amount.
-export async function postCreditMovement({ session, operationKey, type, amount, fromUser = null, toUser, performedBy, campaignId = null, notes = "", rateSnapshot = null, refundOperationId, toWalletSet = {}, allowLockedDebit = false }) {
+export async function postCreditMovement(posting) {
+    const { session, operationKey, type, amount, fromUser = null, toUser, performedBy, campaignId = null, notes = "", rateSnapshot = null, refundOperationId, toWalletSet = {}, allowLockedDebit = false } = posting;
     guardCreditSession(session);
     if (typeof operationKey !== "string" || !operationKey.trim() || operationKey.length > 240) throw failure("A stable credit operation reference is required.");
+    if (posting.category !== undefined) return postCategoryCreditMovement(posting);
     if (!["ALLOCATE", "REFUND", "DEDUCT", "RECLAIM"].includes(type)) throw failure("Unsupported economic credit movement.");
     const amountMinor = creditMinor(amount);
     if (amountMinor <= 0) throw failure("The credit amount must be greater than zero.");

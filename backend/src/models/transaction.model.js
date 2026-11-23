@@ -2,6 +2,7 @@ import { notificationHooks } from "../helpers/notification-hooks.js";
 import mongoose from "mongoose";
 import { ledgerAccountingHooks } from "../helpers/ledger-postings.js";
 import { transactionReference } from "../helpers/transaction-reference.js";
+import { CREDIT_BUCKETS, CREDIT_CATEGORIES } from "../helpers/credit-categories.js";
 
 /**
  * Transaction Model (Credit Audit Log)
@@ -34,19 +35,30 @@ const transactionSchema = new mongoose.Schema(
             min: [0.01, "Amount must be greater than 0"],
         },
         amountMinor: { type: Number },
+        category: { type: String, enum: CREDIT_CATEGORIES },
+        purchaseId: { type: mongoose.Schema.Types.ObjectId, ref: "CreditPurchase" },
+        filterRequestId: { type: mongoose.Schema.Types.ObjectId, ref: "NumberFilterRequest" },
+        originalTransactionId: { type: mongoose.Schema.Types.ObjectId, ref: "Transaction" },
+        chargeReference: String,
+        fromReserved: Boolean,
         operationKey: { type: String, maxlength: 240 },
         operationFingerprint: String,
         postings: [{
             _id: false,
             account: { type: String, required: true },
             userId: { type: mongoose.Schema.Types.ObjectId },
-            deltaMinor: { type: Number, required: true },
+            deltaMinor: Number,
             balanceBeforeMinor: Number,
             balanceAfterMinor: Number,
+            category: { type: String, enum: CREDIT_CATEGORIES },
+            bucket: { type: String, enum: CREDIT_BUCKETS },
+            deltaQuantity: Number,
+            balanceBeforeQuantity: Number,
+            balanceAfterQuantity: Number,
         }],
         type: {
             type: String,
-            enum: ["ALLOCATE", "DEDUCT", "REFUND", "RECLAIM", "REQUEST"],
+            enum: ["ALLOCATE", "DEDUCT", "REFUND", "RECLAIM", "REQUEST", "RESERVE", "RELEASE"],
             required: [true, "Transaction type is required"],
         },
         notes: {
@@ -100,6 +112,11 @@ transactionSchema.index({ toUser: 1, createdAt: -1 });
 transactionSchema.index({ performedBy: 1, createdAt: -1 });
 transactionSchema.index({ type: 1, createdAt: -1 });
 transactionSchema.index({ operationKey: 1 }, { unique: true, sparse: true });
+transactionSchema.index({ fromUser: 1, category: 1, createdAt: -1 });
+transactionSchema.index({ toUser: 1, category: 1, createdAt: -1 });
+transactionSchema.index({ chargeReference: 1 }, { unique: true, sparse: true });
+transactionSchema.index({ purchaseId: 1, type: 1 }, { unique: true, partialFilterExpression: { purchaseId: { $type: "objectId" } } });
+transactionSchema.index({ originalTransactionId: 1, type: 1 });
 
 // Keep automated refunds idempotent while allowing separate manual adjustments.
 transactionSchema.index(

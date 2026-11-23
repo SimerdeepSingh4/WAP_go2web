@@ -46,7 +46,7 @@
 .credit-mini-tabs button { display:inline-flex; min-height:29px; align-items:center; justify-content:center; gap:6px; padding:5px 11px; border:1px solid transparent; border-radius:5px; color:var(--muted-foreground); font-size:11px; line-height:1.5; cursor:pointer; }
 .credit-mini-tabs button[aria-pressed="true"] { border-color:var(--border); background:var(--card); color:var(--foreground); box-shadow:0 1px 2px rgb(0 0 0 / .04); }
 .credit-mini-tabs button > span { padding:0 5px; border-radius:4px; background:var(--muted); font-size:10px; }
-.credit-account-table-wrap { overflow-x:auto; }
+.credit-account-table-wrap { overflow-x:auto; container-type:inline-size; }
 .credit-account-table { width:100%; border-collapse:collapse; font-size:12px; }
 .credit-account-table th { padding:12px 20px; border-top:1px solid var(--border); border-bottom:1px solid var(--border); background:var(--surface-subtle); color:var(--muted-foreground); font-size:11px; font-weight:500; text-align:left; white-space:nowrap; }
 .credit-account-table td { padding:19px 20px; border-bottom:1px solid var(--border); font-variant-numeric:tabular-nums; white-space:nowrap; }
@@ -62,6 +62,26 @@
 .credit-table-difference { color:var(--status-danger-text,#b42318); font-weight:550; }
 .credit-table-difference small { color:var(--muted-foreground); font-size:10px; font-weight:400; }
 .credit-table-difference[data-zero="true"] { color:var(--muted-foreground); }
+@media (min-width:980px) {
+  @container (max-width:900px) {
+    .credit-account-table-wrap .credit-account-table { table-layout:fixed; }
+    .credit-account-table-wrap .credit-account-table :is(th,td) {
+      padding:10px 6px;
+      font-size:11px;
+      white-space:normal;
+      overflow-wrap:anywhere;
+    }
+    .credit-account-table th:first-child { width:25%; }
+    .credit-account-table th:nth-child(2) { width:18%; }
+    .credit-account-table th:last-child { width:11%; }
+    .credit-account-table .credit-table-account { max-width:100%; gap:6px; }
+    .credit-account-table .credit-table-account > span:last-child { min-width:0; }
+    .credit-account-table .credit-account-avatar { width:26px; height:26px; }
+    .credit-account-table .credit-state { max-width:100%; white-space:normal; }
+    .credit-account-table .credit-review-label { display:none; }
+    .credit-account-table td:last-child [data-slot="button"] { padding-inline:7px; }
+  }
+}
 .credit-state { display:inline-flex; width:fit-content; align-items:center; gap:5px; padding:4px 8px; border:1px solid var(--border); border-radius:6px; background:var(--surface-subtle); color:var(--muted-foreground); font-size:10px; font-weight:500; line-height:1.6; white-space:nowrap; }
 .credit-state::before { width:4px; height:4px; flex-shrink:0; border-radius:50%; background:currentColor; content:""; }
 .credit-state[data-state="confirmed"] { border-color:var(--status-danger-border,#f5ceca); background:var(--status-danger-bg,#fff5f4); color:var(--status-danger-text,#b42318); }

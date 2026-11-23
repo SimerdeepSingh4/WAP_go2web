@@ -7,7 +7,6 @@ import { QueryState } from "../../dashboard/components/shared";
 import { number } from "../../../lib/format";
 
 import { RecentCampaigns, AccountList, RecentTransactions } from "@/features/dashboard/components/OverviewPanels";
-import { toast } from "@/components/ui/toast";
 
 export default function Overview() {
   const overview = useAdminQuery("overview");
@@ -25,7 +24,7 @@ export default function Overview() {
   ];
 
   return (
-    <div className="portal-overview">
+    <div className="portal-overview admin-overview">
       {/* Page Heading & Actions */}
       <header className="portal-page-heading">
         <div className="portal-heading-copy">
@@ -42,7 +41,7 @@ export default function Overview() {
 
       {/* High-level Platform Totals */}
       <section aria-label="Workspace totals">
-        <QueryState query={overview}>
+        <QueryState query={overview} variant="cards">
           <OverviewMetricCards items={metrics} />
         </QueryState>
       </section>

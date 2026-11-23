@@ -38,6 +38,7 @@ export default function CampaignCtaFields({
   campaignLink, onCampaignLinkChange, campaignLinkName, onCampaignLinkNameChange,
   campaignNumber, onCampaignNumberChange, campaignNumberName, onCampaignNumberNameChange,
   labelsReadOnly = false,
+  linkError, phoneError,
 }) {
   if (!onCampaignLinkChange && !onCampaignNumberChange) return null;
   return <div className="campaign-cta-fields">
@@ -47,8 +48,8 @@ export default function CampaignCtaFields({
       <div className="space-y-1.5">
         <Label htmlFor="campaign-link">Website URL</Label>
         <Input id="campaign-link" type="url" inputMode="url" autoComplete="url" placeholder="https://example.com/offer"
-          value={campaignLink} onChange={event => onCampaignLinkChange(event.target.value)} maxLength={2048} aria-describedby="campaign-link-hint" />
-        <p id="campaign-link-hint" className="text-[11px] leading-5 text-muted-foreground">Leave blank if you don't want a link button.</p>
+          value={campaignLink} onChange={event => onCampaignLinkChange(event.target.value)} maxLength={2048} aria-invalid={Boolean(linkError)} aria-describedby="campaign-link-hint" />
+        <p id="campaign-link-hint" aria-live="polite" className={`text-xs leading-5 ${linkError ? "text-destructive" : "text-muted-foreground"}`}>{linkError || "Include https:// or http://."}</p>
       </div>
     </fieldset>}
     {onCampaignNumberChange && <fieldset className="campaign-cta-section">
@@ -57,8 +58,8 @@ export default function CampaignCtaFields({
       <div className="space-y-1.5">
         <Label htmlFor="campaign-number">Phone Number</Label>
         <Input id="campaign-number" type="tel" inputMode="tel" autoComplete="tel" placeholder="+91 98765 43210"
-          value={campaignNumber} onChange={event => onCampaignNumberChange(event.target.value)} maxLength={40} aria-describedby="campaign-number-hint" />
-        <p id="campaign-number-hint" className="text-[11px] leading-5 text-muted-foreground">Include the country code (like +91 or +1). Leave blank if you don't want a call button.</p>
+          value={campaignNumber} onChange={event => onCampaignNumberChange(event.target.value)} maxLength={40} aria-invalid={Boolean(phoneError)} aria-describedby="campaign-number-hint" />
+        <p id="campaign-number-hint" aria-live="polite" className={`text-xs leading-5 ${phoneError ? "text-destructive" : "text-muted-foreground"}`}>{phoneError || "Include the country code, such as +91 or +1."}</p>
       </div>
     </fieldset>}
   </div>;

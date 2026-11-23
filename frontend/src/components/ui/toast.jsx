@@ -4,7 +4,9 @@ import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { XIcon, CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
-const toast = ToastPrimitive.createToastManager()
+// Share the same queue with in-flight actions when Vite refreshes this module.
+const toast = import.meta.hot?.data.toastManager ?? ToastPrimitive.createToastManager()
+if (import.meta.hot) import.meta.hot.data.toastManager = toast
 
 function ToastProvider({
   ...props
@@ -22,11 +24,12 @@ function ToastViewport({
   className,
   ...props
 }) {
+  // Layer the toast viewport above dialog backdrops and the floating dock.
   return (
     <ToastPrimitive.Viewport
       data-slot="toast-viewport"
       className={cn(
-        "pointer-events-none fixed inset-x-4 bottom-4 z-50 mx-auto w-auto max-w-sm outline-none sm:right-4 sm:left-auto sm:mx-0 sm:w-full",
+        "pointer-events-none fixed inset-x-4 bottom-4 z-[10001] mx-auto w-auto max-w-sm outline-none sm:right-4 sm:left-auto sm:mx-0 sm:w-full",
         className
       )}
       {...props}

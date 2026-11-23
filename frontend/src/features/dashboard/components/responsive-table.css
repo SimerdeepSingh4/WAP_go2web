@@ -1,12 +1,40 @@
+.responsive-data-table { container-type: inline-size; }
 .mobile-record-list, .mobile-table-sort { display: none; }
 .portal-table-sort { display:inline-flex; max-width:100%; min-height:24px; align-items:center; justify-content:flex-start; gap:6px; padding:0; text-align:inherit; vertical-align:middle; font:inherit; font-weight:600; line-height:1.4; }
 .portal-table-sort > span { min-width:0; overflow-wrap:normal; word-break:normal; }
 .portal-table-sort > svg { flex:0 0 12px; width:12px; height:12px; }
 
 .portal-main .responsive-data-table :where([data-slot="table-head"], [data-slot="table-cell"]) { padding-inline: 12px; }
+.responsive-data-table[data-density="compact"] :where([data-slot="table-head"]) { height: 38px; }
+.portal-main .responsive-data-table[data-density="compact"] :where([data-slot="table-head"], [data-slot="table-cell"]) {
+  font-size: 12px;
+  line-height: 1.4;
+}
 
 @media (min-width: 980px) and (max-width: 1279px) {
   .portal-main .responsive-data-table :where([data-slot="table-head"], [data-slot="table-cell"]) { padding-inline: 8px; }
+}
+
+@container (max-width: 900px) {
+  .responsive-data-table .responsive-table-desktop table { width: 100%; table-layout: fixed; }
+  .portal-main .responsive-data-table .responsive-table-desktop :where([data-slot="table-head"], [data-slot="table-cell"]) {
+    padding-inline: 6px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-size: 11px;
+  }
+  .portal-main .responsive-data-table .responsive-table-desktop [data-slot="table-cell"] :where(.text-xs, [class~="text-[11px]"]) { font-size: 11px; }
+  .responsive-data-table .portal-table-sort { gap: 4px; }
+  .responsive-data-table .portal-table-sort > span { overflow-wrap: anywhere; }
+  .responsive-data-table .portal-table-sort > svg { flex-basis: 10px; width: 10px; height: 10px; }
+  .responsive-data-table .responsive-table-desktop :where(.portal-row-actions) { flex-wrap: wrap; white-space: normal; }
+  .responsive-data-table .responsive-table-desktop [data-slot="table-cell"] > :where(span, a, button) { max-width: 100%; }
+  .responsive-data-table .responsive-table-desktop [data-slot="table-cell"] :where([data-slot="badge"]) {
+    height: auto;
+    min-height: 1.25rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
 }
 
 @media (max-width: 979.98px) {
@@ -53,8 +81,25 @@
   .responsive-table-pager nav button { min-width: 44px; min-height: 44px; }
 }
 
-.recipient-table-scroll { max-width: 100%; overflow: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; }
+.recipient-table-scroll { max-width: 100%; overflow: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; container-type: inline-size; }
 .recipient-scroll-hint { display: none; }
+
+.recipient-report-table th:not(.recipient-index) { min-width: var(--report-column-width); }
+.compact-table-region, [data-slot="table-container"]:has(> .compact-inline-table) { container-type: inline-size; }
+.compact-inline-table { width: 100%; table-layout: fixed; }
+.compact-inline-table th.recipient-index { width: 14%; }
+.compact-inline-table th.recipient-status { width: 28%; }
+.compact-inline-table th.recipient-copy { width: 12%; }
+
+@container (max-width: 900px) {
+  .compact-inline-table :is(th, td) { padding-inline: 6px; white-space: normal; overflow-wrap: anywhere; }
+  .compact-inline-table [data-slot="badge"] { max-width: 100%; height: auto; white-space: normal; }
+  .recipient-table-scroll .recipient-comparison .recipient-index { width: 3rem; min-width: 3rem; padding-inline: 6px; }
+  .recipient-table-scroll .recipient-report-table :is(th, td) { padding-inline: 6px; white-space: normal; overflow-wrap: anywhere; }
+  .recipient-table-scroll .recipient-report-table th:not(.recipient-index) { min-width: min(var(--report-column-width, 9rem), 9rem); }
+  .recipient-table-scroll .recipient-report-table th > button { gap: 4px; white-space: normal; }
+}
+
 @media (max-width: 979.98px) {
   .recipient-scroll-hint { display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--muted); color: var(--muted-foreground); font-size: 11px; }
   .recipient-comparison { border-collapse: separate; border-spacing: 0; }

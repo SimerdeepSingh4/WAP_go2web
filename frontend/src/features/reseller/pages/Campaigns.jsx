@@ -261,6 +261,7 @@ export default function ResellerCampaigns({ reports = false }) {
   return (
     <>
       <PageHeading
+        inlineMobile={!reports}
         title={reports ? "Reports" : "Campaigns"}
         description={
           reports

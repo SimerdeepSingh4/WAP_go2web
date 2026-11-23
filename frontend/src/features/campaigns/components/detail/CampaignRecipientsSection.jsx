@@ -62,9 +62,11 @@ export default function CampaignRecipientsSection({
   const [draftReady, setDraftReady] = useState(false);
   const draftSaveTimer = useRef(null);
 
-  const rate =
-    campaign.rateSnapshot ||
-    (campaign.userId?.ratePerMsg > 0 ? campaign.userId.ratePerMsg : 12);
+  const isCategorized = Boolean(campaign.campaignCreditCharge || campaign.category === "CAMPAIGN");
+  const rate = isCategorized
+    ? 1
+    : campaign.rateSnapshot ||
+      (campaign.userId?.ratePerMsg > 0 ? campaign.userId.ratePerMsg : 12);
 
   // Initialize entries with permanent row numbers
   const initialEntries = useMemo(() => {

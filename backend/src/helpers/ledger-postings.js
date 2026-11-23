@@ -2,8 +2,10 @@ import { creditAmount, creditMinor } from "./credit-amount.js";
 import { queueCreditCheck } from "./credit-audit-job.js";
 import { recordLedgerPostings } from "./credit-session-guard.js";
 import mongoose from "mongoose";
+import { buildCategoryPostings } from "./category-ledger-postings.js";
 
 export function buildCreditPostings(record, { systemReclaim = false } = {}) {
+    if (record.category != null) return buildCategoryPostings(record, { systemReclaim });
     const amountMinor = creditMinor(record.amount);
     if (amountMinor <= 0) throw new Error("A ledger amount must be positive");
     const entries = [];
@@ -37,8 +39,17 @@ export function ledgerAccountingHooks(schema) {
     });
     schema.pre("validate", async function () {
         if (!this.isNew) return;
-        this.amount = creditAmount(this.amount);
-        this.amountMinor = creditMinor(this.amount);
+        if (this.category == null) {
+            if (["RESERVE", "RELEASE"].includes(this.type) || this.purchaseId || this.filterRequestId || this.originalTransactionId || this.fromReserved || this.chargeReference) {
+                throw new Error("Category ledger fields require a credit category.");
+            }
+            this.amount = creditAmount(this.amount);
+            this.amountMinor = creditMinor(this.amount);
+        } else {
+            if (this.rateSnapshot != null || this.amountMinor != null) throw new Error("Use credit quantities and purchase records for categorized entries.");
+            this.chargeReference = this.type === "DEDUCT" && !this.originalTransactionId && (this.campaignId || this.filterRequestId)
+                ? (this.campaignId ? `campaign:${this.campaignId}` : `number-filter:${this.filterRequestId}`) : undefined;
+        }
         let systemReclaim = false;
         if (this.type === "ALLOCATE" && !this.fromUser || this.type === "RECLAIM" && this.balanceAfterTo == null) {
             const actor = await mongoose.model("User").findById(this.performedBy).select("role").session(this.$session()).lean();

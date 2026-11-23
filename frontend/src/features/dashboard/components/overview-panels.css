@@ -1,0 +1,137 @@
+:is(.admin-overview, .reseller-overview) .dashboard-two-column {
+  grid-template-columns: minmax(0, 1.85fr) minmax(275px, 1fr);
+  gap: 18px;
+}
+
+:is(.admin-overview, .reseller-overview) .dashboard-section {
+  border-radius: 16px;
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--foreground) 4%, transparent);
+}
+
+.portal-main :is(.admin-overview, .reseller-overview) .dashboard-section-heading {
+  background: var(--card);
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+:is(.admin-overview, .reseller-overview) .overview-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--foreground);
+}
+
+.overview-panel-title > span, .overview-account-avatar {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: var(--primary-text);
+  background: color-mix(in srgb, var(--primary) 10%, var(--card));
+}
+
+.overview-review-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 10px;
+  padding: 14px;
+  background: var(--surface-subtle);
+}
+
+.overview-review-list > li {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+}
+
+.overview-record-top, .overview-review-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+  flex-wrap: wrap;
+}
+
+.overview-record-name {
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.overview-record-name:hover { text-decoration: underline; }
+.overview-record-meta, .overview-review-footer {
+  font-size: 12px;
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+
+.overview-record-meta { margin-top: 3px; }
+.overview-review-footer {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.overview-reseller-list { padding-inline: 18px; }
+.overview-reseller-list > li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding-block: 17px;
+}
+
+.overview-reseller-list > li + li { border-top: 1px solid var(--border); }
+.overview-account-avatar {
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.admin-overview > .dashboard-section .responsive-table-desktop td { padding-block: 12px; }
+
+@container portal (max-width: 42rem) {
+  .admin-overview > .portal-page-heading {
+    flex-flow: row nowrap;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
+
+@media (max-width: 1000px) {
+  :is(.admin-overview, .reseller-overview) .dashboard-two-column { grid-template-columns: minmax(0, 1fr); }
+}
+
+.reseller-overview .overview-review-list > li { display: flex; flex-direction: column; }
+.reseller-overview .overview-record-meta { margin-bottom: auto; }
+.reseller-overview .overview-review-footer { row-gap: 6px; }
+.reseller-overview .portal-page-actions { flex-wrap: wrap; max-width: 100%; }
+@media (max-width: 600px) {
+  .reseller-overview .portal-greeting { flex-direction: column; align-items: stretch; }
+  .reseller-overview .portal-page-actions > a { flex: 1 1 auto; }
+}
+
+@media (max-width: 1200px) {
+  .dashboard-summary-metrics .overview-metric-card[data-featured],
+  .dashboard-summary-metrics .reseller-purchase-rates { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  .overview-metrics.dashboard-summary-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-summary-metrics .overview-metric-content { min-height: 0; gap: 12px; }
+  .dashboard-summary-metrics .overview-metric-split { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+  .dashboard-summary-metrics .overview-metric-sub { flex: 1 1 max-content; }
+  .dashboard-summary-metrics .overview-metric-sub:not(:first-child) { border: 0; padding: 0; }
+  .dashboard-summary-metrics .overview-metric-sub-label { overflow: visible; }
+  .dashboard-summary-metrics .overview-metric-sub-value { white-space: nowrap; }
+  .dashboard-summary-metrics .overview-metric-card:not([data-featured]) .overview-metric-split { flex-direction: column; align-items: stretch; }
+  .dashboard-summary-metrics .overview-metric-card:not([data-featured]) .overview-metric-sub {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+  .dashboard-summary-metrics .overview-metric-card:not([data-featured]) .overview-metric-sub-value { font-size: 18px; }
+}

@@ -1,4 +1,4 @@
-import { Router } from "express";
+    import { Router } from "express";
 import {
     resolveBranding,
     getResellerBranding,
@@ -14,7 +14,7 @@ const brandingRouter = Router();
 // Public: Resolve branding by subdomain/host
 brandingRouter.get("/resolve", resolveBranding);
 
-// Reseller routes (all protected)
+// Reseller and Super Admin routes (all protected)
 brandingRouter.get(
     "/reseller",
     protect,
@@ -25,14 +25,14 @@ brandingRouter.get(
 brandingRouter.patch(
     "/reseller",
     protect,
-    authorizeRoles("Reseller"),
+    authorizeRoles("Reseller", "Super Admin"),
     updateResellerBranding
 );
 
 brandingRouter.post(
     "/reseller/logo",
     protect,
-    authorizeRoles("Reseller"),
+    authorizeRoles("Reseller", "Super Admin"),
     uploadBrandingLogo,
     uploadResellerLogo
 );
@@ -40,7 +40,7 @@ brandingRouter.post(
 brandingRouter.delete(
     "/reseller/logo",
     protect,
-    authorizeRoles("Reseller"),
+    authorizeRoles("Reseller", "Super Admin"),
     removeResellerLogo
 );
 

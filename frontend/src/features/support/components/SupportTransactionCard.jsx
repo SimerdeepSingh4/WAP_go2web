@@ -1,3 +1,4 @@
+import TransactionAmount from "@/features/credits/components/TransactionAmount";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { ArrowDownLeft, ArrowUpRight, Check, Clock3, Copy, Hash, MoreHorizontal, Paperclip, ShieldCheck } from "lucide-react";
@@ -6,7 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { toast } from "@/components/ui/toast";
 import { supportDate } from "../lib/quickActions";
 
-const labels = { ALLOCATE: "Credits allocated", DEDUCT: "Credits deducted", REFUND: "Credits refunded", RECLAIM: "Credits reclaimed", REQUEST: "Credit request" };
+const labels = { RESERVE: "Recharge hold", RELEASE: "Recharge hold release", ALLOCATE: "Credits allocated", DEDUCT: "Credits deducted", REFUND: "Credits refunded", RECLAIM: "Credits reclaimed", REQUEST: "Credit request" };
 const number = value => Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
 export default function SupportTransactionCard({ transaction, onAttach, onReview, campaignUrl, disabled, canReview, reviewDisabled }) {
@@ -27,10 +28,18 @@ export default function SupportTransactionCard({ transaction, onAttach, onReview
     <header className="support-transaction-heading">
       <span className="support-transaction-icon"><Icon aria-hidden="true" /></span>
       <div className="support-transaction-title"><h3>{labels[transaction.type] || transaction.type}</h3><time dateTime={transaction.createdAt}>{supportDate(transaction.createdAt)}</time></div>
-      <div className="support-transaction-amount"><strong>{request ? "" : incoming ? "+" : "−"}{number(transaction.amount)}</strong><span>credits{request ? " requested" : ""}</span></div>
+      <div className="support-transaction-amount"><strong><TransactionAmount amount={transaction.amount} direction={transaction.direction} /></strong><span>{transaction.category === "CAMPAIGN" ? "Campaign Credits" : transaction.category === "NUMBER_FILTERING" ? "Number Filtering Credits" : "Legacy credits"}{request ? " requested" : ""}</span></div>
     </header>
     <div className="support-transaction-reference"><Hash aria-hidden="true" /><code title={transaction.reference}>{transaction.reference}</code><button type="button" onClick={copyReference} aria-label={copied ? "Reference copied" : `Copy ${transaction.reference}`} title={copied ? "Copied" : "Copy reference"}>{copied ? <Check /> : <Copy />}</button></div>
     {transaction.balanceAfter != null && <div className="support-transaction-balance"><span>Balance after transaction</span><strong>{number(transaction.balanceAfter)} <small>credits</small></strong></div>}
+    {transaction.heldAfter != null && <div className="support-transaction-balance"><span>Held afterward</span><strong>{number(transaction.heldAfter)}</strong></div>}
+    {(transaction.purchaseId || transaction.filterRequestId || transaction.originalTransactionId) && (
+      <dl className="text-xs">
+        {transaction.purchaseId && <div><dt>Recharge</dt><dd className="font-mono">{transaction.purchaseId}</dd></div>}
+        {transaction.filterRequestId && <div><dt>Filtering request</dt><dd className="font-mono">{transaction.filterRequestId}</dd></div>}
+        {transaction.originalTransactionId && <div><dt>Original debit</dt><dd className="font-mono">TXN-{String(transaction.originalTransactionId).toUpperCase()}</dd></div>}
+      </dl>
+    )}
     <footer className="support-tool-transaction-actions">
       <Button readOnlySafe type="button" size="sm" variant="secondary" disabled={disabled} onClick={onAttach}><Paperclip />Attach to reply</Button>
       {(campaignUrl || canReview) && <DropdownMenu><DropdownMenuTrigger aria-label={`More actions for ${transaction.reference}`} render={<Button readOnlySafe type="button" size="icon-sm" variant="ghost" />}><MoreHorizontal /></DropdownMenuTrigger><DropdownMenuContent side="bottom" align="end" sideOffset={6} className="support-transaction-menu">

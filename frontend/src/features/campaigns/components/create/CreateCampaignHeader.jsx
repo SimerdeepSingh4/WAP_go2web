@@ -1,35 +1,41 @@
-import { ArrowLeft, Check, ChevronRight, ShieldCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Check, ChevronRight, Wallet } from "lucide-react";
+import { number } from "@/lib/format";
 
 export default function CreateCampaignHeader({
-  onNavigateBack,
-  isPending,
   checks = [],
-  dailyUsage,
+  availableCredits,
+  isAdmin = false,
 }) {
+  const sections = [
+    { label: "Details", id: "create-details", targets: ["create-details", "create-timing"] },
+    { label: "Message", id: "create-message", targets: ["create-message", "create-media"] },
+    { label: "Audience", id: "create-recipients", targets: ["create-recipients"] },
+    { label: "Review", id: "create-summary" },
+  ].map(section => ({
+    ...section,
+    complete: checks.every(check => (section.targets && !section.targets.includes(check.target)) || check.ok),
+  }));
+  const nextSection = sections.find(section => !section.complete);
   return (
     <header className="campaign-create-header">
-      <Button type="button" variant="ghost" size="sm" onClick={onNavigateBack} disabled={isPending} className="-ml-2 gap-1.5 text-xs text-muted-foreground"><ArrowLeft className="size-3.5" /> Back to campaigns</Button>
       <div className="campaign-create-heading">
         <div><h1>Create a campaign</h1><p>Prepare your message, choose your audience, and review the credit cost.</p></div>
-        <div className="flex flex-wrap items-center gap-2">
-          {dailyUsage && !dailyUsage.isUnlimited && (
-            <span
-              className="campaign-create-approval"
-              title={dailyUsage.isCustom ? "Custom daily limit set by administrator" : "Platform standard daily limit"}
-            >
-              <strong>{dailyUsage.remainingToday}</strong> of {dailyUsage.dailyLimit} campaigns left today{dailyUsage.isCustom ? " (Custom)" : ""}
-            </span>
-          )}
-          <span className="campaign-create-approval"><ShieldCheck aria-hidden="true" />Admin approval required</span>
-        </div>
+        <dl className="campaign-wallet">
+          <dt><Wallet size={16} aria-hidden="true" />Available balance</dt>
+          <dd>{isAdmin ? "Unlimited" : number(availableCredits)} <span>campaign credits</span></dd>
+        </dl>
       </div>
-      <nav className="campaign-compose-steps" aria-label="Campaign form sections"><ol>{[
-        { label: "Campaign details", href: "create-details", complete: checks[0]?.ok },
-        { label: "Message", href: "create-message", complete: checks[1]?.ok },
-        { label: "Audience", href: "create-recipients", complete: checks[2]?.ok },
-        { label: "Review", href: "create-summary", complete: checks.length > 0 && checks.every((check) => check.ok) },
-      ].map((step, index) => <li key={step.href}><a href={`#${step.href}`} data-complete={Boolean(step.complete)}><span className="campaign-compose-step-number">{step.complete ? <Check aria-hidden="true" /> : index + 1}</span><span>{step.label}</span>{step.complete && <span className="sr-only">complete</span>}</a>{index < 3 && <ChevronRight className="campaign-compose-step-arrow" aria-hidden="true" />}</li>)}</ol></nav>
+      <nav className="campaign-compose-steps" aria-label="Campaign form sections">
+        <ol>{sections.map((step, index) => (
+          <li key={step.id}>
+            <a href={`#${step.id}`} data-complete={step.complete} aria-current={step === nextSection ? "step" : undefined}>
+              <span className="campaign-compose-step-number">{step.complete ? <Check aria-hidden="true" /> : index + 1}</span>
+              {step.label}{step.complete && <span className="sr-only"> complete</span>}
+            </a>
+            {index < sections.length - 1 && <ChevronRight className="campaign-compose-step-arrow" aria-hidden="true" />}
+          </li>
+        ))}</ol>
+      </nav>
     </header>
   );
 }

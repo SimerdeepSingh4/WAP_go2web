@@ -6,6 +6,7 @@ import transactionModel from "../models/transaction.model.js";
 import contactModel from "../models/contact.model.js";
 import groupModel from "../models/group.model.js";
 import templateModel from "../models/template.model.js";
+import { LEGACY_CREDITS, categoryBalances } from "../helpers/credit-categories.js";
 
 /**
  * GET /api/dashboard/stats
@@ -43,10 +44,19 @@ export const getDashboardStats = async (req, res) => {
                 userModel.countDocuments({ role: "Reseller", status: "active" }),
                 userModel.countDocuments(),
                 walletModel.aggregate([
-                    { $group: { _id: null, totalBalance: { $sum: "$balance" } } },
+                    {
+                        $group: {
+                            _id: null,
+                            totalBalance: { $sum: "$balance" },
+                            campaignAvailable: { $sum: { $ifNull: ["$creditBalances.CAMPAIGN.available", 0] } },
+                            campaignReserved: { $sum: { $ifNull: ["$creditBalances.CAMPAIGN.reserved", 0] } },
+                            filteringAvailable: { $sum: { $ifNull: ["$creditBalances.NUMBER_FILTERING.available", 0] } },
+                            filteringReserved: { $sum: { $ifNull: ["$creditBalances.NUMBER_FILTERING.reserved", 0] } },
+                        },
+                    },
                 ]),
                 transactionModel.aggregate([
-                    { $match: { fromUser: null, type: "ALLOCATE" } },
+                    { $match: { ...LEGACY_CREDITS, fromUser: null, type: "ALLOCATE" } },
                     { $group: { _id: null, total: { $sum: "$amount" } } },
                 ]),
                 campaignModel.countDocuments(),
@@ -103,6 +113,16 @@ export const getDashboardStats = async (req, res) => {
                     credits: {
                         totalCreditsInCirculation,
                         totalAllocatedBySuperAdmin: totalAllocated,
+                        categoryBalances: {
+                            CAMPAIGN: {
+                                available: walletSumResult[0]?.campaignAvailable || 0,
+                                reserved: walletSumResult[0]?.campaignReserved || 0,
+                            },
+                            NUMBER_FILTERING: {
+                                available: walletSumResult[0]?.filteringAvailable || 0,
+                                reserved: walletSumResult[0]?.filteringReserved || 0,
+                            },
+                        },
                     },
                     campaigns: {
                         totalCampaigns,
@@ -135,7 +155,7 @@ export const getDashboardStats = async (req, res) => {
                     userModel.find({ resellerId: userId }).select("_id status"),
                     walletModel.findOne({ userId }),
                     transactionModel.aggregate([
-                        { $match: { fromUser: userId, type: "ALLOCATE" } },
+                        { $match: { ...LEGACY_CREDITS, fromUser: userId, type: "ALLOCATE" } },
                         { $group: { _id: null, total: { $sum: "$amount" } } },
                     ]),
                     walletModel.aggregate([
@@ -143,12 +163,13 @@ export const getDashboardStats = async (req, res) => {
                         { $group: { _id: null, total: { $sum: "$balance" } } },
                     ]),
                     transactionModel.aggregate([
-                        { $match: { toUser: userId, type: "ALLOCATE" } },
+                        { $match: { ...LEGACY_CREDITS, toUser: userId, type: "ALLOCATE" } },
                         { $group: { _id: null, total: { $sum: "$amount" } } },
                     ]),
                     transactionModel.aggregate([
                         {
                             $match: {
+                                ...LEGACY_CREDITS,
                                 toUser: userId,
                                 type: "ALLOCATE",
                                 createdAt: { $gte: startOfMonth },
@@ -222,6 +243,7 @@ export const getDashboardStats = async (req, res) => {
                 stats: {
                     wallet: {
                         myBalance,
+                        creditBalances: categoryBalances(myWallet),
                         totalAllocatedBySuperAdmin,
                         creditsPurchasedThisMonth,
                         creditsDistributedToClients: creditsDistributed,
@@ -319,6 +341,7 @@ export const getDashboardStats = async (req, res) => {
             stats: {
                 wallet: {
                     myBalance,
+                    creditBalances: categoryBalances(userWallet),
                     ratePerMsg,
                     messagesRemaining,
                 },

@@ -43,7 +43,7 @@ function fixture(url, method) {
   if (path === '/auth/me') return { user };
   if (path === '/notifications') return { items: [], unreadCount: 0, attentionCount: 0 };
   if (method !== 'GET' && method !== 'OPTIONS') { mutations.push({ path, method }); return { success: true, message: 'Test server accepted the request', data: campaigns[0] }; }
-  if (path === '/credits/balance') return { wallet: { balance: 1000, ratePerMsg: 2.5, isLocked: mode === 'locked', expiresAt: null } };
+  if (path === '/credits/balance') return { wallet: { creditBalances: { CAMPAIGN: { available: 1000 } }, balance: 1000, ratePerMsg: 2.5, isLocked: mode === 'locked', expiresAt: null } };
   if (path === '/users/me') return { user };
   if (path === '/users') return { users: mode === 'empty' ? [] : [owner, reseller, { ...reseller, _id: 'admin-1', role: 'Super Admin' }] };
   if (path === '/campaigns') return { data: mode === 'empty' ? [] : campaigns };
@@ -178,23 +178,23 @@ try {
     assert.equal(await evaluate("document.querySelector('#recipients').value"), invalid);
     const errors = await evaluate("document.querySelector('#recipients-errors').innerText");
     assert(errors.includes('Line 1: Has 11 digits') && errors.includes('Line 2: Must start with 91'));
-    assert(!await evaluate("[...document.querySelectorAll('[role=dialog]')].some(dialog=>dialog.textContent.includes('Submit campaign'))"));
+    assert(!await evaluate("[...document.querySelectorAll('[role=dialog]')].some(dialog=>dialog.textContent.includes('Submit for approval'))"));
     await evaluate("(()=>{const input=document.querySelector('[aria-label=\"Upload recipients file\"]');const files=new DataTransfer();files.items.add(new File(['+919876543210\\n919876543211,919876543212'],'recipients.csv',{type:'text/csv'}));input.files=files.files;input.dispatchEvent(new Event('change',{bubbles:true}));})()");
     await waitFor("document.querySelector('#recipients-input-error')?.innerText.includes('Only digits are allowed')");
     assert.equal(await evaluate("document.querySelector('#recipients').value"), invalid);
     await setValue('#recipients', '919876543210\n919876543211'); await click('Review campaign');
-    await waitFor("[...document.querySelectorAll('[role=dialog]')].some(dialog=>dialog.textContent.includes('Submit campaign'))");
+    await waitFor("[...document.querySelectorAll('[role=dialog]')].some(dialog=>dialog.textContent.includes('Submit for approval'))");
     assert.equal(await evaluate("document.querySelector('#recipients').getAttribute('aria-invalid')"), 'false');
-    await click('Back to edit');
+    await click('Edit campaign');
   });
   await check('Campaign review, failed submit recovery, success redirect', async () => {
-    await navigate('/user/campaigns/create'); await setValue('#title', 'Review test'); await setValue('#description', 'Test submission'); await setValue('#recipients', '919876543210\n919876543211');
+    await navigate('/user/campaigns/create'); await setValue('#title', 'Review test'); assert.equal(await evaluate("document.querySelector('#description') === null"), true); await setValue('#recipients', '919876543210\n919876543211');
     await evaluate("(()=>{const e=document.querySelector('.ql-editor');e.innerHTML='<p>Test message</p>';e.dispatchEvent(new Event('input',{bubbles:true}));})()");
     await click('Review campaign'); await waitFor("Boolean(document.querySelector('.campaign-review-dialog'))");
     const review = await evaluate("document.querySelector('.campaign-review-dialog').innerText");
-    assert(review.includes('5 credits'), `Review must charge 5 credits for two recipients: ${review}`);
-    await click('Back to edit'); assert.equal(await evaluate("document.querySelector('#title').value"), 'Review test'); await click('Review campaign');
-    failSubmit = true; await click('Submit campaign'); await waitFor("document.body.innerText.includes('Test service unavailable')"); failSubmit = false; await click('Submit campaign'); await waitFor("location.pathname==='/user/campaigns'");
+    assert(review.includes('2 credits'), `Review must charge 2 credits for two recipients: ${review}`);
+    await click('Edit campaign'); assert.equal(await evaluate("document.querySelector('#title').value"), 'Review test'); await click('Review campaign');
+    failSubmit = true; await click('Submit for approval'); await waitFor("document.body.innerText.includes('Test service unavailable')"); failSubmit = false; await click('Submit for approval'); await waitFor("location.pathname==='/user/campaigns'");
   });
   await check('Credit request review and confirmation', async () => { await navigate('/user/credits?request=new',390); await setValue('#request-amount', '50'); await click('Review request'); await click('Submit request'); await waitFor("!new URLSearchParams(location.search).has('request') && ![...document.querySelectorAll('[role=dialog]')].some(dialog => dialog.textContent.includes('Review credit request'))"); assert(mutations.some(m=>m.path==='/credits/request')); });
   for (const state of ['empty','error','loading']) await check(`${state} state`, async () => { mode=state; await navigate('/user/campaigns'); await waitFor(state==='empty'?"document.body.innerText.includes('No campaigns yet')":state==='error'?"document.body.innerText.includes('Unable to load')":"Boolean(document.querySelector('[aria-label=\"Loading records\"]'))"); });

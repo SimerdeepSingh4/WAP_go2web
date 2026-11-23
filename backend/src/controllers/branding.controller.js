@@ -30,6 +30,27 @@ export async function resolveBranding(req, res) {
             : extractSubdomain(hostHeader);
 
         if (!candidateSubdomain) {
+            const superAdmin = await userModel.findOne({
+                role: "Super Admin",
+                "whiteLabel.brandName": { $exists: true, $ne: "" },
+            }).select("whiteLabel");
+
+            const saWl = superAdmin?.whiteLabel;
+            if (saWl && (saWl.brandName || saWl.logoUrl || saWl.primaryColor)) {
+                return res.status(200).json({
+                    success: true,
+                    branding: {
+                        ...DEFAULT_BRANDING,
+                        isWhiteLabeled: true,
+                        brandName: saWl.brandName || DEFAULT_BRANDING.brandName,
+                        logoUrl: saWl.logoUrl || DEFAULT_BRANDING.logoUrl,
+                        primaryColor: saWl.primaryColor || "",
+                        secondaryColor: saWl.secondaryColor || "",
+                        accentColor: saWl.accentColor || "",
+                    },
+                });
+            }
+
             return res.status(200).json({
                 success: true,
                 branding: DEFAULT_BRANDING,
@@ -89,19 +110,20 @@ export async function resolveBranding(req, res) {
 export async function getResellerBranding(req, res) {
     try {
         const user = await userModel.findById(req.user._id).select("role username companyName whiteLabel");
-        if (!user || user.role !== "Reseller") {
+        if (!user || !["Reseller", "Super Admin"].includes(user.role)) {
             return res.status(403).json({
-                message: "Only Resellers can access branding settings.",
+                message: "Only Resellers and Super Admin can access branding settings.",
                 success: false,
             });
         }
 
+        const isSuperAdmin = user.role === "Super Admin";
         const now = new Date();
         const wl = user.whiteLabel || {};
-        const isEnabled = Boolean(wl.enabled);
-        const expiresAt = wl.expiresAt || null;
-        const isExpired = Boolean(isEnabled && expiresAt && new Date(expiresAt) <= now);
-        const isActive = Boolean(isEnabled && (!expiresAt || new Date(expiresAt) > now));
+        const isEnabled = isSuperAdmin ? true : Boolean(wl.enabled);
+        const expiresAt = isSuperAdmin ? null : (wl.expiresAt || null);
+        const isExpired = isSuperAdmin ? false : Boolean(isEnabled && expiresAt && new Date(expiresAt) <= now);
+        const isActive = isSuperAdmin ? true : Boolean(isEnabled && (!expiresAt || new Date(expiresAt) > now));
 
         return res.status(200).json({
             success: true,
@@ -134,16 +156,17 @@ export async function getResellerBranding(req, res) {
 export async function updateResellerBranding(req, res) {
     try {
         const user = await userModel.findById(req.user._id);
-        if (!user || user.role !== "Reseller") {
+        if (!user || !["Reseller", "Super Admin"].includes(user.role)) {
             return res.status(403).json({
-                message: "Only Resellers can update branding settings.",
+                message: "Only Resellers and Super Admin can update branding settings.",
                 success: false,
             });
         }
 
+        const isSuperAdmin = user.role === "Super Admin";
         const now = new Date();
-        const isEnabled = Boolean(user.whiteLabel?.enabled);
-        const isExpired = Boolean(isEnabled && user.whiteLabel?.expiresAt && new Date(user.whiteLabel.expiresAt) <= now);
+        const isEnabled = isSuperAdmin ? true : Boolean(user.whiteLabel?.enabled);
+        const isExpired = isSuperAdmin ? false : Boolean(isEnabled && user.whiteLabel?.expiresAt && new Date(user.whiteLabel.expiresAt) <= now);
 
         if (!isEnabled) {
             return res.status(403).json({
@@ -160,6 +183,9 @@ export async function updateResellerBranding(req, res) {
         }
 
         user.whiteLabel = user.whiteLabel || {};
+        if (isSuperAdmin) {
+            user.whiteLabel.enabled = true;
+        }
         const { subdomain, brandName, primaryColor, secondaryColor, accentColor } = req.body;
 
         // Subdomain validation
@@ -274,16 +300,17 @@ export async function uploadResellerLogo(req, res) {
 
     try {
         const user = await userModel.findById(req.user._id);
-        if (!user || user.role !== "Reseller") {
+        if (!user || !["Reseller", "Super Admin"].includes(user.role)) {
             return res.status(403).json({
-                message: "Only Resellers can upload branding logos.",
+                message: "Only Resellers and Super Admin can upload branding logos.",
                 success: false,
             });
         }
 
+        const isSuperAdmin = user.role === "Super Admin";
         const now = new Date();
-        const isEnabled = Boolean(user.whiteLabel?.enabled);
-        const isExpired = Boolean(isEnabled && user.whiteLabel?.expiresAt && new Date(user.whiteLabel.expiresAt) <= now);
+        const isEnabled = isSuperAdmin ? true : Boolean(user.whiteLabel?.enabled);
+        const isExpired = isSuperAdmin ? false : Boolean(isEnabled && user.whiteLabel?.expiresAt && new Date(user.whiteLabel.expiresAt) <= now);
 
         if (!isEnabled || isExpired) {
             return res.status(403).json({
@@ -292,6 +319,10 @@ export async function uploadResellerLogo(req, res) {
                     : "White-label access has not been granted by Super Admin.",
                 success: false,
             });
+        }
+
+        if (isSuperAdmin && user.whiteLabel) {
+            user.whiteLabel.enabled = true;
         }
 
         if (!req.file || !req.file.buffer) {
@@ -398,9 +429,9 @@ export async function uploadResellerLogo(req, res) {
 export async function removeResellerLogo(req, res) {
     try {
         const user = await userModel.findById(req.user._id);
-        if (!user || user.role !== "Reseller") {
+        if (!user || !["Reseller", "Super Admin"].includes(user.role)) {
             return res.status(403).json({
-                message: "Only Resellers can modify branding.",
+                message: "Only Resellers and Super Admin can modify branding.",
                 success: false,
             });
         }

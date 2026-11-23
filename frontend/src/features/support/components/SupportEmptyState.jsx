@@ -1,4 +1,4 @@
-import { Headset, MessageCircle, Paperclip, ShieldCheck } from "lucide-react";
+import { Headset, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function SupportEmptyState({ role, onStart, blocked }) {
@@ -11,14 +11,8 @@ export default function SupportEmptyState({ role, onStart, blocked }) {
       <span className="support-welcome-icon"><Headset /></span>
       <span className="support-welcome-mini"><MessageCircle /></span>
     </div>
-    <span className="support-eyebrow">{isUser ? "YOUR SUPPORT SPACE" : role === "Reseller" ? "RESELLER SUPPORT & CLIENT ASSISTANCE" : "A LITTLE CLARITY, EVERY CONVERSATION"}</span>
-    <h2>{isUser ? "Your Admin is just a message away" : role === "Reseller" ? "Help your clients or reach Super Admin" : "Ready when they need you"}</h2>
-    <p>{isUser ? "A question, an issue, or a little guidance. Your Admin is just a message away." : role === "Reseller" ? "Choose a client conversation to assist them, or start a direct chat with Super Admin for support." : "Choose a conversation to catch up, share an answer, and help move things forward."}</p>
+    <h2>Select a conversation</h2>
+    <p>{isUser ? "Open a chat to read replies from your admin." : role === "Reseller" ? "Open a client chat or message Super Admin for help." : "Open a conversation from your inbox to read and reply."}</p>
     {canStart && <Button onClick={onStart} disabled={blocked} className="mt-1 gap-2"><MessageCircle className="size-4" />{isUser ? "Start a conversation" : "Chat with Super Admin"}</Button>}
-    <div className="support-welcome-features">
-      <span><MessageCircle />One shared conversation</span>
-      <span><Paperclip />Images, video & audio</span>
-      <span><ShieldCheck />{isUser ? "Extra help when needed" : "Super Admin assistance"}</span>
-    </div>
   </div>;
 }

@@ -9,15 +9,15 @@
 
 .transaction-ledger-filters {
   display: grid;
-  grid-template-columns: 180px minmax(220px, 300px);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: center;
   gap: 10px;
-  max-width: 100%;
+  width: min(100%, 600px);
 }
 
-.transaction-ledger-filters > div { min-width: 0; }
+.transaction-ledger-filters > * { min-width: 0; }
 
-.transaction-ledger-filters [data-slot="select-trigger"] {
+.transaction-ledger-filters :is([data-slot="select-trigger"], .account-picker-trigger) {
   width: 100%;
   min-width: 0;
   height: 40px;
@@ -27,10 +27,11 @@
   font-size: 13px;
 }
 
-.transaction-ledger-table .transaction-action-cell {
-  width: 164px;
-  min-width: 164px;
-  text-align: right;
+.transaction-ledger-filters [data-slot="select-value"] {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -52,10 +53,10 @@
 @media (max-width: 640px) {
   .transaction-ledger-filters {
     width: 100%;
-    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
   }
 
-  .transaction-ledger-filters [data-slot="select-trigger"],
+  .transaction-ledger-filters :is([data-slot="select-trigger"], .account-picker-trigger),
   .transaction-ledger-table .transaction-allocate-button {
     min-height: 44px;
     height: 44px;

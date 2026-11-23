@@ -1,8 +1,11 @@
+import { expireDueCreditQuotes } from "../services/credit-purchase-holds.service.js";
 import { randomUUID } from "node:crypto";
 import Wallet from "../models/wallet.model.js";
 import User from "../models/user.model.js";
-import { CreditAuditJob, CreditAuditState } from "../models/credit-reconciliation.model.js";
+import { CreditAuditJob, CreditAuditState, CreditCase } from "../models/credit-reconciliation.model.js";
+import { CREDIT_EVIDENCE_VERSION, staleCreditEvidence } from "../services/credit-evidence.service.js";
 import { checkCreditAccount } from "../services/credit-reconciliation.service.js";
+import { pendingCreditCheck, queueCreditCheck } from "../helpers/credit-audit-job.js";
 import { notifyRole } from "../services/socket.service.js";
 
 const owner = randomUUID();
@@ -16,17 +19,21 @@ export async function requestCreditFullScan(session = null) {
 export async function runCreditCheckCycle() {
     await CreditAuditState.updateOne({ _id: "monitor" }, { $setOnInsert: { scanState: "idle", nextFullScanAt: new Date(0) } }, { upsert: true });
     const now = new Date();
-    const state = await CreditAuditState.findOneAndUpdate({ _id: "monitor", $or: [{ leaseUntil: { $lte: now } }, { leaseUntil: null }, { owner }] },
-        { $set: { owner, leaseUntil: new Date(Date.now() + 60000), lastTickAt: now } }, { returnDocument: "after" }).lean();
+    const state = await CreditAuditState.findOneAndUpdate({ _id: "monitor", evidenceVersion: { $not: { $gt: CREDIT_EVIDENCE_VERSION } },
+        $or: [{ leaseUntil: { $lte: now } }, { leaseUntil: null }, { owner }] },
+        { $set: { owner, leaseUntil: new Date(Date.now() + 60000), lastTickAt: now, lastEvidenceTickAt: now } }, { returnDocument: "after" }).lean();
     if (!state) return;
     let fullScanActive = state.scanState === "checking";
     async function renew(fields = {}) {
-        const result = await CreditAuditState.updateOne({ _id: "monitor", owner }, { $set: { leaseUntil: new Date(Date.now() + 60000), lastTickAt: new Date(), ...fields } });
+        const tick = new Date();
+        const result = await CreditAuditState.updateOne({ _id: "monitor", owner }, { $set: { leaseUntil: new Date(tick.getTime() + 60000), lastTickAt: tick, lastEvidenceTickAt: tick, ...fields } });
         if (!result.matchedCount) throw new Error("Credit monitor lease changed.");
     }
     try {
+        await expireDueCreditQuotes(now);
         const due = !state.nextFullScanAt || state.nextFullScanAt <= now;
-        if (state.scanState === "pending" || state.scanState === "running" || due && state.scanState !== "checking") {
+        const changedEvidence = state.evidenceVersion !== CREDIT_EVIDENCE_VERSION;
+        if (changedEvidence || state.scanState === "pending" || state.scanState === "running" || due && state.scanState !== "checking") {
             await renew({ scanState: "running", scanStartedAt: new Date(), scanQueued: 0, error: null });
             const seen = new Set();
             let batch = [], queued = 0;
@@ -42,23 +49,33 @@ export async function runCreditCheckCycle() {
                 batch.push({ updateOne: { filter: { userId }, update: { $inc: { generation: 1 }, $set: { dirty: true, availableAt: new Date(), attempts: 0, error: null } }, upsert: true } });
                 if (batch.length >= 200) await flush();
             }
+            for await (const existing of CreditCase.find({ state: "open" }).select("userId").lean().cursor()) await enqueue(existing.userId);
             for await (const user of User.find({ role: { $in: ["User", "Reseller"] } }).select("_id").lean().cursor()) await enqueue(user._id);
             for await (const wallet of Wallet.find().select("userId").lean().cursor()) await enqueue(wallet.userId);
             await flush();
-            await renew({ scanState: "checking", scanQueued: queued });
+            await renew({ scanState: "checking", scanQueued: queued, evidenceVersion: CREDIT_EVIDENCE_VERSION });
             fullScanActive = true;
+        } else {
+            const staleCases = await CreditCase.aggregate([
+                { $match: staleCreditEvidence },
+                { $lookup: { from: CreditAuditJob.collection.name, localField: "userId", foreignField: "userId", pipeline: [{ $match: pendingCreditCheck }], as: "pendingChecks" } },
+                { $match: { "pendingChecks.0": { $exists: false } } },
+                { $limit: 20 },
+                { $project: { _id: 0, userId: 1 } },
+            ]);
+            await queueCreditCheck(staleCases.map(({ userId }) => userId));
         }
-        const jobs = await CreditAuditJob.find({ dirty: true, availableAt: { $lte: new Date() } }).sort({ updatedAt: 1 }).limit(20).lean();
+        const jobs = await CreditAuditJob.find({ ...pendingCreditCheck, availableAt: { $lte: new Date() } }).sort({ updatedAt: 1 }).limit(20).lean();
         for (const job of jobs) {
             await renew();
             try {
                 await checkCreditAccount(job.userId);
-                await CreditAuditJob.updateOne({ _id: job._id, generation: job.generation }, { $set: { dirty: false, checkedAt: new Date(), attempts: 0, error: null } });
+                await CreditAuditJob.updateOne({ _id: job._id, generation: job.generation }, { $set: { dirty: false, checkedGeneration: job.generation, checkedAt: new Date(), attempts: 0, error: null } });
             } catch (error) {
                 await CreditAuditJob.updateOne({ _id: job._id, generation: job.generation }, { $inc: { attempts: 1 }, $set: { error: "The check could not complete; it will retry.", availableAt: new Date(Date.now() + Math.min(300000, 5000 * 2 ** Math.min(job.attempts || 0, 6))) } });
             }
         }
-        const pending = await CreditAuditJob.exists({ dirty: true });
+        const pending = await CreditAuditJob.exists(pendingCreditCheck);
         await renew({ error: null, ...(!pending && fullScanActive ? { scanState: "idle", scanFinishedAt: new Date(), nextFullScanAt: new Date(Date.now() + HOUR) } : {}) });
         if (jobs.length || fullScanActive) await Promise.allSettled([notifyRole("Super Admin", "CREDIT_RECONCILIATION_CHANGED", {})]);
     } catch (error) {

@@ -51,7 +51,7 @@ function syncAccountAccess(socket, user) {
         const timer = setTimeout(() => {
             // Re-read the account in case the expiry was extended while waiting.
             socket.data.accountAccessKey = undefined;
-            void checkConnectedSocket(socket).then(valid => {
+            void checkConnectedSocket(socket, true).then(valid => {
                 if (valid) socket.emit("ACCOUNT_ACCESS_CHANGED", JSON.parse(socket.data.accountAccessKey));
             });
         }, Math.min(remaining, 2_147_483_647));
@@ -145,8 +145,15 @@ async function emitAuthorized(room, event, payload) {
     // All application notifications pass through this guard. Socket.IO incoming
     // middleware alone cannot stop an already connected client receiving events.
     const sockets = [...io.sockets.sockets.values()].filter((socket) => !room || socket.rooms.has(room));
+    const accessChanged = event === "ACCOUNT_ACCESS_CHANGED";
     await Promise.all(sockets.map(async (socket) => {
-        if (await checkConnectedSocket(socket)) socket.emit(event, payload);
+        const previousAccess = socket.data.accountAccessKey;
+        if (!await checkConnectedSocket(socket, accessChanged)) return;
+        if (!accessChanged) socket.emit(event, payload);
+        else if (socket.data.accountAccessKey === previousAccess) {
+            // A profile update may leave restrictions unchanged. Refresh that client too.
+            socket.emit(event, JSON.parse(socket.data.accountAccessKey));
+        }
     }));
 }
 

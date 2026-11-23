@@ -9,15 +9,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
+import { TableSkeleton, MetricCardsSkeleton, ListSkeleton } from "@/components/ui/page-skeletons";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Empty, EmptyHeader, EmptyTitle, EmptyDescription } from "@/components/ui/empty";
 import { statusLabels } from "../../../lib/format";
 
-export function PageHeading({ title, description, action, eyebrow }) {
+export function PageHeading({ title, description, action, eyebrow, inlineMobile = false }) {
   return (
-    <div className="portal-page-heading">
+    <div className="portal-page-heading" data-inline-mobile={inlineMobile || undefined}>
       <div className="min-w-0">
         {eyebrow && (
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
@@ -63,8 +63,22 @@ export function ClearFiltersButton({ keys = ["search", "status"] }) {
   return <Button type="button" variant="outline" size="sm" onClick={() => setParams(previous => { const next = new URLSearchParams(previous); keys.forEach(key => next.delete(key)); return next; }, { replace: true })}>Clear filters</Button>;
 }
 
-export function QueryState({ query, children, empty = false, emptyTitle = "No records yet", emptyDescription = "Records will appear here when they are available.", emptyAction }) {
-  if (query.isPending) return <div role="status" aria-label="Loading records" className="space-y-3 p-6"><span className="sr-only">Loading records</span>{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-9 w-full" />)}</div>;
+export function QueryState({
+  query,
+  children,
+  empty = false,
+  emptyTitle = "No records yet",
+  emptyDescription = "Records will appear here when they are available.",
+  emptyAction,
+  variant = "table",
+  skeleton,
+}) {
+  if (query.isPending) {
+    if (skeleton) return skeleton;
+    if (variant === "cards") return <MetricCardsSkeleton count={4} />;
+    if (variant === "list") return <ListSkeleton count={4} />;
+    return <TableSkeleton rows={5} />;
+  }
   if (query.isError) return <div role="alert" className="portal-query-error space-y-3 rounded-lg border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] p-5"><p className="font-medium">Unable to load this information</p><p className="text-sm text-muted-foreground">{query.error?.message || "The request could not be completed."} Try again. If the problem continues, contact support.</p><Button variant="outline" onClick={() => query.refetch()} disabled={query.isFetching}><RefreshCw />{query.isFetching ? "Trying again…" : "Try again"}</Button></div>;
   if (empty) return <Empty className="py-12"><EmptyHeader><Inbox className="portal-empty-icon mx-auto mb-2 size-6" aria-hidden="true" /><EmptyTitle>{emptyTitle}</EmptyTitle><EmptyDescription>{emptyDescription}</EmptyDescription></EmptyHeader>{emptyAction}</Empty>;
   return children;
@@ -100,7 +114,7 @@ export function DataTable({ rows, columns, emptyTitle = "No matching records", e
     setSort(key ? { key, direction: sort?.key === key ? -sort.direction : 1 } : null);
     setPage(1);
   }
-  return <div data-tour="records" className={`responsive-data-table min-w-0 overflow-hidden rounded-xl border bg-card shadow-xs ${className}`}>
+  return <div data-tour="records" data-density={compact ? "compact" : undefined} className={`responsive-data-table min-w-0 overflow-hidden rounded-xl border bg-card shadow-xs ${className}`}>
     {rows.length > 0 && sortable.length > 0 && <div className="mobile-table-sort">
       <label htmlFor={sortId}>Sort by</label>
       <select id={sortId} value={sortColumn?.key || ""} onChange={(event) => { setSort(event.target.value ? { key: event.target.value, direction: 1 } : null); setPage(1); }}>

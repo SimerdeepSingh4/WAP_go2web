@@ -1,6 +1,12 @@
 import { notificationHooks } from "../helpers/notification-hooks.js";
 import mongoose from "mongoose";
 import { walletAccountingHooks } from "../helpers/wallet-accounting.js";
+import { CREDIT_CATEGORIES, isCreditQuantity } from "../helpers/credit-categories.js";
+
+const categoryBalanceSchema = new mongoose.Schema({
+    available: { type: Number, default: 0, validate: isCreditQuantity },
+    reserved: { type: Number, default: 0, validate: isCreditQuantity },
+}, { _id: false });
 
 /**
  * Wallet Model
@@ -27,6 +33,9 @@ const walletSchema = new mongoose.Schema(
             min: [0, "Balance cannot be negative"],
         },
         balanceMinor: { type: Number, min: 0 },
+        creditBalances: Object.fromEntries(CREDIT_CATEGORIES.map(category => [
+            category, { type: categoryBalanceSchema, default: () => ({}) },
+        ])),
         resellerId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",

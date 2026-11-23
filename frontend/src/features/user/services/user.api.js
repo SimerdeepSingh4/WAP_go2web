@@ -29,5 +29,4 @@ export const userActions = {
   createCampaign: async (body) => (await api.post("/campaigns", body)).data,
   deleteCampaign: async (id) => (await api.delete(`/campaigns/${id}`)).data,
   // New: deduct credits from user wallet
-  deductCredits: async (body) => (await api.post("/credits/deduct", body)).data,
 };

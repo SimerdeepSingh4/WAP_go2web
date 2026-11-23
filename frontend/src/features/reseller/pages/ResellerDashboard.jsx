@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../auth/hooks/useAuth.js";
 import { fetchUsers, createClientUser, accessUserAccount } from "../../accounts/services/users.api.js";
 import { setPreviewToken } from "@/api/sessionToken";
+import { TableSkeleton } from "@/components/ui/page-skeletons";
 
 export default function ResellerDashboard() {
   const { user, checkAuth } = useAuth();
@@ -207,7 +208,7 @@ export default function ResellerDashboard() {
           </div>
 
           {isLoading ? (
-            <p className="text-xs text-[var(--muted-foreground)]">Loading user accounts...</p>
+            <TableSkeleton rows={4} showFilters={false} />
           ) : users.length === 0 ? (
             <div className="text-center py-8 text-xs text-[var(--muted-foreground)]">
               No client users found under your account. Click "+ Create Client User" to add one.

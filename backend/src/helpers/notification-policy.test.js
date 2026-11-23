@@ -73,12 +73,12 @@ test("an administrator sees credits allocated to the client, never received from
 
 test("incoming credits identify the actual sender while protecting internal admin identities", () => {
     const adminMessage = formatNotification(allocation(), client, client, 100, [allocator, client]);
-    assert.equal(adminMessage.title, "Credits received from Super Admin");
-    assert.equal(adminMessage.body, "5 credits were received from Super Admin.");
+    assert.equal(adminMessage.title, "Credits received from Admin");
+    assert.equal(adminMessage.body, "5 credits were received from Admin.");
     assert(!JSON.stringify(adminMessage).includes(allocator.username));
     const resellerMessage = formatNotification(allocation(reseller._id, reseller._id), client, client, 100, [reseller, client]);
-    assert.equal(resellerMessage.title, "Credits received from ankita001");
-    assert.equal(resellerMessage.body, '5 credits were received from Reseller "ankita001".');
+    assert.equal(resellerMessage.title, "Credits received from Admin (ankita001)");
+    assert.equal(resellerMessage.body, "5 credits were received from Admin (ankita001).");
 });
 
 test("allocation senders and observing managers see the recipient and correct direction", () => {

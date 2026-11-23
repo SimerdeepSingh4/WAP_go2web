@@ -87,7 +87,19 @@ export function BrandingProvider({ children }) {
     // 5. Otherwise: default platform branding.
     const effectiveBranding = useMemo(() => {
         if (user?.role === "Super Admin") {
-            return DEFAULT_BRANDING;
+            const wl = user.whiteLabel || {};
+            if (wl.brandName || wl.logoUrl || wl.primaryColor || wl.isActive) {
+                return {
+                    isWhiteLabeled: Boolean(wl.brandName || wl.logoUrl || wl.primaryColor),
+                    subdomain: wl.subdomain || "",
+                    brandName: wl.brandName || DEFAULT_BRANDING.brandName,
+                    logoUrl: wl.logoUrl || DEFAULT_BRANDING.logoUrl,
+                    primaryColor: wl.primaryColor || "",
+                    secondaryColor: wl.secondaryColor || "",
+                    accentColor: wl.accentColor || "",
+                };
+            }
+            return subdomainBranding || DEFAULT_BRANDING;
         }
 
         if (user?.whiteLabel?.isActive) {
@@ -116,10 +128,10 @@ export function BrandingProvider({ children }) {
 
     const setCustomBranding = useCallback((newBranding) => {
         // Keep authenticated branding in sync; it has priority over subdomain data.
-        if (user?.role === "Reseller" && user.whiteLabel?.isActive) {
+        if (["Reseller", "Super Admin"].includes(user?.role)) {
             queryClient.setQueryData(["authUser"], current => current ? {
                 ...current,
-                whiteLabel: { ...current.whiteLabel, ...newBranding },
+                whiteLabel: { ...current.whiteLabel, ...newBranding, isActive: true },
             } : current);
         }
         queryClient.setQueryData(["subdomain-branding", subdomain], (prev) => ({

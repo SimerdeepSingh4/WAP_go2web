@@ -159,3 +159,21 @@ Images, videos and PDFs default to 3 MB each. Super Admin can save platform defa
 The payload is `{ "mediaUploadLimits": { "imageMB": 3, "videoMB": 3, "pdfMB": 3 } }`. Values range from 1 to 100 MB; account overrides may be `null` to inherit. The existing aggregate request ceiling still applies.
 
 Sharp converts campaign images to WebP before upload, preserving aspect ratio within 1920 × 1920 pixels. Cloudinary applies incoming automatic-quality H.264/AAC MP4 transformations to videos before storing them; file metadata records the resulting size. PDFs remain raw documents with their contents intact. Cloudinary PDF optimization requires separate account enablement and a different asset type, so it is not enabled by this workflow. No local FFmpeg or PDF tools are required.
+
+## WhatsApp recharge notifications
+
+The notification worker sends the assigned seller a WhatsApp alert when a buyer submits or corrects payment proof. The seller opens Credits → Recharge Requests in the authenticated panel to check the proof and approve, flag, or reject the request.
+
+Configure the backend environment and restart the backend and notification worker:
+
+- `WHATSAPP_ACCESS_TOKEN` and `WHATSAPP_PHONE_NUMBER_ID` identify the Meta WhatsApp Cloud API sender. Store the token in server secrets.
+- `WHATSAPP_GRAPH_VERSION` is the Graph API version enabled for your app, such as `v25.0`.
+- `WHATSAPP_RECHARGE_TEMPLATE` is the approved template name. Set `WHATSAPP_TEMPLATE_LANGUAGE` to its language code (default `en_US`).
+- `WHATSAPP_PANEL_URL` is the public HTTPS origin of the panel.
+- `WHATSAPP_RECHARGE_RECIPIENTS` is a JSON object mapping each opted-in seller's account ID to their confirmed international WhatsApp number, for example `{"<seller-account-id>":"+15550100123"}`. Both reseller and Super Admin accounts use this setting. Removing an entry disables WhatsApp alerts for that reviewer.
+
+Use a body-only template with eight positional parameters in this order:
+
+> Recharge review: {{1}} from {{2}} for quote #{{3}}. Requested: {{4}} {{5}} credits. Amount: INR {{6}}. Payment reference: {{7}}. Review in your panel: {{8}}.
+
+The message provides the quoted amount and buyer-supplied reference. The reviewer checks the uploaded proof and confirms payment in the panel.

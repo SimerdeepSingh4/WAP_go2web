@@ -149,6 +149,56 @@ a.overview-metric-content:hover .overview-metric-icon svg { transform: translate
 }
 .overview-metric-value[data-size="text"] { font-size: 22px; line-height: 1.3; letter-spacing: -.5px; }
 .overview-metric-value-suffix { font-size: 14px; font-weight: 400; letter-spacing: normal; }
+.overview-metric-rate-card .overview-metric-value-suffix {
+  color: var(--metric-muted);
+  font-size: clamp(14px, 1.2vw, 18px);
+  font-weight: 500;
+  margin-inline-start: 2px;
+}
+.overview-metric-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: flex-end;
+  gap: 12px;
+  min-width: 0;
+  margin-top: 2px;
+}
+.overview-metric-sub {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.overview-metric-sub:not(:first-child) {
+  padding-inline-start: 12px;
+  border-inline-start: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+}
+.overview-metric-sub-label {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.82;
+  color: inherit;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.overview-metric-sub-value {
+  color: inherit;
+  font-size: clamp(24px, 2.2vw, 32px);
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -1.2px;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.overview-metric-sub-value .overview-metric-value-suffix {
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: normal;
+  opacity: 0.9;
+  margin-inline-start: 2px;
+}
 .overview-metric-footer {
   margin-top: auto;
   color: var(--metric-muted);
@@ -170,6 +220,8 @@ a.overview-metric-content:hover .overview-metric-icon svg { transform: translate
   .overview-metric-icon svg { width: 14px; height: 14px; }
   .overview-metric-value { font-size: 32px; letter-spacing: -1.2px; }
   .overview-metric-value[data-size="text"] { font-size: 19px; }
+  .overview-metric-sub-value { font-size: 24px; letter-spacing: -0.8px; }
+  .overview-metric-sub-value .overview-metric-value-suffix { font-size: 11px; }
 }
 @media (max-width: 370px) { .overview-metrics { grid-template-columns: minmax(0, 1fr); } }
 @media (prefers-reduced-motion: reduce) {

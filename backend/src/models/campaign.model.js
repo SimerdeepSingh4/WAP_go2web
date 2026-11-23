@@ -4,6 +4,11 @@ import { messageTextFromHtml } from "../helpers/message.helper.js";
 import { campaignReference } from "../helpers/campaign-reference.js";
 import { CTA_LABEL_LIMIT } from "../../../shared/campaignCta.js";
 
+const campaignCreditChargeSchema = new mongoose.Schema({
+    transactionId: { type: mongoose.Schema.Types.ObjectId, ref: "Transaction", required: true },
+    submittedRowCount: { type: Number, min: 1, validate: Number.isSafeInteger, required: true },
+}, { _id: false });
+
 const campaignSchema = new mongoose.Schema(
     {
         userId: {
@@ -16,11 +21,6 @@ const campaignSchema = new mongoose.Schema(
             type: String,
             required: [true, "Campaign title is required"],
             trim: true,
-        },
-        campaignDescription: {
-            type: String,
-            trim: true,
-            default: "",
         },
         campaignLink: {
             type: String,
@@ -245,6 +245,11 @@ const campaignSchema = new mongoose.Schema(
             type: Number,
             default: 0,
         },
+        category: {
+            type: String,
+            enum: ["CAMPAIGN"],
+        },
+        campaignCreditCharge: { type: campaignCreditChargeSchema, immutable: true },
         rateSnapshot: {
             type: Number,
             default: null,

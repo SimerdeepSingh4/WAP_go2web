@@ -1,8 +1,10 @@
 import { creditAmount, creditMinor } from "./credit-amount.js";
 import { queueCreditCheck } from "./credit-audit-job.js";
 import { creditInvariantError, guardCreditSession, recordWalletMovement } from "./credit-session-guard.js";
+import { categoryBalances, CREDIT_BUCKETS, CREDIT_CATEGORIES, creditBalancePath, isCreditBalancePath, validCategoryBalance } from "./credit-categories.js";
 
-const financialPath = key => /^(balance|balanceMinor)(\.|$)/.test(key);
+const financialPath = key => /^(balance|balanceMinor|creditBalances)(\.|$)/.test(key);
+const walletFields = "userId balance balanceMinor creditBalances";
 function financialEdits(update) {
     if (Array.isArray(update)) throw creditInvariantError("Custom wallet update pipelines are not allowed.");
     const edits = [];
@@ -35,6 +37,11 @@ export function walletAccountingHooks(schema) {
     }
     for (const method of ["insertMany", "bulkWrite"]) schema.pre(method, function () { throw creditInvariantError("Bulk wallet writes cannot bypass credit posting and audit hooks."); });
     schema.pre("save", async function () {
+        if (!this.isNew && this.isModified("creditBalances")) throw creditInvariantError("Category balances require an audited credit posting.");
+        if (this.isNew && Object.values(categoryBalances(this)).some(balance =>
+            !validCategoryBalance(balance) || balance.available || balance.reserved)) {
+            throw creditInvariantError("Category balances must start at zero.");
+        }
         if (!this.isModified("balance") && !this.isNew) {
             if (this.isModified("balanceMinor")) throw creditInvariantError("The stored integer balance cannot be edited independently.");
             this.$locals.creditBalanceChanged = false;
@@ -43,7 +50,7 @@ export function walletAccountingHooks(schema) {
         if (!this.isNew || Number(this.balance) !== 0) requireTransaction(this.$session());
         this.balance = creditAmount(this.balance);
         this.balanceMinor = creditMinor(this.balance);
-        this.$locals.creditBefore = this.isNew ? null : await this.constructor.findById(this._id).select("userId balance balanceMinor").session(this.$session()).lean();
+        this.$locals.creditBefore = this.isNew ? null : await this.constructor.findById(this._id).select(walletFields).session(this.$session()).lean();
         if (this.$locals.creditBefore?.balanceMinor != null && this.$locals.creditBefore.balanceMinor !== creditMinor(this.$locals.creditBefore.balance)) throw creditInvariantError("The existing wallet balance formats need an explicit reconciliation.");
         this.$locals.creditBalanceChanged = true;
     });
@@ -51,6 +58,34 @@ export function walletAccountingHooks(schema) {
     schema.pre("findOneAndUpdate", async function () {
         const update = this.getUpdate();
         const edits = financialEdits(update);
+        if (edits.some(({ key }) => key.startsWith("creditBalances"))) {
+            if (this.getOptions().upsert || Object.keys(update).some(key => !["$inc", "$set", "$setOnInsert"].includes(key))
+                || Object.keys(update.$inc || {}).length !== edits.length || edits.some(({ operator, key }) => operator !== "$inc" || !isCreditBalancePath(key))) {
+                throw creditInvariantError("Category balances require audited increments on an existing wallet.");
+            }
+            const session = this.getOptions().session;
+            requireTransaction(session);
+            guardCreditSession(session);
+            for (const { key } of edits) {
+                const delta = update.$inc[key];
+                if (!Number.isSafeInteger(delta) || !delta) throw creditInvariantError("A category balance increment must be a nonzero whole number.");
+                if (delta < 0) this.setQuery({ $and: [this.getFilter(), { [key]: { $gte: -delta } }] });
+            }
+            this.creditBefore = await this.model.findOne(this.getFilter()).select(walletFields).session(session).lean();
+            if (this.creditBefore) {
+                const balances = categoryBalances(this.creditBefore);
+                for (const category of CREDIT_CATEGORIES) {
+                    const before = balances[category];
+                    const after = Object.fromEntries(CREDIT_BUCKETS.map(bucket => [
+                        bucket, before[bucket] + (update.$inc[creditBalancePath(category, bucket)] ?? 0),
+                    ]));
+                    if (!validCategoryBalance(before) || !validCategoryBalance(after)) throw creditInvariantError("The category balance is outside the supported credit range.");
+                }
+            }
+            this.creditBalanceChanged = true;
+            this.setOptions({ returnDocument: "after" });
+            return;
+        }
         const delta = update?.$inc?.balance;
         if (delta === undefined) {
             if (edits.length) throw creditInvariantError("Wallet balances require an audited credit posting.");
@@ -65,7 +100,7 @@ export function walletAccountingHooks(schema) {
             this.setQuery({ $and: [this.getFilter(), { balance: { $gte: -minor / 100 } }] });
             this.setOptions({ upsert: false });
         }
-        this.creditBefore = await this.model.findOne(this.getFilter()).select("userId balance balanceMinor").session(this.getOptions().session).lean();
+        this.creditBefore = await this.model.findOne(this.getFilter()).select(walletFields).session(this.getOptions().session).lean();
         if (this.creditBefore?.balanceMinor != null && this.creditBefore.balanceMinor !== creditMinor(this.creditBefore.balance)) throw creditInvariantError("The existing wallet balance formats need an explicit reconciliation.");
         const targetMinor = creditMinor(this.creditBefore?.balance ?? 0) + minor;
         if ((this.creditBefore || this.getOptions().upsert) && (!Number.isSafeInteger(targetMinor) || targetMinor < 0)) throw creditInvariantError("The wallet result is outside the supported credit range.");
@@ -81,6 +116,7 @@ export function walletAccountingHooks(schema) {
         set.balanceMinor = { $add: [
             { $round: [{ $multiply: [{ $ifNull: ["$balance", 0] }, 100] }, 0] }, minor,
         ] };
+        if (this.getOptions().upsert) set.creditBalances = { $ifNull: ["$creditBalances", { $literal: categoryBalances() }] };
         this.setOptions({ updatePipeline: true });
         this.setUpdate([{ $set: set }, { $set: { balance: { $divide: ["$balanceMinor", 100] } } }]);
     });

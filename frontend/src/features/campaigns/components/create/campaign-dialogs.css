@@ -1,4 +1,4 @@
-.campaign-schedule-dialog, .campaign-review-dialog {
+.campaign-review-dialog {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   width: calc(100vw - 24px);
@@ -13,8 +13,7 @@
 .campaign-review-dialog { z-index: 10000; display: flex; max-width: 500px; max-height: calc(100dvh - 32px); flex-direction: column; overflow: hidden; }
 .campaign-review-dialog > .campaign-dialog-header { flex-shrink: 0; }
 .campaign-review-dialog .campaign-dialog-header [data-slot="dialog-title"] { font-size: 20px; }
-.campaign-schedule-dialog { max-width: 640px; }
-.campaign-schedule-dialog > *, .campaign-review-dialog > * { min-width: 0; }
+.campaign-review-dialog > * { min-width: 0; }
 .campaign-dialog-header { flex-direction: row; align-items: flex-start; gap: 12px; padding-right: 20px; }
 .campaign-dialog-header > div { min-width: 0; }
 .campaign-dialog-header [data-slot="dialog-title"] { margin-top: 3px; font-size: 17px; font-weight: 600; line-height: 1.4; letter-spacing: -0.35px; }
@@ -23,29 +22,6 @@
 .campaign-dialog-icon svg { width: 18px; height: 18px; stroke-width: 1.7; }
 .campaign-dialog-footer { display: flex; flex-direction: row; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin: 0; border-top: 1px solid var(--muted); border-radius: 0; padding: 18px 0 0; background: transparent; }
 .campaign-dialog-footer [data-slot="button"] { height: auto; min-height: 40px; padding-inline: 15px; font-size: 12px; white-space: normal; }
-.campaign-schedule-layout { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 18px; align-items: start; }
-.campaign-schedule-date-section { min-width: 0; border: 1px solid var(--muted); border-radius: 11px; padding: 10px; background: var(--card); }
-.campaign-schedule-calendar { width: 100%; min-width: 0; padding: 0; background: transparent; --cell-size: 34px; }
-.campaign-schedule-calendar .rdp-months { width: 100%; }
-.campaign-schedule-calendar .rdp-month_caption { height: 32px; }
-.campaign-schedule-calendar .rdp-caption_label { font-size: 13px; font-weight: 550; }
-.campaign-schedule-calendar .rdp-weekday { font-size: 11px; }
-.campaign-schedule-calendar .rdp-day { height: 36px; }
-.campaign-schedule-calendar .rdp-day button { width: 34px; min-width: 34px; height: 34px; min-height: 34px; margin: auto; border-radius: 8px; padding: 0; font-size: 12px; }
-.campaign-schedule-calendar .rdp-day button[data-selected-single="true"] { border-radius: 8px; }
-.campaign-schedule-time-section { display: grid; min-width: 0; align-content: start; gap: 25px; align-self: stretch; border-left: 1px solid var(--background); padding: 10px 0 10px 18px; }
-.campaign-schedule-field { display: grid; min-width: 0; gap: 7px; }
-.campaign-schedule-field > label, .campaign-schedule-field > span { color: var(--foreground); font-size: 12px; font-weight: 550; }
-.campaign-schedule-field input { width: 100%; min-width: 0; height: 38px; background: var(--card); font-size: 13px; font-variant-numeric: tabular-nums; }
-.campaign-schedule-field > p { margin: 0; color: var(--muted-foreground); font-size: 10px; }
-.campaign-schedule-timezone { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--border); border-radius: 7px; padding: 9px 10px; background: var(--card); color: var(--primary-text); font-size: 11px; line-height: 1.5; }
-.campaign-schedule-timezone > span { overflow-wrap: anywhere; }
-.campaign-schedule-timezone svg { width: 13px; height: 13px; flex-shrink: 0; color: var(--muted-foreground); }
-.campaign-schedule-footer { align-items: center; justify-content: space-between; }
-.campaign-schedule-footer-actions { display: flex; gap: 8px; flex-shrink: 0; }
-.campaign-schedule-summary { display: flex; min-width: 0; flex: 1 1 180px; align-items: flex-start; gap: 7px; margin: 0; color: var(--primary-text); font-size: 11px; line-height: 1.6; }
-.campaign-schedule-summary svg { width: 13px; height: 13px; flex-shrink: 0; }
-.campaign-schedule-summary-invalid { color: var(--destructive); }
 .campaign-review-body { display: grid; min-height: 0; flex: 0 1 auto; gap: 20px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .campaign-review-name > span { color: var(--muted-foreground); font-size: 11px; }
 .campaign-review-name h3 { margin: 5px 0 0; color: var(--foreground); font-size: 15px; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
@@ -75,14 +51,8 @@
 .campaign-review-actions [role="alert"] { max-height: 100px; overflow-y: auto; margin: 0; font-size: 12px; }
 .campaign-review-footer { flex-shrink: 0; flex-wrap: nowrap; padding-top: 16px; border-color: var(--border); }
 .campaign-review-footer [data-slot="button"] { min-height: 44px; }
-@media (max-width: 540px) {
-  .campaign-schedule-layout { grid-template-columns: minmax(0, 1fr); gap: 18px; }
-  .campaign-schedule-time-section { border-left: 0; padding: 0; gap: 18px; }
-  .campaign-schedule-footer-actions { width: 100%; }
-  .campaign-schedule-footer-actions [data-slot="button"] { flex: 1; }
-}
 @media (max-width: 420px) {
-  .campaign-schedule-dialog, .campaign-review-dialog { padding: 18px; gap: 16px; }
+  .campaign-review-dialog { padding: 18px; gap: 16px; }
   .campaign-dialog-icon { width: 32px; height: 32px; flex-basis: 32px; border-radius: 9px; }
   .campaign-dialog-header { gap: 9px; }
   .campaign-dialog-header [data-slot="dialog-title"] { font-size: 16px; }

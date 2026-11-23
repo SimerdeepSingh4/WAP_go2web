@@ -1,7 +1,7 @@
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, ArrowDown, ArrowLeft, Check, CheckCheck, ChevronLeft, ChevronRight, Eye, Hash, Headset, Inbox, Loader2, MessageCircle, Paperclip, Plus, RefreshCw, Search, Send, ShieldCheck, Trash2, X } from "lucide-react";
+import { AlertCircle, ArrowDown, ArrowLeft, Check, CheckCheck, ChevronLeft, ChevronRight, Eye, Hash, Inbox, Loader2, MessageCircle, Paperclip, Plus, RefreshCw, Search, Send, ShieldCheck, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import GradientChatInput from "@/components/ui/gradient-chat-input";
@@ -199,9 +199,7 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart, onDeleted
   const conversation = chat.conversation;
   const requester = user.role === "User" || String(conversation?.user?._id || conversation?.user) === String(user.id || user._id);
   const participant = requester ? conversation?.reseller : conversation?.user;
-  const participantLabel = requester
-    ? `${participant?.username || (user.role === "Reseller" ? "Super Admin" : "Your Admin")} · ${participant?.displayRole || (user.role === "Reseller" ? "Super Admin" : "Admin")}`
-    : `${participant?.username || "User"}${participant?.role === "Reseller" ? " · Reseller" : ` · ${conversation?.reseller?.username || "Admin"}`}`;
+  const participantName = participant?.username || (requester ? user.role === "Reseller" ? "Super Admin" : "Your Admin" : "User");
   const resolved = conversation?.status === "resolved";
   const needsAdmin = conversation?.escalation?.isEscalated && !conversation.escalation.resolvedAt;
   const unavailable = blocked || deletion.isPending || chat.sending || chat.loading || Boolean(chat.error);
@@ -212,8 +210,8 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart, onDeleted
   return <SupportQuickActions conversation={conversation} user={user} disabled={unavailable || uploading} needsAdmin={needsAdmin} onDraft={prepareSupportReply} onEscalate={text => { setReason(text); setEscalating(true); }} onChanged={() => { void chat.refresh(); onChanged(); }}><div className="support-chat" aria-label="Selected conversation">
     <header className="support-chat-header">
       <Button type="button" variant="ghost" size="icon-sm" className="support-mobile-back" aria-label="Back to conversations" onClick={onBack}><ArrowLeft /></Button>
-      <SupportAvatar name={participant?.username} specialist={requester && participant?.displayRole === "Super Admin"} />
-      <div className="support-chat-heading"><div className="support-chat-title"><h2>{conversation?.subject || "Loading conversation…"}</h2><span className="support-status" data-resolved={resolved || undefined}>{resolved ? <CheckCheck /> : <span />}{resolved ? "Resolved" : "Open"}</span></div><p>{participantLabel}</p></div>
+      <SupportAvatar name={participantName} specialist={requester && participant?.displayRole === "Super Admin"} />
+      <div className="support-chat-heading"><div className="support-chat-title"><h2>{conversation ? participantName : "Loading conversation…"}</h2>{conversation && <span className="support-status" data-resolved={resolved || undefined}>{resolved ? <CheckCheck /> : <span />}{resolved ? "Resolved" : "Open"}</span>}</div><p>{conversation?.subject}</p></div>
       {!requester && <div className="support-chat-actions">
         {user.role === "Reseller" && <Button size="sm" variant="outline" disabled={blocked || restricted || escalation.isPending || chat.loading || !conversation || needsAdmin} onClick={() => setEscalating(true)}><ShieldCheck />{needsAdmin ? "Requested" : "Request Super Admin"}</Button>}
         <Button size="sm" variant="outline" disabled={blocked || restricted || deletion.isPending || status.isPending || chat.loading || !conversation} onClick={() => status.mutate(resolved ? "reopened" : "resolved")}>{status.isPending ? <Loader2 className="animate-spin" /> : resolved ? <RefreshCw /> : <Check />}{resolved ? "Reopen" : "Resolve"}</Button>
@@ -237,7 +235,7 @@ function ChatPanel({ conversationId, user, onChanged, onBack, onStart, onDeleted
         <div ref={messageList} className="support-message-list">
         {chat.loading ? <div className="support-message-skeleton" role="status"><span className="sr-only">Loading conversation…</span><div /><div /><div /></div> : <>
           {chat.hasOlder && <Button variant="outline" size="xs" disabled={chat.loadingOlder} className="self-center" onClick={loadEarlierMessages}>{chat.loadingOlder && <Loader2 className="animate-spin" />}{chat.loadingOlder ? "Loading…" : "Earlier messages"}</Button>}
-          {!chat.messages.length && !chat.error && <div className="support-thread-empty"><span><MessageCircle /></span><h3>{user.role === "User" ? "Your support space" : "You’re in the right place"}</h3><p>{user.role === "User" ? "A question, an issue, or a little guidance. Your Admin is just a message away." : "This conversation is ready. Send a message to get things started."}</p></div>}
+          {!chat.messages.length && !chat.error && <div className="support-thread-empty"><span><MessageCircle /></span><h3>No messages yet</h3><p>Send the first message in this conversation.</p></div>}
           {chat.messages.map((message, index) => <SupportMessage key={message._id} message={message} previous={chat.messages[index - 1]} user={user} animate={chat.entranceSequence !== null && message.sequenceNumber > chat.entranceSequence} />)}
         </>}
         </div>
@@ -351,10 +349,8 @@ export default function SupportChatPage() {
   const filters = [["ongoing", "Open"], ...(user.role !== "User" ? [["escalated", user.role === "Super Admin" ? "Needs you" : "Escalated"]] : []), ["resolved", "Resolved"], ["all", "All"]];
   return <div className="support-page">
     <header className="support-page-header">
-      <div className="support-page-heading"><div className="flex items-center gap-3"><span className="support-page-icon"><Headset /></span><div><h1>{user.role === "User" ? "Your support space" : "Support inbox"}</h1>{user.role === "User" ? <p>A question, an issue, or a little guidance. Your Admin is just a message away.</p> : user.role === "Super Admin" ? <p>Keep an eye on conversations. Step in where it matters.</p> : <p>Help your clients or reach Super Admin for assistance.</p>}</div></div></div>
+      <div className="support-page-heading"><h1>{user.role === "User" ? "Support chat" : "Support inbox"}</h1></div>
       <div className="flex items-center gap-2">
-        {user.role === "Reseller" && <span className="support-workspace-role"><ShieldCheck />Reseller workspace</span>}
-        {user.role === "Super Admin" && <span className="support-workspace-role"><ShieldCheck />Super Admin workspace</span>}
         {user.role !== "Super Admin" && <Button disabled={blocked || start.isPending} onClick={() => setCreating(true)} className="support-new-chat"><Plus />{user.role === "Reseller" ? "Chat with Super Admin" : "New chat"}</Button>}
       </div>
     </header>

@@ -73,7 +73,7 @@ test("multipart requests reject a second file across the same field or different
         }, body: form });
         const body = await result.json();
         assert.equal(result.status, 400, JSON.stringify(body));
-        assert.match(body.message, /one media attachment/i);
+        assert.match(body.message, /one uploaded media attachment/i);
     }
 });
 

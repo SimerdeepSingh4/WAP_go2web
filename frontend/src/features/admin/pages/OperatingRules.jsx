@@ -4,11 +4,13 @@ import api from "@/api/client";
 import {
   Laptop, Smartphone, Tablet, Clock, SlidersHorizontal, RotateCcw,
   Save, Coins, CheckCircle2, LogOut, RefreshCw,
-  MonitorSmartphone, ShieldCheck, Info, CircleDot,
+  MonitorSmartphone, ShieldCheck, Info, CircleDot, Palette,
 } from "lucide-react";
+import ResellerBrandingSettings from "@/features/branding/components/ResellerBrandingSettings";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import OperatingTimePicker from "../components/OperatingTimePicker";
 import { validateOperatingWindow } from "../lib/operatingTime";
@@ -22,20 +24,20 @@ const DEFAULT_SETTINGS = {
   dailyCampaignLimit: 10,
   startTime: "09:00", endTime: "19:00", outOfWindowBehavior: "queue",
   maxAllowedDevices: 3, deviceEvictionStrategy: "fifo",
-  defaultRatePerMsg: 1, lowBalanceThreshold: 500,
+  lowBalanceThreshold: 500,
   accountExpiryValue: 2, accountExpiryUnit: "years",
   autoRefundEnabled: true, strictOverdraftProtection: true,
 };
 const TABS = [
   { id: "campaigns", short: "Campaigns", long: " & hours", icon: Clock, description: "Set campaign allowances and the daily sending window." },
   { id: "devices", short: "Devices", long: " & sessions", icon: MonitorSmartphone, description: "Choose device limits and review your signed-in sessions." },
-  { id: "billing", short: "Credits", long: " & rates", icon: Coins, description: "Set default pricing, account expiry, and balance preferences." },
+  { id: "billing", short: "Credits", long: " & access", icon: Coins, description: "Set account expiry and balance preferences." },
+  { id: "branding", short: "Branding", long: " & white-label", icon: Palette, description: "Customize your company logo, brand name, and workspace theme colors." },
 ];
 const FIELD_META = {
   dailyCampaignLimit: ["campaigns", "daily-limit"],
   sendingWindow: ["campaigns", "start-time"],
   maxAllowedDevices: ["devices", "device-limit"],
-  defaultRatePerMsg: ["billing", "default-rate"],
   lowBalanceThreshold: ["billing", "low-balance"],
   accountExpiryValue: ["billing", "account-expiry-value"],
 };
@@ -47,6 +49,7 @@ function readSettings() {
     const savedSettings = { ...parsed };
     savedSettings.accountExpiryValue ??= parsed.creditExpiryValue ?? DEFAULT_SETTINGS.accountExpiryValue;
     savedSettings.accountExpiryUnit ??= parsed.creditExpiryUnit ?? DEFAULT_SETTINGS.accountExpiryUnit;
+    delete savedSettings.defaultRatePerMsg;
     delete savedSettings.creditExpiryValue;
     delete savedSettings.creditExpiryUnit;
     delete savedSettings.creditExpiryYears;
@@ -123,7 +126,6 @@ function validateSettings(settings) {
     if (windowError) errors.sendingWindow = windowError;
   }
   if (!integer(settings.maxAllowedDevices, 1, 5)) errors.maxAllowedDevices = "Choose between 1 and 5 devices.";
-  if (settings.defaultRatePerMsg === "" || !Number.isFinite(Number(settings.defaultRatePerMsg)) || Number(settings.defaultRatePerMsg) < 0.01) errors.defaultRatePerMsg = "Enter a rate of at least 0.01 credits.";
   if (!integer(settings.lowBalanceThreshold, 0)) errors.lowBalanceThreshold = "Enter a whole number of 0 or more.";
   if (settings.accountExpiryUnit !== "never" && (settings.accountExpiryValue === "" || !Number.isFinite(Number(settings.accountExpiryValue)) || Number(settings.accountExpiryValue) < 0)) errors.accountExpiryValue = "Enter a valid expiry of 0 or more, or choose Never.";
   return errors;
@@ -132,9 +134,15 @@ function validateSettings(settings) {
 export default function OperatingRules() {
   const { logoutAll } = useAuth();
   const queryClient = useQueryClient();
-  const [initialSettings] = useState(readSettings);
-  const [settings, setSettings] = useState(initialSettings);
-  const [savedSettings, setSavedSettings] = useState(initialSettings);
+  const [localSettings, setSavedSettings] = useState(readSettings);
+  const [draft, setSettings] = useState(null);
+  const platformSettingsQuery = useQuery({
+    queryKey: ["platformSettings"],
+    queryFn: async () => (await api.get("/settings/platform")).data,
+  });
+  const savedSettings = { ...localSettings, ...platformSettingsQuery.data?.settings };
+  delete savedSettings.defaultRatePerMsg;
+  const settings = draft ?? savedSettings;
   const [activeTab, setActiveTab] = useState("campaigns");
   const [resetKey, setResetKey] = useState(0);
   const [showErrors, setShowErrors] = useState(false);
@@ -145,24 +153,12 @@ export default function OperatingRules() {
   const validation = validateSettings(settings);
   const errors = showErrors ? validation : {};
   const sendingError = validation.sendingWindow;
-  const updateSetting = (key, value) => { setSettings((previous) => ({ ...previous, [key]: value })); setSaveNotice(""); };
-
-  const platformSettingsQuery = useQuery({
-    queryKey: ["platformSettings"],
-    queryFn: async () => (await api.get("/settings/platform")).data,
-  });
-
-  useEffect(() => {
-    if (platformSettingsQuery.data?.settings) {
-      const serverSettings = platformSettingsQuery.data.settings;
-      setSettings((prev) => ({ ...prev, ...serverSettings }));
-      setSavedSettings((prev) => ({ ...prev, ...serverSettings }));
-    }
-  }, [platformSettingsQuery.data?.settings]);
+  const updateSetting = (key, value) => { setSettings((previous) => ({ ...(previous ?? savedSettings), [key]: value })); setSaveNotice(""); };
 
   const updatePlatformMutation = useMutation({
     mutationFn: async (payload) => (await api.put("/settings/platform", payload)).data,
-    onSuccess: () => {
+    onSuccess: data => {
+      if (data.settings) queryClient.setQueryData(["platformSettings"], data);
       queryClient.invalidateQueries({ queryKey: ["platformSettings"] });
     },
   });
@@ -203,13 +199,14 @@ export default function OperatingRules() {
       return;
     }
     const normalized = { ...settings };
-    ["dailyCampaignLimit", "maxAllowedDevices", "defaultRatePerMsg", "lowBalanceThreshold", "accountExpiryValue"].forEach((key) => { normalized[key] = Number(settings[key]); });
+    delete normalized.defaultRatePerMsg;
+    ["dailyCampaignLimit", "maxAllowedDevices", "lowBalanceThreshold", "accountExpiryValue"].forEach((key) => { normalized[key] = Number(settings[key]); });
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
       await updatePlatformMutation.mutateAsync(normalized);
-      setSettings(normalized); setSavedSettings(normalized); setShowErrors(false);
+      setSettings(null); setSavedSettings(normalized); setShowErrors(false);
       setSaveNotice("Changes saved successfully.");
-      toast.add({ title: "Preferences saved", description: "Global platform preferences, rates, and limits saved successfully.", type: "success" });
+      toast.add({ title: "Preferences saved", description: "Platform preferences and limits saved.", type: "success" });
     } catch (err) {
       setSaveNotice("Could not save settings.");
       toast.add({ title: "Could not save preferences", description: err?.response?.data?.message || err?.message || "Check network connection.", type: "error" });
@@ -222,7 +219,7 @@ export default function OperatingRules() {
   }
 
   function changeExpiry(value, unit) {
-    setSettings((previous) => ({ ...previous, accountExpiryValue: value, accountExpiryUnit: unit }));
+    setSettings((previous) => ({ ...(previous ?? savedSettings), accountExpiryValue: value, accountExpiryUnit: unit }));
     setSaveNotice("");
   }
 
@@ -243,7 +240,7 @@ export default function OperatingRules() {
       <div className="portal-heading-copy"><p className="portal-eyebrow">Workspace preferences</p><h1>Settings</h1><p>Manage campaign uploads, device access, and default credit settings.</p></div>
     </header>
     <CampaignMediaSettings />
-    <form className="portal-settings" noValidate onSubmit={handleSave}>
+    <div className="portal-settings">
       <div className="portal-settings-notice"><Info aria-hidden="true" /><span>Platform preferences, campaign limits, default rates, and credit policies are saved globally on the server.</span></div>
       <dl className="portal-settings-summary">
         <div><dt>Daily campaign limit</dt><dd>{settings.dailyCampaignLimit === "" ? "—" : number(settings.dailyCampaignLimit)} / account</dd></div>
@@ -255,92 +252,113 @@ export default function OperatingRules() {
       </div>
       {TABS.filter((tab) => tab.id !== activeTab).map((tab) => <div key={tab.id} id={`operating-panel-${tab.id}`} role="tabpanel" aria-labelledby={`operating-tab-${tab.id}`} hidden />)}
 
-      <section id={`operating-panel-${activeTab}`} role="tabpanel" aria-labelledby={`operating-tab-${activeTab}`} tabIndex={0} className="portal-settings-panel">
-        <div className="portal-settings-panel-intro"><h2>{TABS.find((tab) => tab.id === activeTab).short}{TABS.find((tab) => tab.id === activeTab).long}</h2><p>{TABS.find((tab) => tab.id === activeTab).description}</p></div>
+      {activeTab === "branding" ? (
+        <section id="operating-panel-branding" role="tabpanel" aria-labelledby="operating-tab-branding" tabIndex={0} className="portal-settings-panel">
+          <div className="portal-settings-panel-intro">
+            <h2>Branding & White-Label</h2>
+            <p>Customize your company logo, brand name, and workspace theme colors.</p>
+          </div>
+          <ResellerBrandingSettings />
+        </section>
+      ) : (
+        <form className="contents" noValidate onSubmit={handleSave}>
+          <section id={`operating-panel-${activeTab}`} role="tabpanel" aria-labelledby={`operating-tab-${activeTab}`} tabIndex={0} className="portal-settings-panel">
+            <div className="portal-settings-panel-intro"><h2>{TABS.find((tab) => tab.id === activeTab).short}{TABS.find((tab) => tab.id === activeTab).long}</h2><p>{TABS.find((tab) => tab.id === activeTab).description}</p></div>
 
-        {activeTab === "campaigns" && <div className="portal-settings-columns">
-          <SettingsCard title="Campaign allowances" description="Set the volume each account can submit." icon={SlidersHorizontal}>
-            <NumberField id="daily-limit" label="Daily campaigns per account" hint="Maximum campaigns a user or reseller can create per calendar day." min={1} max={500} step={1} value={settings.dailyCampaignLimit} onChange={(value) => updateSetting("dailyCampaignLimit", value)} error={errors.dailyCampaignLimit} />
-            <div className="portal-rule-summary"><strong>Campaign limits</strong><p>Up to <b>{settings.dailyCampaignLimit || "—"} campaigns</b> per day. There is <b>no contact limit per campaign</b>.</p></div>
-          </SettingsCard>
-          <SettingsCard title="Sending window" description="Choose daily hours for sending campaigns." icon={Clock}>
-            <div key={resetKey} className="portal-time-grid">
-              <OperatingTimePicker id="start-time" label="Start time" value={settings.startTime} onChange={(value) => updateSetting("startTime", value)} invalid={Boolean(sendingError)} />
-              <OperatingTimePicker id="end-time" label="End time" value={settings.endTime} onChange={(value) => updateSetting("endTime", value)} invalid={Boolean(sendingError)} />
-            </div>
-            {sendingError && <p role="alert" className="portal-field-error">{sendingError}</p>}
-            <ChoiceGroup legend="Outside sending hours" name="sending-behavior" value={settings.outOfWindowBehavior} onChange={(value) => updateSetting("outOfWindowBehavior", value)} choices={[
-              { value: "queue", label: "Hold until the next window", description: "Keep the campaign pending until sending hours begin." },
-              { value: "reject", label: "Ask users to try later", description: "Prevent submissions outside the sending window." },
-            ]} />
-          </SettingsCard>
-        </div>}
+            {activeTab === "campaigns" && <div className="portal-settings-columns">
+              <SettingsCard title="Campaign allowances" description="Set the volume each account can submit." icon={SlidersHorizontal}>
+                <NumberField id="daily-limit" label="Daily campaigns per account" hint="Maximum campaigns a user or reseller can create per calendar day." min={1} max={500} step={1} value={settings.dailyCampaignLimit} onChange={(value) => updateSetting("dailyCampaignLimit", value)} error={errors.dailyCampaignLimit} />
+                <div className="portal-rule-summary"><strong>Campaign limits</strong><p>Up to <b>{settings.dailyCampaignLimit || "—"} campaigns</b> per day. There is <b>no contact limit per campaign</b>.</p></div>
+              </SettingsCard>
+              <SettingsCard title="Sending window" description="Choose daily hours for sending campaigns." icon={Clock}>
+                <div key={resetKey} className="portal-time-grid">
+                  <OperatingTimePicker id="start-time" label="Start time" value={settings.startTime} onChange={(value) => updateSetting("startTime", value)} invalid={Boolean(sendingError)} />
+                  <OperatingTimePicker id="end-time" label="End time" value={settings.endTime} onChange={(value) => updateSetting("endTime", value)} invalid={Boolean(sendingError)} />
+                </div>
+                {sendingError && <p role="alert" className="portal-field-error">{sendingError}</p>}
+                <ChoiceGroup legend="Outside sending hours" name="sending-behavior" value={settings.outOfWindowBehavior} onChange={(value) => updateSetting("outOfWindowBehavior", value)} choices={[
+                  { value: "queue", label: "Hold until the next window", description: "Keep the campaign pending until sending hours begin." },
+                  { value: "reject", label: "Ask users to try later", description: "Prevent submissions outside the sending window." },
+                ]} />
+              </SettingsCard>
+            </div>}
 
-        {activeTab === "devices" && <div className="portal-settings-columns">
-          <SettingsCard title="Device limits" description="Choose how accounts handle concurrent logins." icon={ShieldCheck}>
-            <div className="portal-field"><span id="device-limit-label" className="portal-field-label">Maximum signed-in devices</span>
-              <div id="device-limit" tabIndex={-1} role="group" aria-labelledby="device-limit-label" className="portal-device-options">
-                {[1, 2, 3, 4, 5].map((count) => <button key={count} type="button" aria-pressed={Number(settings.maxAllowedDevices) === count} onClick={() => updateSetting("maxAllowedDevices", count)} className="portal-device-option"><strong>{count}</strong><span>{count === 1 ? "device" : "devices"}</span></button>)}
-              </div>
-              <p className="portal-field-hint">Count each signed-in session, such as a work laptop or personal phone.</p>
-              {errors.maxAllowedDevices && <p role="alert" className="portal-field-error">{errors.maxAllowedDevices}</p>}
-            </div>
-            <ChoiceGroup legend="When the limit is reached" name="device-strategy" value={settings.deviceEvictionStrategy} onChange={(value) => updateSetting("deviceEvictionStrategy", value)} choices={[
-              { value: "fifo", label: "Sign out the oldest device", description: "Allow the new login and end the oldest session." },
-              { value: "block", label: "Block the new login", description: "Ask the user to sign out from an existing device first." },
-            ]} />
-            <div className="portal-danger-zone"><h4>Session sign-out</h4><p>Signing out devices ends their access. Affected devices will need to sign in again.</p>
-              {confirmLogout ? <div className="portal-confirm-action" role="alert"><p>Sign out all devices covered by your account? Your current session will also end.</p><div><Button type="button" variant="outline" onClick={() => setConfirmLogout(false)} disabled={logoutAllMutation.isPending}>Cancel</Button><Button type="button" variant="destructive" onClick={() => logoutAllMutation.mutate()} disabled={logoutAllMutation.isPending}><LogOut aria-hidden="true" />{logoutAllMutation.isPending ? "Signing out…" : "Confirm sign-out"}</Button></div></div>
-                : <Button type="button" variant="outline" className="portal-danger-button" onClick={() => setConfirmLogout(true)}><LogOut aria-hidden="true" />Sign out all devices</Button>}
-            </div>
-          </SettingsCard>
-
-          <SettingsCard title={`Signed-in devices${sessionsQuery.data ? ` (${activeCount})` : ""}`} description="Your account sessions · refreshes every 5 seconds." icon={MonitorSmartphone} action={<Button type="button" variant="ghost" size="sm" aria-label="Refresh signed-in devices" onClick={() => sessionsQuery.refetch()} disabled={sessionsQuery.isFetching}><RefreshCw aria-hidden="true" className={sessionsQuery.isFetching ? "animate-spin motion-reduce:animate-none" : ""} /></Button>}>
-            {sessionsQuery.isError && <div role="alert" className="portal-field-error">Could not {sessionsQuery.data ? "refresh" : "load"} device sessions. Try refreshing again.</div>}
-            {sessionsQuery.isPending ? <div className="portal-session-query-state" role="status"><RefreshCw className="animate-spin motion-reduce:animate-none" aria-hidden="true" />Loading signed-in devices…</div>
-              : !activeSessions.length && !sessionsQuery.isError ? <div className="portal-session-query-state"><MonitorSmartphone aria-hidden="true" />No signed-in devices found.</div>
-              : <ul className="portal-session-list">{activeSessions.map((session, index) => {
-                const parsed = parseDeviceDetails(session.userAgent);
-                const DeviceIcon = parsed.type === "mobile" ? Smartphone : parsed.type === "tablet" ? Tablet : Laptop;
-                const sessionId = session.id || session._id;
-                return <li key={sessionId || index} className="portal-session" data-current={Boolean(session.isCurrentDevice)}>
-                  <span className="portal-session-icon"><DeviceIcon aria-hidden="true" /></span>
-                  <div className="portal-session-copy"><div className="portal-session-title"><strong>{parsed.label}</strong>{session.isCurrentDevice && <span>This device</span>}</div>
-                    <div className="portal-session-details"><span>IP: <code>{session.ip || "Unavailable"}</code></span><span>Signed in: {session.createdAt ? dateTime(session.createdAt) : "Unavailable"}</span></div>
+            {activeTab === "devices" && <div className="portal-settings-columns">
+              <SettingsCard title="Device limits" description="Choose how accounts handle concurrent logins." icon={ShieldCheck}>
+                <div className="portal-field"><span id="device-limit-label" className="portal-field-label">Maximum signed-in devices</span>
+                  <div id="device-limit" tabIndex={-1} role="group" aria-labelledby="device-limit-label" className="portal-device-options">
+                    {[1, 2, 3, 4, 5].map((count) => <button key={count} type="button" aria-pressed={Number(settings.maxAllowedDevices) === count} onClick={() => updateSetting("maxAllowedDevices", count)} className="portal-device-option"><strong>{count}</strong><span>{count === 1 ? "device" : "devices"}</span></button>)}
                   </div>
-                  {!session.isCurrentDevice && <Button type="button" variant="outline" size="sm" disabled={!sessionId || disconnectMutation.isPending || logoutAllMutation.isPending} onClick={() => disconnectMutation.mutate(sessionId)} aria-label={`Disconnect ${parsed.label}`}>{disconnectMutation.isPending && disconnectMutation.variables === sessionId ? "Disconnecting…" : "Disconnect"}</Button>}
-                </li>;
-              })}</ul>}
-          </SettingsCard>
-        </div>}
+                  <p className="portal-field-hint">Count each signed-in session, such as a work laptop or personal phone.</p>
+                  {errors.maxAllowedDevices && <p role="alert" className="portal-field-error">{errors.maxAllowedDevices}</p>}
+                </div>
+                <ChoiceGroup legend="When the limit is reached" name="device-strategy" value={settings.deviceEvictionStrategy} onChange={(value) => updateSetting("deviceEvictionStrategy", value)} choices={[
+                  { value: "fifo", label: "Sign out the oldest device", description: "Allow the new login and end the oldest session." },
+                  { value: "block", label: "Block the new login", description: "Ask the user to sign out from an existing device first." },
+                ]} />
+                <div className="portal-danger-zone"><h4>Session sign-out</h4><p>Signing out devices ends their access. Affected devices will need to sign in again.</p>
+                  {confirmLogout ? <div className="portal-confirm-action" role="alert"><p>Sign out all devices covered by your account? Your current session will also end.</p><div><Button type="button" variant="outline" onClick={() => setConfirmLogout(false)} disabled={logoutAllMutation.isPending}>Cancel</Button><Button type="button" variant="destructive" onClick={() => logoutAllMutation.mutate()} disabled={logoutAllMutation.isPending}><LogOut aria-hidden="true" />{logoutAllMutation.isPending ? "Signing out…" : "Confirm sign-out"}</Button></div></div>
+                    : <Button type="button" variant="outline" className="portal-danger-button" onClick={() => setConfirmLogout(true)}><LogOut aria-hidden="true" />Sign out all devices</Button>}
+                </div>
+              </SettingsCard>
 
-        {activeTab === "billing" && <div className="portal-settings-columns">
-          <SettingsCard title="Rates & account expiry" description="Set the default rate and expiry for new accounts." icon={Coins}>
-            <NumberField id="default-rate" label="Credits per recipient" hint="Default rate for new accounts. Individual rates can be adjusted in Accounts." min={0.01} step={0.01} value={settings.defaultRatePerMsg} onChange={(value) => updateSetting("defaultRatePerMsg", value)} error={errors.defaultRatePerMsg} />
-            <NumberField id="low-balance" label="Low balance warning" hint="Show a warning below this credit balance." min={0} step={1} value={settings.lowBalanceThreshold} onChange={(value) => updateSetting("lowBalanceThreshold", value)} error={errors.lowBalanceThreshold} />
-            <div className="portal-field"><label htmlFor="account-expiry-value">Default account expiry</label>
-              <div className="portal-expiry-fields"><Input id="account-expiry-value" type="number" min={0} step="any" disabled={settings.accountExpiryUnit === "never"} value={settings.accountExpiryUnit === "never" ? "" : settings.accountExpiryValue ?? ""} onChange={(event) => changeExpiry(event.target.value === "" ? "" : Number(event.target.value), settings.accountExpiryUnit)} placeholder={settings.accountExpiryUnit === "never" ? "No expiry" : "Duration"} aria-invalid={Boolean(errors.accountExpiryValue)} aria-describedby="account-expiry-hint" />
-                <select aria-label="Account expiry unit" value={settings.accountExpiryUnit} onChange={(event) => changeExpiry(settings.accountExpiryValue, event.target.value)}>{["years", "months", "days", "never"].map((unit) => <option key={unit} value={unit}>{unit[0].toUpperCase() + unit.slice(1)}</option>)}</select>
-              </div>
-              <div className="portal-expiry-presets">{[{ label: "6 months", value: 6, unit: "months" }, { label: "1 year", value: 1, unit: "years" }, { label: "2 years", value: 2, unit: "years" }, { label: "3 years", value: 3, unit: "years" }, { label: "Never", value: 0, unit: "never" }].map((preset) => <button key={preset.label} type="button" aria-pressed={settings.accountExpiryUnit === preset.unit && (preset.unit === "never" || Number(settings.accountExpiryValue) === preset.value)} onClick={() => changeExpiry(preset.value, preset.unit)}>{preset.label}</button>)}</div>
-              <p id="account-expiry-hint" className="portal-field-hint">Choose a duration, use a preset, or select Never. A value of 0 also means no expiry.</p>
-              {errors.accountExpiryValue && <p role="alert" className="portal-field-error">{errors.accountExpiryValue}</p>}
-            </div>
-            <div className="portal-rule-summary"><strong>Pricing example</strong><p>10,000 recipients × {settings.defaultRatePerMsg || "—"} credits = <b>{number(10000 * Number(settings.defaultRatePerMsg || 0))} credits</b>.</p></div>
-          </SettingsCard>
-          <SettingsCard title="Balance preferences" description="Choose refund and overdraft behavior." icon={ShieldCheck}>
-            <ToggleRule id="auto-refund" label="Refund failed messages" description="Return credits for invalid phone numbers or failed deliveries." checked={settings.autoRefundEnabled} onChange={(value) => updateSetting("autoRefundEnabled", value)} />
-            <ToggleRule id="overdraft-protection" label="Prevent negative balances" description="Require sufficient credits before launching or processing campaigns." checked={settings.strictOverdraftProtection} onChange={(value) => updateSetting("strictOverdraftProtection", value)} />
-            <div className="portal-rule-summary" data-tone={settings.strictOverdraftProtection ? "default" : "warning"}><strong>{settings.strictOverdraftProtection ? "Overdraft protection selected" : "Overdraft protection turned off"}</strong><p>{settings.strictOverdraftProtection ? "This preference requires enough credits to cover a campaign." : "This preference allows balances to drop below zero. Review it before saving."}</p></div>
-          </SettingsCard>
-        </div>}
-      </section>
+              <SettingsCard title={`Signed-in devices${sessionsQuery.data ? ` (${activeCount})` : ""}`} description="Your account sessions · refreshes every 5 seconds." icon={MonitorSmartphone} action={<Button type="button" variant="ghost" size="sm" aria-label="Refresh signed-in devices" onClick={() => sessionsQuery.refetch()} disabled={sessionsQuery.isFetching}><RefreshCw aria-hidden="true" className={sessionsQuery.isFetching ? "animate-spin motion-reduce:animate-none" : ""} /></Button>}>
+                {sessionsQuery.isError && <div role="alert" className="portal-field-error">Could not {sessionsQuery.data ? "refresh" : "load"} device sessions. Try refreshing again.</div>}
+                {sessionsQuery.isPending ? (
+                  <div className="space-y-3 p-2" role="status" aria-label="Loading signed-in devices">
+                    {[1, 2].map((i) => (
+                      <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-border/60 bg-muted/20">
+                        <Skeleton className="size-8 rounded-lg shrink-0" />
+                        <div className="space-y-1.5 flex-1 min-w-0">
+                          <Skeleton className="h-3.5 w-36" />
+                          <Skeleton className="h-2.5 w-48" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : !activeSessions.length && !sessionsQuery.isError ? <div className="portal-session-query-state"><MonitorSmartphone aria-hidden="true" />No signed-in devices found.</div>
+                  : <ul className="portal-session-list">{activeSessions.map((session, index) => {
+                    const parsed = parseDeviceDetails(session.userAgent);
+                    const DeviceIcon = parsed.type === "mobile" ? Smartphone : parsed.type === "tablet" ? Tablet : Laptop;
+                    const sessionId = session.id || session._id;
+                    return <li key={sessionId || index} className="portal-session" data-current={Boolean(session.isCurrentDevice)}>
+                      <span className="portal-session-icon"><DeviceIcon aria-hidden="true" /></span>
+                      <div className="portal-session-copy"><div className="portal-session-title"><strong>{parsed.label}</strong>{session.isCurrentDevice && <span>This device</span>}</div>
+                        <div className="portal-session-details"><span>IP: <code>{session.ip || "Unavailable"}</code></span><span>Signed in: {session.createdAt ? dateTime(session.createdAt) : "Unavailable"}</span></div>
+                      </div>
+                      {!session.isCurrentDevice && <Button type="button" variant="outline" size="sm" disabled={!sessionId || disconnectMutation.isPending || logoutAllMutation.isPending} onClick={() => disconnectMutation.mutate(sessionId)} aria-label={`Disconnect ${parsed.label}`}>{disconnectMutation.isPending && disconnectMutation.variables === sessionId ? "Disconnecting…" : "Disconnect"}</Button>}
+                    </li>;
+                  })}</ul>}
+              </SettingsCard>
+            </div>}
 
-      <div className="portal-savebar">
-        <div className="portal-savebar-status" data-dirty={dirty} role="status" aria-live="polite">{dirty ? <CircleDot aria-hidden="true" /> : <CheckCircle2 aria-hidden="true" />}<span>{saveNotice || (dirty ? "You have unsaved changes" : "No unsaved changes")}</span></div>
-        <div className="portal-savebar-actions"><Button type="button" variant="outline" onClick={handleReset}><RotateCcw aria-hidden="true" />Restore defaults</Button><Button type="submit" disabled={!dirty}><Save aria-hidden="true" />Save changes</Button></div>
-      </div>
-    </form>
+            {activeTab === "billing" && <div className="portal-settings-columns">
+              <SettingsCard title="Account expiry & credit alerts" description="Set the default expiry and low balance warning." icon={Coins}>
+                <NumberField id="low-balance" label="Low balance warning" hint="Show a warning below this credit balance." min={0} step={1} value={settings.lowBalanceThreshold} onChange={(value) => updateSetting("lowBalanceThreshold", value)} error={errors.lowBalanceThreshold} />
+                <div className="portal-field"><label htmlFor="account-expiry-value">Default account expiry</label>
+                  <div className="portal-expiry-fields"><Input id="account-expiry-value" type="number" min={0} step="any" disabled={settings.accountExpiryUnit === "never"} value={settings.accountExpiryUnit === "never" ? "" : settings.accountExpiryValue ?? ""} onChange={(event) => changeExpiry(event.target.value === "" ? "" : Number(event.target.value), settings.accountExpiryUnit)} placeholder={settings.accountExpiryUnit === "never" ? "No expiry" : "Duration"} aria-invalid={Boolean(errors.accountExpiryValue)} aria-describedby="account-expiry-hint" />
+                    <select aria-label="Account expiry unit" value={settings.accountExpiryUnit} onChange={(event) => changeExpiry(settings.accountExpiryValue, event.target.value)}>{["years", "months", "days", "never"].map((unit) => <option key={unit} value={unit}>{unit[0].toUpperCase() + unit.slice(1)}</option>)}</select>
+                  </div>
+                  <div className="portal-expiry-presets">{[{ label: "6 months", value: 6, unit: "months" }, { label: "1 year", value: 1, unit: "years" }, { label: "2 years", value: 2, unit: "years" }, { label: "3 years", value: 3, unit: "years" }, { label: "Never", value: 0, unit: "never" }].map((preset) => <button key={preset.label} type="button" aria-pressed={settings.accountExpiryUnit === preset.unit && (preset.unit === "never" || Number(settings.accountExpiryValue) === preset.value)} onClick={() => changeExpiry(preset.value, preset.unit)}>{preset.label}</button>)}</div>
+                  <p id="account-expiry-hint" className="portal-field-hint">Choose a duration, use a preset, or select Never. A value of 0 also means no expiry.</p>
+                  {errors.accountExpiryValue && <p role="alert" className="portal-field-error">{errors.accountExpiryValue}</p>}
+                </div>
+              </SettingsCard>
+              <SettingsCard title="Balance preferences" description="Choose refund and overdraft behavior." icon={ShieldCheck}>
+                <ToggleRule id="auto-refund" label="Refund failed messages" description="Return credits for invalid phone numbers or failed deliveries." checked={settings.autoRefundEnabled} onChange={(value) => updateSetting("autoRefundEnabled", value)} />
+                <ToggleRule id="overdraft-protection" label="Prevent negative balances" description="Require sufficient credits before launching or processing campaigns." checked={settings.strictOverdraftProtection} onChange={(value) => updateSetting("strictOverdraftProtection", value)} />
+                <div className="portal-rule-summary" data-tone={settings.strictOverdraftProtection ? "default" : "warning"}><strong>{settings.strictOverdraftProtection ? "Overdraft protection selected" : "Overdraft protection turned off"}</strong><p>{settings.strictOverdraftProtection ? "This preference requires enough credits to cover a campaign." : "This preference allows balances to drop below zero. Review it before saving."}</p></div>
+              </SettingsCard>
+            </div>}
+          </section>
+
+          <div className="portal-savebar">
+            <div className="portal-savebar-status" data-dirty={dirty} role="status" aria-live="polite">{dirty ? <CircleDot aria-hidden="true" /> : <CheckCircle2 aria-hidden="true" />}<span>{saveNotice || (dirty ? "You have unsaved changes" : "No unsaved changes")}</span></div>
+            <div className="portal-savebar-actions"><Button type="button" variant="outline" onClick={handleReset}><RotateCcw aria-hidden="true" />Restore defaults</Button><Button type="submit" disabled={!dirty}><Save aria-hidden="true" />Save changes</Button></div>
+          </div>
+        </form>
+      )}
+    </div>
     </>
   );
 }

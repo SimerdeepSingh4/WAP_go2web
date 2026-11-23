@@ -36,6 +36,7 @@ before(async () => {
     await Message.createIndexes();
     await User.collection.insertMany([reseller, admin, customer, outsider].map(user => ({ ...user, email: `${user._id}@example.test`, password: "unused", ratePerMsg: 1, expiresAt: null, updatedAt: new Date("2026-01-01T00:00:00Z") })));
     await Wallet.collection.insertMany([{ userId: reseller._id, balance: 2000, balanceMinor: 200000 }, { userId: customer._id, balance: 100, balanceMinor: 10000, expiresAt: null, isLocked: false }]);
+    await (await import("../helpers/credit-operation.js")).runCreditTransaction(session => (import("../services/credit-posting.service.js").then(({ postCreditMovement }) => postCreditMovement({ session, operationKey: "seed-support-campaign-stock", type: "ALLOCATE", category: "CAMPAIGN", amount: 200, toUser: reseller._id, performedBy: admin._id }))));
     conversation = await Conversation.create({ user: customer._id, reseller: reseller._id, subject: "Credit problem" });
     otherConversation = await Conversation.create({ user: outsider._id, reseller: admin._id, subject: "Other account" });
     ownEntry = { _id: oid(), fromUser: reseller._id, toUser: customer._id, type: "ALLOCATE", amount: 100, balanceAfterTo: 100, notes: "Private internal note", performedBy: admin._id, createdAt: new Date() };
@@ -157,27 +158,27 @@ test("unblocking an expired account keeps renewal necessary", async () => {
 });
 
 test("credit allocation and its chat receipt commit together; invalid conversation rolls both back", async () => {
-    const balanceBefore = (await Wallet.findOne({ userId: customer._id })).balance;
+    const balanceBefore = (await Wallet.findOne({ userId: customer._id })).creditBalances.CAMPAIGN.available;
     const countBefore = await Message.countDocuments();
-    const rejected = await invoke(credits.allocateCredits, reseller, { toUserId: customer._id, amount: 25, supportConversationId: otherConversation._id });
+    const rejected = await invoke(credits.allocateCredits, reseller, { toUserId: customer._id, amount: 25, category: "CAMPAIGN", supportConversationId: otherConversation._id });
     assert.equal(rejected.statusCode, 403, JSON.stringify(rejected.body));
-    assert.equal((await Wallet.findOne({ userId: customer._id })).balance, balanceBefore);
+    assert.equal((await Wallet.findOne({ userId: customer._id })).creditBalances.CAMPAIGN.available, balanceBefore);
     assert.equal(await Message.countDocuments(), countBefore);
-    const accepted = await invoke(credits.allocateCredits, reseller, { toUserId: customer._id, amount: 25, supportConversationId: conversation._id });
+    const accepted = await invoke(credits.allocateCredits, reseller, { toUserId: customer._id, amount: 25, category: "CAMPAIGN", supportConversationId: conversation._id });
     assert.equal(accepted.statusCode, 200, JSON.stringify(accepted.body));
-    assert.equal((await Wallet.findOne({ userId: customer._id })).balance, balanceBefore + 25);
+    assert.equal((await Wallet.findOne({ userId: customer._id })).creditBalances.CAMPAIGN.available, balanceBefore + 25);
     assert.equal(await Message.countDocuments(), countBefore + 1);
-    assert.match((await Message.findOne({ conversationId: conversation._id }).sort({ sequenceNumber: -1 })).text, /Allocated 25 credits/);
+    assert.match((await Message.findOne({ conversationId: conversation._id }).sort({ sequenceNumber: -1 })).text, /Allocated 25 CAMPAIGN credits/);
 });
 
 test("requesting credits writes a reference in chat without changing the balance", async () => {
     await User.collection.updateOne({ _id: customer._id }, { $set: { status: "active", expiresAt: null } });
-    const before = (await Wallet.findOne({ userId: customer._id })).balance;
-    const result = await invoke(credits.requestCredits, customer, { amount: 10, note: "For next campaign", supportConversationId: conversation._id });
+    const before = (await Wallet.findOne({ userId: customer._id })).creditBalances.CAMPAIGN.available;
+    const result = await invoke(credits.requestCredits, customer, { amount: 10, category: "CAMPAIGN", note: "For next campaign", supportConversationId: conversation._id });
     assert.equal(result.statusCode, 201, JSON.stringify(result.body));
-    assert.equal((await Wallet.findOne({ userId: customer._id })).balance, before);
+    assert.equal((await Wallet.findOne({ userId: customer._id })).creditBalances.CAMPAIGN.available, before);
     const receipt = await Message.findOne({ conversationId: conversation._id }).sort({ sequenceNumber: -1 });
-    assert.match(receipt.text, /Requested 10 credits/);
+    assert.match(receipt.text, /Requested 10 CAMPAIGN credits/);
     assert.match(receipt.text, /TXN-[A-F\d]{24}/);
     const messages = await Message.find({ conversationId: conversation._id }).sort({ sequenceNumber: 1 }).lean();
     assert.deepEqual(messages.map(item => item.sequenceNumber), messages.map((_, index) => index + 1));

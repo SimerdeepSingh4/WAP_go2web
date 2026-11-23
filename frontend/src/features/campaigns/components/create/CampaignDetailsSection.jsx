@@ -10,8 +10,8 @@ export function SectionCard({ icon: Icon, title, description, aside, children, d
       <CardHeader className="border-b border-border px-4 py-3 sm:px-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              <Icon className="size-3.5 text-muted-foreground" />
+            <CardTitle role="heading" aria-level={2} className="flex items-center gap-2 text-sm font-semibold">
+              <Icon aria-hidden="true" className="size-3.5 text-muted-foreground" />
               {title}
             </CardTitle>
             {description && <CardDescription className="mt-1 text-[11px] leading-5">{description}</CardDescription>}
@@ -27,8 +27,6 @@ export function SectionCard({ icon: Icon, title, description, aside, children, d
 export default function CampaignDetailsSection({
   campaignTitle,
   onCampaignTitleChange,
-  campaignDescription,
-  onCampaignDescriptionChange,
   scheduleType,
   onScheduleTypeChange,
   scheduledTime,
@@ -40,9 +38,8 @@ export default function CampaignDetailsSection({
       dataTour="create-details"
       icon={FileText}
       title="Campaign details"
-      description="Name your campaign and add a short description."
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="campaign-identity-fields">
         <div className="space-y-1.5">
           <Label htmlFor="title" className="text-xs font-medium">
             Campaign name <span className="text-destructive">*</span>
@@ -54,18 +51,6 @@ export default function CampaignDetailsSection({
             onChange={(e) => onCampaignTitleChange(e.target.value)}
             className="h-10 bg-background text-sm focus-visible:ring-2 focus-visible:ring-ring/20"
             required
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="description" className="text-xs font-medium">
-            Description <span className="text-muted-foreground font-normal">(optional)</span>
-          </Label>
-          <Input
-            id="description"
-            placeholder="e.g. 20% flat discount promotion (optional)"
-            value={campaignDescription}
-            onChange={(e) => onCampaignDescriptionChange(e.target.value)}
-            className="h-10 bg-background text-sm focus-visible:ring-2 focus-visible:ring-ring/20"
           />
         </div>
         <CampaignDeliverySettings

@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Conversation from "../models/supportConversation.model.js";
 import User from "../models/user.model.js";
 import Wallet from "../models/wallet.model.js";
+import { categoryBalances, CREDIT_CATEGORIES } from "../helpers/credit-categories.js";
 import Transaction from "../models/transaction.model.js";
 import { hasConversationAccess, canManageSupportAccount } from "../helpers/support-access.js";
 import { recordSupportAction, publishSupportAction } from "../helpers/support-action.js";
@@ -37,7 +38,7 @@ export async function getSupportContext(req, res) {
         const restriction = accountRestriction(account);
         return res.json({ success: true, data: {
             account: { id: account._id, username: account.username, role: account.role, status: account.status, restriction, expiresAt: account.expiresAt, accessReason: account.accessReason || "", updatedAt: account.updatedAt },
-            wallet: { balance: wallet?.balance || 0, isLocked: Boolean(wallet?.isLocked), lockEnabled: Boolean(wallet?.isLocked), updatedAt: wallet?.updatedAt || null },
+            wallet: { balance: wallet?.balance || 0, creditBalances: categoryBalances(wallet), isLocked: Boolean(wallet?.isLocked), lockEnabled: Boolean(wallet?.isLocked), updatedAt: wallet?.updatedAt || null },
             capabilities: { manageAccount: canManage, allocate: canManage, requestCredits: requester && !restriction && !req.isPreview, manageWalletLocks: canManage && req.user.role === "Super Admin", auditLedger: canManage && req.user.role === "Super Admin", escalate: canManage && req.user.role === "Reseller" },
             checkedAt: new Date(),
         } });
@@ -69,6 +70,7 @@ export async function applySupportWalletAction(req, res) {
             if (version !== req.body.expectedUpdatedAt) throw Object.assign(new Error("Wallet details changed. Refresh and review the settings again."), { statusCode: 409 });
             if (!wallet) wallet = new Wallet({ userId: accountId, balance: 0, resellerId: account.resellerId || null });
             wallet.isLocked = req.body.isLocked;
+            wallet.$locals.actor = { _id: req.user._id, role: req.user.role, username: req.user.username };
             await wallet.save({ session });
             req.body.supportConversationId = req.params.id;
             await recordSupportAction(req, session, accountId, `Wallet ${wallet.isLocked ? "locked" : "unlocked"}. Account access and credit balance are unchanged.`, new mongoose.Types.ObjectId());
@@ -82,11 +84,14 @@ export async function applySupportWalletAction(req, res) {
 export async function getSupportTransactions(req, res) {
     try {
         const { account } = await supportAccount(req);
-        const filter = { $or: [{ fromUser: account._id }, { toUser: account._id }] };
+        const category = req.query.category;
+        if (category !== undefined && !CREDIT_CATEGORIES.includes(category)) return res.status(400).json({ success: false, message: "Choose a valid credit category." });
+        const filter = { ...(category ? { category } : {}), $or: [{ fromUser: account._id }, { toUser: account._id }] };
         if (req.query.reference) {
             const id = transactionObjectId(req.query.reference);
             if (!id) return res.status(400).json({ success: false, message: "Enter a complete TXN reference." });
             filter._id = id;
+            if (category === undefined) delete filter.category;
         }
         const transactions = await Transaction.find(filter).sort({ createdAt: -1 }).limit(20).lean();
         return res.json({ success: true, accountId: String(account._id), data: transactions.map(item => supportTransactionView(item, account._id)).filter(Boolean) });

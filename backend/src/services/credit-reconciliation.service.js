@@ -30,7 +30,8 @@ export async function updateCreditCase(view, session, actor = actorOf()) {
     if (!existing && summary.classification === "matched") return;
     const reopened = existing?.state === "resolved" && summary.classification !== "matched";
     const cleared = existing?.state === "open" && summary.classification === "matched";
-    const changed = !existing || reopened || existing.classification !== summary.classification || existing.summary?.difference !== summary.difference;
+    const changed = !existing || reopened || existing.classification !== summary.classification || existing.summary?.difference !== summary.difference
+        || summary.concerns.join(" ") !== (existing.summary?.concerns || []).join(" ");
     await CreditCase.updateOne({ userId }, { $set: { summary, snapshot, classification: summary.classification, lastCheckedAt: summary.checkedAt, lastFailure: null,
         state: summary.classification === "matched" ? "resolved" : "open", ...(cleared ? { resolvedAt: new Date() } : reopened ? { resolvedAt: null } : {}) }, $setOnInsert: { firstDetectedAt: new Date() } }, { upsert: true, session });
     if (changed || cleared) await recordCreditCaseEvent(userId, cleared ? "cleared_by_check" : reopened ? "reopened" : !existing ? "detected" : "rechecked", { classification: summary.classification, walletBalance: summary.walletBalance, expectedBalance: summary.expectedBalance, difference: summary.difference, snapshot, concerns: summary.concerns.join(" ") }, actor, session);
@@ -71,6 +72,7 @@ async function assertRecoverySourceUnused(userId, sourceReference, session, whol
 
 export async function prepareCreditRepair(req) {
     requireReconciliationAdmin(req);
+    if (req.body.category != null) throw reconciliationError("Categorized credits require a linked ledger correction.", 409);
     const userId = req.params.userId;
     const { mode } = req.body;
     if (!["wallet", "ledger", "transaction", "close"].includes(mode)) throw reconciliationError("Choose a correction, transaction recovery, or a no-change closure.");

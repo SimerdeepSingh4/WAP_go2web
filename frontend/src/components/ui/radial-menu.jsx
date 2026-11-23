@@ -75,7 +75,7 @@ export function RadialMenu({ children, menuItems = [], size = 240, iconSize = 18
     handleOpenChange(false);
     onSelect?.(item);
   }
-  return <ContextMenu.Root open={open} onOpenChange={handleOpenChange} modal={false}>
+  return <ContextMenu.Root open={open} onOpenChange={handleOpenChange}>
     <ContextMenu.Trigger render={children} />
     <AnimatePresence>
       {open && <ContextMenu.Portal keepMounted>

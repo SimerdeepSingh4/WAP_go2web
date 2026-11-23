@@ -7,5 +7,5 @@ export function useReconciliationSummary() {
   const accountId = user?.id || user?._id;
   const allowed = user?.role === "Super Admin" && !user.isPreview && !user.isImpersonation;
   return useQuery({ queryKey: ["credit-reconciliation", accountId, "summary"], queryFn: ({ signal }) => reconciliationApi.summary(signal), enabled: Boolean(accountId && allowed),
-    refetchInterval: query => query.state.data?.pending || ["pending", "running", "checking"].includes(query.state.data?.monitor?.state) ? 5000 : 30000, retry: 1 });
+    refetchInterval: query => query.state.data?.pending || query.state.data?.rechecking || ["pending", "running", "checking"].includes(query.state.data?.monitor?.state) ? 5000 : 30000, retry: 1 });
 }

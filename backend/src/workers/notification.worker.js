@@ -6,6 +6,7 @@ import sessionModel from "../models/session.model.js";
 import { deliverEvent, canDeliverNotification } from "../services/notification.service.js";
 import { roleBase } from "../helpers/notification-policy.js";
 import { getIO } from "../services/socket.service.js";
+import { deliverRechargeWhatsApp } from "../services/recharge-whatsapp.service.js";
 
 let timer, expiryTimer, running, expiryRunning, stopping = false;
 const retention = () => new Date(Date.now() + 7 * 86400000);
@@ -68,7 +69,11 @@ export async function processNotificationWork() {
         for (let i = 0; i < 10 && !stopping; i++) {
             const event = await claim(NotificationEvent);
             if (!event) break;
-            try { await deliverEvent(event); await finish(NotificationEvent, event, "done"); }
+            try {
+                if (event.kind === "recharge-whatsapp") await deliverRechargeWhatsApp(event);
+                else await deliverEvent(event);
+                await finish(NotificationEvent, event, "done");
+            }
             catch (error) { await finish(NotificationEvent, event, "failed", error); }
         }
         if (pushConfigured()) for (let i = 0; i < 5 && !stopping; i++) {

@@ -42,7 +42,7 @@ export async function reconcileWallet(userId) {
             report = { userId, currentBalance: summary.walletBalance, calculatedBalance: summary.expectedBalance,
                 openingBalance: summary.opening.amount, totalInflow: summary.totals.inflow, totalOutflow: summary.totals.outflow,
                 isReconciled: summary.classification === "matched", classification: summary.classification,
-                drift: summary.difference, openingVerified: summary.opening.verified, concerns: summary.concerns };
+                drift: summary.difference, openingVerified: summary.opening.verified, concerns: summary.concerns, categories: summary.categories };
         }, creditTransactionOptions);
         return report;
     } finally { await session.endSession(); }

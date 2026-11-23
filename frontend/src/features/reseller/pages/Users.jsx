@@ -1,3 +1,6 @@
+import BuyerPurchaseRatesDialog from "@/features/credits/components/PurchaseRateEditor";
+import CategoryWalletBalances from "@/features/credits/components/CategoryWalletBalances";
+import { creditCategoryField, creditCategoryNames } from "@/features/credits/lib/creditTransactionDisplay";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
@@ -6,10 +9,10 @@ import {
   MoreHorizontal,
   Eye,
   Pencil,
-  Wallet,
   Lock,
   ArrowRight,
   MinusCircle,
+  Wallet,
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -76,7 +79,6 @@ function UserDetail({ account, onClose, onAction }) {
               ["Company", account.companyName || "Not provided"],
               ["Phone", account.phone || "Not provided"],
               ["Role", account.role || "User"],
-              ["Rate", `${number(account.ratePerMsg)} credits / recipient`],
               ["Campaign upload limits", accountUploadSummary(account, uploadLimits.defaults)],
               ["Account expiry", account.expiresAt ? `${dateTime(account.expiresAt)}${account.isExpired ? " (Expired)" : ""}` : "No expiry"],
               ["Created", dateTime(account.createdAt)],
@@ -98,10 +100,7 @@ function UserDetail({ account, onClose, onAction }) {
               )}
             </div>
             <QueryState query={balance}>
-              <p className={`detail-sheet-wallet-balance font-bold tabular-nums ${balance.data?.wallet?.isLocked ? "text-red-700" : "text-foreground"}`}>
-                {number(balance.data?.wallet?.balance)}{" "}
-                <span className="text-xs font-normal text-muted-foreground">credits</span>
-              </p>
+              <CategoryWalletBalances wallet={balance.data?.wallet} />
             </QueryState>
           </div>
 
@@ -119,7 +118,7 @@ function UserDetail({ account, onClose, onAction }) {
                 }}
               >
                 <Pencil className="size-3.5 text-muted-foreground" />
-                Change Recipient Rate
+                Change Campaign Rate
               </Button>
               <Button
                 variant="outline"
@@ -155,6 +154,7 @@ function UserDetail({ account, onClose, onAction }) {
  */
 export default function ResellerUsers() {
   const { user: signedInUser } = useAuth();
+  const canReclaim = signedInUser?.role === "Super Admin" || signedInUser?.featureAccess?.reclaimCredit === true;
   const query = useResellerQuery("accounts");
   const [params, setParams] = useSearchParams();
   const search = params.get("search") || "";
@@ -224,12 +224,6 @@ export default function ResellerUsers() {
       render: (a) => <span className="text-muted-foreground">{a.email}</span>,
     },
     {
-      key: "rate",
-      label: "Rate",
-      sort: (a) => a.ratePerMsg,
-      render: (a) => <span className="tabular-nums">{number(a.ratePerMsg)}</span>,
-    },
-    {
       key: "accountExpiry",
       label: "Account expiry",
       render: (a) => (
@@ -273,16 +267,18 @@ export default function ResellerUsers() {
             </DropdownMenuItem>
             <DropdownMenuItem disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "rate", account: a })}>
               <Pencil className="size-4 mr-2" />
-              Change rate
+              Purchase rates
             </DropdownMenuItem>
             <DropdownMenuItem disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "allocate", account: a })}>
               <Wallet className="size-4 mr-2" />
               Allocate credits
             </DropdownMenuItem>
-            <DropdownMenuItem disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "reclaim", account: a })}>
-              <MinusCircle className="size-4 mr-2" />
-              Reclaim credits
-            </DropdownMenuItem>
+            {canReclaim && (
+              <DropdownMenuItem disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "reclaim", account: a })}>
+                <MinusCircle className="size-4 mr-2" />
+                Reclaim credits
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               disabled={signedInUser?.isPreview}
               className="text-destructive focus:text-destructive"
@@ -301,6 +297,7 @@ export default function ResellerUsers() {
   return (
     <>
       <PageHeading
+        inlineMobile
         title="Users"
         description="Find users, allocate credits, and manage account access."
         action={
@@ -376,7 +373,7 @@ export default function ResellerUsers() {
           mobile={{
             primary: "name",
             secondary: "email",
-            featured: ["status", "rate"],
+            featured: ["status"],
           }}
         />
       </QueryState>
@@ -425,7 +422,7 @@ export default function ResellerUsers() {
           action="createAccount"
           successMessage="User account created successfully"
           onClose={() => setModal(null)}
-          initialValues={{ username: "", email: "", phone: "", companyName: "", password: "", ratePerMsg: "1", expiresAt: "" }}
+          initialValues={{ username: "", email: "", phone: "", companyName: "", password: "", expiresAt: "" }}
           fields={[
             { key: "username", label: "Username / Company", required: true, maxLength: 100 },
             { key: "email", label: "Email address", type: "email", required: true },
@@ -437,15 +434,6 @@ export default function ResellerUsers() {
               type: "password",
               required: true,
               hint: "Must contain at least 8 characters.",
-            },
-            {
-              key: "ratePerMsg",
-              label: "Rate (credits / recipient)",
-              type: "number",
-              min: 0.01,
-              step: 0.01,
-              required: true,
-              hint: "Deducted from user's balance per contact message.",
             },
             {
               key: "expiresAt",
@@ -466,7 +454,6 @@ export default function ResellerUsers() {
             companyName: (v.companyName || "").trim(),
             password: v.password,
             role: "User",
-            ratePerMsg: Number(v.ratePerMsg),
             expiresAt: v.expiresAt || null,
           })}
           review={(v) => (
@@ -474,9 +461,6 @@ export default function ResellerUsers() {
               <p className="font-medium text-foreground">{v.username}</p>
               <p className="text-muted-foreground text-xs">{v.email}</p>{v.companyName && <p className="text-xs">Company: {v.companyName}</p>}{v.phone && <p className="text-xs">Phone: {v.phone}</p>}
               <p className="text-xs mt-1">Role: User</p>
-              <p className="text-xs">
-                Rate: <strong>{number(Number(v.ratePerMsg))} credits / recipient</strong>
-              </p>
               <p className="text-xs">
                 Expiry: <strong>{v.expiresAt || "No expiry"}</strong>
               </p>
@@ -487,45 +471,13 @@ export default function ResellerUsers() {
       )}
 
       {modal?.type === "rate" && (
-        <ResellerActionForm
-          title="Change account rate"
-          description="This rate applies to future campaign broadcasts submitted by this user. Existing campaigns are not recalculated."
-          action="rate"
-          successMessage="Account rate updated successfully"
-          onClose={() => setModal(null)}
-          initialValues={{ ratePerMsg: String(modal.account.ratePerMsg) }}
-          fields={[
-            {
-              key: "ratePerMsg",
-              label: "Rate (credits / recipient)",
-              required: true,
-              type: "number",
-              min: 0.01,
-              step: 0.01,
-            },
-          ]}
-          payload={(v) => ({
-            userId: modal.account._id,
-            ratePerMsg: Number(v.ratePerMsg),
-          })}
-          review={(v) => (
-            <>
-              <p className="font-medium text-foreground">{modal.account.username}</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {number(modal.account.ratePerMsg)} →{" "}
-                <strong className="text-primary">{number(Number(v.ratePerMsg))}</strong>{" "}
-                credits / recipient
-              </p>
-            </>
-          )}
-          submitLabel="Update rate"
-        />
+        <BuyerPurchaseRatesDialog account={modal.account} onClose={() => setModal(null)} />
       )}
 
       {modal?.type === "editAccount" && (
         <ResellerActionForm
           title="Edit user account"
-          description="Update the account name, email, password, rate, or expiry date. Leave the password blank to keep it unchanged."
+          description="Update the account name, email, password, or expiry date. Leave the password blank to keep it unchanged."
           action="updateAccount"
           successMessage="User account updated successfully"
           onClose={() => setModal(null)}
@@ -535,7 +487,6 @@ export default function ResellerUsers() {
             phone: modal.account.phone || "",
             companyName: modal.account.companyName || "",
             password: "",
-            ratePerMsg: String(modal.account.ratePerMsg ?? 1),
             expiresAt: modal.account.expiresAt ? new Date(modal.account.expiresAt).toISOString().slice(0, 10) : "",
           }}
           fields={[
@@ -544,7 +495,6 @@ export default function ResellerUsers() {
             { key: "companyName", label: "Company name (optional)", maxLength: 150 },
             { key: "phone", label: "Phone number (optional)", type: "tel", maxLength: 40, hint: "Include the country code, e.g. +919876543210." },
             { key: "password", label: "New password (optional)", type: "password", hint: "Leave blank to keep the current password. If set, use at least 8 characters." },
-            { key: "ratePerMsg", label: "Rate (credits / recipient)", type: "number", min: 0.01, step: 0.01, required: true },
             { key: "expiresAt", label: "Account expiry date (optional)", type: "date", hint: "Leave blank for no expiry." },
           ]}
           validate={(values) => values.password && values.password.trim().length < 8 ? "The new password must contain at least 8 characters." : ""}
@@ -555,7 +505,6 @@ export default function ResellerUsers() {
             phone: (values.phone || "").trim(),
             companyName: (values.companyName || "").trim(),
             ...(values.password ? { password: values.password } : {}),
-            ratePerMsg: Number(values.ratePerMsg),
             expiresAt: values.expiresAt || null,
           })}
           review={(values) => (
@@ -563,7 +512,6 @@ export default function ResellerUsers() {
               <p className="font-medium text-foreground">{values.username}</p>
               <p className="text-muted-foreground text-xs">{values.email}</p>{values.companyName && <p className="text-xs">Company: {values.companyName}</p>}{values.phone && <p className="text-xs">Phone: {values.phone}</p>}
               <p className="text-xs">Password: {values.password ? "Will be changed" : "Unchanged"}</p>
-              <p className="text-xs">Rate: <strong>{number(Number(values.ratePerMsg))} credits / recipient</strong></p>
               <p className="text-xs">Expiry: <strong>{values.expiresAt || "No expiry"}</strong></p>
             </>
           )}
@@ -608,15 +556,16 @@ export default function ResellerUsers() {
           action="allocate"
           successMessage="Credits allocated successfully"
           onClose={() => setModal(null)}
-          initialValues={{ amount: "", notes: "" }}
+          initialValues={{ amount: "", category: "", notes: "" }}
           fields={[
+            creditCategoryField,
             {
               key: "amount",
               label: "Credits to allocate",
               required: true,
               type: "number",
-              min: 0.01,
-              step: 0.01,
+              min: 1,
+              step: 1,
             },
             {
               key: "notes",
@@ -628,7 +577,7 @@ export default function ResellerUsers() {
           ]}
           payload={(v) => ({
             toUserId: modal.account._id,
-            amount: Number(v.amount),
+            amount: Number(v.amount), category: v.category,
             notes: v.notes.trim(),
           })}
           review={(v) => (
@@ -637,36 +586,37 @@ export default function ResellerUsers() {
               <p className="text-xs mt-1">
                 Transfer{" "}
                 <strong className="text-primary font-bold">
-                  {number(Number(v.amount))} credits
+                  {number(Number(v.amount))} {creditCategoryNames[v.category]}
                 </strong>{" "}
                 from your wallet.
               </p>
               <p className="whitespace-pre-wrap break-words text-xs text-muted-foreground mt-1">
                 {v.notes || "No transaction note provided."}
               </p>
-              <CreditBalancePreview balance={modal.account.wallet?.balance} amount={v.amount} />
+              <CreditBalancePreview balance={modal.account.wallet?.creditBalances?.[v.category]?.available ?? 0} amount={v.amount} />
             </>
           )}
           submitLabel="Allocate credits"
         />
       )}
 
-      {modal?.type === "reclaim" && (
+      {modal?.type === "reclaim" && canReclaim && (
         <ResellerActionForm
           title="Reclaim credits"
           description="Deduct credits from this client user and return them to your wallet."
           action="reclaim"
           successMessage="Credits reclaimed successfully"
           onClose={() => setModal(null)}
-          initialValues={{ fromUserId: modal.account._id, amount: "", notes: "" }}
+          initialValues={{ fromUserId: modal.account._id, amount: "", category: "", notes: "" }}
           fields={[
+            creditCategoryField,
             {
               key: "amount",
               label: "Credits to deduct",
               required: true,
               type: "number",
-              min: 0.01,
-              step: 0.01,
+              min: 1,
+              step: 1,
             },
             {
               key: "notes",
@@ -679,7 +629,7 @@ export default function ResellerUsers() {
           ]}
           payload={(v) => ({
             fromUserId: modal.account._id,
-            amount: Number(v.amount),
+            amount: Number(v.amount), category: v.category,
             notes: v.notes.trim(),
           })}
           review={(v) => (
@@ -688,14 +638,14 @@ export default function ResellerUsers() {
               <p className="text-xs mt-1">
                 Deducting{" "}
                 <strong className="text-destructive font-bold">
-                  {number(Number(v.amount))} credits
+                  {number(Number(v.amount))} {creditCategoryNames[v.category]}
                 </strong>{" "}
                 from {modal.account.username}.
               </p>
               <p className="text-muted-foreground text-xs mt-1">
                 Reason: <strong>{v.notes}</strong>
               </p>
-              <CreditBalancePreview balance={modal.account.wallet?.balance} amount={v.amount} deduct />
+              <CreditBalancePreview balance={modal.account.wallet?.creditBalances?.[v.category]?.available ?? 0} amount={v.amount} deduct />
             </>
           )}
           submitLabel="Reclaim credits"

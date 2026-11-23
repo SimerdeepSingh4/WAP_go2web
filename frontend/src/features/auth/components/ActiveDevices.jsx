@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { getSessions, logoutSession } from "../services/auth.api.js";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ActiveDevices() {
   const { data, isLoading, refetch } = useQuery({
@@ -38,7 +39,20 @@ export default function ActiveDevices() {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading devices...</p>
+        <div className="space-y-3" role="status" aria-label="Loading devices">
+          {[1, 2].map((i) => (
+            <div key={i} className="flex items-center justify-between p-4 rounded-lg border border-border bg-background">
+              <div className="flex items-center gap-3 flex-1">
+                <Skeleton className="size-9 rounded-full shrink-0" />
+                <div className="space-y-1.5 flex-1 max-w-xs">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-48" />
+                </div>
+              </div>
+              <Skeleton className="h-8 w-20 rounded-md" />
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="space-y-3">
           {sessions.map((session, index) => {

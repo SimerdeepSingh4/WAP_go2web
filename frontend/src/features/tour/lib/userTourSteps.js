@@ -22,7 +22,7 @@ export const userPageTours = {
     step('button[aria-label^="Actions for"]', "More options", "Open this menu to view the campaign or its report. Delete permanently removes the campaign, so check carefully before confirming."),
   ]),
   create: page("campaign-create", "Create a campaign", "Let's look at how to prepare a message and send it for approval.", [
-    step(target("create-details"), "Name your campaign", "Give it a name you will recognize later. The description is optional."),
+    step(target("create-details"), "Name your campaign", "Give it a name you will recognize later. Choose when you want it delivered."),
     step(target("create-message"), "Write your message", "This is the message people will receive. Use the toolbar to format it. Keep it within the character limit shown here."),
     step(target("create-media"), "Add a file if needed", "You can attach one image, video, or PDF per campaign. Choosing another file replaces it. Attachments are optional; the file limits are shown here."),
     step(target("create-recipients"), "Add phone numbers", "Paste numbers with their country codes, or upload a CSV or TXT file. Each entered number costs credits, including repeated numbers."),
@@ -49,7 +49,7 @@ export const userPageTours = {
   ]),
   credits: page("credits", "Your credits", "Credits pay for your campaigns. Check your balance and past credit changes here.", [
     step('.overview-metrics', "Your available balance", "See the credits you can use and the cost per recipient. If your wallet is locked, contact your account manager."),
-    step(target("request-credits"), "Ask for more credits", "Enter the amount you need and an optional note, then review and send the request. Your balance changes only when your manager adds credits."),
+    step(target("recharge-credits"), "Recharge your credits", "Choose your credits, pay by UPI or bank transfer, and submit your receipt. You can track the review in My Recharge Orders."),
     step('[aria-label="Transaction type"]', "Choose what to see", "Show all credit changes, or choose a type such as campaign charges, refunds, or credit requests."),
     step(target("records"), "Your credit history", "See when credits changed, why they changed, and your balance afterward. A request is only a request; it does not add credits."),
     step('nav[aria-label="Table pagination"]', "See older changes", "Use the page buttons to look through older credit history."),

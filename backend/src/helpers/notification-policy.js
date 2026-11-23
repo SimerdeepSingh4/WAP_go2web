@@ -42,6 +42,17 @@ export function getNotificationGroup(event, changeField) {
         };
     }
 
+    if (kind === "recharge") {
+        const purchaseId = String(d.id);
+        return {
+            groupKey: `recharge:${purchaseId}:proof:submitted`,
+            itemType: "recharge",
+            itemId: purchaseId,
+            changeType: "proof",
+            fieldKey: "submitted",
+        };
+    }
+
     if (kind === "campaign") {
         const campaignId = String(d.id || d._id);
         if (d.isNew) {
@@ -162,6 +173,13 @@ export function formatNotification(event, viewer, subject, threshold = 100, part
         return result("system", "Super Admin assistance needed", body, `${base}/support?conversation=${encodeURIComponent(d.id)}`);
     }
 
+    if (event.kind === "recharge") {
+        if (!sameId(viewer._id, d.sellerId) || !["Super Admin", "Reseller"].includes(viewer.role)) return null;
+        const quote = `#${String(d.id).slice(-8)}`;
+        return result("credits", d.stage === "fixed" ? "Corrected recharge proof ready for review" : "Recharge request ready for review",
+            `${subjectLabel} submitted payment proof for quote ${quote}.`, `${base}/credits?tab=requests`);
+    }
+
     if (event.kind === "campaign") {
         if (viewer.role !== "Super Admin" && d.statusVisible === false && d.changes?.includes("status")) return null;
         const href = `${base}/campaigns/${d.id}${viewer.role === "Super Admin" ? "" : "/report"}`;
@@ -200,17 +218,22 @@ export function formatNotification(event, viewer, subject, threshold = 100, part
 
     if (event.kind === "transaction") {
         const amount = Number(d.amount || 0).toLocaleString("en-IN");
+        const catLabel = d.category === "NUMBER_FILTERING" ? "filtering " : (d.category === "CAMPAIGN" ? "campaign " : "");
         if (d.type === "ALLOCATE") {
             const identity = id => publicAccountIdentity([...participants, viewer, subject].find(account => sameId(account?._id, id)), viewer.role);
             const sender = identity(d.fromUser || d.performedBy);
             const recipient = identity(d.toUser);
-            const label = account => account.username === account.role ? account.role : `${account.role} "${account.username}"`;
+            const label = account => {
+                if (!account) return viewer.role === "User" ? "Admin" : "Super Admin";
+                if (viewer.role === "User") return account.username;
+                return account.username === account.role ? account.role : `${account.role} "${account.username}"`;
+            };
             if (sameId(viewer._id, d.toUser)) {
                 return result("credits", sender ? `Credits received from ${sender.username}` : "Credits received",
-                    sender ? `${amount} credits were received from ${label(sender)}.` : `${amount} credits were added to your wallet.`, `${base}/credits`);
+                    sender ? `${amount} ${catLabel}credits were received from ${label(sender)}.` : `${amount} ${catLabel}credits were added to your wallet.`, `${base}/credits`);
             }
             return result("credits", recipient ? `Credits allocated to ${recipient.username}` : "Credits allocated",
-                `${amount} credits were allocated${recipient ? ` to ${label(recipient)}` : " to the recipient"}${sender && !sameId(sender._id, viewer._id) ? ` by ${label(sender)}` : ""}.`, `${base}/credits`);
+                `${amount} ${catLabel}credits were allocated${recipient ? ` to ${label(recipient)}` : " to the recipient"}${sender && !sameId(sender._id, viewer._id) ? ` by ${label(sender)}` : ""}.`, `${base}/credits`);
         }
         if (d.type === "REQUEST") {
             const href = `${base}/${viewer.role === "Super Admin" ? "activity" : "credits"}?transaction=${d.id}`;
@@ -227,11 +250,19 @@ export function formatNotification(event, viewer, subject, threshold = 100, part
                 RECLAIM: "Credits reclaimed",
                 REQUEST: "Credit request submitted",
             };
+            let actorSuffix = "";
+            if (viewer.role === "User" && (d.performedBy || d.fromUser)) {
+                const actorAcc = [...participants, viewer, subject].find(account => sameId(account?._id, d.performedBy || d.fromUser));
+                const actorIdentity = publicAccountIdentity(actorAcc, viewer.role);
+                if (actorIdentity?.username) {
+                    actorSuffix = ` by ${actorIdentity.username}`;
+                }
+            }
             const descriptions = {
-                ALLOCATE: `${amount} credits were allocated.`,
+                ALLOCATE: `${amount} credits were allocated${actorSuffix}.`,
                 DEDUCT: `${amount} credits were charged.`,
-                REFUND: `${amount} credits were returned to the wallet.`,
-                RECLAIM: `${amount} credits were reclaimed.`,
+                REFUND: `${amount} credits were returned to the wallet${actorSuffix}.`,
+                RECLAIM: `${amount} credits were reclaimed${actorSuffix}.`,
                 REQUEST: `${amount} credits were requested.`,
             };
             return result("credits", titles[d.type] || "Credit activity", descriptions[d.type] || "Credit activity was recorded.", `${base}/credits`);
@@ -263,6 +294,19 @@ export function formatNotification(event, viewer, subject, threshold = 100, part
                 ? `${base}/${d.role === "Reseller" ? "resellers" : d.role === "Super Admin" ? "administrators" : "users"}?search=${encodeURIComponent(d.username || "")}`
                 : `${base}/users?search=${encodeURIComponent(d.username || "")}`;
 
+        let actorSuffix = "";
+        if (viewer.role === "User" && isSelf) {
+            if (d.actorRole === "Super Admin" || (!d.actorRole && !subject?.resellerId)) {
+                actorSuffix = " by Admin";
+            } else if (d.actorRole === "Reseller") {
+                const rName = d.actorUsername ? (d.actorUsername.startsWith("Admin (") ? d.actorUsername.slice(7, -1) : d.actorUsername) : "Reseller";
+                actorSuffix = ` by Admin (${rName})`;
+            } else if (subject?.resellerId) {
+                const parent = participants.find(p => sameId(p._id, subject.resellerId));
+                actorSuffix = parent?.username ? ` by Admin (${parent.username})` : " by Admin";
+            }
+        }
+
         if (d.isNew) {
             if (isSelf) return null;
             const title = `New ${d.role || "user"} created: ${d.username}`;
@@ -272,35 +316,35 @@ export function formatNotification(event, viewer, subject, threshold = 100, part
         if (d.changes?.includes("status")) {
             const title = isSelf ? "Account status changed" : `Account status changed • ${subjectName}`;
             const body = isSelf
-                ? `Account status is now ${d.status}.`
+                ? `Account status is now ${d.status}${actorSuffix}.`
                 : `Account status for ${subjectLabel} is now ${d.status}.`;
             return result("accounts", title, body, href);
         }
         if (d.changes?.includes("ratePerMsg")) {
             const title = isSelf ? "Recipient rate updated" : `Recipient rate updated • ${subjectName}`;
             const body = isSelf
-                ? `The rate is now ${d.rate} credits per recipient.`
+                ? `The rate is now ${d.rate} credits per recipient${actorSuffix}.`
                 : `Recipient rate for ${subjectLabel} is now ${d.rate} credits per recipient.`;
             return result("accounts", title, body, href);
         }
         if (d.changes?.includes("expiresAt")) {
             const title = isSelf ? "Account expiry updated" : `Account expiry updated • ${subjectName}`;
             const body = isSelf
-                ? "The account expiry date has changed."
+                ? `The account expiry date has changed${actorSuffix}.`
                 : `Account expiry date for ${subjectLabel} has changed.`;
             return result("accounts", title, body, href);
         }
         if (d.changes?.includes("role")) {
             const title = isSelf ? "Account role updated" : `Account role updated • ${subjectName}`;
             const body = isSelf
-                ? `Your account role is now ${d.role}.`
+                ? `Your account role is now ${d.role}${actorSuffix}.`
                 : `Role for ${subjectLabel} is now ${d.role}.`;
             return result("accounts", title, body, href);
         }
         if (d.changes?.includes("deviceLimit")) {
             const title = isSelf ? "Device limit updated" : `Device limit updated • ${subjectName}`;
             const body = isSelf
-                ? `Your allowed device limit is now ${d.deviceLimit}.`
+                ? `Your allowed device limit is now ${d.deviceLimit}${actorSuffix}.`
                 : `Device limit for ${subjectLabel} is now ${d.deviceLimit}.`;
             return result("accounts", title, body, href);
         }
@@ -308,11 +352,23 @@ export function formatNotification(event, viewer, subject, threshold = 100, part
 
     if (event.kind === "wallet") {
         if (d.changes?.includes("isLocked")) {
+            let actorSuffix = "";
+            if (viewer.role === "User" && isSelf) {
+                if (d.actorRole === "Super Admin" || (!d.actorRole && !subject?.resellerId)) {
+                    actorSuffix = " by Admin";
+                } else if (d.actorRole === "Reseller") {
+                    const rName = d.actorUsername ? (d.actorUsername.startsWith("Admin (") ? d.actorUsername.slice(7, -1) : d.actorUsername) : "Reseller";
+                    actorSuffix = ` by Admin (${rName})`;
+                } else if (subject?.resellerId) {
+                    const parent = participants.find(p => sameId(p._id, subject.resellerId));
+                    actorSuffix = parent?.username ? ` by Admin (${parent.username})` : " by Admin";
+                }
+            }
             const title = isSelf
                 ? (d.isLocked ? "Credit wallet locked" : "Credit wallet unlocked")
                 : `Wallet ${d.isLocked ? "locked" : "unlocked"} • ${subjectName}`;
             const body = isSelf
-                ? (d.isLocked ? "Campaign submission is unavailable while the wallet is locked." : "The wallet is available again.")
+                ? (d.isLocked ? `Campaign submission is unavailable while the wallet is locked${actorSuffix}.` : `The wallet is available again${actorSuffix}.`)
                 : `Wallet for ${subjectLabel} is ${d.isLocked ? "locked. Campaign submission is unavailable." : "now unlocked and available again."}`;
             return result("credits", title, body, `${base}/credits`);
         }

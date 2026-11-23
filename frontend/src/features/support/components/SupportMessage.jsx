@@ -25,11 +25,11 @@ export default function SupportMessage({ message, previous, user, animate = fals
   return <>
     {newDay && <div className="support-day-divider"><span>{day}</span></div>}
     <article className="support-message" data-own={own || undefined} data-sender-role={message.senderRole} data-role-highlight={!own && (user.role === "Super Admin" || user.role === "Reseller") || undefined} data-grouped={grouped || undefined} data-enter={animate || undefined} aria-label={own ? "Message from you" : `Message from ${name}`}>
-      <SupportAvatar name={own ? user.username || "You" : name} specialist={specialist} className={grouped ? "support-avatar-hidden" : ""} />
+      {!own && <SupportAvatar name={name} specialist={specialist} className={grouped ? "support-avatar-hidden" : ""} />}
       <div className="support-message-content">
-        {!grouped && <div className="support-message-label"><strong>{own ? "You" : name}</strong>{!own && name !== role && <span>{role}</span>}</div>}
-        <div className="support-bubble">{message.text && <p>{message.text}</p>}{message.attachments?.map(attachment => <SupportAttachment key={attachment._id} attachment={attachment} />)}</div>
-        <div className="support-message-meta"><time dateTime={message.createdAt} title={new Date(message.createdAt).toLocaleString()}>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>{own && <Check className="size-3" aria-label="Sent" />}</div>
+        {!own && !grouped && <div className="support-message-label"><strong>{name}</strong>{!own && name !== role && <span>{role}</span>}</div>}
+        <div className="support-bubble">{message.text && <p>{message.text}</p>}{message.attachments?.map(attachment => <SupportAttachment key={attachment._id} attachment={attachment} />)}
+        <div className="support-message-meta"><time dateTime={message.createdAt} title={new Date(message.createdAt).toLocaleString()}>{new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</time>{own && <Check className="size-3" aria-label="Sent" />}</div></div>
       </div>
     </article>
   </>;

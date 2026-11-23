@@ -48,6 +48,7 @@ const userSchema = new mongoose.Schema(
 
         createdBy: {
             type: mongoose.Schema.Types.ObjectId,
+            immutable: true,
             ref: "User",
             default: null,
         },
@@ -63,8 +64,8 @@ const userSchema = new mongoose.Schema(
         accessReason: { type: String, trim: true, default: "", maxlength: 1000 },
         ratePerMsg: {
             type: Number,
-            default: 12, // default 12 credits per recipient
-            min: [0, "Rate per recipient cannot be negative"],
+            default: 12, // default 12 credits per campaign credit
+            min: [0, "Rate per campaign credit cannot be negative"],
         },
         maxVideoSizeMB: {
             // Legacy API field; campaign uploads use mediaUploadLimits below.
@@ -84,6 +85,7 @@ const userSchema = new mongoose.Schema(
             campaignDp: { type: Boolean, default: false },
             campaignNumber: { type: Boolean, default: false },
             campaignLink: { type: Boolean, default: false },
+            reclaimCredit: { type: Boolean, default: false },
         },
         whiteLabel: {
             enabled: {
@@ -138,6 +140,15 @@ const userSchema = new mongoose.Schema(
                     message: "Accent color must be a valid hex color code.",
                 },
             },
+        },
+        paymentInstructions: {
+            bankName: { type: String, trim: true, default: "", maxlength: 100 },
+            accountNumber: { type: String, trim: true, default: "", maxlength: 50 },
+            accountName: { type: String, trim: true, default: "", maxlength: 100 },
+            ifscCode: { type: String, trim: true, default: "", maxlength: 20 },
+            upiId: { type: String, trim: true, default: "", maxlength: 100 },
+            qrCodeUrl: { type: String, trim: true, default: "" },
+            notes: { type: String, trim: true, default: "", maxlength: 500 },
         },
     },
     {

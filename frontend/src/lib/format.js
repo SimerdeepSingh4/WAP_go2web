@@ -1,10 +1,30 @@
 export const number = (value) => value == null ? "—" : new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(value);
+const paisaNumber = new Intl.NumberFormat("en-IN", { maximumSignificantDigits: 15 });
+
+export function formatCreditRatePaisa(unitPriceInr) {
+  const paisa = unitPriceInr == null ? null : Number(unitPriceInr) * 100;
+  return paisa != null && Number.isFinite(Number(paisa)) ? paisaNumber.format(paisa) : null;
+}
+
 export const dateTime = (value) => value && !Number.isNaN(new Date(value).getTime())
   ? new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value))
   : "—";
-export const ownerName = (owner) => owner?.role === "Super Admin" || owner?.displayRole === "Super Admin"
-  ? "Super Admin"
-  : owner?.username || owner?.email || "Unavailable account";
+export const ownerName = (owner, viewerRole) => {
+  if (!owner) return viewerRole === "User" ? "Admin" : "Super Admin";
+  if (viewerRole === "User") {
+    if (owner?.role === "Super Admin" || owner?.displayRole === "Super Admin") {
+      return "Admin";
+    }
+    if (owner?.role === "Reseller" || owner?.displayRole === "Reseller") {
+      const name = owner?.username || owner?.email || "Reseller";
+      return name.startsWith("Admin (") ? name : `Admin (${name})`;
+    }
+    return owner?.username || owner?.email || "Unavailable account";
+  }
+  return owner?.role === "Super Admin" || owner?.displayRole === "Super Admin"
+    ? "Super Admin"
+    : owner?.username || owner?.email || "Unavailable account";
+};
 export const statusLabels = {
   draft: "Draft",
   pending: "Pending",

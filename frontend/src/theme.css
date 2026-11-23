@@ -241,6 +241,17 @@ html.dark[data-branded="true"] {
   --brand-highlight: color-mix(in srgb, var(--brand-primary) 65%, #fff);
 }
 
+html[data-branded="true"] .credit-recharge-button {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}
+
+@media (hover: hover) {
+  html[data-branded="true"] .credit-recharge-button:hover {
+    background-color: var(--primary-hover);
+  }
+}
+
 @layer base {
   body { background: var(--background); color: var(--foreground); }
   ::selection { background: var(--accent-hover); color: var(--accent-foreground); }

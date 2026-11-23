@@ -36,6 +36,7 @@ export const SocketProvider = ({ children }) => {
         });
         const refreshNotifications = () => queryClient.invalidateQueries({ queryKey: ["notifications", accountId] });
         const refreshSupport = () => queryClient.invalidateQueries({ queryKey: ["support", accountId] });
+        const refreshFiltering = () => queryClient.invalidateQueries({ queryKey: ["number-filtering", accountId] });
         const refreshAccounts = () => {
             for (const key of [
                 "admin",
@@ -48,6 +49,7 @@ export const SocketProvider = ({ children }) => {
                 "myWalletBalance",
                 "myBalance",
                 "creditTransactions",
+                "creditPurchases",
                 "credit-balance-result",
                 "credit-reconciliation",
                 "managedUsers",
@@ -57,7 +59,7 @@ export const SocketProvider = ({ children }) => {
             ]) queryClient.invalidateQueries({ queryKey: [key] });
         };
         const visibility = () => socket.emit("NOTIFICATION_VISIBILITY", { visible: document.visibilityState === "visible" });
-        socket.on("connect", () => { setConnectedSocket(socket); void queryClient.invalidateQueries({ queryKey: ["authUser"] }); refreshNotifications(); refreshAccounts(); refreshSupport(); visibility(); });
+        socket.on("connect", () => { setConnectedSocket(socket); void queryClient.invalidateQueries({ queryKey: ["authUser"] }); refreshNotifications(); refreshAccounts(); refreshSupport(); refreshFiltering(); visibility(); });
         socket.on("disconnect", () => setConnectedSocket(null));
         socket.on("connect_error", error => {
             if (!isSessionControlInProgress() && isSessionRequestCurrent(scope) && /session|manager|signed.in|authentication|changed/i.test(error.message)) window.dispatchEvent(new CustomEvent("auth:unauthorized"));
@@ -114,6 +116,10 @@ export const SocketProvider = ({ children }) => {
         // Existing socket events keep business screens current. Persistent
         // notifications own the toast so the same event is not shown twice.
         socket.on("WALLET_UPDATED", refreshAccounts);
+        for (const event of ["PURCHASE_REQUEST_RECEIVED", "PURCHASE_FLAGGED", "PURCHASE_PROOF_FIXED", "PURCHASE_APPROVED", "PURCHASE_REJECTED"]) {
+            socket.on(event, () => queryClient.invalidateQueries({ queryKey: ["creditPurchases", accountId] }));
+        }
+        socket.on("NUMBER_FILTER_REQUEST_UPDATED", refreshFiltering);
         socket.on("MEDIA_UPLOAD_LIMITS_CHANGED", () => {
             queryClient.invalidateQueries({ queryKey: ["media-upload-limits"] });
             queryClient.invalidateQueries({ queryKey: ["admin"] });

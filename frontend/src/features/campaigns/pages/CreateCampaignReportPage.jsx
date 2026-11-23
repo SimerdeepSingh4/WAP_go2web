@@ -24,7 +24,6 @@ export default function CreateCampaignReportPage() {
   return (
     <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-5 pb-6">
       <header className="space-y-4">
-        <Link to={`/admin/campaigns/${id}`} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft className="size-3.5" /> Back to campaign</Link>
         <div className="space-y-2">
           <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{campaign.status === "failed" ? "Create failure report" : "Create report"}</h1>
           <div className="flex flex-wrap items-center gap-2.5"><p className="min-w-0 break-words text-sm font-medium">{campaign.campaignTitle}</p><StatusBadge status={campaign.status} /></div>

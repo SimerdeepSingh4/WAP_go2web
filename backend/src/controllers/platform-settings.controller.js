@@ -58,7 +58,7 @@ export async function updatePlatformSettings(req, res) {
             if (!Number.isFinite(parsed) || parsed < 0.01) {
                 return res.status(400).json({
                     success: false,
-                    message: "Default rate per recipient must be at least 0.01 credits.",
+                    message: "Default rate per campaign credit must be at least 0.01 credits.",
                 });
             }
             updates.defaultRatePerMsg = parsed;

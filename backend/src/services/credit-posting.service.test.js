@@ -5,11 +5,13 @@ import { fileURLToPath } from "node:url";
 import { registerHooks } from "node:module";
 import mongoose from "mongoose";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
+import { CAMPAIGN_CREDITS, NUMBER_FILTERING_CREDITS } from "../helpers/credit-categories.js";
+import { purchaseTotalPaisa } from "../helpers/credit-purchase-price.js";
 
 Object.assign(process.env, { MONGO_URI: "mongodb://127.0.0.1:1/unused", JWT_SECRET: "posting-test", REDIS_HOST: "127.0.0.1", REDIS_PORT: "6379", REDIS_PASSWORD: "test-only", AUDIT_SIGNING_KEY: "credit-posting-test-signing-key-123456789", DOTENV_CONFIG_QUIET: "true" });
 const queueStub = `export const campaignQueue={on(){},close:async()=>{}};export const scheduleCampaignJob=async()=>null;export const cancelCampaignJob=async()=>false;export const getCampaignJobStatus=async()=>null;`;
 const hooks = registerHooks({ resolve(specifier, context, next) { return specifier.endsWith("/queues/campaign.queue.js") ? { url: `data:text/javascript,${encodeURIComponent(queueStub)}`, shortCircuit: true } : next(specifier, context); } });
-let replica, User, Wallet, Transaction, Campaign, AuditEvent, CreditOperation, service, operations, guard, evidence, controllers, campaigns;
+let replica, User, Wallet, Transaction, Campaign, AuditEvent, CreditOperation, CreditPurchase, CreditPurchaseRate, NumberFilterRequest, service, operations, guard, evidence, controllers, campaigns;
 const oid = () => new mongoose.Types.ObjectId();
 const admin = { _id: oid(), role: "Super Admin", username: "Posting administrator", status: "active" };
 const response = () => ({ statusCode: 200, headers: {}, status(code) { this.statusCode = code; return this; }, json(body) { this.body = JSON.parse(JSON.stringify(body)); return this; }, set(name, value) { this.headers[name] = value; return this; } });
@@ -24,6 +26,8 @@ async function account(role = "User", balance = 0, resellerId = null) {
 async function move(user, amount, type, operationKey, extra = {}) {
     return operations.runCreditTransaction(session => service.postCreditMovement({ session, operationKey, type, amount, fromUser: type === "DEDUCT" ? user._id : null, toUser: user._id, performedBy: admin._id, ...extra }), { walletIds: [user._id] });
 }
+const grantCampaignCredits = (user, amount = 20) => move(user, amount, "ALLOCATE", 'test-campaign-stock:' + user._id, { category: CAMPAIGN_CREDITS });
+async function campaignBalance(user) { return (await Wallet.findOne({ userId: user._id }).lean()).creditBalances.CAMPAIGN.available; }
 async function balance(user) { return (await Wallet.findOne({ userId: user._id }).lean()).balance; }
 async function view(user) { const session = await mongoose.startSession(); try { return await session.withTransaction(() => evidence.inspectCreditAccount(user._id, session)); } finally { await session.endSession(); } }
 async function rawOperation(work) { const session = await mongoose.startSession(); try { await session.withTransaction(() => work(session)); } finally { await session.endSession(); } }
@@ -36,14 +40,150 @@ before(async () => {
     ({ default: User } = await import("../models/user.model.js")); ({ default: Wallet } = await import("../models/wallet.model.js"));
     ({ default: Transaction } = await import("../models/transaction.model.js")); ({ default: Campaign } = await import("../models/campaign.model.js"));
     ({ AuditEvent } = await import("../models/audit.model.js")); ({ default: CreditOperation } = await import("../models/credit-operation.model.js"));
+    ({ default: CreditPurchase } = await import("../models/credit-purchase.model.js"));
+    ({ default: CreditPurchaseRate } = await import("../models/credit-purchase-rate.model.js"));
+    ({ default: NumberFilterRequest } = await import("../models/number-filter-request.model.js"));
     service = await import("./credit-posting.service.js"); operations = await import("../helpers/credit-operation.js"); guard = await import("../helpers/credit-session-guard.js"); evidence = await import("./credit-evidence.service.js");
     controllers = await import("../controllers/credit.controller.js"); campaigns = await import("../controllers/campaign.controller.js");
     const reconciliation = await import("../models/credit-reconciliation.model.js");
-    await Promise.all([User, Wallet, Transaction, Campaign, AuditEvent, CreditOperation, ...Object.values(reconciliation)].map(model => model.init()));
-    await Promise.all([Wallet, Transaction, AuditEvent, CreditOperation, ...Object.values(reconciliation)].map(model => model.createIndexes()));
+    await Promise.all([User, Wallet, Transaction, Campaign, AuditEvent, CreditOperation, CreditPurchase, CreditPurchaseRate, NumberFilterRequest, ...Object.values(reconciliation)].map(model => model.init()));
+    await Promise.all([Wallet, Transaction, AuditEvent, CreditOperation, CreditPurchase, CreditPurchaseRate, NumberFilterRequest, ...Object.values(reconciliation)].map(model => model.createIndexes()));
     await User.collection.insertOne({ ...admin, email: "posting-admin@example.test", password: "unused" });
 });
 after(async () => { hooks.deregister(); await mongoose.disconnect(); await replica?.stop(); });
+
+test("categorized debits and refunds preserve the other category and legacy balance", async () => {
+    const user = await account("User", 6);
+    const campaignId = oid(), filterRequestId = oid();
+    const campaign = { category: CAMPAIGN_CREDITS, campaignId };
+    const filtering = { category: NUMBER_FILTERING_CREDITS, filterRequestId };
+    assert.deepEqual((await Wallet.findOne({ userId: user._id }).lean()).creditBalances, {
+        CAMPAIGN: { available: 0, reserved: 0 }, NUMBER_FILTERING: { available: 0, reserved: 0 },
+    });
+    // Old wallets can be used without first rewriting their stored documents.
+    await Wallet.collection.updateOne({ userId: user._id }, { $unset: { creditBalances: "" } });
+    await move(user, 100, "ALLOCATE", `campaign-stock:${user._id}`, { category: CAMPAIGN_CREDITS });
+    await move(user, 100, "ALLOCATE", `filtering-stock:${user._id}`, { category: NUMBER_FILTERING_CREDITS });
+    await assert.rejects(move(user, 1.5, "DEDUCT", `fractional:${user._id}`, filtering), { statusCode: 400 });
+    const charge = await operations.runCreditTransaction(async session => {
+        const result = await service.postCreditMovement({
+            session, operationKey: `campaign-charge:${user._id}`, type: "DEDUCT", amount: 80, toUser: user._id, performedBy: user._id, ...campaign,
+        });
+        await Campaign.create([{
+            _id: campaignId, userId: user._id, campaignTitle: "Categorized campaign",
+            category: CAMPAIGN_CREDITS, creditsDeducted: 80, totalRecipients: 80,
+            campaignCreditCharge: { transactionId: result.transaction._id, submittedRowCount: 80 },
+        }], { session });
+        return result;
+    }, { walletIds: [user._id] });
+    await assert.rejects(move(user, 10, "DEDUCT", `second-charge:${user._id}`, campaign), { code: 11000 });
+    const refund = { ...campaign, originalTransactionId: charge.transaction._id };
+    await move(user, 5, "REFUND", `refund-a:${user._id}`, refund);
+    await move(user, 5, "REFUND", `refund-b:${user._id}`, refund);
+    const inconsistentReport = await view(user);
+    assert(inconsistentReport.summary.concerns.some(concern => concern.includes("Campaign settlements")));
+    await Campaign.updateOne({ _id: campaignId }, { $set: { "campaignSummary.creditsRefunded": 10 } });
+    await assert.rejects(move(user, 71, "REFUND", `excess-refund:${user._id}`, refund), { statusCode: 409 });
+    await assert.rejects(move(user, 1, "REFUND", `filtering-refund:${user._id}`, filtering), { statusCode: 400 });
+    await operations.runCreditTransaction(async session => {
+        const { transaction } = await service.postCreditMovement({
+            session, operationKey: `check:${user._id}`, type: "DEDUCT", amount: 8, toUser: user._id, performedBy: user._id, ...filtering,
+        });
+        await NumberFilterRequest.create([{ _id: filterRequestId, userId: user._id, chargeTransactionId: transaction._id, submittedRowCount: 8 }], { session });
+    }, { walletIds: [user._id] });
+    const retry = await move(user, 80, "DEDUCT", `campaign-charge:${user._id}`, { ...campaign, performedBy: user._id });
+    assert.equal(retry.replayed, true);
+    await assert.rejects(move(user, 80, "DEDUCT", `campaign-charge:${user._id}`, filtering), { code: "CREDIT_REFERENCE_REUSED" });
+    const { summary } = await view(user);
+    assert.equal(summary.walletBalance, 6);
+    assert.equal(summary.transactionCount, 1);
+    assert.deepEqual(summary.categories.CAMPAIGN.walletBalance, { available: 30, reserved: 0 });
+    assert.deepEqual(summary.categories.NUMBER_FILTERING.walletBalance, { available: 92, reserved: 0 });
+    assert.equal(summary.classification, "matched");
+});
+
+test("category balances need matching ledger postings and reconcile independently", async () => {
+    const user = await account();
+    const path = "creditBalances.NUMBER_FILTERING.available";
+    await assert.rejects(rawOperation(session => Wallet.findOneAndUpdate({ userId: user._id }, { $inc: { [path]: 3 } }, { session })), { code: "CREDIT_INVARIANT_FAILED" });
+    await assert.rejects(rawOperation(async session => {
+        await service.postCreditMovement({ session, operationKey: `categorized-audit:${user._id}`, type: "ALLOCATE", category: CAMPAIGN_CREDITS, amount: 3, toUser: user._id, performedBy: admin._id });
+        await Wallet.collection.updateOne({ userId: user._id }, { $inc: { [path]: 1 } }, { session });
+    }), { code: "CREDIT_INVARIANT_FAILED" });
+    await Wallet.collection.updateOne({ userId: user._id }, { $inc: { [path]: 1 } });
+    const { summary } = await view(user);
+    assert.equal(summary.classification, "cannot_confirm");
+    assert.equal(summary.categories.CAMPAIGN.matches, true);
+    assert.equal(summary.categories.NUMBER_FILTERING.matches, false);
+    assert.equal(summary.walletBalance, 0);
+});
+
+test("purchase pricing is exact and reserved stock is transferred once after review", async () => {
+    const seller = await account("Reseller");
+    const buyer = await account("User", 0, seller._id);
+    const category = NUMBER_FILTERING_CREDITS;
+    const expiresAt = new Date(Date.now() + 60_000);
+    await move(seller, 100, "ALLOCATE", `purchase-stock:${seller._id}`, { category });
+    const rate = await CreditPurchaseRate.create({ sellerId: seller._id, category, version: 1, unitPriceInr: "0.015", createdBy: seller._id });
+    assert.equal(purchaseTotalPaisa(100_000, "0.01"), 100_000);
+    assert.equal(purchaseTotalPaisa(3, rate.unitPriceInr), 5);
+    const quote = { sellerId: seller._id, buyerId: buyer._id, category, quantity: 40, rateId: rate._id, unitPriceInr: rate.unitPriceInr, expiresAt };
+    await assert.rejects(new CreditPurchase({ ...quote, totalPaisa: 61 }).validate(), /must match/);
+    const purchase = await CreditPurchase.create({ ...quote, totalPaisa: 60 });
+    const stock = { fromUser: seller._id, category, purchaseId: purchase._id };
+    await move(seller, 40, "RESERVE", `hold:${purchase._id}`, { ...stock, performedBy: buyer._id });
+    assert.deepEqual((await view(seller)).summary.categories[category].walletBalance, { available: 60, reserved: 40 });
+    purchase.status = "PENDING";
+    purchase.paymentProofKey = "proof-key-for-test";
+    await purchase.save();
+    assert.equal(purchase.toJSON().paymentProofKey, undefined);
+    assert.equal((await CreditPurchase.findById(purchase._id).lean()).paymentProofKey, undefined);
+    const grant = { ...stock, performedBy: seller._id };
+    await Wallet.findOneAndUpdate({ userId: seller._id }, { $set: { isLocked: true } });
+    await assert.rejects(move(buyer, 40, "ALLOCATE", `paid:${purchase._id}`, grant), { statusCode: 403 });
+    await Wallet.findOneAndUpdate({ userId: seller._id }, { $set: { isLocked: false } });
+    await Wallet.findOneAndUpdate({ userId: buyer._id }, { $set: { isLocked: true } });
+    const fulfilled = await move(buyer, 40, "ALLOCATE", `paid:${purchase._id}`, grant);
+    assert.equal(fulfilled.transaction.fromReserved, true);
+    assert.equal(fulfilled.toWallet.isLocked, true);
+    const approved = await CreditPurchase.findById(purchase._id).lean();
+    assert.equal(approved.status, "APPROVED");
+    assert.equal(String(approved.fulfillmentTransactionId), String(fulfilled.transaction._id));
+    assert.equal((await move(buyer, 40, "ALLOCATE", `paid:${purchase._id}`, grant)).replayed, true);
+    await assert.rejects(move(buyer, 40, "ALLOCATE", `paid-again:${purchase._id}`, grant), { statusCode: 409 });
+    assert.deepEqual((await view(seller)).summary.categories[category].walletBalance, { available: 60, reserved: 0 });
+    const { summary } = await view(buyer);
+    assert.deepEqual(summary.categories[category].walletBalance, { available: 40, reserved: 0 });
+    assert.equal(summary.classification, "matched");
+
+    const canceled = await CreditPurchase.create({ ...quote, totalPaisa: 60 });
+    const canceledStock = { ...stock, purchaseId: canceled._id };
+    await move(seller, 40, "RESERVE", `hold:${canceled._id}`, { ...canceledStock, performedBy: buyer._id });
+    await Wallet.findOneAndUpdate({ userId: seller._id }, { $set: { isLocked: true } });
+    await move(seller, 40, "RELEASE", `release:${canceled._id}`, { ...canceledStock, performedBy: seller._id });
+    assert.deepEqual((await view(seller)).summary.categories[category].walletBalance, { available: 60, reserved: 0 });
+    assert.equal((await Wallet.findOne({ userId: seller._id })).isLocked, true);
+});
+
+test("account deletion preserves balances until categorized credits are resolved", async () => {
+    const { deleteUser } = await import("../controllers/user.controller.js");
+    const user = await account();
+    const category = NUMBER_FILTERING_CREDITS;
+    await move(user, 5, "ALLOCATE", `stock-before-deletion:${user._id}`, { category });
+    const req = { user: admin, params: { id: String(user._id) } };
+    const blocked = response();
+    await deleteUser(req, blocked);
+    assert.equal(blocked.statusCode, 409);
+    assert(await User.exists({ _id: user._id }));
+    assert.equal((await view(user)).summary.categories[category].walletBalance.available, 5);
+    await move(admin, 5, "RECLAIM", `stock-reclaimed:${user._id}`, { category, fromUser: user._id });
+    const removed = response();
+    await deleteUser(req, removed);
+    assert.equal(removed.statusCode, 200);
+    assert.equal(await User.exists({ _id: user._id }), null);
+    assert.equal(await Wallet.exists({ userId: user._id }), null);
+    assert.equal(await Transaction.countDocuments({ category, $or: [{ fromUser: user._id }, { toUser: user._id }] }), 2);
+});
 
 test("wallet-only, ledger-only and unequal movements cannot commit", async () => {
     for (const kind of ["wallet-only", "ledger-only", "unequal"]) {
@@ -171,11 +311,11 @@ test("the controller retries rolled-back conflicts and reads a saved success aft
     const replay = response(); await uncertain(req, replay); assert.equal(calls, 1); assert.equal(replay.statusCode, 200); assert.equal(replay.body.saved, true);
 });
 
-test("allocation, deduction and reclaim controllers use the same posting path", async () => {
+test("allocation and reclaim controllers share the ledger with historical usage debits", async () => {
     const reseller = await account("Reseller", 30), user = await account("User", 0, reseller._id);
     const invoke = async (fn, body) => { const req = { user: reseller, body, params: {}, query: {} }, res = response(); await operations.retryCreditController(fn, { walletIds: [reseller._id, user._id] })(req, res); assert.equal(res.statusCode, 200, JSON.stringify(res.body)); return res.body; };
     await invoke(controllers.allocateCredits, { toUserId: String(user._id), amount: 10 });
-    await invoke(controllers.deductCredits, { userId: String(user._id), amount: 2 });
+    await move(user, 2, "DEDUCT", "historical-usage:" + user._id);
     await invoke(controllers.reclaimCredits, { fromUserId: String(user._id), amount: 3, notes: "Returning unused credits to the reseller." });
     assert.equal(await balance(reseller), 23); assert.equal(await balance(user), 5);
     assert.equal((await view(reseller)).summary.classification, "matched"); assert.equal((await view(user)).summary.classification, "matched");
@@ -183,15 +323,16 @@ test("allocation, deduction and reclaim controllers use the same posting path", 
 
 test("campaign creation and cancellation charge and refund exactly once", async () => {
     const user = await account("User", 20);
+    await grantCampaignCredits(user);
     // A date saved by the retired credit-expiry feature must not block campaigns.
     await Wallet.collection.updateOne({ userId: user._id }, { $set: { expiresAt: new Date("2020-01-01") } });
     const req = { user, body: { campaignTitle: "Credit posting test", messageBody: "A test message", recipients: ["919876543210", "919876543211"], schedule: "now" }, params: {}, query: {}, files: {} }, created = response();
     await operations.retryCreditController(campaigns.createCampaign, { walletIds: [user._id] })(req, created);
-    assert.equal(created.statusCode, 201, JSON.stringify(created.body)); assert.equal(await balance(user), 16);
+    assert.equal(created.statusCode, 201, JSON.stringify(created.body)); assert.equal(await campaignBalance(user), 18); assert.equal(await balance(user), 20);
     const id = created.body.data._id;
-    const charge = await Transaction.findOne({ campaignId: id, type: "DEDUCT" }); assert(charge); assert.equal(charge.amount, 4);
+    const charge = await Transaction.findOne({ campaignId: id, type: "DEDUCT" }); assert(charge); assert.equal(charge.amount, 2);
     const cancel = response(); await operations.retryCreditController(campaigns.cancelScheduledCampaign, { walletIds: [user._id] })({ user, body: {}, params: { id } }, cancel);
-    assert.equal(cancel.statusCode, 200, JSON.stringify(cancel.body)); assert.equal(await balance(user), 20);
+    assert.equal(cancel.statusCode, 200, JSON.stringify(cancel.body)); assert.equal(await campaignBalance(user), 20);
     const again = response(); await campaigns.cancelScheduledCampaign({ user, body: {}, params: { id } }, again);
     assert.equal(again.statusCode, 400); assert.equal(await balance(user), 20);
     assert.equal(await Transaction.countDocuments({ campaignId: id, type: "REFUND" }), 1); assert.equal((await view(user)).summary.classification, "matched");
@@ -225,6 +366,7 @@ test("multiple campaign media are rejected before uploads, campaign creation or 
 
 test("a shared profile photo is saved independently of campaign media", async () => {
     const user = await account("User", 20);
+    await grantCampaignCredits(user);
     Object.assign(user, { featureAccess: { campaignDp: true }, dp_img: "https://example.test/profile.png" });
     const req = { user, params: {}, query: {}, files: {}, body: {
         campaignTitle: "Profile photo only", shareProfileDp: "true", recipients: ["919876543210"], schedule: "now",
@@ -236,11 +378,12 @@ test("a shared profile photo is saved independently of campaign media", async ()
     assert.equal(saved.shareProfileDp, true);
     assert.equal(saved.profileDp, user.dp_img);
     assert.equal(saved.images.length + saved.video.length + saved.audio.length + saved.documents.length, 0);
-    assert.equal(await balance(user), 18);
+    assert.equal(await campaignBalance(user), 19);
 });
 
 test("profile DP and an uploaded campaign image are saved together", async t => {
     const user = await account("User", 20);
+    await grantCampaignCredits(user);
     Object.assign(user, { featureAccess: { campaignDp: true }, dp_img: "https://example.test/profile.png" });
     const { default: cloudinary } = await import("../config/cloudinary.config.js");
     const { default: sharp } = await import("sharp");
@@ -264,7 +407,7 @@ test("profile DP and an uploaded campaign image are saved together", async t => 
         assert.equal(saved.profileDp, user.dp_img);
         assert.equal(saved.images.length, 1);
         assert.equal(saved.images[0].url, "https://example.test/campaign.webp");
-        assert.equal(await balance(user), 18);
+        assert.equal(await campaignBalance(user), 19);
     } finally {
         for (const name of names) {
             if (previous[name] === undefined) delete process.env[name];
@@ -304,6 +447,7 @@ test("explicit wallet locks still prevent spending after credit expiry is retire
 
 test("campaign CTA labels survive saving and invalid labels cannot create or charge campaigns", async () => {
     const user = await account("User", 20);
+    await grantCampaignCredits(user);
     user.featureAccess = { campaignLink: true, campaignNumber: true };
     const body = { campaignTitle: "CTA labels", messageBody: "An offer for you", recipients: ["919876543210"], schedule: "now", campaignLink: "https://example.test/offer", campaignLinkName: "Claim Deal", campaignNumber: "+1 (415) 555-1234", campaignNumberName: "Speak to Sales" };
     const invoke = async overrides => {
@@ -317,11 +461,15 @@ test("campaign CTA labels survive saving and invalid labels cannot create or cha
     assert.equal(saved.campaignLinkName, "Claim Deal");
     assert.equal(saved.campaignNumberName, "Speak to Sales");
     assert.equal(saved.campaignNumber, "+14155551234");
-    const beforeBalance = await balance(user), beforeCount = await Campaign.countDocuments({ userId: user._id });
-    for (const invalid of [{ campaignLinkName: "a".repeat(26) }, { campaignNumberName: "a".repeat(26) }, { campaignNumberName: ["Call Now"] }]) {
+    const beforeBalance = await campaignBalance(user), beforeCount = await Campaign.countDocuments({ userId: user._id });
+    for (const invalid of [
+        { campaignLinkName: "a".repeat(26) }, { campaignNumberName: "a".repeat(26) }, { campaignNumberName: ["Call Now"] },
+        { campaignLink: "sd" }, { campaignLink: "https://sd" }, { campaignLink: "ftp://example.com" },
+        { campaignNumber: "sd" }, { campaignNumber: "+91 12345" }, { campaignNumber: "+999 1234567890" },
+    ]) {
         const rejected = await invoke(invalid);
         assert.equal(rejected.statusCode, 400, JSON.stringify(rejected.body));
-        assert.equal(await balance(user), beforeBalance);
+        assert.equal(await campaignBalance(user), beforeBalance);
         assert.equal(await Campaign.countDocuments({ userId: user._id }), beforeCount);
     }
     const noCtas = await invoke({ campaignLink: "", campaignNumber: "", campaignLinkName: "", campaignNumberName: "" });
@@ -350,7 +498,7 @@ test("a campaign total without an original charge cannot authorize a refund", as
 
 test("a missing campaign rate uses the original charge rate, never the user's newer price", async () => {
     const user = await account("User", 20), campaignId = oid();
-    await Campaign.collection.insertOne({ _id: campaignId, userId: user._id, campaignTitle: "Original price evidence", status: "ongoing", creditsDeducted: 4, totalRecipients: 2, campaignSummary: {}, createdAt: new Date(), updatedAt: new Date() });
+    await Campaign.collection.insertOne({ _id: campaignId, userId: user._id, campaignTitle: "Original price evidence", originalRecipients: ["919876543210", "919876543211"], status: "ongoing", creditsDeducted: 4, totalRecipients: 2, campaignSummary: {}, createdAt: new Date(), updatedAt: new Date() });
     await move(user, 4, "DEDUCT", `original-price:${campaignId}`, { campaignId, rateSnapshot: 2 });
     await User.collection.updateOne({ _id: user._id }, { $set: { ratePerMsg: 20 } });
     const req = { user: admin, params: { id: String(campaignId) }, body: { categories: [{ name: "Refund one", billingAction: "refund", numbers: ["919876543210"] }] } }, res = response();
@@ -369,14 +517,14 @@ async function chargedCampaign(user, status = "ongoing") {
     return campaignId;
 }
 
-test("metrics refunds are incremental and a repeated report does not repay them", async () => {
+test("delivery metrics leave historical charges and balances untouched", async () => {
     const user = await account("User", 20), campaignId = await chargedCampaign(user);
-    for (const [failed, expected] of [[1, 18], [1, 18], [2, 20]]) {
+    for (const [failed, expected] of [[1, 16], [1, 16], [2, 16]]) {
         const res = response();
         await campaigns.updateCampaignMetrics({ user: admin, params: { id: String(campaignId) }, body: { sent: 2, delivered: 2 - failed, failed } }, res);
         assert.equal(res.statusCode, 200, JSON.stringify(res.body)); assert.equal(await balance(user), expected);
     }
-    assert.equal(await Transaction.countDocuments({ campaignId, type: "REFUND" }), 2);
+    assert.equal(await Transaction.countDocuments({ campaignId, type: "REFUND" }), 0);
     assert.equal((await view(user)).summary.classification, "matched");
 });
 

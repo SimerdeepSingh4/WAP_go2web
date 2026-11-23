@@ -7,6 +7,12 @@ import { SectionCard } from "./CampaignDetailsSection";
 import { AnimatedCollapse } from "@/components/ui/animated-collapse";
 
 export default function CampaignRecipientsInput({
+  title = "Recipients",
+  description = "Enter numbers with 10 to 12 digits, one per line, or upload a CSV or TXT file in the same format.",
+  dataTour = "create-recipients",
+  duplicatesLabel = "duplicates removed",
+  required = true,
+  readOnly = false,
   fileInputRef,
   rawRecipients,
   onRawRecipientsChange,
@@ -28,17 +34,18 @@ export default function CampaignRecipientsInput({
   const visibleErrors = showValidation ? invalidEntries : [];
   return (
     <SectionCard
-      dataTour="create-recipients"
+      dataTour={dataTour}
       icon={Users}
-      title="Recipients"
-      description="Enter numbers with 10 to 12 digits, one per line, or upload a CSV or TXT file in the same format."
+      title={title}
+      description={description}
       aside={
-        <>
+        fileInputRef && onReadFile && <>
           <input
             ref={fileInputRef}
             type="file"
             accept=".csv,.txt"
             onChange={(e) => onReadFile(e.target.files?.[0])}
+            disabled={readOnly}
             className="hidden"
             aria-label="Upload recipients file"
           />
@@ -47,6 +54,7 @@ export default function CampaignRecipientsInput({
             variant="outline"
             size="sm"
             onClick={() => fileInputRef.current?.click()}
+            disabled={readOnly}
             className="h-8 text-xs gap-1.5"
           >
             <Upload className="size-3.5" />
@@ -64,7 +72,7 @@ export default function CampaignRecipientsInput({
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Label htmlFor="recipients" className="text-xs font-medium">
-              Phone numbers <span className="text-destructive">*</span>
+              Phone numbers {required && <span className="text-destructive">*</span>}
             </Label>
             <span id="recipients-help" className="text-[11px] font-medium text-muted-foreground">
               10 to 12 digits &bull; One number per line
@@ -86,7 +94,8 @@ export default function CampaignRecipientsInput({
             className={`field-sizing-fixed h-40 min-h-32 max-h-64 overflow-y-auto bg-background text-xs font-mono leading-6 resize-y transition-colors focus-visible:ring-2 focus-visible:ring-ring/20 ${
               dropActive ? "border-primary bg-primary/5" : ""
             }`}
-            required
+            required={required}
+            readOnly={readOnly}
           />
 
         </div>
@@ -100,7 +109,7 @@ export default function CampaignRecipientsInput({
           {duplicatesCount > 0 && (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-stone-100 text-stone-700 dark:bg-stone-900/50 dark:text-stone-300 text-xs font-medium border border-stone-300 dark:border-stone-700">
               <CopyIcon className="size-3.5" />
-              {number(duplicatesCount)} duplicates removed
+              {number(duplicatesCount)} {duplicatesLabel}
             </span>
           )}
           {invalidCount > 0 && (

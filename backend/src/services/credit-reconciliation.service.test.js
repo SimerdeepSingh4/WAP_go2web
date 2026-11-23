@@ -13,8 +13,8 @@ const oid = () => new mongoose.Types.ObjectId();
 const req = (userId, body = {}, actor = admin) => ({ user: actor, params: { userId: String(userId) }, body, isPreview: false });
 const response = () => ({ statusCode: 200, status(code) { this.statusCode = code; return this; }, json(body) { this.body = JSON.parse(JSON.stringify(body)); return this; } });
 async function inspect(userId, options) { const session = await mongoose.startSession(); try { return await session.withTransaction(() => evidence.inspectCreditAccount(userId, session, options)); } finally { await session.endSession(); } }
-async function makeAccount(name, openingKnown = true) {
-    const account = { _id: oid(), username: name, role: "User", resellerId: manager._id, status: "active" };
+async function makeAccount(name, openingKnown = true, role = "User") {
+    const account = { _id: oid(), username: name, role, resellerId: role === "User" ? manager._id : null, status: "active" };
     await User.collection.insertOne({ ...account, email: `${account._id}@example.test`, password: "unused" });
     if (openingKnown) await Wallet.create({ userId: account._id, balance: 0 });
     else await Wallet.collection.insertOne({ userId: account._id, balance: 0, balanceMinor: 0, createdAt: new Date(), updatedAt: new Date() });
@@ -145,6 +145,20 @@ test("an independently conflicting ledger blocks correction instead of showing a
     assert.equal(view.summary.calculationsAgree, false);
     await assert.rejects(plan(account, "wallet"), { statusCode: 409 });
 });
+test("malformed legacy postings still flag evidence and keep the running amounts finite", async () => {
+    const account = await makeAccount("Legacy entry with category fields");
+    await Transaction.collection.updateOne({ toUser: account._id, type: "ALLOCATE" }, { $set: {
+        postings: [{ userId: account._id, deltaQuantity: 100 }, { deltaQuantity: -100 }],
+    } });
+    const { summary } = await inspect(account._id);
+    assert.equal(summary.walletBalance, 100);
+    assert.equal(summary.expectedBalance, 100);
+    assert.equal(summary.difference, 0);
+    assert.equal(summary.invalidCount, 1);
+    assert.equal(summary.classification, "cannot_confirm");
+    assert.equal(summary.calculationsAgree, false);
+    await assert.rejects(plan(account, "wallet"), { statusCode: 409 });
+});
 test("credit checks roll back with their operation and remain durable after successful writes", async () => {
     const account = await makeAccount("Durable checks");
     const before = await models.CreditAuditJob.findOne({ userId: account._id }).lean();
@@ -168,6 +182,99 @@ test("database-wide scans queue all wallets without changing credit balances", a
     const after = await Wallet.find().select("userId balance").lean();
     assert.deepEqual(after, before);
     for (const wallet of before) assert(await models.CreditAuditJob.exists({ userId: wallet.userId }));
+});
+
+test("upgrading reconciliation refreshes old cases and later categorized transfers recheck both wallets", async () => {
+    const reseller = await makeAccount("Versioned reseller", true, "Reseller");
+    const buyer = await makeAccount("Versioned client");
+    await User.collection.updateOne({ _id: buyer._id }, { $set: { resellerId: reseller._id } });
+    const mismatch = await makeAccount("Versioned mismatch");
+    await drift(mismatch, 1);
+    const { runCreditTransaction } = await import("../helpers/credit-operation.js");
+    const { postCreditMovement } = await import("./credit-posting.service.js");
+    const category = "NUMBER_FILTERING";
+    const move = async (amount, fromUser, toUser, performedBy) => runCreditTransaction(session => postCreditMovement({
+        session, operationKey: `versioned:${toUser}:${amount}`, type: "ALLOCATE", category, amount, fromUser, toUser, performedBy,
+    }), { walletIds: [fromUser, toUser].filter(Boolean) });
+    await move(20, null, reseller._id, admin._id);
+    for (const account of [reseller, buyer]) {
+        const { summary, snapshot } = await inspect(account._id);
+        assert.equal(summary.classification, "matched");
+        await models.CreditCase.create({
+            userId: account._id, state: "open", classification: "cannot_confirm", snapshot,
+            summary: { ...summary, evidenceVersion: 0, difference: NaN, classification: "cannot_confirm", evidenceConflict: true, concerns: ["Legacy posting format"] },
+        });
+    }
+    await models.CreditAuditJob.updateMany({}, { $set: { dirty: false } });
+    await models.CreditAuditState.updateOne({ _id: "monitor" }, {
+        $set: { evidenceVersion: 0, scanState: "idle", lastTickAt: new Date(), leaseUntil: new Date(0), nextFullScanAt: new Date(Date.now() + 3600000) },
+        $unset: { lastEvidenceTickAt: "" },
+    }, { upsert: true });
+    const summaryBefore = response();
+    await controller.reconciliationSummary(req(reseller._id), summaryBefore);
+    assert.equal(summaryBefore.body.rechecking, 2);
+    assert.equal(summaryBefore.body.monitor.healthy, false);
+    const before = await Wallet.find().select("userId balance creditBalances").lean();
+    await worker.runCreditCheckCycle();
+    for (let batch = 0; batch < 5 && await models.CreditAuditJob.exists({ dirty: true }); batch++) await worker.runCreditCheckCycle();
+    assert.equal(await models.CreditAuditJob.countDocuments({ dirty: true }), 0);
+    assert.deepEqual(await Wallet.find().select("userId balance creditBalances").lean(), before);
+    const state = await models.CreditAuditState.findById("monitor").lean();
+    assert.equal(state.evidenceVersion, evidence.CREDIT_EVIDENCE_VERSION);
+    assert.equal(state.scanState, "idle");
+    for (const account of [reseller, buyer]) {
+        const resolved = await models.CreditCase.findOne({ userId: account._id }).lean();
+        assert.equal(resolved.state, "resolved");
+        assert.equal(resolved.summary.evidenceVersion, evidence.CREDIT_EVIDENCE_VERSION);
+        assert.equal(resolved.summary.difference, 0);
+        assert(await models.CreditCaseEvent.exists({ userId: account._id, action: "cleared_by_check" }));
+    }
+    assert.equal((await models.CreditCase.findOne({ userId: mismatch._id })).classification, "confirmed");
+    const sellerJob = await models.CreditAuditJob.findOne({ userId: reseller._id }).lean();
+    await worker.runCreditCheckCycle();
+    assert.equal((await models.CreditAuditJob.findById(sellerJob._id)).generation, sellerJob.generation);
+    await move(5, reseller._id, buyer._id, reseller._id);
+    const participants = { userId: { $in: [reseller._id, buyer._id] } };
+    assert.equal(await models.CreditAuditJob.countDocuments({ ...participants, dirty: true }), 2);
+    // An older monitor only updates dirty and the timestamp when it finishes.
+    await models.CreditAuditJob.updateMany(participants, { $set: { dirty: false, checkedAt: new Date() } });
+    const afterLegacyJob = response();
+    await controller.reconciliationSummary(req(reseller._id), afterLegacyJob);
+    assert.equal(afterLegacyJob.body.pending, 2);
+    await worker.runCreditCheckCycle();
+    for (const [account, available] of [[reseller, 15], [buyer, 5]]) {
+        const checked = await models.CreditCase.findOne({ userId: account._id }).lean();
+        assert.equal(checked.state, "resolved");
+        assert.equal(checked.summary.categories[category].expectedBalance.available, available);
+        assert.equal(checked.summary.categories[category].matches, true);
+    }
+
+    const resurfaced = await models.CreditCase.findOne({ userId: reseller._id }).lean();
+    await models.CreditCase.updateOne({ _id: resurfaced._id }, {
+        $set: { state: "open", classification: "cannot_confirm", "summary.classification": "cannot_confirm", "summary.difference": NaN },
+        $unset: { "summary.evidenceVersion": "" },
+    });
+    // An older check can also mark a real discrepancy resolved. It needs fresh evidence too.
+    await models.CreditCase.updateOne({ userId: mismatch._id }, {
+        $set: { state: "resolved", classification: "matched", "summary.classification": "matched" },
+        $unset: { "summary.evidenceVersion": "" },
+    });
+    const queue = response();
+    await controller.listReconciliationCases({ ...req(reseller._id), query: { state: "open", search: "Versioned" } }, queue);
+    assert.deepEqual(queue.body.items, []);
+    const summaryDuring = response();
+    await controller.reconciliationSummary(req(reseller._id), summaryDuring);
+    assert.equal(summaryDuring.body.rechecking, 2);
+    await worker.runCreditCheckCycle();
+    assert.equal((await models.CreditCase.findOne({ userId: reseller._id })).state, "resolved");
+    const refreshed = response();
+    await controller.listReconciliationCases({ ...req(reseller._id), query: { state: "open", search: "Versioned" } }, refreshed);
+    assert.deepEqual(refreshed.body.items.map(item => [item.summary.account.username, item.classification]), [[mismatch.username, "confirmed"]]);
+    const summaryAfter = response();
+    await controller.reconciliationSummary(req(reseller._id), summaryAfter);
+    assert.equal(summaryAfter.body.rechecking, 0);
+    assert.equal(summaryAfter.body.pending, 0);
+    assert.equal(summaryAfter.body.monitor.healthy, true);
 });
 
 test("unverified signed evidence cannot be used to justify a correction", async () => {

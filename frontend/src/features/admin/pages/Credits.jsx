@@ -1,19 +1,20 @@
+import TransactionAmount from "@/features/credits/components/TransactionAmount";
 import TransactionReference from "@/features/credits/components/TransactionReference";
 import "./admin-transactions.css";
+import "@/features/credits/components/credit-history.css";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import {
   Plus,
   Wallet,
   RotateCcw,
-  ArrowUpRight,
-  ArrowDownLeft,
-  ArrowDownRight,
-  ArrowRight,
   Coins,
-  TrendingUp,
   ReceiptText,
   Lock,
+  Send,
+  PhoneCall,
+  Inbox,
+  Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import OverviewMetricCards from "@/features/dashboard/components/OverviewMetricCards";
@@ -32,98 +33,40 @@ import {
 } from "../../dashboard/components/shared";
 import ActionForm from "../components/ActionForm";
 import { dateTime, number, ownerName } from "../../../lib/format";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { getTransactionDisplay, getCategoryDisplay, getTransactionNote } from "@/features/credits/lib/creditTransactionDisplay";
+import PurchasesTable from "@/features/credits/components/PurchasesTable";
+import RateSettingsCard from "@/features/credits/components/RateSettingsCard";
+import CreditWorkspaceNav from "@/features/credits/components/CreditWorkspaceNav";
+
+const adminCreditSections = [
+  { value: "wallets", label: "Account Wallets & Balances", icon: Wallet },
+  { value: "requests", label: "Platform Recharge Requests", icon: Inbox },
+  { value: "rates", label: "Rates & Bank Details", icon: Settings },
+];
 
 const transactionLabels = {
   REQUEST: "Credit request",
   ALLOCATE: "Credit Added",
-  DEDUCT: "Campaign Usage",
+  DEDUCT: "Credit usage",
   REFUND: "Refund",
   RECLAIM: "Credit Deducted",
 };
 
-/**
- * Super Admin Transaction Display:
- * - RECLAIM: Credits deducted/returned from reseller -> Inflow (+, Green, ↙)
- * - ALLOCATE (from Super Admin): Credits given to Reseller/User -> Outflow (-, Blue, ↗)
- * - ALLOCATE (Reseller to User): Client transfer -> Transfer (neutral, Stone, →)
- * - DEDUCT: Message delivery usage -> Deduction (-, Red, ↘)
- * - REFUND: Delivery failure refund -> Refund (+, Cyan, ↙)
- */
-function getTransactionDisplay(t) {
-  if(t.type === "REQUEST") return {label:"Credit request",badgeClass:"border-amber-200 bg-amber-50 text-amber-800",amountClass:"text-amber-800 font-medium",sign:"",icon:Coins};
-  const isFromSuperAdmin = !t.fromUser || t.fromUser?.role === "Super Admin";
-
-  if (t.type === "RECLAIM") {
-    return {
-      label: "Credit Deducted",
-      badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-800",
-      amountClass: "text-emerald-700 font-semibold",
-      sign: "+",
-      icon: ArrowDownLeft,
-    };
-  }
-
-  if (t.type === "ALLOCATE") {
-    if (isFromSuperAdmin) {
-      return {
-        label: "Credit Added",
-        badgeClass: "border-blue-200 bg-blue-50 text-blue-800",
-        amountClass: "text-blue-700 font-semibold",
-        sign: "-",
-        icon: ArrowUpRight,
-      };
-    } else {
-      return {
-        label: "Transfer",
-        badgeClass: "border-stone-200 bg-stone-100 text-stone-700",
-        amountClass: "text-stone-700 font-medium",
-        sign: "→",
-        icon: ArrowRight,
-      };
-    }
-  }
-
-  if (t.type === "DEDUCT") {
-    return {
-      label: "Campaign Usage",
-      badgeClass: "border-red-200 bg-red-50 text-red-800",
-      amountClass: "text-red-700 font-semibold",
-      sign: "-",
-      icon: ArrowDownRight,
-    };
-  }
-
-  if (t.type === "REFUND") {
-    return {
-      label: "Refund",
-      badgeClass: "border-cyan-200 bg-cyan-50 text-cyan-800",
-      amountClass: "text-cyan-700 font-semibold",
-      sign: "+",
-      icon: ArrowDownLeft,
-    };
-  }
-
-  return {
-    label: t.type,
-    badgeClass: "border-stone-200 bg-stone-50 text-stone-700",
-    amountClass: "text-stone-700 font-medium",
-    sign: "",
-    icon: ArrowRight,
-  };
-}
-
-export default function Credits({ activity = false }) {
+export default function AdminCredits({ activity = false }) {
+  const { user } = useAuth();
   const [params, setParams] = useSearchParams();
   const page = Math.max(1, Number(params.get("page")) || 1);
   const type = params.get("type") || "all";
-  const transactionId = params.get("transaction");
+  const categoryFilter = params.get("category") || "all";
   const account = params.get("account") || "all";
   const allocation = params.get("allocate");
-
+  const transactionId = params.get("transaction");
   const [reclaimOpen, setReclaimOpen] = useState(false);
   const [reclaimAccount, setReclaimAccount] = useState(null);
   const [walletSearch, setWalletSearch] = useState("");
   const [walletRole, setWalletRole] = useState("all");
+  const adminTab = adminCreditSections.find(({ value }) => value === params.get("tab"))?.value ?? "wallets";
 
   const accountsQuery = useAdminQuery("accounts");
   const overview = useAdminQuery("overview", {}, !activity);
@@ -134,6 +77,7 @@ export default function Credits({ activity = false }) {
       limit: 10,
       ...(transactionId ? { transactionId } : {}),
       ...(type !== "all" ? { type } : {}),
+      ...(categoryFilter !== "all" ? { category: categoryFilter } : {}),
       ...(account !== "all" ? { userId: account } : {}),
     },
     activity
@@ -164,22 +108,33 @@ export default function Credits({ activity = false }) {
 
   // Columns for the Transaction History Table
   const transactionColumns = [
-    { key: "transactionId", label: "Transaction ID", render: transaction => <TransactionReference transaction={transaction} /> },
     {
-      key: "date",
-      label: "Date",
-      render: (t) => <span className="text-xs text-muted-foreground">{dateTime(t.createdAt)}</span>,
+      key: "transactionId",
+      label: "Transaction ID",
+      render: transaction => <TransactionReference transaction={transaction} showDate />,
     },
     {
       key: "type",
       label: "Type",
       render: (t) => {
-        const info = getTransactionDisplay(t);
+        const info = getTransactionDisplay(t, user);
         const Icon = info.icon;
         return (
-          <span className={`inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-medium border ${info.badgeClass}`}>
-            <Icon className="size-3 shrink-0" />
+          <span className={`credit-ledger-badge ${info.badgeClass}`}>
+            <Icon className="size-3 shrink-0" aria-hidden="true" />
             {info.label}
+          </span>
+        );
+      },
+    },
+    {
+      key: "category",
+      label: "Category",
+      render: (t) => {
+        const catInfo = getCategoryDisplay(t.category);
+        return (
+          <span className={`credit-ledger-badge ${catInfo.badgeClass}`}>
+            {catInfo.label}
           </span>
         );
       },
@@ -187,39 +142,32 @@ export default function Credits({ activity = false }) {
     {
       key: "from",
       label: "From",
-      render: (t) => (t.fromUser ? <span className="text-xs">{ownerName(t.fromUser)}</span> : <span className="text-xs font-medium text-muted-foreground">Super Admin</span>),
+      render: (t) => (t.fromUser ? <span className="credit-ledger-account text-xs" title={ownerName(t.fromUser)}>{ownerName(t.fromUser)}</span> : <span className="text-xs font-medium text-muted-foreground">Super Admin</span>),
     },
     {
       key: "to",
       label: "To",
-      render: (t) => <span className="text-xs font-medium">{ownerName(t.toUser)}</span>,
+      render: (t) => <span className="credit-ledger-account text-xs font-medium" title={ownerName(t.toUser)}>{ownerName(t.toUser)}</span>,
     },
     {
       key: "amount",
       label: "Credits",
       className: "text-right",
-      render: (t) => {
-        const info = getTransactionDisplay(t);
-        return (
-          <span className={`tabular-nums text-sm ${info.amountClass}`}>
-            {info.sign}{number(t.amount)}
-          </span>
-        );
-      },
+      render: t => <TransactionAmount transaction={t} viewer={user} />,
     },
     {
       key: "actor",
       label: "By",
-      render: (t) => <span className="text-xs text-muted-foreground">{ownerName(t.performedBy)}</span>,
+      render: (t) => <span className="credit-ledger-account text-xs text-muted-foreground" title={ownerName(t.performedBy)}>{ownerName(t.performedBy)}</span>,
     },
     {
       key: "note",
       label: "Note",
       render: (t) => {
-        const noteText = t.notes || "—";
+        const noteText = getTransactionNote(t) || "—";
         return (
           <span
-            className="block min-w-[200px] whitespace-normal break-words text-xs text-muted-foreground leading-relaxed"
+            className="credit-ledger-note text-xs text-muted-foreground"
             title={noteText !== "—" ? noteText : undefined}
           >
             {noteText}
@@ -230,17 +178,19 @@ export default function Credits({ activity = false }) {
     {
       key: "actions",
       label: "Action",
-      className: "transaction-action-cell",
+      className: "text-right",
       render: (t) => t.type === "REQUEST" ? (
         <Button
           size="sm"
           variant="outline"
           nativeButton={false}
-          className="transaction-allocate-button"
-          render={<Link to={`/admin/credits?allocate=${t.toUser?._id || t.toUser}&amount=${t.amount}`} />}
+          className="credit-ledger-allocate transaction-allocate-button"
+          aria-label="Allocate credits"
+          title="Allocate credits"
+          render={<Link to={`/admin/credits?allocate=${t.toUser?._id || t.toUser}&amount=${t.amount}&category=${t.category || "CAMPAIGN"}`} />}
         >
           <Plus aria-hidden="true" className="size-3.5" />
-          Allocate credits
+          <span className="credit-ledger-action-label">Allocate</span>
         </Button>
       ) : <span className="text-muted-foreground" aria-label="No action available">&mdash;</span>,
     },
@@ -304,7 +254,7 @@ export default function Credits({ activity = false }) {
     },
     {
       key: "rate",
-      label: "Rate",
+      label: "Rate per campaign credit",
       sort: (a) => a.ratePerMsg,
       render: (a) => <span className="tabular-nums text-xs">{number(a.ratePerMsg)}</span>,
     },
@@ -376,6 +326,7 @@ export default function Credits({ activity = false }) {
           onClose={() => update("allocate", null)}
           initialValues={{
             toUserId: accounts.some((a) => a._id === allocation) ? allocation : "",
+            category: params.get("category") || "CAMPAIGN",
             amount: params.get("amount") || "",
             notes: "",
           }}
@@ -391,11 +342,21 @@ export default function Credits({ activity = false }) {
                   .map((a) => ({ value: a._id, label: `${a.username} (${a.role}) · ${a.email}` })),
               ],
             },
-            { key: "amount", label: "Credits to allocate", required: true, type: "number", min: 0.01, step: 0.01 },
+            {
+              key: "category",
+              label: "Credit Category",
+              required: true,
+              options: [
+                { value: "CAMPAIGN", label: "Campaign Credits" },
+                { value: "NUMBER_FILTERING", label: "Number Filtering Credits" },
+              ],
+            },
+            { key: "amount", label: "Credits to allocate", required: true, type: "number", min: 1, step: 1 },
             { key: "notes", label: "Note (Optional)", type: "textarea", maxLength: 500 },
           ]}
           payload={(v) => ({
             toUserId: v.toUserId,
+            category: v.category || "CAMPAIGN",
             amount: Number(v.amount),
             notes: v.notes.trim(),
           })}
@@ -404,7 +365,10 @@ export default function Credits({ activity = false }) {
             return (
               <>
                 <p className="font-medium text-foreground">{target?.username} <span className="text-xs text-muted-foreground font-normal">({target?.role})</span></p>
-                <p>
+                <p className="text-xs mt-1">
+                  Category: <strong>{v.category === "NUMBER_FILTERING" ? "Number Filtering Credits" : "Campaign Credits"}</strong>
+                </p>
+                <p className="text-xs mt-1">
                   Add <strong>{number(Number(v.amount))} credits</strong> to this account.
                 </p>
                 <p className="whitespace-pre-wrap break-words text-muted-foreground text-xs mt-1">
@@ -431,6 +395,7 @@ export default function Credits({ activity = false }) {
           }}
           initialValues={{
             fromUserId: reclaimAccount ? reclaimAccount._id : "",
+            category: "CAMPAIGN",
             amount: "",
             notes: "",
           }}
@@ -446,21 +411,38 @@ export default function Credits({ activity = false }) {
                   .map((a) => ({ value: a._id, label: `${a.username} (${a.role}) · ${a.email}` })),
               ],
             },
-            { key: "amount", label: "Credits to deduct", required: true, type: "number", min: 0.01, step: 0.01 },
+            {
+              key: "category",
+              label: "Credit Category",
+              required: true,
+              options: [
+                { value: "CAMPAIGN", label: "Campaign Credits" },
+                { value: "NUMBER_FILTERING", label: "Number Filtering Credits" },
+              ],
+            },
+            { key: "amount", label: "Credits to deduct", required: true, type: "number", min: 1, step: 1 },
             { key: "notes", label: "Reason (optional)", type: "textarea", maxLength: 500, placeholder: "e.g. Account closure, overpayment reversal" },
           ]}
-          payload={(v) => ({ fromUserId: v.fromUserId, amount: Number(v.amount), notes: (v.notes || "").trim() })}
+          payload={(v) => ({
+            fromUserId: v.fromUserId,
+            category: v.category || "CAMPAIGN",
+            amount: Number(v.amount),
+            notes: v.notes.trim(),
+          })}
           review={(v) => {
             const target = accounts.find((a) => a._id === v.fromUserId);
             return (
               <>
-                <p className="font-semibold text-destructive">Reclaim credits</p>
-                <p>
-                  Taking back <strong>{number(Number(v.amount))} credits</strong> from{" "}
-                  {target?.username} ({target?.role}).
+                <p className="font-medium text-foreground">{target?.username} <span className="text-xs text-muted-foreground font-normal">({target?.role})</span></p>
+                <p className="text-xs mt-1">
+                  Category: <strong>{v.category === "NUMBER_FILTERING" ? "Number Filtering Credits" : "Campaign Credits"}</strong>
                 </p>
-                <p className="text-muted-foreground text-xs mt-1">Reason: {v.notes ? v.notes.trim() : "None"}</p>
-                <CreditBalancePreview balance={target?.wallet?.balance} amount={v.amount} deduct />
+                <p className="text-xs mt-1">
+                  Reclaim <strong>{number(Number(v.amount))} credits</strong> from this account.
+                </p>
+                <p className="whitespace-pre-wrap break-words text-muted-foreground text-xs mt-1">
+                  {v.notes || "No reason specified."}
+                </p>
               </>
             );
           }}
@@ -474,6 +456,10 @@ export default function Credits({ activity = false }) {
   // VIEW 1: CREDITS & WALLETS (Activity = false)
   // ─────────────────────────────────────────────────────────────
   if (!activity) {
+    const stats = overview.data?.stats;
+    const campaignCirculating = stats?.credits?.categoryBalances?.CAMPAIGN?.available ?? stats?.credits?.totalCreditsInCirculation ?? 0;
+    const filteringCirculating = stats?.credits?.categoryBalances?.NUMBER_FILTERING?.available ?? 0;
+
     return (
       <>
         <PageHeading
@@ -506,54 +492,72 @@ export default function Credits({ activity = false }) {
         />
 
         {/* Overview Stats Cards */}
-        <QueryState query={overview}>
+        <QueryState query={overview} variant="cards">
           <div data-tour="credit-summary">
-            <OverviewMetricCards columns={3} label="Credit summary" items={[
-              { label: "Super Admin Balance", value: "Unlimited", caption: "Unlimited sending pool", icon: Wallet, accent: true },
-              { label: "Total Credits Given", value: overview.data?.stats?.credits?.totalAllocatedBySuperAdmin, caption: "Total credits added across network", icon: Coins, tone: "blue-filled" },
-              { label: "Circulating Balances", value: overview.data?.stats?.credits?.totalCreditsInCirculation, caption: "Current credits held in user/reseller wallets", icon: TrendingUp, tone: "rose-filled" },
-            ]} />
+            <OverviewMetricCards
+              columns={4}
+              label="Credit summary"
+              items={[
+                { label: "Admin Balance", value: "Unlimited", caption: "Unlimited minting pool", icon: Wallet, accent: true },
+                { label: "Campaign Circulating", tone: "blue-filled", value: campaignCirculating, caption: "Campaign broadcast credits in wallets", icon: Send },
+                { label: "Filtering Circulating", tone: "purple-filled", value: filteringCirculating, caption: "Number verification credits in wallets", icon: PhoneCall },
+                { label: "Total Allocated", tone: "rose-filled", value: stats?.credits?.totalAllocatedBySuperAdmin, caption: "Lifetime allocated by Super Admin", icon: Coins },
+              ]}
+            />
           </div>
         </QueryState>
 
-        {/* Account Wallets & Balances Section */}
-        <div className="space-y-3 pt-2">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold">Account Wallet Balances</h2>
-              <p className="text-xs text-muted-foreground">Live wallet balances across all resellers and client users</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <SearchBox
-                label="Search account..."
-                value={walletSearch}
-                onChange={setWalletSearch}
-              />
-              <FilterSelect
-                label="Filter by role"
-                value={walletRole}
-                onChange={setWalletRole}
-                options={[
-                  { value: "all", label: "All accounts" },
-                  { value: "Reseller", label: "Resellers" },
-                  { value: "User", label: "Users" },
-                ]}
-              />
-            </div>
-          </div>
+        <CreditWorkspaceNav items={adminCreditSections} active={adminTab} onChange={tab => update("tab", tab === "wallets" ? null : tab)} />
 
-          <QueryState query={accountsQuery} empty={!accounts.length} emptyTitle="No account wallets yet" emptyDescription="Add a user or reseller account before allocating credits." emptyAction={<Button variant="outline" nativeButton={false} render={<Link to="/admin/users" />}>Manage users</Button>}>
-            <DataTable
-              caption="Account wallets and balances"
-              className="account-list-table account-list-table-wallets"
-              rows={filteredAccounts}
-              emptyTitle="No accounts match your filters"
-              emptyAction={<Button variant="outline" onClick={() => { setWalletSearch(""); setWalletRole("all"); }}>Clear filters</Button>}
-              columns={walletColumns}
-              pageSize={10}
-            />
-          </QueryState>
-        </div>
+        {/* Panels */}
+        {adminTab === "requests" ? (
+          <PurchasesTable
+            scope="all"
+            title="Platform Recharge Requests"
+            description="Review payment proofs and fulfill credit top-up quotes for resellers and direct client users."
+          />
+        ) : adminTab === "rates" ? (
+          <RateSettingsCard />
+        ) : (
+          /* Account Wallets & Balances Section */
+          <div className="space-y-3 pt-2">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold">Account Wallet Balances</h2>
+                <p className="text-xs text-muted-foreground">Live wallet balances across all resellers and client users</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <SearchBox
+                  label="Search account..."
+                  value={walletSearch}
+                  onChange={setWalletSearch}
+                />
+                <FilterSelect
+                  label="Filter by role"
+                  value={walletRole}
+                  onChange={setWalletRole}
+                  options={[
+                    { value: "all", label: "All accounts" },
+                    { value: "Reseller", label: "Resellers" },
+                    { value: "User", label: "Users" },
+                  ]}
+                />
+              </div>
+            </div>
+
+            <QueryState query={accountsQuery} empty={!accounts.length} emptyTitle="No account wallets yet" emptyDescription="Add a user or reseller account before allocating credits." emptyAction={<Button variant="outline" nativeButton={false} render={<Link to="/admin/users" />}>Manage users</Button>}>
+              <DataTable
+                caption="Account wallets and balances"
+                className="account-list-table account-list-table-wallets"
+                rows={filteredAccounts}
+                emptyTitle="No accounts match your filters"
+                emptyAction={<Button variant="outline" onClick={() => { setWalletSearch(""); setWalletRole("all"); }}>Clear filters</Button>}
+                columns={walletColumns}
+                pageSize={10}
+              />
+            </QueryState>
+          </div>
+        )}
 
         {modals}
       </>
@@ -595,44 +599,84 @@ export default function Credits({ activity = false }) {
       <div className="transaction-ledger-toolbar">
         <h2 className="text-sm font-semibold">Transaction Audit Ledger</h2>
         <div className="transaction-ledger-filters">
-          <div className="transaction-type-filter">
           <FilterSelect
-            label="Transaction type"
-            value={type}
-            onChange={(value) => update("type", value)}
+            label="Category"
+            value={categoryFilter}
+            onChange={(value) => update("category", value)}
             options={[
-              { value: "all", label: "All types" },
-              ...Object.entries(transactionLabels).map(([value, label]) => ({ value, label })),
+              { value: "all", label: "All Categories" },
+              { value: "CAMPAIGN", label: "Campaign Credits" },
+              { value: "NUMBER_FILTERING", label: "Number Filtering Credits" },
+              { value: "legacy", label: "Legacy Credits" },
             ]}
           />
+          <div className="transaction-type-filter">
+            <FilterSelect
+              label="Transaction type"
+              value={type}
+              onChange={(value) => update("type", value)}
+              options={[
+                { value: "all", label: "All types" },
+                ...Object.entries(transactionLabels).map(([value, label]) => ({ value, label })),
+              ]}
+            />
           </div>
           <div className="transaction-account-filter">
-          <FilterSelect
-            label="Filter by account"
-            accountSearch={{}}
-            value={account}
-            onChange={(value) => update("account", value)}
-            disabled={!accountsQuery.isSuccess}
-            options={[
-              { value: "all", label: "All accounts" },
-              ...accounts.map((a) => ({ value: a._id, label: `${a.username} (${a.role})` })),
-            ]}
-          />
+            <FilterSelect
+              label="Filter by account"
+              accountSearch={{}}
+              value={account}
+              onChange={(value) => update("account", value)}
+              disabled={!accountsQuery.isSuccess}
+              options={[
+                { value: "all", label: "All accounts" },
+                ...accounts.map((a) => ({ value: a._id, label: `${a.username} (${a.role})` })),
+              ]}
+            />
           </div>
         </div>
       </div>
 
-      {transactionId && <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm"><span>Showing selected transaction</span><button type="button" className="font-medium text-indigo-700 underline" onClick={() => setParams((previous) => { const next = new URLSearchParams(previous); next.delete("transaction"); next.delete("page"); return next; }, { replace: true })}>View all transactions</button></div>}
+      {transactionId && (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm">
+          <span>Showing selected transaction</span>
+          <button
+            type="button"
+            className="font-medium text-indigo-700 underline"
+            onClick={() =>
+              setParams((previous) => {
+                const next = new URLSearchParams(previous);
+                next.delete("transaction");
+                next.delete("page");
+                return next;
+              }, { replace: true })
+            }
+          >
+            View all transactions
+          </button>
+        </div>
+      )}
+
       <QueryState query={ledger}>
-        <div className="transaction-ledger-table">
+        <div className="credit-ledger transaction-ledger-table">
           <DataTable
             caption="Credit transaction history"
+            compact
             paginated={false}
             rows={ledger.data?.transactions || []}
             columns={transactionColumns}
+            mobile={{ primary: "transactionId", secondary: "to", featured: ["amount", "type", "category"] }}
             emptyTitle="No transactions found"
-            emptyDescription={type !== "all" || account !== "all" || transactionId ? "No transactions match your selected filters." : "Allocations, campaign charges, and refunds will appear here."}
-            emptyAction={(type !== "all" || account !== "all" || transactionId) && <ClearFiltersButton keys={["type", "account", "transaction", "page"]} />}
+            emptyDescription={
+              type !== "all" || categoryFilter !== "all" || account !== "all" || transactionId
+                ? "No transactions match your selected filters."
+                : "Allocations, campaign charges, and refunds will appear here."
+            }
+            emptyAction={
+              (type !== "all" || categoryFilter !== "all" || account !== "all" || transactionId) && (
+                <ClearFiltersButton keys={["type", "category", "account", "transaction", "page"]} />
+              )
+            }
           />
           <Pager
             page={page}

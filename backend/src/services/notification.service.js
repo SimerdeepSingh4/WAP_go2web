@@ -38,7 +38,7 @@ export async function canDeliverNotification(notification, user) {
 export async function refreshCreditAllocationMessages(items, viewer) {
     const ids = items.filter(item => item.itemType === "transaction" && item.fieldKey === "ALLOCATE" && /^[a-f\d]{24}$/i.test(String(item.itemId))).map(item => item.itemId);
     if (!ids.length) return items;
-    const transactions = await Transaction.find({ _id: { $in: ids }, type: "ALLOCATE" }).select("amount type fromUser toUser performedBy").lean();
+    const transactions = await Transaction.find({ _id: { $in: ids }, type: "ALLOCATE" }).select("amount type fromUser toUser performedBy category").lean();
     if (!transactions.length) return items;
     const participants = await userModel.find({ _id: { $in: [...new Set(transactions.flatMap(tx => [tx.fromUser, tx.toUser, tx.performedBy]).filter(Boolean).map(String))] } }).select("username role").lean();
     const byId = new Map(transactions.map(tx => [String(tx._id), tx]));
@@ -51,9 +51,11 @@ export async function refreshCreditAllocationMessages(items, viewer) {
 
 export async function deliverEvent(event) {
     const d = event.data;
-    const ids = event.kind === "transaction" ? [d.fromUser, d.toUser] : [event.kind === "user" ? d.id : d.userId];
+    const recharge = event.kind === "recharge";
+    const ids = recharge ? [d.buyerId, d.sellerId]
+        : event.kind === "transaction" ? [d.fromUser, d.toUser] : [event.kind === "user" ? d.id : d.userId];
     const subjects = await userModel.find({ _id: { $in: ids.filter(Boolean) } }).lean();
-    const admins = await userModel.find({ role: "Super Admin" }).lean();
+    const admins = recharge ? [] : await userModel.find({ role: "Super Admin" }).lean();
     const participants = [...subjects, ...admins];
     if (event.kind === "transaction" && d.performedBy && !participants.some(account => sameId(account._id, d.performedBy))) {
         const actor = await userModel.findById(d.performedBy).select("username role").lean();
@@ -61,13 +63,17 @@ export async function deliverEvent(event) {
     }
     const recipients = new Map();
     const creditRequest = event.kind === "transaction" && d.type === "REQUEST";
-    let notifyAdmins = true;
+    let notifyAdmins = !recharge;
     const put = (user, subject, managed = false) => {
         if (!user) return;
         const key = String(user._id);
         if (!recipients.has(key) || sameId(user._id, subject?._id)) recipients.set(key, { user, subject, managed });
     };
     for (const subject of subjects) {
+        if (recharge) {
+            if (sameId(subject._id, d.sellerId)) put(subject, subjects.find(account => sameId(account._id, d.buyerId)));
+            continue;
+        }
         // Escalation reasons are internal staff details. Only Super Admins
         // receive these notifications, regardless of who owns the conversation.
         if (event.kind === "support") continue;
@@ -106,7 +112,7 @@ export async function deliverEvent(event) {
     }
     const mainSubject = subjects.find((user) => user.role === "User") || subjects.find((user) => user.role !== "Super Admin") || subjects[0];
     if (notifyAdmins) for (const admin of admins) put(admin, mainSubject || admin);
-    const thresholdPreference = mainSubject && await NotificationPreference.findOne({ userId: mainSubject._id }).lean();
+    const thresholdPreference = !recharge && mainSubject && await NotificationPreference.findOne({ userId: mainSubject._id }).lean();
     for (const { user, subject, managed } of recipients.values()) {
         const message = formatNotification(event, user, subject, thresholdPreference?.lowBalanceThreshold ?? 100, participants);
         if (!message) continue;

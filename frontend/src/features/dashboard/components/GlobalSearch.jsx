@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowUpRight, Loader2, Search, X } from "lucide-react";
 import api from "@/api/client";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function GlobalSearch() {
   const { user } = useAuth();
@@ -14,6 +15,7 @@ export default function GlobalSearch() {
 
 function GlobalSearchInput({ user }) {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const input = useRef(null);
   const wrapper = useRef(null);
   const popup = useRef(null);
@@ -24,6 +26,7 @@ function GlobalSearchInput({ user }) {
   const [active, setActive] = useState(-1);
   const [position, setPosition] = useState({});
   const term = value.trim();
+  const showPopup = open && term.length > 0;
   const accountId = user?.id || user?._id;
   const query = useQuery({
     queryKey: ["global-search", accountId, user?.role, debounced],
@@ -55,18 +58,25 @@ function GlobalSearchInput({ user }) {
     return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", shortcut); };
   }, []);
   useLayoutEffect(() => {
-    if (!open) return;
+    if (!showPopup) return;
+    const viewport = window.visualViewport;
     function measure() {
       const rect = wrapper.current.getBoundingClientRect();
       const width = Math.min(520, window.innerWidth - 24);
       const top = rect.bottom + 8;
-      setPosition({ position: "fixed", top, left: Math.max(12, Math.min(rect.left, window.innerWidth - width - 12)), width, maxHeight: Math.max(80, window.innerHeight - top - 12) });
+      const visibleBottom = viewport ? viewport.offsetTop + viewport.height : window.innerHeight;
+      setPosition({ position: "fixed", top, left: Math.max(12, Math.min(rect.left, window.innerWidth - width - 12)), width, maxHeight: Math.max(80, visibleBottom - top - 12) });
     }
     measure();
     window.addEventListener("resize", measure);
     window.addEventListener("scroll", measure, true);
-    return () => { window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure, true); };
-  }, [open]);
+    viewport?.addEventListener("resize", measure);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure, true);
+      viewport?.removeEventListener("resize", measure);
+    };
+  }, [showPopup]);
   useEffect(() => {
     if (active >= 0) document.getElementById(`${listId}-${active}`)?.scrollIntoView({ block: "nearest" });
   }, [active, listId]);
@@ -75,7 +85,12 @@ function GlobalSearchInput({ user }) {
   function keyboard(event) {
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault(); setOpen(true);
-      setActive((index) => items.length ? (index + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length : -1);
+      const direction = event.key === "ArrowDown" ? 1 : -1;
+      setActive(index => {
+        if (!items.length) return -1;
+        if (index < 0) return direction > 0 ? 0 : items.length - 1;
+        return (index + direction + items.length) % items.length;
+      });
     } else if (event.key === "Enter" && open && items.length) {
       event.preventDefault(); navigate(items[Math.max(0, active)]?.href || items[0].href); close();
     } else if (event.key === "Escape") { event.preventDefault(); close(); }
@@ -85,11 +100,20 @@ function GlobalSearchInput({ user }) {
   return <div ref={wrapper} className="portal-search-wrapper" onBlur={(event) => { if (!wrapper.current?.contains(event.relatedTarget) && !popup.current?.contains(event.relatedTarget)) close(); }}>
     <div className="portal-search-bar">
       <Search className="size-4.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-      <input ref={input} type="text" role="combobox" aria-label="Search records, transaction ID or campaign ID" aria-expanded={open && term.length >= 2} aria-controls={open && term.length >= 2 ? listId : undefined} aria-autocomplete="list" aria-activedescendant={open && term.length >= 2 && items[active] ? `${listId}-${active}` : undefined} maxLength={120} autoComplete="off" placeholder="Search records or IDs..." value={value} onFocus={() => setOpen(true)} onKeyDown={keyboard} onChange={(event) => { setValue(event.target.value); setActive(-1); setOpen(true); }} style={{ outline: "none", border: "none", boxShadow: "none" }} className="portal-search-input" />
-      {value ? <button type="button" aria-label="Clear search" onClick={() => { setValue(""); setActive(-1); input.current?.focus(); }} className="shrink-0 p-0.5 text-muted-foreground hover:text-muted-foreground"><X className="size-3.5" /></button> : <kbd className="portal-search-kbd hidden sm:inline-flex"><span>Ctrl</span><span>K</span></kbd>}
+      <input
+        ref={input} type="text" role="combobox" aria-label="Search records, transaction ID or campaign ID"
+        aria-expanded={showPopup} aria-controls={showPopup ? listId : undefined} aria-autocomplete="list"
+        aria-activedescendant={showPopup && items[active] ? `${listId}-${active}` : undefined} aria-keyshortcuts="Control+K Meta+K"
+        maxLength={120} autoComplete="off" placeholder={isMobile ? "Search" : "Search records or IDs…"} value={value}
+        onFocus={() => setOpen(true)} onKeyDown={keyboard}
+        onChange={(event) => { setValue(event.target.value); setActive(-1); setOpen(true); }}
+        className="portal-search-input"
+      />
+      {value ? <button type="button" aria-label="Clear search" onClick={() => { setValue(""); setActive(-1); input.current?.focus(); }} className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted-hover hover:text-foreground"><X className="size-3.5" aria-hidden="true" /></button> : <kbd className="portal-search-kbd hidden sm:inline-flex"><span>Ctrl</span><span>K</span></kbd>}
     </div>
-    {open && term.length >= 2 && createPortal(<div ref={popup} style={position} className="z-[80] overflow-y-auto overscroll-contain rounded-2xl border border-border bg-popover text-popover-foreground p-2 shadow-xl" onBlur={(event) => { if (!popup.current?.contains(event.relatedTarget) && !wrapper.current?.contains(event.relatedTarget)) close(); }}>
-      {waiting ? <div role="status" className="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />Searching...</div>
+    {showPopup && createPortal(<div ref={popup} style={position} className="z-[80] overflow-y-auto overscroll-contain rounded-2xl border border-border bg-popover text-popover-foreground p-2 shadow-xl" onBlur={(event) => { if (!popup.current?.contains(event.relatedTarget) && !wrapper.current?.contains(event.relatedTarget)) close(); }}>
+      {term.length < 2 ? <p role="status" className="px-3 py-4 text-sm text-muted-foreground">Enter at least 2 characters to search.</p>
+        : waiting ? <div role="status" className="flex items-center gap-2 px-3 py-4 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" aria-hidden="true" />Searching...</div>
         : query.isError ? <div role="alert" className="px-3 py-4 text-sm text-muted-foreground">Could not search records. <button type="button" onClick={() => query.refetch()} className="font-medium text-primary underline">Try again</button></div>
           : !items.length ? <p role="status" className="px-3 py-4 text-sm text-muted-foreground">No matching records found.</p> : null}
       <div id={listId} role="listbox" aria-label="Matching records">
@@ -98,7 +122,7 @@ function GlobalSearchInput({ user }) {
           {group.items.map((item) => {
             const itemIndex = ++index;
             return <Link key={item.id} id={`${listId}-${itemIndex}`} role="option" aria-selected={active === itemIndex} to={item.href} onClick={close} onMouseEnter={() => setActive(itemIndex)} className={`flex items-center gap-3 rounded-lg px-3 py-2.5 outline-none hover:bg-muted focus:bg-accent ${active === itemIndex ? "bg-accent" : ""}`}>
-              <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium text-foreground">{item.title}</span><span className="block truncate text-xs text-muted-foreground">{item.subtitle}</span>{item.reference && <span className="mt-1 block break-all font-mono text-xs text-muted-foreground">{item.reference}</span>}</span><ArrowUpRight className="size-4 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1"><span className="line-clamp-2 wrap-anywhere text-sm font-medium text-foreground" title={item.title}>{item.title}</span><span className="block truncate text-xs text-muted-foreground" title={item.subtitle}>{item.subtitle}</span>{item.reference && <span className="mt-1 block break-all font-mono text-xs text-muted-foreground">{item.reference}</span>}</span><ArrowUpRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             </Link>;
           })}
         </div>)}

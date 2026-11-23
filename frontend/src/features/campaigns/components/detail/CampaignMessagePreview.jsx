@@ -58,11 +58,6 @@ export default function CampaignMessagePreview({
           <span className="tabular-nums shrink-0">
             {number(messageTextFromHtml(campaign.messageBody).length)} characters
           </span>
-          {campaign.campaignDescription && (
-            <span className="text-right line-clamp-2" title={campaign.campaignDescription}>
-              Note: {campaign.campaignDescription}
-            </span>
-          )}
         </div>
       </div>
     </section>

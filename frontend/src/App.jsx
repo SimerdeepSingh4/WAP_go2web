@@ -25,7 +25,7 @@ const App = () => {
           <BrandingProvider>
             <Toaster>
               <SocketProvider>
-                <Suspense fallback={<div role="status" className="p-8 text-sm text-muted-foreground">Loading workspace…</div>}>
+                <Suspense fallback={<div className="min-h-screen bg-background" />}>
                   <SessionRouter />
                 </Suspense>
               </SocketProvider>

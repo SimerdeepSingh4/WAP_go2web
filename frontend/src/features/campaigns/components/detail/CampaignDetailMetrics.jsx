@@ -21,10 +21,15 @@ export default function CampaignDetailMetrics({ campaign }) {
     ? campaign.messageType.charAt(0).toUpperCase() + campaign.messageType.slice(1)
     : "Text";
 
+  const isCategorized = Boolean(campaign.campaignCreditCharge || campaign.category === "CAMPAIGN");
+  const captionCharged = isCategorized
+    ? "Campaign Credits (1 credit / row)"
+    : `${number(rate)} ${rate === 1 ? "credit" : "credits"} / message`;
+
   return (
     <OverviewMetricCards label="Campaign summary" items={[
       { label: "Recipients", icon: Users, value: totalAudience, caption: "Submitted audience", accent: true },
-      { label: "Credits charged", icon: Coins, value: campaign.creditsDeducted || 0, caption: `${number(rate)} ${rate === 1 ? "credit" : "credits"} / message` },
+      { label: "Credits charged", icon: Coins, value: campaign.creditsDeducted || 0, caption: captionCharged },
       {
         label: "Delivery report", icon: FileText,
         value: report.reportLabel || report.delivered,

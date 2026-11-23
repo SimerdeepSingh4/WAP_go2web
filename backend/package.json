@@ -16,6 +16,7 @@
     "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.3",
     "langchain": "^1.6.2",
+    "libphonenumber-js": "1.13.17",
     "mongoose": "^9.11.4",
     "morgan": "^1.12.1",
     "multer": "^2.5.0",
@@ -32,6 +33,7 @@
   "scripts": {
     "dev": "npx nodemon server.js",
     "notifications:setup": "node scripts/setup-notifications.js",
+    "credits:migration:dry-run": "node scripts/credit-migration-dry-run.js",
     "credits:audit": "node scripts/audit-credit-ledger.js",
     "audit:verify": "node scripts/verify-audit-trail.js",
     "audit:export": "node scripts/export-audit-trail.js"

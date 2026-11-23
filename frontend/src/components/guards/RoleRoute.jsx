@@ -45,11 +45,7 @@ export default function RoleRoute({ allowedRoles = [], children }) {
   });
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-primary">
-        <div className="animate-spin size-8 border-4 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
+    return <div className="min-h-screen bg-background" />;
   }
 
   // Not logged in -> redirect to login

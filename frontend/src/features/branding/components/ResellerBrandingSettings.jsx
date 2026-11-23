@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import {
   getResellerBranding,
   updateResellerBranding,
@@ -11,6 +12,7 @@ import { applyBrandColors } from "@/features/branding/lib/themeHelper";
 import { OverviewMetricCard } from "@/features/dashboard/components/OverviewMetricCards";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/toast";
 import { FormError, QueryState } from "@/features/dashboard/components/shared";
 import { dateTime } from "@/lib/format";
@@ -44,6 +46,8 @@ const COLOR_PRESETS = [
 ];
 
 export default function ResellerBrandingSettings() {
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "Super Admin";
   const queryClient = useQueryClient();
   const { setCustomBranding } = useBranding();
 
@@ -175,13 +179,13 @@ export default function ResellerBrandingSettings() {
     e.preventDefault();
     setError("");
 
-    if (form.subdomain && !/^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$/i.test(form.subdomain)) {
+    if (!isSuperAdmin && form.subdomain && !/^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$/i.test(form.subdomain)) {
       setError("Subdomain must be 3-30 lowercase characters, numbers or hyphens.");
       return;
     }
 
     saveMutation.mutate({
-      subdomain: form.subdomain.trim().toLowerCase(),
+      ...(!isSuperAdmin ? { subdomain: form.subdomain.trim().toLowerCase() } : {}),
       brandName: form.brandName.trim(),
       primaryColor: form.primaryColor.trim(),
       secondaryColor: form.secondaryColor.trim(),
@@ -191,9 +195,18 @@ export default function ResellerBrandingSettings() {
 
   if (query.isLoading) {
     return (
-      <div className="flex items-center justify-center p-12 text-muted-foreground text-sm gap-2">
-        <Loader2 className="size-4 animate-spin" />
-        Loading branding settings...
+      <div className="space-y-6 max-w-4xl mx-auto p-4" role="status" aria-label="Loading branding settings">
+        <div className="space-y-2">
+          <Skeleton className="h-6 w-48 rounded-lg" />
+          <Skeleton className="h-4 w-72 rounded-md" />
+        </div>
+        <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-10 w-full rounded-lg" />
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-10 w-full rounded-lg" />
+          <Skeleton className="h-28 w-full rounded-xl" />
+        </div>
       </div>
     );
   }
@@ -268,7 +281,7 @@ export default function ResellerBrandingSettings() {
   });
   const luminance = channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
   const previewButtonText = luminance > 0.179 ? "#111111" : "#ffffff";
-  const previewAddress = `${form.subdomain || "yourbrand"}.yourdomain.com`;
+  const previewAddress = isSuperAdmin ? "yourdomain.com" : `${form.subdomain || "yourbrand"}.yourdomain.com`;
   const logoBusy = uploadingLogo || logoMutation.isPending || removeLogoMutation.isPending;
 
   return (
@@ -300,14 +313,16 @@ export default function ResellerBrandingSettings() {
                 </div>
               </div>
             </section>
-            <section className="branding-section" aria-labelledby="branding-address-heading">
-              <div className="branding-section-header"><span className="branding-section-icon"><Globe aria-hidden="true" /></span><div><h3 id="branding-address-heading">Workspace address</h3><p>Choose the subdomain your clients will recognize.</p></div></div>
-              <div className="branding-section-body"><div className="branding-field">
-                <label htmlFor="reseller-subdomain">Subdomain</label>
-                <div className="branding-address"><span>https://</span><Input id="reseller-subdomain" placeholder="yourbrand" value={form.subdomain} onChange={e => setForm({ ...form, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })} maxLength={30} className="font-mono text-sm focus-visible:ring-0 focus-visible:outline-none" aria-describedby="branding-address-help" /><span>.yourdomain.com</span></div>
-                <p id="branding-address-help" className="branding-help">Use 3–30 lowercase letters, numbers or hyphens. The domain shown here is an example.</p>
-              </div></div>
-            </section>
+            {!isSuperAdmin && (
+              <section className="branding-section" aria-labelledby="branding-address-heading">
+                <div className="branding-section-header"><span className="branding-section-icon"><Globe aria-hidden="true" /></span><div><h3 id="branding-address-heading">Workspace address</h3><p>Choose the subdomain your clients will recognize.</p></div></div>
+                <div className="branding-section-body"><div className="branding-field">
+                  <label htmlFor="reseller-subdomain">Subdomain</label>
+                  <div className="branding-address"><span>https://</span><Input id="reseller-subdomain" placeholder="yourbrand" value={form.subdomain} onChange={e => setForm({ ...form, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })} maxLength={30} className="font-mono text-sm focus-visible:ring-0 focus-visible:outline-none" aria-describedby="branding-address-help" /><span>.yourdomain.com</span></div>
+                  <p id="branding-address-help" className="branding-help">Use 3–30 lowercase letters, numbers or hyphens. The domain shown here is an example.</p>
+                </div></div>
+              </section>
+            )}
             <section className="branding-section" aria-labelledby="branding-colors-heading">
               <div className="branding-section-header"><span className="branding-section-icon"><Paintbrush aria-hidden="true" /></span><div><h3 id="branding-colors-heading">Brand colors</h3><p>Add your brand color to buttons and accents.</p></div></div>
               <div className="branding-section-body">
@@ -336,7 +351,7 @@ export default function ResellerBrandingSettings() {
           </aside>
         </div>
         <div className="mt-5"><FormError message={error} /></div>
-        <div className="branding-savebar"><div><strong>Make it your own</strong><p className="branding-help">Save your website name, subdomain and brand colors.</p></div><Button type="submit" disabled={saveMutation.isPending || logoBusy}>{saveMutation.isPending ? <Loader2 className="animate-spin" /> : <Check />}{saveMutation.isPending ? "Saving…" : "Save changes"}</Button></div>
+        <div className="branding-savebar"><div><strong>Make it your own</strong><p className="branding-help">{isSuperAdmin ? "Save your website name and brand colors." : "Save your website name, subdomain and brand colors."}</p></div><Button type="submit" disabled={saveMutation.isPending || logoBusy}>{saveMutation.isPending ? <Loader2 className="animate-spin" /> : <Check />}{saveMutation.isPending ? "Saving…" : "Save changes"}</Button></div>
       </form>
     </div>
   );

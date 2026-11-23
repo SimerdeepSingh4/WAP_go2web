@@ -23,10 +23,11 @@ export default function PendingCampaignReport({ campaign, base, onRefresh, isRef
         <p className="text-xs text-muted-foreground">Submitted {dateTime(campaign.createdAt)}</p>
       </header>
 
-      <OverviewMetricCards label="Campaign summary" columns={3} items={[
+      <OverviewMetricCards label="Campaign summary" columns={4} items={[
         { label: "Recipients", value: audience, icon: Users, caption: "Submitted audience", accent: true },
         { label: "Credits charged", value: campaign.creditsDeducted || 0, icon: Wallet, caption: "Charged at submission" },
         { label: "Credits refunded", value: refunded, icon: RotateCcw, caption: refunded > 0 ? "Returned to your wallet" : "No refunds recorded" },
+        { label: "Net credits used", value: Math.max(0, (campaign.creditsDeducted || 0) - refunded), icon: Coins, caption: "Net Campaign Credits", tone: "purple" },
       ]} />
 
       <section aria-labelledby="pending-report-title" className="overflow-hidden rounded-xl border border-border bg-card">

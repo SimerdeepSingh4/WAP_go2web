@@ -48,11 +48,13 @@ const repairSchema = new Schema({
 }, { timestamps: { createdAt: true, updatedAt: false } });
 const jobSchema = new Schema({
     userId: { type: objectId, required: true, unique: true }, generation: { type: Number, default: 0 },
-    dirty: { type: Boolean, default: true, index: true }, checkedAt: Date, availableAt: { type: Date, default: Date.now }, attempts: { type: Number, default: 0 }, error: String,
+    dirty: { type: Boolean, default: true, index: true }, checkedAt: Date, checkedGeneration: Number,
+    availableAt: { type: Date, default: Date.now }, attempts: { type: Number, default: 0 }, error: String,
 }, { timestamps: true });
 const stateSchema = new Schema({
-    _id: String, owner: String, leaseUntil: Date, lastTickAt: Date, error: String,
+    _id: String, owner: String, leaseUntil: Date, lastTickAt: Date, lastEvidenceTickAt: Date, error: String,
     scanRequestedAt: Date, scanStartedAt: Date, scanFinishedAt: Date, scanQueued: Number,
+    evidenceVersion: Number,
     scanState: { type: String, enum: ["idle", "pending", "running", "checking", "failed"], default: "idle" },
     nextFullScanAt: Date,
 }, { timestamps: true });

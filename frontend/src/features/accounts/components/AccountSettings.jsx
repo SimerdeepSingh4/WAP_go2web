@@ -47,19 +47,21 @@ export default function AccountSettings() {
   const [photoUploadVersion, setPhotoUploadVersion] = useState(0);
 
   const isReseller = user?.role === "Reseller";
-  const canManageProfilePhoto = user?.role === "Super Admin" || user?.featureAccess?.campaignDp === true;
+  const isSuperAdmin = user?.role === "Super Admin";
+  const canManageProfilePhoto = isSuperAdmin || user?.featureAccess?.campaignDp === true;
   const resellerBrandingQuery = useQuery({
     queryKey: ["resellerBranding"],
     queryFn: getResellerBranding,
-    enabled: isReseller,
+    enabled: isReseller || isSuperAdmin,
   });
 
   const isWhiteLabelActive = Boolean(
-    isReseller &&
-      (resellerBrandingQuery.data?.isActive ??
-        (user?.whiteLabel?.isActive ||
-          (user?.whiteLabel?.enabled &&
-            (!user?.whiteLabel?.expiresAt || new Date(user?.whiteLabel?.expiresAt) > new Date()))))
+    isSuperAdmin ||
+      (isReseller &&
+        (resellerBrandingQuery.data?.isActive ??
+          (user?.whiteLabel?.isActive ||
+            (user?.whiteLabel?.enabled &&
+              (!user?.whiteLabel?.expiresAt || new Date(user?.whiteLabel?.expiresAt) > new Date())))))
   );
 
   const visibleTab = activeTab === "branding" && !isWhiteLabelActive ? "profile" : activeTab;

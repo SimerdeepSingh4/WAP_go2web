@@ -1,3 +1,6 @@
+import BuyerPurchaseRatesDialog from "@/features/credits/components/PurchaseRateEditor";
+import CategoryWalletBalances from "@/features/credits/components/CategoryWalletBalances";
+import { creditCategoryField, creditCategoryNames } from "@/features/credits/lib/creditTransactionDisplay";
 import { useRef, useState } from "react";
 import { AnimatedCollapse } from "@/components/ui/animated-collapse";
 import { Link, useSearchParams } from "react-router";
@@ -7,7 +10,6 @@ import {
   MoreHorizontal,
   Eye,
   Pencil,
-  Wallet,
   ShieldCheck,
   ShieldAlert,
   RefreshCw,
@@ -24,7 +26,6 @@ import {
   Mail,
   Phone,
   Building2,
-  Clock,
   Copy,
   Check,
   FileText,
@@ -67,7 +68,6 @@ import { exitFullAccessImpersonation, startFullAccessImpersonation } from "@/fea
 import UserAvatar from "@/features/accounts/components/UserAvatar";
 import AccountStatusMenu, { AccountStatusDialog } from "@/features/accounts/components/AccountStatusMenu";
 import { CreditBalancePreview } from "@/features/dashboard/components/ActionReview";
-import { OverviewMetricCard } from "@/features/dashboard/components/OverviewMetricCards";
 import "@/features/accounts/components/account-list.css";
 import { resolveUserImageUrl } from "@/features/accounts/lib/profileImage";
 
@@ -251,15 +251,8 @@ function AccountDetail({ account, onClose, onAction }) {
           {/* Wallet Balance Card */}
           <div data-locked={Boolean(balance.data?.wallet?.isLocked)} className="rounded-2xl border border-border p-3">
             <QueryState query={balance}>
-              <OverviewMetricCard
-                label="Wallet balance"
-                icon={Wallet}
-                value={balance.data?.wallet?.balance}
-                accent={!balance.data?.wallet?.isLocked}
-                caption={balance.data?.wallet?.isLocked
-                  ? <span className="flex items-center gap-1.5 text-destructive"><Lock className="size-3" aria-hidden="true" />Wallet locked</span>
-                  : "Active · available sending credits"}
-              />
+              <CategoryWalletBalances wallet={balance.data?.wallet} />
+              {balance.data?.wallet?.isLocked && <p className="mt-2 text-xs text-destructive">Wallet locked</p>}
             </QueryState>
 
             <div className="mt-4 pt-3.5 border-t border-border/60 flex items-center gap-2">
@@ -291,13 +284,6 @@ function AccountDetail({ account, onClose, onAction }) {
             </div>
 
             <div className="divide-y divide-border/60 text-xs">
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-muted-foreground">Message Rate</span>
-                <span className="font-semibold tabular-nums text-foreground bg-muted/60 px-2 py-0.5 rounded-md border border-border/50">
-                  {number(account.ratePerMsg)} credits / msg
-                </span>
-              </div>
-
               <div className="flex items-center justify-between py-2.5">
                 <span className="text-muted-foreground">Daily Campaign Limit</span>
                 <span className="font-medium text-foreground">
@@ -344,6 +330,19 @@ function AccountDetail({ account, onClose, onAction }) {
                     </Badge>
                   ) : (
                     <span className="text-muted-foreground">Disabled</span>
+                  )}
+                </div>
+              )}
+
+              {account.role === "Reseller" && (
+                <div className="flex items-center justify-between py-2.5">
+                  <span className="text-muted-foreground">Credit Reclaim</span>
+                  {account.featureAccess?.reclaimCredit ? (
+                    <Badge variant="outline" className="gap-1 text-xs border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5">
+                      Allowed
+                    </Badge>
+                  ) : (
+                    <span className="text-muted-foreground">Not allowed</span>
                   )}
                 </div>
               )}
@@ -588,12 +587,6 @@ export default function Accounts({ role }) {
           },
         ]),
     {
-      key: "rate",
-      label: "Rate",
-      sort: (a) => a.ratePerMsg,
-      render: (a) => <span className="tabular-nums font-semibold">{number(a.ratePerMsg)}</span>,
-    },
-    {
       key: "accountExpiry",
       label: "Account expiry",
       render: (a) => (
@@ -658,7 +651,7 @@ export default function Accounts({ role }) {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setModal({ type: "rate", account: a })}>
                   <Pencil className="size-4 mr-2" />
-                  Change rate
+                  Purchase rates
                 </DropdownMenuItem>
                 <DropdownMenuItem disabled={query.isPending} onClick={() => setModal({ type: "mediaLimits", account: a })}>
                   <Upload className="size-4 mr-2" />
@@ -749,7 +742,7 @@ export default function Accounts({ role }) {
           mobile={{
             primary: "name",
             secondary: "email",
-            featured: role === "Reseller" ? ["status", "rate", "whiteLabel"] : ["status", "rate"],
+            featured: role === "Reseller" ? ["status", "whiteLabel"] : ["status"],
           }}
         />
       </QueryState>
@@ -765,7 +758,7 @@ export default function Accounts({ role }) {
               <AlertDialogDescription>
                 <strong className="block mb-2 text-foreground break-words">{modal.account.username}</strong>
                 {modal.account.role === "Reseller"
-                  ? "This account and its wallet will be permanently deleted. Its client users will remain active as direct admin-managed users."
+                  ? "This reseller can be deleted after its wallet and assigned accounts are resolved."
                   : "This account and its wallet will be permanently deleted."} Campaign and credit history will be retained for audit.
               </AlertDialogDescription>
             </AlertDialogHeader>
@@ -800,14 +793,13 @@ export default function Accounts({ role }) {
           action="createAccount"
           successMessage={`${role} account created`}
           onClose={() => setModal(null)}
-          initialValues={{ username: "", email: "", phone: "", companyName: "", password: "", ratePerMsg: "", dailyCampaignLimit: "", resellerId: "", expiresAt: "" }}
+          initialValues={{ username: "", email: "", phone: "", companyName: "", password: "", dailyCampaignLimit: "", resellerId: "", expiresAt: "", allowCreditReclaim: false }}
           fields={[
             { key: "username", label: "Account name", required: true, maxLength: 100 },
             { key: "email", label: "Email", type: "email", required: true },
             { key: "companyName", label: "Company name (optional)", maxLength: 150 },
             { key: "phone", label: "Phone number (optional)", type: "tel", maxLength: 40, hint: "Include the country code, e.g. +919876543210." },
             { key: "password", label: "Initial password", type: "password", required: true, hint: "Use at least 8 characters." },
-            { key: "ratePerMsg", label: "Rate (credits / recipient)", type: "number", min: 0.01, step: 0.01, required: true },
             {
               key: "dailyCampaignLimit",
               label: "Daily campaign limit (optional)",
@@ -831,6 +823,16 @@ export default function Accounts({ role }) {
                   },
                 ]
               : []),
+            ...(role === "Reseller"
+              ? [
+                  {
+                    key: "allowCreditReclaim",
+                    label: "Allow credit reclaim",
+                    type: "checkbox",
+                    hint: "Allow this reseller to reclaim unused credits from their client users back to their reseller wallet.",
+                  },
+                ]
+              : []),
           ]}
           validate={(v) => (v.password.trim().length < 8 ? "The initial password must contain at least 8 characters." : "")}
           payload={(v) => ({
@@ -840,20 +842,20 @@ export default function Accounts({ role }) {
             companyName: (v.companyName || "").trim(),
             password: v.password,
             role,
-            ratePerMsg: Number(v.ratePerMsg),
             dailyCampaignLimit: v.dailyCampaignLimit ? Number(v.dailyCampaignLimit) : null,
             expiresAt: v.expiresAt || null,
             ...(role === "User" && v.resellerId ? { resellerId: v.resellerId } : {}),
+            ...(role === "Reseller" ? { featureAccess: { reclaimCredit: v.allowCreditReclaim } } : {}),
           })}
           review={(v) => (
             <>
               <p className="font-medium">{v.username}</p>
               <p>{v.email}</p>{v.companyName && <p>Company: {v.companyName}</p>}{v.phone && <p>Phone: {v.phone}</p>}
               <p>Role: {role}</p>
-              <p>Rate: {number(Number(v.ratePerMsg))} credits / recipient</p>
               <p>Daily limit: {v.dailyCampaignLimit ? `${v.dailyCampaignLimit} campaigns / day (Custom)` : "Platform default"}</p>
               <p>Expiry: {v.expiresAt || "No expiry"}</p>
               {role === "User" && <p>Reseller: {resellers.find((a) => a._id === v.resellerId)?.username || "Direct (None)"}</p>}
+              {role === "Reseller" && <p>Credit reclaim: <strong>{v.allowCreditReclaim ? "Allowed" : "Not allowed"}</strong></p>}
             </>
           )}
           submitLabel="Create account"
@@ -863,7 +865,7 @@ export default function Accounts({ role }) {
             {modal?.type === "edit" && (
         <ActionForm
           title={`Edit ${role.toLowerCase()} account`}
-          description={`Update details, rate, or access expiry for ${modal.account.username}.`}
+          description={`Update details or access expiry for ${modal.account.username}.`}
           action="updateAccount"
           successMessage="Account updated successfully"
           onClose={() => setModal(null)}
@@ -873,11 +875,9 @@ export default function Accounts({ role }) {
             phone: modal.account.phone || "",
             companyName: modal.account.companyName || "",
             password: "",
-            ratePerMsg: String(modal.account.ratePerMsg ?? 12),
             dailyCampaignLimit: modal.account.dailyCampaignLimit != null ? String(modal.account.dailyCampaignLimit) : "",
             status: modal.account.status === "expired" || (modal.account.isExpired && modal.account.status === "active") ? "expired" : modal.account.status || "active",
             expiresAt: modal.account.expiresAt ? new Date(modal.account.expiresAt).toISOString().slice(0, 10) : "",
-            resellerId: modal.account.resellerId?._id || modal.account.resellerId || "",
           }}
           fields={[
             { key: "username", label: "Account name", required: true, maxLength: 100 },
@@ -885,7 +885,6 @@ export default function Accounts({ role }) {
             { key: "companyName", label: "Company name (optional)", maxLength: 150 },
             { key: "phone", label: "Phone number (optional)", type: "tel", maxLength: 40, hint: "Include the country code, e.g. +919876543210." },
             { key: "password", label: "New password (optional)", type: "password", hint: "Leave blank to keep existing password. If setting new, min 8 characters." },
-            { key: "ratePerMsg", label: "Rate (credits / recipient)", type: "number", min: 0.01, step: 0.01, required: true },
             {
               key: "dailyCampaignLimit",
               label: "Daily campaign limit (optional)",
@@ -909,15 +908,6 @@ export default function Accounts({ role }) {
               type: "date",
               hint: "The account remains active through this date. Leave blank for no expiry.",
             },
-            ...(role === "User"
-              ? [
-                  {
-                    key: "resellerId",
-                    label: "Assigned reseller",
-                    options: [{ value: "", label: "Direct (Managed by Admin)" }, ...resellers.map((a) => ({ value: a._id, label: a.username }))],
-                  },
-                ]
-              : []),
           ]}
           validate={(v) => (v.password && v.password.trim().length > 0 && v.password.trim().length < 8 ? "New password must be at least 8 characters." : "")}
           payload={(v) => ({
@@ -927,22 +917,18 @@ export default function Accounts({ role }) {
             phone: (v.phone || "").trim(),
             companyName: (v.companyName || "").trim(),
             ...(v.password && v.password.trim() ? { password: v.password.trim() } : {}),
-            ratePerMsg: Number(v.ratePerMsg),
             dailyCampaignLimit: v.dailyCampaignLimit ? Number(v.dailyCampaignLimit) : null,
             status: v.status,
             expiresAt: v.expiresAt || null,
-            ...(role === "User" ? { resellerId: v.resellerId || null } : {}),
           })}
           review={(v) => (
             <>
               <p className="font-medium text-foreground">{v.username}</p>
               <p className="text-xs text-muted-foreground">{v.email}</p>{v.companyName && <p className="text-xs">Company: {v.companyName}</p>}{v.phone && <p className="text-xs">Phone: {v.phone}</p>}
-              <p className="text-xs">Rate: <strong>{number(Number(v.ratePerMsg))} credits / recipient</strong></p>
               <p className="text-xs">Daily limit: <strong>{v.dailyCampaignLimit ? `${v.dailyCampaignLimit} campaigns / day (Custom)` : "Platform default"}</strong></p>
               <p className="text-xs">Status: <strong>{v.status}</strong></p>
               <p className="text-xs">Expiry: <strong>{v.expiresAt || "No expiry"}</strong></p>
               {v.password?.trim() && <p className="text-xs">Password: <strong>Will be updated</strong></p>}
-              {role === "User" && <p className="text-xs">Reseller: <strong>{resellers.find((a) => a._id === v.resellerId)?.username || "Direct (None)"}</strong></p>}
             </>
           )}
           submitLabel="Save changes"
@@ -950,25 +936,7 @@ export default function Accounts({ role }) {
       )}
 
       {modal?.type === "rate" && (
-        <ActionForm
-          title="Change account rate"
-          description="This rate applies to future campaign submissions. Existing campaign charges are not recalculated."
-          action="rate"
-          successMessage="Account rate updated"
-          onClose={() => setModal(null)}
-          initialValues={{ ratePerMsg: String(modal.account.ratePerMsg) }}
-          fields={[{ key: "ratePerMsg", label: "Rate (credits / recipient)", required: true, type: "number", min: 0.01, step: 0.01 }]}
-          payload={(v) => ({ userId: modal.account._id, ratePerMsg: Number(v.ratePerMsg) })}
-          review={(v) => (
-            <>
-              <p className="font-medium">{modal.account.username}</p>
-              <p>
-                {number(modal.account.ratePerMsg)} → {number(Number(v.ratePerMsg))} credits / recipient
-              </p>
-            </>
-          )}
-          submitLabel="Update rate"
-        />
+        <BuyerPurchaseRatesDialog account={modal.account} onClose={() => setModal(null)} />
       )}
 
       {modal?.type === "role" && (
@@ -1033,6 +1001,7 @@ export default function Accounts({ role }) {
             allowCampaignDp: modal.account.featureAccess?.campaignDp === true,
             allowCampaignNumber: modal.account.featureAccess?.campaignNumber === true,
             allowCampaignLink: modal.account.featureAccess?.campaignLink === true,
+            allowCreditReclaim: modal.account.featureAccess?.reclaimCredit === true,
           }}
           fields={[
             { key: "status", label: "Account status", options: [{ value: "active", label: "Active" }, { value: "blocked", label: "Blocked" }, { value: "expired", label: "Expired" }] },
@@ -1051,6 +1020,9 @@ export default function Accounts({ role }) {
               { key: "allowCampaignNumber", label: "Campaign number", type: "checkbox", hint: "Allow this account to add an optional contact number to a campaign." },
               { key: "allowCampaignLink", label: "Campaign link", type: "checkbox", hint: "Show an optional link field when this account creates a campaign." },
             ] : []),
+            ...(role === "Reseller" ? [
+              { key: "allowCreditReclaim", label: "Reclaim credits from client users", type: "checkbox", hint: "Allow this reseller to reclaim unused credits from their client users back to their reseller wallet." },
+            ] : []),
           ]}
           payload={(values) => ({
             id: modal.account._id,
@@ -1058,7 +1030,12 @@ export default function Accounts({ role }) {
             accessReason: (values.accessReason || "").trim(),
             expiresAt: values.expiresAt || null,
             dailyCampaignLimit: values.dailyCampaignLimit ? Number(values.dailyCampaignLimit) : null,
-            ...((role === "User" || role === "Reseller") ? { featureAccess: { campaignDp: values.allowCampaignDp, campaignNumber: values.allowCampaignNumber, campaignLink: values.allowCampaignLink } } : {}),
+            ...((role === "User" || role === "Reseller") ? { featureAccess: {
+              campaignDp: values.allowCampaignDp,
+              campaignNumber: values.allowCampaignNumber,
+              campaignLink: values.allowCampaignLink,
+              ...(role === "Reseller" ? { reclaimCredit: values.allowCreditReclaim } : {}),
+            } } : {}),
           })}
           review={(values) => (
             <>
@@ -1070,6 +1047,7 @@ export default function Accounts({ role }) {
               {(role === "User" || role === "Reseller") && <p>Share profile DP in campaigns: <strong>{values.allowCampaignDp ? "Allowed" : "Not allowed (removes current DP)"}</strong></p>}
               {(role === "User" || role === "Reseller") && <p>Campaign number: <strong>{values.allowCampaignNumber ? "Allowed" : "Not allowed"}</strong></p>}
               {(role === "User" || role === "Reseller") && <p>Campaign link: <strong>{values.allowCampaignLink ? "Allowed" : "Not allowed"}</strong></p>}
+              {role === "Reseller" && <p>Reclaim credits: <strong>{values.allowCreditReclaim ? "Allowed" : "Not allowed"}</strong></p>}
             </>
           )}
           submitLabel="Save account access"
@@ -1085,27 +1063,29 @@ export default function Accounts({ role }) {
           onClose={() => setModal(null)}
           initialValues={{
             amount: "",
+            category: "",
             notes: "",
           }}
           fields={[
-            { key: "amount", label: "Credits to allocate", required: true, type: "number", min: 0.01, step: 0.01 },
+            creditCategoryField,
+            { key: "amount", label: "Credits to allocate", required: true, type: "number", min: 1, step: 1 },
             { key: "notes", label: "Note (Optional)", type: "textarea", maxLength: 500 },
           ]}
           payload={(v) => ({
             toUserId: modal.account._id,
-            amount: Number(v.amount),
+            amount: Number(v.amount), category: v.category,
             notes: v.notes.trim(),
           })}
           review={(v) => (
             <>
               <p className="font-medium text-foreground">{modal.account.username} ({modal.account.role})</p>
               <p className="text-xs mt-1">
-                Add <strong>{number(Number(v.amount))} credits</strong> to this account.
+                Add <strong>{number(Number(v.amount))} {creditCategoryNames[v.category]}</strong> to this account.
               </p>
               <p className="whitespace-pre-wrap break-words text-muted-foreground text-xs mt-1">
                 {v.notes || "No note."}
               </p>
-              <CreditBalancePreview balance={modal.account.wallet?.balance} amount={v.amount} />
+              <CreditBalancePreview balance={modal.account.wallet?.creditBalances?.[v.category]?.available ?? 0} amount={v.amount} />
             </>
           )}
           submitLabel="Allocate credits"
@@ -1119,20 +1099,21 @@ export default function Accounts({ role }) {
           action="reclaim"
           successMessage="Credits deducted successfully"
           onClose={() => setModal(null)}
-          initialValues={{ fromUserId: modal.account._id, amount: "", notes: "" }}
+          initialValues={{ fromUserId: modal.account._id, amount: "", category: "", notes: "" }}
           fields={[
-            { key: "amount", label: "Credits to deduct", required: true, type: "number", min: 0.01, step: 0.01 },
+            creditCategoryField,
+            { key: "amount", label: "Credits to deduct", required: true, type: "number", min: 1, step: 1 },
             { key: "notes", label: "Reason (optional)", type: "textarea", maxLength: 500, placeholder: "e.g. Account closure, overpayment reversal" },
           ]}
-          payload={(v) => ({ fromUserId: modal.account._id, amount: Number(v.amount), notes: (v.notes || "").trim() })}
+          payload={(v) => ({ fromUserId: modal.account._id, amount: Number(v.amount), category: v.category, notes: (v.notes || "").trim() })}
           review={(v) => (
             <>
               <p className="font-medium text-destructive">Reclaim credits</p>
               <p>
-                Deducting <strong>{number(Number(v.amount))} credits</strong> from {modal.account.username} ({modal.account.role}).
+                Deducting <strong>{number(Number(v.amount))} {creditCategoryNames[v.category]}</strong> from {modal.account.username} ({modal.account.role}).
               </p>
               <p className="text-muted-foreground text-xs mt-1">Reason: {v.notes ? v.notes.trim() : "None"}</p>
-              <CreditBalancePreview balance={modal.account.wallet?.balance} amount={v.amount} deduct />
+              <CreditBalancePreview balance={modal.account.wallet?.creditBalances?.[v.category]?.available ?? 0} amount={v.amount} deduct />
             </>
           )}
           submitLabel="Reclaim credits"
