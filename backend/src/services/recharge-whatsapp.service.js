@@ -39,7 +39,7 @@ export async function queueRechargeAlerts(purchase, stage, session) {
     const events = [{ eventKey, kind: "recharge", data }];
     events.push({ eventKey: `${eventKey}:whatsapp`, kind: "recharge-whatsapp", data });
     await NotificationEvent.create(events, { session, ordered: true });
-}
+}   
 
 export async function deliverRechargeWhatsApp({ data }) {
     const env = process.env;

@@ -1,5 +1,9 @@
 .portal-main .account-list-table [data-slot="table-cell"][data-column="name"] button { display:block; max-width:100%; width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .account-name-secondary { display:none; }
+@container (max-width:1000px) {
+  .account-list-table :is(.account-login-label, .account-credit-label) { display:none; }
+  .account-list-table .portal-row-actions.account-row-actions { flex-wrap:nowrap; }
+}
 .portal-main .account-list-table-wallets [data-column="account"] .truncate { max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 @media(max-width:980px) {
   .account-list-table:not(.account-list-table-wallets) .mobile-record-header { flex-wrap:wrap; }
@@ -7,6 +11,30 @@
   .account-list-table:not(.account-list-table-wallets) .mobile-record-actions, .account-list-table:not(.account-list-table-wallets) .mobile-record-actions > div { width:100%; }
   .account-list-table .mobile-record-actions .portal-row-actions { justify-content:space-between; }
   .portal-main .account-list-table .mobile-record-actions [data-slot="button"] { min-height:44px; }
+  .account-list-table.account-card-list .mobile-record-heading { flex:1 1 11rem; }
+  .account-list-table.account-card-list .mobile-record-actions,
+  .account-list-table.account-card-list .mobile-record-actions > div { width:auto; }
+  .account-card-list .mobile-record-actions .portal-row-actions { justify-content:flex-start; gap:6px; }
+  .account-card-list .mobile-record .account-login-label { display:inline; }
+  .account-card-list .mobile-record .account-row-actions > button:first-child {
+    background:var(--primary);
+    color:var(--primary-foreground);
+    border-color:var(--primary);
+  }
+  .account-card-list .mobile-record-highlights {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    align-items:start;
+    gap:10px 16px;
+    padding:12px 0 0;
+    border:0;
+    border-top:1px solid var(--border);
+    border-radius:0;
+    background:transparent;
+  }
+  .account-card-list .mobile-record-stat-label { text-transform:none; letter-spacing:normal; font-size:11px; }
+  .account-card-list .mobile-record-stat-val { overflow-wrap:anywhere; }
+  .account-card-list .mobile-record-stat:last-child:nth-child(odd) { grid-column:1 / -1; }
 }
 @media(min-width:980px) {
   @container portal (max-width:1000px) {

@@ -1,4 +1,4 @@
-.campaign-date-filter-trigger { width: 236px; max-width: 100%; justify-content: flex-start; white-space: nowrap; }
+.campaign-date-filter-trigger { flex: 1 1 0%; min-width: 0; justify-content: flex-start; white-space: nowrap; }
 .campaign-date-clear-slot { display: flex; width: 32px; flex: 0 0 32px; align-items: center; justify-content: center; }
 .campaign-calendar-popup {
   width: 310px;

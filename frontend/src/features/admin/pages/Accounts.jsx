@@ -21,7 +21,6 @@ import {
   Download,
   Upload,
   Sparkles,
-  Settings,
   Camera,
   Mail,
   Phone,
@@ -30,19 +29,16 @@ import {
   Check,
   FileText,
 } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import api from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import { Sheet, SheetTrigger, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu";
 import { PageHeading, QueryState, SearchBox, FilterSelect, DataTable, ClearFiltersButton } from "../../dashboard/components/shared";
 import ActionForm from "../components/ActionForm";
@@ -443,13 +439,62 @@ function AccountDetail({ account, onClose, onAction }) {
               </QueryState>
             </AnimatedCollapse>
           </div>
+          <div className="border-t pt-4">
+            <Button variant="outline" className="text-destructive" onClick={() => { onClose(); onAction?.("deleteAccount", account); }}>
+              <Trash2 className="size-4" /> Delete account
+            </Button>
+          </div>
         </div>
       </SheetContent>
     </Sheet>
   );
 }
 
+const accountMenuItems = [
+  { type: "accountAccess", label: "Access & expiry", icon: Lock, needsData: true },
+  { type: "rate", label: "Purchase rates", icon: Pencil },
+  { type: "mediaLimits", label: "Upload limits", icon: Upload, needsData: true },
+  { type: "detail", label: "Account details", icon: Eye },
+];
+
+function AccountActionsMenu({ account, mobile, loading, onAction }) {
+  const Trigger = mobile ? SheetTrigger : DropdownMenuTrigger;
+  const Item = mobile ? SheetClose : DropdownMenuItem;
+  const trigger = (
+    <Trigger render={<Button variant="ghost" size="icon" title="Account actions" aria-label={`Actions for ${account.username}`} />}>
+      <MoreHorizontal />
+    </Trigger>
+  );
+  const itemClass = mobile ? "flex min-h-11 w-full items-center gap-3 rounded-md px-2 text-left hover:bg-accent disabled:opacity-50" : "min-h-6 py-0.5 text-[13px]";
+  const actions = accountMenuItems.map(({ type, label, icon: Icon, needsData }) => (
+    <Item key={type} className={itemClass} disabled={needsData && loading} onClick={() => onAction(type)}>
+      <Icon className="size-4" />
+      {label}
+    </Item>
+  ));
+  if (mobile) {
+    return (
+      <Sheet>
+        {trigger}
+        <SheetContent side="bottom" className="max-h-[90dvh] gap-1 overflow-y-auto rounded-t-xl p-4">
+          <SheetHeader className="p-0 pb-2 pr-8">
+            <SheetTitle className="break-all">Actions for {account.username}</SheetTitle>
+          </SheetHeader>
+          {actions}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+  return (
+    <DropdownMenu>
+      {trigger}
+      <DropdownMenuContent align="end" className="w-44">{actions}</DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export default function Accounts({ role }) {
+  const mobile = useIsMobile();
   const query = useAdminQuery("accounts");
   const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
@@ -541,8 +586,8 @@ export default function Accounts({ role }) {
       render: (a) => (
         <div className="min-w-0">
         <button
-          title={a.username}
-          className="max-w-48 truncate text-left font-medium hover:underline text-foreground block"
+          title={`Open profile for ${a.username}`}
+          className="max-w-48 truncate text-left font-medium underline decoration-muted-foreground/50 underline-offset-2 text-foreground block"
           onClick={() => setDetail(a)}
         >
           {a.username}
@@ -615,64 +660,29 @@ export default function Accounts({ role }) {
       key: "actions",
       label: <span className="sr-only">Actions</span>,
       render: (a) => (
-        <div className="portal-row-actions">
-        <Button type="button" variant="outline" size="sm" onClick={() => setModal({ type: "allocate", account: a })}>Allocate credits</Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={<Button variant="ghost" size="icon" aria-label={`Actions for ${a.username}`} />}
+        <div className="portal-row-actions account-row-actions">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="min-w-11 lg:min-w-8"
+            title="Log in as account"
+            aria-label={`Log in as ${a.username}`}
+            disabled={accessAccount.isPending || query.isPending}
+            onClick={() => openAccount(a)}
           >
-            <MoreHorizontal />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuItem
-              disabled={accessAccount.isPending || query.isPending}
-              onClick={() => openAccount(a)}
-            >
-              <LogIn className="size-4 mr-2" />
-              {accessAccount.isPending ? "Opening account…" : "Login as account"}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setDetail(a)}>
-              <Eye className="size-4 mr-2" />
-              Account details & audit
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setModal({ type: "reclaim", account: a })}>
-              <RotateCcw className="size-4 mr-2 text-amber-600" />
-              Reclaim credits
-            </DropdownMenuItem>
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <Settings className="size-4 mr-2" />
-                Account settings
-              </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-52">
-                <DropdownMenuItem disabled={query.isPending} onClick={() => setModal({ type: "accountAccess", account: a })}>
-                  <Lock className="size-4 mr-2" />
-                  Manage access & expiry
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setModal({ type: "rate", account: a })}>
-                  <Pencil className="size-4 mr-2" />
-                  Purchase rates
-                </DropdownMenuItem>
-                <DropdownMenuItem disabled={query.isPending} onClick={() => setModal({ type: "mediaLimits", account: a })}>
-                  <Upload className="size-4 mr-2" />
-                  Upload limits
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setModal({ type: "role", account: a })}>
-                  <UserCog className="size-4 mr-2" />
-                  Change role
-                </DropdownMenuItem>
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
-              onClick={() => setModal({ type: "deleteAccount", account: a })}
-            >
-              <Trash2 className="size-4 mr-2" />
-              Delete account
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            <LogIn className="size-4" />
+            <span className="account-login-label">Log in</span>
+          </Button>
+          <Button type="button" variant="outline" size="sm" title="Allocate credits" aria-label={`Allocate credits to ${a.username}`} onClick={() => setModal({ type: "allocate", account: a })}>
+            <span>Allocate<span className="account-credit-label"> credits</span></span>
+          </Button>
+          <AccountActionsMenu
+            account={a}
+            mobile={mobile}
+            loading={query.isPending}
+            onAction={(type) => type === "detail" ? setDetail(a) : setModal({ type, account: a })}
+          />
         </div>
       ),
     },
@@ -734,7 +744,7 @@ export default function Accounts({ role }) {
         <DataTable
           key={`${role}-${search}-${status}`}
           caption={`${role} accounts`}
-          className={`account-list-table ${role === "Reseller" ? "account-list-table-resellers" : ""}`}
+          className={`account-list-table account-card-list ${role === "Reseller" ? "account-list-table-resellers" : ""}`}
           rows={rows}
           emptyTitle={`No ${role.toLowerCase()} accounts match your filters`}
           emptyAction={<ClearFiltersButton />}
@@ -742,7 +752,9 @@ export default function Accounts({ role }) {
           mobile={{
             primary: "name",
             secondary: "email",
-            featured: role === "Reseller" ? ["status", "whiteLabel"] : ["status"],
+            featured: role === "Reseller"
+              ? ["status", "whiteLabel", "users", "accountExpiry"]
+              : ["status", "accountExpiry", "reseller"],
           }}
         />
       </QueryState>

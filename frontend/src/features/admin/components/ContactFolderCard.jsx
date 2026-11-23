@@ -24,7 +24,7 @@ export default function ContactFolderCard({ title, subtitle, resellerName = "", 
       variants={reduceMotion ? undefined : CARD_VARIANTS}
       transition={SPRING}
       style={{ position: "relative", width: "100%" }}
-      className={cn("min-w-0", className)}
+      className={cn("@container min-w-0", className)}
     >
       <button
         type="button"
@@ -81,14 +81,14 @@ export default function ContactFolderCard({ title, subtitle, resellerName = "", 
           {/* Reserve the same details height while keeping the footer stationary. */}
           <div style={{ position: "relative", zIndex: 1, padding: 16 }}>
             <div aria-hidden="true" style={{ height: 66 }} />
-            <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-3">
+            <div className="mt-3 flex items-center justify-between gap-1.5 border-t border-border pt-2">
               <span className="inline-flex min-w-0 items-center gap-1.5 text-[11px]">
                 <Users aria-hidden="true" className="size-3.5 shrink-0 text-muted-foreground" strokeWidth={1.6} />
-                <span className="truncate"><span className="font-semibold tabular-nums">{count.toLocaleString()}</span> saved {count === 1 ? "number" : "numbers"}</span>
+                <span className="truncate"><span className="font-semibold tabular-nums">{count.toLocaleString()}</span><span className="hidden @[18rem]:inline"> saved</span> {count === 1 ? "number" : "numbers"}</span>
               </span>
               <span className="inline-flex shrink-0 items-center gap-1.5">
-                {onDelete && <span aria-hidden="true" style={{ width: 28, height: 28 }} />}
-                <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, width: 100, height: 32, borderRadius: 6, background: "var(--primary, #00875a)", color: "var(--primary-foreground, #ffffff)", fontSize: 11, fontWeight: 500 }}>Open folder<ArrowRight aria-hidden="true" className="size-3" strokeWidth={1.8} /></span>
+                {onDelete && <span aria-hidden="true" className="size-9" />}
+                <span className="inline-flex h-9 w-16 items-center justify-center gap-1.5 rounded-md bg-primary text-[11px] font-medium text-primary-foreground @[18rem]:w-24"><span>Open<span className="hidden @[18rem]:inline"> folder</span></span><ArrowRight aria-hidden="true" className="size-3" strokeWidth={1.8} /></span>
               </span>
             </div>
           </div>
@@ -100,8 +100,7 @@ export default function ContactFolderCard({ title, subtitle, resellerName = "", 
         onClick={onDelete}
         aria-label={`Delete ${title} folder`}
         title="Delete folder"
-        style={{ position: "absolute", zIndex: 3, right: 122, bottom: 18, display: "grid", placeItems: "center", width: 28, height: 28, padding: 0, border: 0, borderRadius: 6, background: "transparent" }}
-        className="cursor-pointer text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:text-destructive"
+        className="absolute right-[calc(16px+4rem+0.375rem)] bottom-4 z-3 grid size-9 cursor-pointer place-items-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:text-destructive @[18rem]:right-[calc(16px+6rem+0.375rem)]"
       ><Trash2 aria-hidden="true" className="size-3.5" strokeWidth={1.7} /></button>}
     </motion.div>
   );

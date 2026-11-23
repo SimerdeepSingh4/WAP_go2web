@@ -363,7 +363,7 @@ export default function Contacts() {
       {folderEditor && <ContactFolderEditor key={`${folderEditor}:${activeFolderId}`} folderOnly={folderEditor === "folder"} manualInput={folderEditor === "contacts"} initialFolderId={activeFolderId} onClose={() => setFolderEditor(null)} onSaved={(folder) => openFolder(folder._id)} />}
 
       {showingFolders ? <QueryState query={foldersQuery} empty={!visibleFolders.length} emptyTitle={search ? "No matching folders" : "No saved folders yet"} emptyDescription={search ? "Try a user's name or a phone number." : "Save numbers from a campaign to create a folder named after that user."}>
-        <section aria-label="Saved contact folders" className="grid grid-cols-[repeat(auto-fill,minmax(0,min(100%,300px)))] gap-8 py-4">
+        <section aria-label="Saved contact folders" className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,15rem),1fr))] gap-4 py-4">
           {visibleFolders.map((folder) => <ContactFolderCard key={folder._id} title={folder.sourceUserId?.username || folder.name}
             subtitle={folder.sourceUserId?.email || (folder.sourceUserId ? "Saved campaign numbers" : "Admin contact list")}
             resellerName={folder.sourceUserId?.role === "Reseller" ? folder.sourceUserId.username : folder.sourceUserId?.resellerId?.username}

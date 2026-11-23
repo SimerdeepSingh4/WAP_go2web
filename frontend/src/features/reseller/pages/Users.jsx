@@ -243,7 +243,9 @@ export default function ResellerUsers() {
       label: <span className="sr-only">Actions</span>,
       render: (a) => (
         <div className="portal-row-actions">
-        <Button type="button" variant="outline" size="sm" disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "allocate", account: a })}>Allocate credits</Button>
+        <Button type="button" variant="outline" size="sm" title="Allocate credits" aria-label={`Allocate credits to ${a.username}`} disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "allocate", account: a })}>
+          <span>Allocate<span className="account-credit-label"> credits</span></span>
+        </Button>
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
@@ -365,7 +367,7 @@ export default function ResellerUsers() {
         <DataTable
           key={`users-${search}-${status}`}
           caption="Client user accounts"
-          className="account-list-table account-list-table-managed"
+          className="account-list-table account-list-table-managed account-card-list"
           rows={rows}
           emptyTitle="No users match your filters"
           emptyAction={<ClearFiltersButton />}
@@ -373,7 +375,7 @@ export default function ResellerUsers() {
           mobile={{
             primary: "name",
             secondary: "email",
-            featured: ["status"],
+            featured: ["status", "accountExpiry"],
           }}
         />
       </QueryState>
