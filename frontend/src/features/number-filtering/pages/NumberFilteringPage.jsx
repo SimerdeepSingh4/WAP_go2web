@@ -73,6 +73,7 @@ function RequestList({ base, admin, canRequest }) {
         </div>
         <QueryState query={list}>
           <DataTable
+            className={admin ? undefined : "filtering-owner-table"}
             columns={columns}
             rows={items}
             paginated={false}

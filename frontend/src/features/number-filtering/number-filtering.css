@@ -198,6 +198,20 @@
 .filtering-history [data-column="count"] { font-variant-numeric: tabular-nums; }
 .filtering-history .mobile-record-header { flex-wrap: wrap; }
 
+.filtering-history .filtering-owner-table .responsive-table-desktop table {
+  table-layout: auto;
+}
+
+.filtering-history .filtering-owner-table [data-column="actions"] {
+  width: 1%;
+}
+
+.filtering-history .filtering-owner-table [data-column="actions"] > a,
+.filtering-history .filtering-owner-table .mobile-record-actions a,
+.filtering-history .filtering-owner-table [data-column="status"] > :is(a, [data-slot="badge"]) {
+  white-space: nowrap;
+}
+
 @container number-filtering (max-width: 30rem) {
   .filtering-request-form { gap: .75rem; }
   .filtering-input-panel textarea { min-height: 8rem; height: 9rem; font-size: 1rem; }

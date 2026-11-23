@@ -41,12 +41,12 @@ export default function Overview() {
     <DashboardGreeting username={username} description="Manage campaigns, client accounts, and credits." action={<><Button variant="outline" nativeButton={false} render={<Link to="/reseller/credits?recharge=new" />}><Wallet />Recharge credits</Button><Button disabled={signedInUser?.isPreview} nativeButton={false} render={<Link to="/reseller/credits?allocate=new" />}><Plus />Allocate credits</Button></>} />
     <QueryState query={balance} variant="cards"><OverviewMetricCards className="dashboard-summary-metrics" columns={4} items={[
       {
-        label: "Available Credits",
+        label: "Available credits",
         metrics: [
           { label: "Campaign", value: campaignCredits },
-          { label: "Filtering", value: filteringCredits },
+          { label: "Number filtering", value: filteringCredits },
         ],
-        caption: wallet?.isLocked ? "Locked · contact your administrator" : "Available for allocation",
+        caption: wallet?.isLocked ? "Locked · contact your administrator" : null,
         icon: Wallet,
         path: "/reseller/credits",
         accent: true,
@@ -54,9 +54,10 @@ export default function Overview() {
       {
         label: "Campaigns",
         metrics: [
-          { label: "Total", value: totalCampaigns, loading: campaigns.isPending },
-          { label: "Completed", value: completedCampaigns, loading: campaigns.isPending },
+          { label: "Total campaigns", value: totalCampaigns },
+          { label: "Completed", value: completedCampaigns },
         ],
+        loading: campaigns.isPending,
         icon: Megaphone,
         path: "/reseller/campaigns",
         tone: "blue",
@@ -64,9 +65,10 @@ export default function Overview() {
       {
         label: "User accounts",
         metrics: [
-          { label: "Active", value: activeUsers, loading: accounts.isPending },
-          { label: "Total", value: totalUsers, loading: accounts.isPending },
+          { label: "Total users", value: totalUsers },
+          { label: "Active", value: activeUsers },
         ],
+        loading: accounts.isPending,
         icon: Users,
         path: "/reseller/users",
         tone: "pink",
@@ -74,10 +76,10 @@ export default function Overview() {
       {
         label: "Purchase rates",
         metrics: [
-          { label: "Campaign", value: formatCreditRatePaisa(purchaseRates?.CAMPAIGN?.unitPriceInr), valueSuffix: "Paisa", loading: rates.isPending },
-          { label: "Filtering", value: formatCreditRatePaisa(purchaseRates?.NUMBER_FILTERING?.unitPriceInr), valueSuffix: "Paisa", loading: rates.isPending },
+          { label: "Campaign", value: formatCreditRatePaisa(purchaseRates?.CAMPAIGN?.unitPriceInr), valueSuffix: "paise/credit", loading: rates.isPending },
+          { label: "Number filtering", value: formatCreditRatePaisa(purchaseRates?.NUMBER_FILTERING?.unitPriceInr), valueSuffix: "paise/credit", loading: rates.isPending },
         ],
-        caption: rates.isError ? "Pricing unavailable" : "Your purchase price per credit",
+        caption: rates.isError ? "Pricing unavailable" : null,
         icon: Coins,
         path: "/reseller/credits?recharge=new",
         tone: "purple",
