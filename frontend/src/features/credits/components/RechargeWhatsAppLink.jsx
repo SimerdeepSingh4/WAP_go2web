@@ -12,10 +12,9 @@ export default function RechargeWhatsAppLink({ purchaseId }) {
     enabled: Boolean(purchaseId),
     gcTime: 0,
   });
-  if (query.isPending) return <p role="status" className="text-xs text-muted-foreground">Loading WhatsApp contact…</p>;
-  if (query.isError) return <Button variant="outline" onClick={() => query.refetch()}>Retry WhatsApp contact</Button>;
+  if (query.isPending || query.isError) return null;
   const href = query.data?.purchase?.whatsappChatUrl;
-  if (!href) return <p className="text-xs text-muted-foreground">WhatsApp contact is unavailable for this request.</p>;
+  if (!href) return null;
   return <div className="space-y-1">
     <Button variant="outline" nativeButton={false} render={<a href={href} target="_blank" rel="noopener noreferrer" />}>
       <MessageCircle aria-hidden="true" /> Send request on WhatsApp

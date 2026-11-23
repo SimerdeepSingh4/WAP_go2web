@@ -7,14 +7,18 @@ export const rechargeNumberPattern = /^\+[1-9]\d{6,14}$/;
 
 export function buyerRechargeChatLink(purchase, viewerId) {
     const seller = purchase.sellerId;
-    if (!purchase.buyerId || String(purchase.buyerId._id) !== String(viewerId) ||
+    const buyerId = String(purchase.buyerId?._id || purchase.buyerId || "");
+    const viewer = String(viewerId || "");
+    if (!buyerId || buyerId !== viewer ||
         !purchase.paymentProofKey || !["PENDING", "REVIEW_REQUIRED"].includes(purchase.status) ||
         !["Reseller", "Super Admin"].includes(seller?.role) || seller.status !== "active" ||
         (seller.expiresAt && seller.expiresAt <= new Date()) ||
-        !rechargeNumberPattern.test(seller.rechargeWhatsAppNumber)) return null;
+        !seller?.rechargeWhatsAppNumber ||
+        !rechargeNumberPattern.test(String(seller.rechargeWhatsAppNumber).trim())) return null;
     const credits = purchase.category === "NUMBER_FILTERING" ? "number filtering" : "campaign";
+    const cleanNumber = String(seller.rechargeWhatsAppNumber).trim();
     const message = `Hello, I've submitted payment proof for recharge #${String(purchase._id).slice(-8)} for ${purchase.quantity.toLocaleString("en-IN")} ${credits} credits. Please review my request.`;
-    return `https://wa.me/${seller.rechargeWhatsAppNumber.slice(1)}?text=${encodeURIComponent(message)}`;
+    return `https://wa.me/${cleanNumber.slice(1)}?text=${encodeURIComponent(message)}`;
 }
 
 export function rechargeSenderConfigured(env = process.env) {
