@@ -52,7 +52,7 @@ function UserDetail({ account, onClose, onAction }) {
 
   return (
     <Sheet open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-md">
+      <SheetContent className="account-profile-sheet w-full overflow-y-auto sm:max-w-md">
         <SheetHeader>
           <SheetTitle>{account.username}</SheetTitle>
           <SheetDescription>Client user account profile & wallet</SheetDescription>
@@ -69,7 +69,7 @@ function UserDetail({ account, onClose, onAction }) {
           <div className="detail-sheet-profile"><div className="flex min-w-0 items-center gap-3"><UserAvatar user={account} className="size-14" /><div className="min-w-0"><p className="text-sm font-semibold">{account.username}</p><p className="mt-1 text-xs text-muted-foreground">{account.companyName || "User account"}</p></div></div></div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="text-sm font-semibold">Account details</h3>
-            <Button type="button" variant="outline" size="sm" disabled={signedInUser?.isPreview} onClick={() => { onClose(); onAction("editAccount", account); }}>
+            <Button type="button" variant="outline" size="sm" className="account-profile-edit" disabled={signedInUser?.isPreview} onClick={() => { onClose(); onAction("editAccount", account); }}>
               <Pencil className="size-3.5" aria-hidden="true" />Edit details
             </Button>
           </div>
@@ -111,7 +111,7 @@ function UserDetail({ account, onClose, onAction }) {
               <Button
                 variant="outline"
                 size="sm"
-                className="justify-start gap-2"
+                className="account-profile-rate justify-start gap-2"
                 onClick={() => {
                   onClose();
                   onAction("rate", account);
@@ -123,7 +123,7 @@ function UserDetail({ account, onClose, onAction }) {
               <Button
                 variant="outline"
                 size="sm"
-                className="justify-start gap-2"
+                className="account-profile-allocate credit-allocate-button justify-start gap-2"
                 onClick={() => {
                   onClose();
                   onAction("allocate", account);
@@ -135,7 +135,7 @@ function UserDetail({ account, onClose, onAction }) {
               <Button
                 variant="ghost"
                 size="sm"
-                className="justify-start gap-2 text-muted-foreground"
+                className="account-profile-ledger justify-start gap-2 text-muted-foreground"
                 nativeButton={false} render={<Link to={`/reseller/credits?account=${account._id}`} />}
               >
                 View Credit Ledger
@@ -243,7 +243,7 @@ export default function ResellerUsers() {
       label: <span className="sr-only">Actions</span>,
       render: (a) => (
         <div className="portal-row-actions">
-        <Button type="button" variant="outline" size="sm" disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "allocate", account: a })}>Allocate credits</Button>
+        <Button type="button" size="sm" className="credit-allocate-button" disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "allocate", account: a })}>Allocate credits</Button>
         <DropdownMenu>
           <DropdownMenuTrigger
             render={

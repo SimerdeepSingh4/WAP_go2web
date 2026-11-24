@@ -229,7 +229,7 @@ export default function ResellerDashboard() {
                         {client.role}
                       </span>
                       <span className="text-[10px] text-[var(--muted-foreground)]">
-                        Status: {client.status}
+                        Status:{client.status}
                       </span>
                     </div>
                     <p className="text-xs text-[var(--muted-foreground)]">{client.email}</p>
@@ -240,7 +240,7 @@ export default function ResellerDashboard() {
 
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => accessMutation.mutate(client._id)}
+                       onClick={() => accessMutation.mutate(client._id)}
                       disabled={accessMutation.isPending}
                       className="px-3 py-1.5 text-xs font-semibold text-white bg-[var(--primary)] hover:bg-[var(--primary)] rounded-md transition-all cursor-pointer shadow-xs disabled:opacity-50"
                       title="Switch into this user account to view their campaigns and messages"

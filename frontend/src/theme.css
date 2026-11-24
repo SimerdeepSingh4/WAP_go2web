@@ -1,48 +1,48 @@
-/* Green-led workspace palette with quiet mint surfaces, shared by every role. */
+/* Clean navy, blue, and gold workspace palette shared by every role. */
 :root,
 .light {
   color-scheme: light;
-  --palette-teal: #128c7e;
-  --palette-mint: #b8e3cd;
-  --palette-gray: #9aafa1;
-  --palette-light-gray: #dce7df;
-  --palette-ink: #172b24;
+  --palette-teal: #0b63e5;
+  --palette-mint: #dce9fb;
+  --palette-gray: #91a4bf;
+  --palette-light-gray: #d9e4f3;
+  --palette-ink: #071b46;
 
-  --background: #fbfdfb;
+  --background: #f5f8fd;
   --foreground: var(--palette-ink);
   --card: #ffffff;
   --card-foreground: var(--foreground);
   --popover: var(--card);
   --popover-foreground: var(--foreground);
-  --primary: #008069;
-  --primary-text: #006b58;
-  --primary-hover: #006b58;
+  --primary: #0b63e5;
+  --primary-text: #084eae;
+  --primary-hover: #084eae;
   --primary-foreground: #ffffff;
-  --secondary: #edf5ef;
-  --secondary-hover: #e2eee6;
+  --secondary: #e8f5ee;
+  --secondary-hover: #d9efdf;
   --secondary-foreground: var(--foreground);
-  --accent: #e7f5ed;
-  --accent-hover: #d6eddf;
+  --accent: #fff2c8;
+  --accent-hover: #ffe7a1;
   --accent-foreground: var(--foreground);
-  --muted: #eff5f0;
-  --muted-hover: #e5eee7;
-  --muted-foreground: #5d7064;
-  --surface-subtle: #f3f8f4;
+  --muted: #eff4fb;
+  --muted-hover: #e5edf8;
+  --muted-foreground: #566985;
+  --surface-subtle: #f3f7fd;
   --border: var(--palette-light-gray);
   --input: #cfdfd4;
-  --ring: #128c7e;
+  --ring: #0b63e5;
   --destructive: #dc2626;
   --accent-brown: var(--muted-foreground);
   --accent-brown-foreground: #ffffff;
   --radius: 0.75rem;
 
-  --sidebar: #f7fbf8;
-  --sidebar-hover: #eaf3ed;
-  --sidebar-foreground: var(--foreground);
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: #dff1e6;
-  --sidebar-accent-foreground: #145c43;
+  --sidebar: #071b46;
+  --sidebar-hover: #102b5b;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #ffbf16;
+  --sidebar-primary-foreground: #071b46;
+  --sidebar-accent: #ffbf16;
+  --sidebar-accent-foreground: #071b46;
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
   --portal-brown: var(--muted-foreground);
@@ -51,9 +51,9 @@
   --overview-featured-deep: var(--card);
   --overview-featured-text: var(--foreground);
   --overview-featured-muted: var(--muted-foreground);
-  --kpi-blue-start: #1d4e70;
-  --kpi-blue-end: #2e7596;
-  --kpi-blue-icon: #235f7b;
+  --kpi-blue-start: #071b46;
+  --kpi-blue-end: #0b63e5;
+  --kpi-blue-icon: #0b63e5;
   --kpi-purple-start: #4d3d6a;
   --kpi-purple-end: #74608c;
   --kpi-purple-icon: #63497b;
@@ -63,6 +63,9 @@
   --kpi-green-start: #104936;
   --kpi-green-end: #1b7b54;
   --kpi-green-icon: #175b40;
+  --kpi-gold-start: #f6b817;
+  --kpi-gold-end: #ffcf4a;
+  --kpi-gold-icon: #071b46;
   --status-success-bg: #e7f5ed;
   --status-success-text: #176448;
   --status-success-border: #b8dfc9;
@@ -145,9 +148,9 @@
   --foreground: #edf0f3;
   --card: #191d23;
   --popover: #20252c;
-  --primary: #008069;
-  --primary-text: #69d8aa;
-  --primary-hover: #006b58;
+  --primary: #0b63e5;
+  --primary-text: #7fb2ff;
+  --primary-hover: #084eae;
   --primary-foreground: #ffffff;
   --secondary: #252b33;
   --secondary-hover: #303842;
@@ -161,13 +164,13 @@
   --surface-subtle: #14181e;
   --border: #2c343e;
   --input: #3a4450;
-  --ring: #34d399;
+  --ring: #4d91ff;
   --destructive: #f87171;
   --accent-brown: var(--muted-foreground);
   --sidebar: #13171c;
   --sidebar-hover: #242b33;
-  --sidebar-accent: #16372c;
-  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-accent: #ffbf16;
+  --sidebar-accent-foreground: #071b46;
   --palette-gray: #586573;
   --palette-light-gray: #2c343e;
   --palette-ink: #edf0f3;
@@ -257,6 +260,37 @@ html[data-branded="true"] .credit-recharge-button {
   ::selection { background: var(--accent-hover); color: var(--accent-foreground); }
 }
 
+/* Native dropdowns share the same clean, compact treatment as SelectTrigger. */
+:where(select:not([multiple])) {
+  height: 40px;
+  max-width: 100%;
+  padding: 8px 36px 8px 12px;
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--primary) 14%, var(--border));
+  border-radius: 10px;
+  background-color: var(--card);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23566985' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  background-size: 16px;
+  color: var(--foreground);
+  font-size: 13px;
+  transition: border-color .16s, box-shadow .16s;
+}
+:where(select:not([multiple]):hover:not(:disabled)) { border-color: color-mix(in srgb, var(--primary) 36%, var(--border)); }
+:where(select:not([multiple]):focus-visible) { border-color: var(--ring); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 15%, transparent); }
+:where(select:not([multiple]):disabled) { cursor: not-allowed; opacity: .55; }
+
+/* Keep select-like filter buttons visibly filled on every page. */
+:where([data-slot="select-trigger"], .account-picker-trigger) {
+  background-color: var(--card);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--foreground) 7%, transparent);
+}
+:where([data-slot="select-trigger"], .account-picker-trigger):hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--input));
+  background-color: var(--card);
+}
+
 /* Recolor the existing brand mark without introducing another image asset. */
 img[src*="Navy_Blue_Bird_Chat_Logo"] { filter: brightness(0) saturate(100%) invert(30%) sepia(18%) saturate(1300%) hue-rotate(123deg) brightness(94%) contrast(90%); }
 .dark img[src*="Navy_Blue_Bird_Chat_Logo"] { filter: brightness(0) saturate(100%) invert(80%) sepia(27%) saturate(698%) hue-rotate(98deg) brightness(97%) contrast(88%); }
@@ -291,7 +325,7 @@ img[src*="Navy_Blue_Bird_Chat_Logo"] { filter: brightness(0) saturate(100%) inve
   place-items: center;
   border: 2px solid var(--card);
   border-radius: 999px;
-  background: var(--primary);
+  background: var(--destructive);
   color: var(--primary-foreground);
   font-size: 11px;
   font-weight: 700;

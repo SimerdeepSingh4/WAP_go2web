@@ -71,6 +71,15 @@
   --metric-icon-color: var(--kpi-purple-icon);
   background: linear-gradient(135deg, var(--kpi-purple-start), var(--kpi-purple-end));
 }
+.overview-metric-card[data-tone="gold-filled"] {
+  --metric-text: #071b46;
+  --metric-muted: #233d67;
+  --metric-border: transparent;
+  --metric-icon-surface: rgb(255 255 255 / 72%);
+  --metric-icon-color: var(--kpi-gold-icon);
+  --metric-icon-border: rgb(7 27 70 / 8%);
+  background: linear-gradient(135deg, var(--kpi-gold-start), var(--kpi-gold-end));
+}
 .overview-metric-card[data-tone="rose-filled"] {
   --metric-muted: #fff1f2;
   --metric-icon-color: var(--kpi-rose-icon);

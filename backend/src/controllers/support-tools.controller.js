@@ -28,8 +28,8 @@ async function supportAccount(req, session = null) {
 
 function failure(res, error) {
     if (!error.statusCode) console.error("Support tools error:", error);
-    return res.status(error.statusCode || 500).json({ success: false, message: error.statusCode ? error.message : "Could not complete this support action. Please try again." });
-}
+   return res.status(error.statusCode || 500).json({ success: false, message: error.statusCode ? error.message : "Could not complete this support action. Please try again." });
+} 
 
 export async function getSupportContext(req, res) {
     try {
@@ -53,7 +53,7 @@ export async function getSupportLedger(req, res) {
         const report = await reconcileWallet(account._id);
         return res.json({ success: true, data: report });
     } catch (error) { return failure(res, error); }
-}
+    }
 
 export async function applySupportWalletAction(req, res) {
     let session, accountId;
@@ -82,7 +82,7 @@ export async function applySupportWalletAction(req, res) {
 }
 
 export async function getSupportTransactions(req, res) {
-    try {
+    try {   
         const { account } = await supportAccount(req);
         const category = req.query.category;
         if (category !== undefined && !CREDIT_CATEGORIES.includes(category)) return res.status(400).json({ success: false, message: "Choose a valid credit category." });

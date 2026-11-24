@@ -128,7 +128,7 @@ function AccountDetail({ account, onClose, onAction }) {
 
   return (
     <Sheet open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <SheetContent className="w-full sm:max-w-lg p-0 flex flex-col gap-0 overflow-hidden">
+      <SheetContent className="account-profile-sheet w-full sm:max-w-lg p-0 flex flex-col gap-0 overflow-hidden">
         <SheetHeader className="p-5 border-b border-border bg-card flex-shrink-0">
           <SheetTitle className="text-base font-semibold">Account Profile & Details</SheetTitle>
           <SheetDescription className="text-xs text-muted-foreground">{account.role} account profile, parameters, and ledger audit</SheetDescription>
@@ -229,7 +229,8 @@ function AccountDetail({ account, onClose, onAction }) {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="flex-1 h-8 text-xs gap-1.5 font-medium cursor-pointer"
+                data-account-action="edit"
+                className="account-profile-edit flex-1 h-8 text-xs gap-1.5 font-medium cursor-pointer"
                 onClick={() => { onClose(); onAction?.("edit", account); }}
               >
                 <Pencil className="size-3.5" />
@@ -239,7 +240,8 @@ function AccountDetail({ account, onClose, onAction }) {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="flex-1 h-8 text-xs gap-1.5 font-medium cursor-pointer"
+                data-account-action="role"
+                className="account-profile-role flex-1 h-8 text-xs gap-1.5 font-medium cursor-pointer"
                 onClick={() => { onClose(); onAction?.("role", account); }}
               >
                 <UserCog className="size-3.5" />
@@ -258,8 +260,8 @@ function AccountDetail({ account, onClose, onAction }) {
             <div className="mt-4 pt-3.5 border-t border-border/60 flex items-center gap-2">
               <Button
                 size="sm"
+                className="credit-allocate-button flex-1 h-8 text-xs gap-1.5 font-medium cursor-pointer"
                 onClick={() => { onClose(); onAction?.("allocate", account); }}
-                className="flex-1 h-8 text-xs gap-1.5 font-medium cursor-pointer"
               >
                 <Plus className="size-3.5" />
                 Allocate credits
@@ -616,7 +618,7 @@ export default function Accounts({ role }) {
       label: <span className="sr-only">Actions</span>,
       render: (a) => (
         <div className="portal-row-actions">
-        <Button type="button" variant="outline" size="sm" onClick={() => setModal({ type: "allocate", account: a })}>Allocate credits</Button>
+        <Button type="button" size="sm" className="credit-allocate-button" onClick={() => setModal({ type: "allocate", account: a })}>Allocate credits</Button>
         <DropdownMenu>
           <DropdownMenuTrigger
             render={<Button variant="ghost" size="icon" aria-label={`Actions for ${a.username}`} />}

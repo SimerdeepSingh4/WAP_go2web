@@ -49,6 +49,7 @@ function CampaignQueue({ query }) {
           <Button
             variant="ghost"
             size="sm"
+            className="panel-action-button panel-action-campaigns"
             nativeButton={false} render={<Link to="/reseller/campaigns?status=pending" />}
           >
             View all
@@ -115,7 +116,7 @@ function UserNetwork({ query }) {
     <Card className="min-w-0 gap-0 rounded-lg py-0 shadow-none">
       <CardHeader className="flex flex-row items-center justify-between gap-3 px-4 py-4 sm:px-5">
         <CardTitle>Client users network</CardTitle>
-        <Button variant="ghost" size="sm" nativeButton={false} render={<Link to="/reseller/users" />}>
+        <Button variant="ghost" size="sm" className="panel-action-button panel-action-accounts" nativeButton={false} render={<Link to="/reseller/users" />}>
           Manage
           <ArrowRight />
         </Button>
@@ -220,6 +221,7 @@ export default function ResellerOverviewWorkPanel({
             <Button
               variant="outline"
               size="sm"
+              className="panel-action-button panel-action-credits"
               nativeButton={false} render={<Link to="/reseller/credits" />}
             >
               Manage credits

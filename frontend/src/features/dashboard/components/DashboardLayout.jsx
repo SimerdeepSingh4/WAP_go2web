@@ -169,7 +169,7 @@ export default function DashboardLayout({ role }) {
   if (user?.role !== role) return <Navigate to={rolePaths[user?.role] || "/login"} replace />;
 
   return (
-    <div className="admin-portal dashboard-portal" data-role={role}>
+    <div className="admin-portal dashboard-portal" data-role={role} data-page={pathname}>
       {role !== "Super Admin" && <PreviewBanner />}
       <a href="#dashboard-main" className="portal-skip-link">Skip to content</a>
       <TooltipProvider>

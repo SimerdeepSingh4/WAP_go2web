@@ -441,7 +441,7 @@ export default function Campaigns({ reports = false }) {
             setCalendarOpen(open);
           }}>
             <Popover.Trigger
-                render={<Button data-tour="campaign-dates" type="button" variant={hasCompleteRange ? "default" : "outline"} size="sm" className="campaign-date-filter-trigger gap-2" />}
+                render={<Button data-tour="campaign-dates" data-filtered={hasCompleteRange || undefined} type="button" variant={hasCompleteRange ? "default" : "outline"} size="sm" className="campaign-date-filter-trigger gap-2" />}
             >
               <CalendarDays className="size-4" />
               {dateFilterLabel}

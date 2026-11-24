@@ -25,7 +25,7 @@ export function RecentCampaigns({ query, base, pendingOnly = false, showOwner = 
   const rows = [...all].filter(c => !pendingOnly || ["pending", "scheduled"].includes(c.status)).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 6);
   const title = pendingOnly ? "Awaiting review" : "Recent campaigns";
   return <section className="dashboard-section">
-    <div className="dashboard-section-heading">{pendingOnly || cards ? <PanelTitle icon={pendingOnly ? ClipboardList : Megaphone}>{title}</PanelTitle> : <h2>{title}</h2>}<Button variant="outline" size="sm" nativeButton={false} render={<Link to={`${base}/campaigns${pendingOnly ? "?status=pending" : ""}`} />}>View all</Button></div>
+    <div className="dashboard-section-heading">{pendingOnly || cards ? <PanelTitle icon={pendingOnly ? ClipboardList : Megaphone}>{title}</PanelTitle> : <h2>{title}</h2>}<Button variant="outline" size="sm" className="panel-action-button panel-action-campaigns" nativeButton={false} render={<Link to={`${base}/campaigns${pendingOnly ? "?status=pending" : ""}`} />}>View all</Button></div>
     <QueryState query={query} empty={!rows.length} emptyTitle={pendingOnly ? "No campaigns awaiting review" : "No campaigns yet"} emptyDescription={pendingOnly ? "New submissions will appear here." : "Create your first campaign to get started."} emptyAction={!pendingOnly && <Button nativeButton={false} render={<Link to={`${base}/campaigns/create`} />}>Create campaign</Button>}>
       {pendingOnly || cards ? (
         <ul className="overview-review-list">
@@ -56,8 +56,8 @@ export function AccountList({ query, base, role }) {
   const accounts = (query.data?.users || []).filter(a => a.role === role);
   const accountPath = base + (role === "Reseller" ? "/resellers" : "/users");
   return <section className="dashboard-section">
-    <div className="dashboard-section-heading"><PanelTitle icon={role === "Reseller" ? Building2 : Users}>{role === "Reseller" ? "Resellers" : "Your users"}</PanelTitle><Button variant="outline" size="sm" nativeButton={false} render={<Link to={accountPath} />}>Manage</Button></div>
-    <QueryState query={query} empty={!accounts.length} emptyTitle={`No ${role === "Reseller" ? "resellers" : "users"} yet`} emptyDescription={`Add a ${role.toLowerCase()} to allocate credits.`} emptyAction={<Button variant="outline" nativeButton={false} render={<Link to={accountPath} />}>Manage {role === "Reseller" ? "resellers" : "users"}</Button>}>
+    <div className="dashboard-section-heading"><PanelTitle icon={role === "Reseller" ? Building2 : Users}>{role === "Reseller" ? "Resellers" : "Your users"}</PanelTitle><Button variant="outline" size="sm" className="panel-action-button panel-action-accounts" nativeButton={false} render={<Link to={accountPath} />}>Manage</Button></div>
+    <QueryState query={query} empty={!accounts.length} emptyTitle={`No ${role === "Reseller" ? "resellers" : "users"} yet`} emptyDescription={`Add a ${role.toLowerCase()} to allocate credits.`} emptyAction={<Button variant="outline" className="panel-action-button panel-action-accounts" nativeButton={false} render={<Link to={accountPath} />}>Manage {role === "Reseller" ? "resellers" : "users"}</Button>}>
       <ul className="overview-reseller-list">
           {accounts.slice(0, 5).map(account => (
             <li key={account._id || account.email}>
@@ -85,7 +85,7 @@ export function RecentTransactions({ query, base }) {
         <div>
           <PanelTitle icon={Wallet}>Recent credit movements</PanelTitle>
         </div>
-        <Button variant="outline" size="sm" nativeButton={false} render={<Link to={base === "/admin" ? `${base}/activity` : `${base}/credits`} />}>
+        <Button variant="outline" size="sm" className="panel-action-button panel-action-activity" nativeButton={false} render={<Link to={base === "/admin" ? `${base}/activity` : `${base}/credits`} />}>
           View all activity
         </Button>
       </div>

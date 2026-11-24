@@ -23,8 +23,13 @@
   height: 40px;
   min-height: 40px;
   border-radius: 9px;
-  background: var(--card);
+  background: color-mix(in srgb, var(--primary) 16%, var(--card));
+  border-color: color-mix(in srgb, var(--primary) 32%, var(--input));
   font-size: 13px;
+}
+.transaction-ledger-filters :is([data-slot="select-trigger"], .account-picker-trigger):hover:not(:disabled) {
+  background: color-mix(in srgb, var(--primary) 21%, var(--card));
+  border-color: color-mix(in srgb, var(--primary) 44%, var(--input));
 }
 
 .transaction-ledger-filters [data-slot="select-value"] {

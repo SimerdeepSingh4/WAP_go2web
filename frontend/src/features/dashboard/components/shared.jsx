@@ -49,7 +49,7 @@ export function StatusBadge({ status }) {
 export function FilterSelect({ label, value, onChange, options, id, disabled = false, accountSearch, invalid, describedBy }) {
   if (accountSearch || options.some(option => /^[a-f\d]{24}$/i.test(String(option.value)))) return <AccountPicker {...{ label, value, onChange, options, id, disabled, invalid, describedBy }} accountSearch={accountSearch || {}} />;
   return <Select value={value} onValueChange={onChange} items={options} disabled={disabled}>
-    <SelectTrigger id={id} aria-label={label} aria-invalid={invalid || undefined} aria-describedby={describedBy} className="h-9 min-w-36 max-w-full"><SelectValue /></SelectTrigger>
+    <SelectTrigger id={id} aria-label={label} aria-invalid={invalid || undefined} aria-describedby={describedBy} className="filter-select-trigger h-10 min-w-36 max-w-full"><SelectValue /></SelectTrigger>
     <SelectContent align="start" alignItemWithTrigger={false}>{options.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent>
   </Select>;
 }
