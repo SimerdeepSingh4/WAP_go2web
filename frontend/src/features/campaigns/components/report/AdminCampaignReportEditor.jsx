@@ -69,7 +69,17 @@ export default function AdminCampaignReportEditor({ campaign, base, onRefresh, i
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" nativeButton={false} render={<Link to={`${base}/campaigns/${campaign._id}/report/create`} />}><Pencil className="size-3.5" /> Edit report</Button>
-          <Button type="button" size="sm" onClick={() => setConfirmOpen(true)} disabled={publish.isPending || isRefreshing || !sheet?.rows.length || justPublished || missingFailureReason}>{publish.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}{justPublished ? "Published" : publishedAt ? "Publish updates" : "Publish report"}</Button>
+          {justPublished || publishedAt ? (
+            <Button variant="outline" size="sm" disabled className="gap-1.5 opacity-80 cursor-default">
+              <CheckCircle2 className="size-3.5 text-emerald-600" />
+              Report published
+            </Button>
+          ) : (
+            <Button type="button" size="sm" onClick={() => setConfirmOpen(true)} disabled={publish.isPending || isRefreshing || !sheet?.rows.length || missingFailureReason}>
+              {publish.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
+              Publish report
+            </Button>
+          )}
         </div>
       </header>
       <div data-tour="report-credit-preview" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-4 py-3 text-xs">

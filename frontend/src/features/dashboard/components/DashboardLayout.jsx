@@ -106,7 +106,7 @@ function Navigation({ role, base, items }) {
               <img src={brandLogo} alt="" />
             </div>
             <div className="portal-brand-copy flex-1 min-w-0">
-              <strong title={brandTitle}>{brandTitle}<span>.</span></strong>
+              <strong title={brandTitle}>{brandTitle}{brandTitle === "Promotion" ? <span>.</span> : null}</strong>
               <span>{role === "Super Admin" ? "Super admin" : role}</span>
             </div>
             <CollapseIcon className="portal-sidebar-collapse-icon" aria-hidden="true" />
@@ -173,7 +173,7 @@ export default function DashboardLayout({ role }) {
       {role !== "Super Admin" && <PreviewBanner />}
       <a href="#dashboard-main" className="portal-skip-link">Skip to content</a>
       <TooltipProvider>
-        <SidebarProvider open={open} onOpenChange={setOpen} style={{ "--sidebar-width": "15rem", "--sidebar-width-icon": "4rem" }} className="portal-shell">
+        <SidebarProvider open={open} onOpenChange={setOpen} style={{ "--sidebar-width": "16.5rem", "--sidebar-width-icon": "4rem" }} className="portal-shell">
           <Navigation role={role} base={base} items={items} />
           <SidebarInset className="portal-inset">
             <header className="portal-topbar">

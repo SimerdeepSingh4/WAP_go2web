@@ -46,7 +46,7 @@ export default function CampaignCtaFields({
       <legend><Link2 aria-hidden="true" />Campaign Link <span>Optional</span></legend>
       <ButtonLabelPicker id="campaign-link" title="Link Button Label" presets={LINK_BUTTON_LABELS} value={campaignLinkName} onChange={onCampaignLinkNameChange} readOnly={labelsReadOnly} />
       <div className="space-y-1.5">
-        <Label htmlFor="campaign-link">Website URL</Label>
+        <Label htmlFor="campaign-link">URL</Label>
         <Input id="campaign-link" type="url" inputMode="url" autoComplete="url" placeholder="https://example.com/offer"
           value={campaignLink} onChange={event => onCampaignLinkChange(event.target.value)} maxLength={2048} aria-invalid={Boolean(linkError)} aria-describedby="campaign-link-hint" />
         <p id="campaign-link-hint" aria-live="polite" className={`text-xs leading-5 ${linkError ? "text-destructive" : "text-muted-foreground"}`}>{linkError || "Include https:// or http://."}</p>

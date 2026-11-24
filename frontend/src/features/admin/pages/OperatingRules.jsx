@@ -32,7 +32,7 @@ const TABS = [
   { id: "campaigns", short: "Campaigns", long: " & hours", icon: Clock, description: "Set campaign allowances and the daily sending window." },
   { id: "devices", short: "Devices", long: " & sessions", icon: MonitorSmartphone, description: "Choose device limits and review your signed-in sessions." },
   { id: "billing", short: "Credits", long: " & access", icon: Coins, description: "Set account expiry and balance preferences." },
-  { id: "branding", short: "Branding", long: " & white-label", icon: Palette, description: "Customize your company logo, brand name, and workspace theme colors." },
+  { id: "branding", short: "Branding", long: "", icon: Palette, description: "Set the name, logo, and colors for the main platform." },
 ];
 const FIELD_META = {
   dailyCampaignLimit: ["campaigns", "daily-limit"],
@@ -255,8 +255,8 @@ export default function OperatingRules() {
       {activeTab === "branding" ? (
         <section id="operating-panel-branding" role="tabpanel" aria-labelledby="operating-tab-branding" tabIndex={0} className="portal-settings-panel">
           <div className="portal-settings-panel-intro">
-            <h2>Branding & White-Label</h2>
-            <p>Customize your company logo, brand name, and workspace theme colors.</p>
+            <h2>Platform Branding</h2>
+            <p>Set the name, logo, and colors for the main platform.</p>
           </div>
           <ResellerBrandingSettings />
         </section>

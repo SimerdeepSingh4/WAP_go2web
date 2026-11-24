@@ -2,5 +2,5 @@ import RecordReference from "../../../components/ui/RecordReference";
 
 export default function CampaignReference({ campaign, compact = true }) {
   const id = campaign?.campaignId || (campaign?._id ? `CMP-${String(campaign._id).toUpperCase()}` : "");
-  return <RecordReference id={id} prefix="CMP" label="Campaign ID" compact={compact} />;
+  return <RecordReference id={id} prefix="CMP" label="Campaign ID" compact={compact} length={5} noWrap={compact} />;
 }

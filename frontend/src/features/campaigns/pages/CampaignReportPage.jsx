@@ -332,23 +332,24 @@ export default function CampaignReportPage() {
 
   const isReportPublished = Boolean(campaign?.publishedSpreadsheet?.publishedAt);
 
-  if (isAdmin) return <AdminCampaignReportEditor key={campaign._id} campaign={campaign} base={base} onRefresh={refetch} isRefreshing={isFetching} />;
-
-  if (!isAdmin && !isReportPublished) {
-    return (
-      <PendingCampaignReport
-        campaign={campaign}
-        base={base}
-        onRefresh={() => refetch()}
-        isRefreshing={isFetching}
-      />
+  if (isReportPublished) {
+    return campaign.publishedSpreadsheet.status === "failed" || campaign.status === "failed" ? (
+      <FailedCampaignReport campaign={campaign} base={base} />
+    ) : (
+      <PublishedSpreadsheetReport campaign={campaign} base={base} isAdmin={isAdmin} />
     );
   }
 
-  const q = digits(search);
-  if (campaign.publishedSpreadsheet?.publishedAt) {
-    return campaign.publishedSpreadsheet.status === "failed" || campaign.status === "failed" ? <FailedCampaignReport campaign={campaign} base={base} /> : <PublishedSpreadsheetReport campaign={campaign} base={base} isAdmin={isAdmin} />;
-  }
+  if (isAdmin) return <AdminCampaignReportEditor key={campaign._id} campaign={campaign} base={base} onRefresh={refetch} isRefreshing={isFetching} />;
+
+  return (
+    <PendingCampaignReport
+      campaign={campaign}
+      base={base}
+      onRefresh={() => refetch()}
+      isRefreshing={isFetching}
+    />
+  );
   const deltaLabel =
     metrics.delta > 0
       ? `+${number(metrics.delta)} credits refunded to wallet`

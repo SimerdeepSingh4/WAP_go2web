@@ -2,7 +2,7 @@ import { Copy } from "lucide-react";
 import { Link } from "react-router";
 import { toast } from "@/components/ui/toast";
 
-export default function RecordReference({ id, label, prefix, compact = false, to, length = 6 }) {
+export default function RecordReference({ id, label, prefix, compact = false, to, length = 6, noWrap = false }) {
   if (!id) return <span className="text-muted-foreground">Unavailable</span>;
 
   // Extract raw identifier without prefix (e.g. CMP-6AED5E2D12530EC8860F914B -> 6AED5E2D12530EC8860F914B)
@@ -13,6 +13,7 @@ export default function RecordReference({ id, label, prefix, compact = false, to
   // Short ID uses uppercase characters (e.g. CMP-0F914B)
   const shortSegment = rawHash.length > length ? rawHash.slice(-length).toUpperCase() : rawHash.toUpperCase();
   const display = compact ? (prefix ? `${prefix}-${shortSegment}` : shortSegment) : id;
+  const wrapClass = noWrap ? "whitespace-nowrap" : "break-all";
 
   async function copy(event) {
     event?.preventDefault();
@@ -26,7 +27,7 @@ export default function RecordReference({ id, label, prefix, compact = false, to
   }
 
   const content = (
-    <span title={`Full ${label}: ${id}`} className="break-all font-mono text-xs select-all">
+    <span title={`Full ${label}: ${id}`} className={`${wrapClass} font-mono text-xs select-all`}>
       {display}
     </span>
   );
@@ -37,7 +38,7 @@ export default function RecordReference({ id, label, prefix, compact = false, to
         <Link
           to={to}
           title={`Open ${label.toLowerCase()} ${id}`}
-          className="break-all font-mono text-xs font-medium hover:underline text-foreground"
+          className={`${wrapClass} font-mono text-xs font-medium hover:underline text-foreground`}
         >
           {display}
         </Link>

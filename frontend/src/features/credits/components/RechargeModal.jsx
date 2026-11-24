@@ -8,6 +8,7 @@ import { useSellerPaymentInstructions, useCreateQuote, useSubmitProof } from "..
 import { creditCategoryNames } from "../lib/creditTransactionDisplay";
 import PaymentProofFields from "./PaymentProofFields";
 import RechargePaymentDetails from "./RechargePaymentDetails";
+import RechargeWhatsAppLink from "./RechargeWhatsAppLink";
 import "./recharge-modal.css";
 
 const PRESET_AMOUNTS = [1000, 5000, 10000, 25000, 50000];
@@ -214,6 +215,7 @@ function RechargeFlow({ onOpenChange, initialCategory = "CAMPAIGN", initialQuant
             <div className="flex items-start gap-3 rounded-xl border bg-muted/30 p-3"><Clock className="mt-0.5 size-4 shrink-0" /><div><h3 className="font-semibold">{submission.status === "REVIEW_REQUIRED" ? "Awaiting manual review" : "Awaiting verification"}</h3>
               <p className="mt-1 text-xs text-muted-foreground">Your wallet updates when your account manager approves the payment.</p></div></div>
             <dl className="flex flex-wrap justify-between gap-2 text-sm"><dt className="text-muted-foreground">Payment reference</dt><dd className="break-all font-mono">{submission.paymentReference || paymentReference}</dd></dl>
+            <RechargeWhatsAppLink purchaseId={submission.id} />
           </div>}
         </div>
         <footer className="recharge-quote-actions">

@@ -17,10 +17,10 @@ export default function Overview() {
   const stats = overview.data?.stats;
 
   const metrics = [
-    { label: "Total campaigns", value: stats?.campaigns?.totalCampaigns, caption: "Across all accounts", icon: Megaphone, path: "/admin/campaigns", tone: "blue-filled" },
-    { label: "Active resellers", value: stats?.accounts?.activeResellers, caption: `${number(stats?.accounts?.totalResellers)} resellers in network`, icon: Building2, path: "/admin/resellers", tone: "gold-filled" },
-    { label: "User accounts", value: stats?.accounts?.totalUsers, caption: "Managed through resellers", icon: Users, path: "/admin/users", tone: "rose-filled" },
-    { label: "Credits in circulation", value: stats?.credits?.totalCreditsInCirculation, caption: "Combined account balances", icon: Wallet, path: "/admin/credits", accent: true },
+    { label: "Total campaigns", brandSlot: "campaigns", value: stats?.campaigns?.totalCampaigns, caption: "Across all accounts", icon: Megaphone, path: "/admin/campaigns", tone: "blue-filled" },
+    { label: "Active resellers", brandSlot: "network", value: stats?.accounts?.activeResellers, caption: `${number(stats?.accounts?.totalResellers)} resellers in network`, icon: Building2, path: "/admin/resellers", tone: "gold-filled" },
+    { label: "User accounts", brandSlot: "users", value: stats?.accounts?.totalUsers, caption: "Managed through resellers", icon: Users, path: "/admin/users", tone: "rose-filled" },
+    { label: "Credits in circulation", brandSlot: "credits", value: stats?.credits?.totalCreditsInCirculation, caption: "Combined account balances", icon: Wallet, path: "/admin/credits", accent: true },
   ];
 
   return (

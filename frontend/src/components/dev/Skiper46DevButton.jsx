@@ -314,6 +314,7 @@ export default function ReviewPinsButton() {
             pin={activePin}
             onClose={() => setActivePopoverPin(null)}
             onDelete={handleDeletePin}
+            isDeleting={deletePin.isPending}
             canDelete={canDeletePin(activePin)}
             onResolve={handleResolvePin}
             resolverName={resolverName}

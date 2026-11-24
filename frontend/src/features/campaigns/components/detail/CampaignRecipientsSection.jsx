@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import { Link } from "react-router";
 import {
   Check,
   Search,
@@ -148,6 +149,7 @@ export default function CampaignRecipientsSection({
   const [search, setSearch] = useState("");
   const [selectedRowNumbers, setSelectedRowNumbers] = useState(new Set());
   const [isSaving, setIsSaving] = useState(false);
+  const isReportPublished = Boolean(campaign?.publishedSpreadsheet?.publishedAt);
   const [showNumberInput, setShowNumberInput] = useState(!reviewMode);
   const [reviewFilter, setReviewFilter] = useState("all");
   const [previewSheet, setPreviewSheet] = useState(null);
@@ -586,8 +588,11 @@ export default function CampaignRecipientsSection({
             {!reviewMode && <Button type="button" variant="outline" size="sm" disabled={isSaving || !hasUnsavedChanges} onClick={() => handleSaveRecipients("draft")} className="h-8 gap-1.5 text-xs">
               <FileCheck className="size-3.5" /> Save draft
             </Button>}
-            {!reviewMode && <Button type="button" size="sm" disabled={isSaving || !entries.length} onClick={() => setConfirmCreditModalOpen(true)} className="h-8 gap-1.5 text-xs">
+            {!reviewMode && !isReportPublished && <Button type="button" size="sm" disabled={isSaving || !entries.length} onClick={() => setConfirmCreditModalOpen(true)} className="h-8 gap-1.5 text-xs">
               Publish report
+            </Button>}
+            {!reviewMode && isReportPublished && <Button variant="outline" size="sm" nativeButton={false} render={<Link to={`/admin/campaigns/${campaign._id}/report`} />} className="h-8 gap-1.5 text-xs text-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="size-3.5" /> View published report
             </Button>}
           </div>
         </div>
@@ -818,7 +823,17 @@ export default function CampaignRecipientsSection({
       </details>}
       {reviewMode && <div className="sticky bottom-0 z-30 flex flex-wrap items-center justify-between gap-3 rounded-b-xl border-t border-border bg-card/95 px-4 py-3 backdrop-blur-sm">
         <p className="text-[11px] text-muted-foreground">{hasUnsavedChanges ? "Unsaved changes" : "No unsaved changes"}<span className="mx-2">|</span>{creditSummary.netDelta > 0 ? number(creditSummary.netDelta) + " credits to refund" : creditSummary.netDelta < 0 ? number(Math.abs(creditSummary.netDelta)) + " credits to debit" : "No credit change"}</p>
-        <div className="flex gap-2"><Button type="button" variant="ghost" size="sm" disabled={isSaving || !entries.length} onClick={openOwnerPreview}>Preview</Button><Button type="button" variant="outline" size="sm" disabled={isSaving || !hasUnsavedChanges} onClick={() => handleSaveRecipients("draft")}>Save draft</Button><Button type="button" size="sm" disabled={isSaving || !entries.length} onClick={() => setConfirmCreditModalOpen(true)}>Publish report</Button></div>
+        <div className="flex gap-2">
+          <Button type="button" variant="ghost" size="sm" disabled={isSaving || !entries.length} onClick={openOwnerPreview}>Preview</Button>
+          <Button type="button" variant="outline" size="sm" disabled={isSaving || !hasUnsavedChanges} onClick={() => handleSaveRecipients("draft")}>Save draft</Button>
+          {!isReportPublished ? (
+            <Button type="button" size="sm" disabled={isSaving || !entries.length} onClick={() => setConfirmCreditModalOpen(true)}>Publish report</Button>
+          ) : (
+            <Button variant="outline" size="sm" nativeButton={false} render={<Link to={`/admin/campaigns/${campaign._id}/report`} />} className="gap-1.5 text-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="size-3.5" /> View published report
+            </Button>
+          )}
+        </div>
       </div>}
       <DraftReportPreview sheet={previewSheet} onClose={() => setPreviewSheet(null)} />
 

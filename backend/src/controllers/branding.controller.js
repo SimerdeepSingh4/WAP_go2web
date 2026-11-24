@@ -1,3 +1,4 @@
+import { BRAND_COLOR_FIELDS, BRAND_COLOR_PATTERN, brandColors } from "../../../shared/brandingColors.js";
 import crypto from "crypto";
 import path from "path";
 import { writeFile, unlink, mkdir } from "fs/promises";
@@ -11,11 +12,27 @@ const DEFAULT_BRANDING = {
     isWhiteLabeled: false,
     brandName: "Promotion",
     logoUrl: "https://res.cloudinary.com/dyfjy8kmv/image/upload/v1793689940/Navy_Blue_Bird_Chat_Logo_n0udpf.webp",
-    primaryColor: "",
-    secondaryColor: "",
-    accentColor: "",
+    ...brandColors(),
     subdomain: "",
 };
+
+async function getPlatformBranding() {
+    const superAdmin = await userModel.findOne({
+        role: "Super Admin",
+        $or: ["brandName", "logoUrl", ...Object.keys(BRAND_COLOR_FIELDS)].map(key => ({
+            ["whiteLabel." + key]: { $exists: true, $nin: ["", null] },
+        })),
+    }).select("whiteLabel");
+    const wl = superAdmin?.whiteLabel;
+    if (!wl) return DEFAULT_BRANDING;
+    return {
+        ...DEFAULT_BRANDING,
+        isWhiteLabeled: true,
+        brandName: wl.brandName || DEFAULT_BRANDING.brandName,
+        logoUrl: wl.logoUrl || DEFAULT_BRANDING.logoUrl,
+        ...brandColors(wl),
+    };
+}
 
 /**
  * Public endpoint: Resolve branding for incoming request based on subdomain or host.
@@ -30,31 +47,7 @@ export async function resolveBranding(req, res) {
             : extractSubdomain(hostHeader);
 
         if (!candidateSubdomain) {
-            const superAdmin = await userModel.findOne({
-                role: "Super Admin",
-                "whiteLabel.brandName": { $exists: true, $ne: "" },
-            }).select("whiteLabel");
-
-            const saWl = superAdmin?.whiteLabel;
-            if (saWl && (saWl.brandName || saWl.logoUrl || saWl.primaryColor)) {
-                return res.status(200).json({
-                    success: true,
-                    branding: {
-                        ...DEFAULT_BRANDING,
-                        isWhiteLabeled: true,
-                        brandName: saWl.brandName || DEFAULT_BRANDING.brandName,
-                        logoUrl: saWl.logoUrl || DEFAULT_BRANDING.logoUrl,
-                        primaryColor: saWl.primaryColor || "",
-                        secondaryColor: saWl.secondaryColor || "",
-                        accentColor: saWl.accentColor || "",
-                    },
-                });
-            }
-
-            return res.status(200).json({
-                success: true,
-                branding: DEFAULT_BRANDING,
-            });
+            return res.status(200).json({ success: true, branding: await getPlatformBranding() });
         }
 
         const now = new Date();
@@ -73,7 +66,7 @@ export async function resolveBranding(req, res) {
             return res.status(200).json({
                 success: true,
                 branding: {
-                    ...DEFAULT_BRANDING,
+                    ...await getPlatformBranding(),
                     subdomain: candidateSubdomain,
                 },
             });
@@ -87,9 +80,7 @@ export async function resolveBranding(req, res) {
                 subdomain: wl.subdomain,
                 brandName: wl.brandName || reseller.companyName || reseller.username || "Promotion",
                 logoUrl: wl.logoUrl || DEFAULT_BRANDING.logoUrl,
-                primaryColor: wl.primaryColor || "",
-                secondaryColor: wl.secondaryColor || "",
-                accentColor: wl.accentColor || "",
+                ...brandColors(wl),
                 resellerId: reseller._id,
             },
         });
@@ -135,9 +126,7 @@ export async function getResellerBranding(req, res) {
                 subdomain: wl.subdomain || "",
                 brandName: wl.brandName || "",
                 logoUrl: wl.logoUrl || "",
-                primaryColor: wl.primaryColor || "",
-                secondaryColor: wl.secondaryColor || "",
-                accentColor: wl.accentColor || "",
+                ...brandColors(wl),
             },
         });
     } catch (error) {
@@ -186,7 +175,7 @@ export async function updateResellerBranding(req, res) {
         if (isSuperAdmin) {
             user.whiteLabel.enabled = true;
         }
-        const { subdomain, brandName, primaryColor, secondaryColor, accentColor } = req.body;
+        const { subdomain, brandName } = req.body;
 
         // Subdomain validation
         if (Object.hasOwn(req.body, "subdomain")) {
@@ -221,42 +210,27 @@ export async function updateResellerBranding(req, res) {
 
         // Brand Name validation
         if (Object.hasOwn(req.body, "brandName")) {
-            user.whiteLabel.brandName = String(brandName || "").trim().slice(0, 100);
-        }
-
-        // Color validation (hex format e.g. #245e59)
-        const hexRegex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
-        if (Object.hasOwn(req.body, "primaryColor")) {
-            const color = String(primaryColor || "").trim();
-            if (color && !hexRegex.test(color)) {
+            const trimmed = String(brandName || "").trim();
+            if (trimmed.length > 30) {
                 return res.status(400).json({
-                    message: "Primary color must be a valid hex color code (e.g. #245e59).",
+                    message: "Website name cannot exceed 30 characters.",
                     success: false,
                 });
             }
-            user.whiteLabel.primaryColor = color;
+            user.whiteLabel.brandName = trimmed;
         }
 
-        if (Object.hasOwn(req.body, "secondaryColor")) {
-            const color = String(secondaryColor || "").trim();
-            if (color && !hexRegex.test(color)) {
+        for (const [key, [label]] of Object.entries(BRAND_COLOR_FIELDS)) {
+            if (!Object.hasOwn(req.body, key)) continue;
+            const value = req.body[key] ?? "";
+            const color = typeof value === "string" ? value.trim() : value;
+            if (typeof color !== "string" || (color && !BRAND_COLOR_PATTERN.test(color))) {
                 return res.status(400).json({
-                    message: "Secondary color must be a valid hex color code.",
+                    message: `${label} must be a valid hex color code.`,
                     success: false,
                 });
             }
-            user.whiteLabel.secondaryColor = color;
-        }
-
-        if (Object.hasOwn(req.body, "accentColor")) {
-            const color = String(accentColor || "").trim();
-            if (color && !hexRegex.test(color)) {
-                return res.status(400).json({
-                    message: "Accent color must be a valid hex color code.",
-                    success: false,
-                });
-            }
-            user.whiteLabel.accentColor = color;
+            user.whiteLabel[key] = color;
         }
 
         await user.save();
@@ -276,9 +250,7 @@ export async function updateResellerBranding(req, res) {
                 subdomain: user.whiteLabel.subdomain || "",
                 brandName: user.whiteLabel.brandName || "",
                 logoUrl: user.whiteLabel.logoUrl || "",
-                primaryColor: user.whiteLabel.primaryColor || "",
-                secondaryColor: user.whiteLabel.secondaryColor || "",
-                accentColor: user.whiteLabel.accentColor || "",
+                ...brandColors(user.whiteLabel),
             },
         });
     } catch (error) {

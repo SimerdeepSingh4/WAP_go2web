@@ -96,14 +96,57 @@
 }
 /* Reserve the exact brand color for the featured KPI in each summary.
    Other cards retain the coordinated blue, rose and purple palette. */
-[data-branded="true"] .overview-metric-card[data-featured="true"] {
+:where([data-branded="true"]) .overview-metric-card[data-featured="true"] {
   --metric-text: var(--primary-foreground);
   --metric-muted: var(--primary-foreground);
   --metric-icon-surface: var(--primary-foreground);
   --metric-icon-color: var(--primary);
   background: var(--primary);
 }
+html[data-custom-kpi] .overview-metric-card {
+  --metric-text: var(--brand-kpi-foreground);
+  --metric-muted: var(--metric-text);
+  --metric-icon-surface: var(--metric-text);
+  --metric-icon-color: var(--brand-kpi);
+  --metric-icon-border: transparent;
+  background: var(--brand-kpi);
+}
 .dark .overview-metric-card { box-shadow: none; }
+.overview-metric-card[data-brand-slot="campaigns"] {
+  --kpi-color: var(--brand-kpi-campaigns, var(--brand-kpi, var(--kpi-blue-icon)));
+  --kpi-text: var(--brand-kpi-campaigns-foreground, var(--brand-kpi-foreground, #fff));
+  --kpi-shade: var(--brand-kpi-campaigns-shade, var(--brand-kpi-shade, #000));
+}
+.overview-metric-card[data-brand-slot="network"] {
+  --kpi-color: var(--brand-kpi-network, var(--brand-kpi, var(--kpi-purple-icon)));
+  --kpi-text: var(--brand-kpi-network-foreground, var(--brand-kpi-foreground, #fff));
+  --kpi-shade: var(--brand-kpi-network-shade, var(--brand-kpi-shade, #000));
+}
+.overview-metric-card[data-brand-slot="users"] {
+  --kpi-color: var(--brand-kpi-users, var(--brand-kpi, var(--kpi-rose-icon)));
+  --kpi-text: var(--brand-kpi-users-foreground, var(--brand-kpi-foreground, #fff));
+  --kpi-shade: var(--brand-kpi-users-shade, var(--brand-kpi-shade, #000));
+}
+.overview-metric-card[data-brand-slot="credits"] {
+  --kpi-color: var(--brand-kpi-credits, var(--brand-kpi, var(--kpi-green-icon)));
+  --kpi-text: var(--brand-kpi-credits-foreground, var(--brand-kpi-foreground, #fff));
+  --kpi-shade: var(--brand-kpi-credits-shade, var(--brand-kpi-shade, #000));
+}
+/* Two soft highlights give the gradient a sheen while the shade preserves text contrast. */
+.overview-metric-card[data-brand-slot],
+html[data-custom-kpi] .overview-metric-card[data-brand-slot] {
+  --metric-text: var(--kpi-text);
+  --metric-muted: var(--kpi-text);
+  --metric-icon-surface: var(--kpi-text);
+  --metric-icon-color: color-mix(in srgb, var(--kpi-color) 85%, var(--kpi-shade));
+  --metric-icon-border: transparent;
+  --metric-border: color-mix(in srgb, var(--kpi-color) 78%, var(--kpi-text));
+  background:
+    radial-gradient(ellipse at 100% 0%, transparent 5%, color-mix(in srgb, var(--kpi-shade) 12%, transparent) 85%),
+    linear-gradient(135deg, color-mix(in srgb, var(--kpi-color) 74%, var(--kpi-shade)), var(--kpi-color));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--kpi-text) 15%, transparent);
+}
+
 .overview-metric-card:has(a):hover {
   border-color: var(--ring);
   box-shadow: 0 4px 14px rgb(0 0 0 / .07);
@@ -157,12 +200,12 @@ a.overview-metric-content:hover .overview-metric-icon svg { transform: translate
   overflow-wrap: anywhere;
 }
 .overview-metric-value[data-size="text"] { font-size: 22px; line-height: 1.3; letter-spacing: -.5px; }
-.overview-metric-value-suffix { font-size: 14px; font-weight: 400; letter-spacing: normal; }
+.overview-metric-value-suffix { font-size: 14px; font-weight: 400; letter-spacing: normal; margin-inline-start: 6px; }
 .overview-metric-rate-card .overview-metric-value-suffix {
   color: var(--metric-muted);
   font-size: clamp(14px, 1.2vw, 18px);
   font-weight: 500;
-  margin-inline-start: 2px;
+  margin-inline-start: 6px;
 }
 .overview-metric-split {
   display: grid;
@@ -206,7 +249,7 @@ a.overview-metric-content:hover .overview-metric-icon svg { transform: translate
   font-weight: 400;
   letter-spacing: normal;
   opacity: 0.9;
-  margin-inline-start: 2px;
+  margin-inline-start: 6px;
 }
 .overview-metric-footer {
   margin-top: auto;

@@ -119,7 +119,7 @@ export default function AccountSettings() {
       ["profile", "Profile", UserRound],
       ["password", "Password", LockKeyhole],
       ["devices", "Devices", MonitorSmartphone],
-      ...(isWhiteLabelActive ? [["branding", "Branding", Palette]] : []),
+      ...(isWhiteLabelActive ? [["branding", isSuperAdmin ? "Platform Branding" : "White-Label Branding", Palette]] : []),
     ].map(([section, label, Icon], index, tabs) => <button key={section} id={`account-tab-${section}`} type="button" role="tab" aria-selected={visibleTab === section} aria-controls={`account-${section}`} tabIndex={visibleTab === section ? 0 : -1} onClick={() => setActiveTab(section)} onKeyDown={event => {
       let next;
       if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
@@ -201,8 +201,8 @@ export default function AccountSettings() {
         <SettingsCard
           section="branding"
           active={visibleTab === "branding"}
-          title="Branding & White-Label"
-          description="Customize your subdomain, company logo, and theme colors."
+          title={isSuperAdmin ? "Platform Branding" : "White-Label Branding"}
+          description={isSuperAdmin ? "Set the name, logo, and colors for the main platform." : "Set the name, logo, colors, and subdomain for your clients? workspace."}
           icon={Palette}
         >
           <ResellerBrandingSettings />

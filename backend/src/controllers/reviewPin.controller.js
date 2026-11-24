@@ -147,20 +147,21 @@ export async function resolvePin(req, res) {
 
 // DELETE /api/review-pins/:id
 export async function deletePin(req, res) {
+    const { id } = req.params;
+    if (!isValidObjectId(id)) {
+        return res.status(400).json({ success: false, message: "Invalid pin ID." });
+    }
     try {
-        const pin = await ReviewPin.findById(req.params.id);
-        if (!pin) {
-            return res.status(404).json({ success: false, message: "Pin not found." });
-        }
-
         const isSuperAdmin = req.user.role === "Super Admin";
-        const isOwner = req.user._id.toString() === pin.createdByUserId.toString();
-
-        if (!isSuperAdmin && !isOwner) {
-            return res.status(403).json({ success: false, message: "Not authorized to delete this pin." });
+        const filter = { _id: id };
+        if (!isSuperAdmin) filter.createdByUserId = req.user._id;
+        const pin = await ReviewPin.findOneAndDelete(filter);
+        if (!pin) {
+            if (!isSuperAdmin && await ReviewPin.exists({ _id: id })) {
+                return res.status(403).json({ success: false, message: "Not authorized to delete this pin." });
+            }
+            return res.json({ success: true, message: "Pin already deleted." });
         }
-
-        await pin.deleteOne();
         broadcastAll("REVIEW_PIN_CHANGED", { action: "delete", page: pin.page, pinId: pin._id });
         return res.json({ success: true, message: "Pin deleted." });
     } catch (err) {

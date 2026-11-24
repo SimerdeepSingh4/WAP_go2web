@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import {
@@ -8,8 +8,9 @@ import {
   removeResellerLogo,
 } from "@/features/branding/services/branding.api.js";
 import { useBranding } from "@/features/branding/context/BrandingContext";
-import { applyBrandColors } from "@/features/branding/lib/themeHelper";
-import { OverviewMetricCard } from "@/features/dashboard/components/OverviewMetricCards";
+import { BRAND_COLOR_FIELDS, BRAND_COLOR_PATTERN, brandColors } from "../../../../../shared/brandingColors.js";
+import { applyBrandColors, pickerColor } from "@/features/branding/lib/themeHelper";
+import OverviewMetricCards, { OverviewMetricCard } from "@/features/dashboard/components/OverviewMetricCards";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,6 +31,14 @@ import {
   Loader2,
   ArrowRight,
   RotateCcw,
+  ChevronDown,
+  ChartNoAxesColumn,
+  PanelsTopLeft,
+  Megaphone,
+  Building2,
+  Users,
+  Wallet,
+  Coins,
 } from "lucide-react";
 
 import "./reseller-branding.css";
@@ -45,9 +54,52 @@ const COLOR_PRESETS = [
   { name: "Charcoal Tech", primary: "#1f2937", secondary: "#f3f4f6" },
 ];
 
+const KPI_CARDS = [
+  { key: "kpiCampaignsColor", brandSlot: "campaigns", adminLabel: "Total campaigns", resellerLabel: "Campaigns", icon: Megaphone, value: 42 },
+  { key: "kpiNetworkColor", brandSlot: "network", adminLabel: "Active resellers", resellerLabel: "Purchase rates", icon: Building2, resellerIcon: Coins, value: 4, resellerSample: "25 paise/credit" },
+  { key: "kpiUsersColor", brandSlot: "users", adminLabel: "User accounts", resellerLabel: "User accounts", icon: Users, value: 62 },
+  { key: "kpiCreditsColor", brandSlot: "credits", adminLabel: "Credits in circulation", resellerLabel: "Available credits", icon: Wallet, value: 1000 },
+];
+
+function editableColors(branding) {
+  const palette = brandColors(branding);
+  for (const { key } of KPI_CARDS) palette[key] ||= palette.kpiColor;
+  palette.kpiColor = "";
+  return palette;
+}
+
+const COLOR_GROUPS = [
+  { label: "Buttons & highlights", keys: ["primaryColor", "secondaryColor", "accentColor", "focusColor"] },
+  { label: "Backgrounds & cards", keys: ["backgroundColor", "cardColor", "popoverColor", "mutedColor", "borderColor"] },
+  { label: "KPI cards", keys: KPI_CARDS.map(card => card.key) },
+  { label: "Navigation", keys: ["sidebarColor", "headerColor"] },
+  { label: "Text", keys: ["textColor", "mutedTextColor"] },
+  { label: "Status & charts", keys: ["successColor", "warningColor", "dangerColor", "infoColor", "chartColor"] },
+];
+
+const PREVIEW_VIEWS = [
+  { label: "Workspace", icon: LayoutDashboard },
+  { label: "KPI cards", icon: ChartNoAxesColumn },
+  { label: "Components", icon: PanelsTopLeft },
+  { label: "Status & charts", icon: AlertTriangle },
+];
+const COMPONENT_COLORS = ["cardColor", "secondaryColor", "accentColor", "popoverColor", "mutedColor", "borderColor", "focusColor"];
+const STATUS_EXAMPLES = [
+  ["success", "Campaign sent"],
+  ["warning", "Credits are running low"],
+  ["danger", "Payment failed"],
+  ["info", "Report is ready"],
+];
+
+function normalizeHex(input) {
+  const value = input.trim();
+  return value && !value.startsWith("#") ? "#" + value : value;
+}
+
 export default function ResellerBrandingSettings() {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "Super Admin";
+  const previewLabel = isSuperAdmin ? "Platform preview" : "Client workspace preview";
   const queryClient = useQueryClient();
   const { setCustomBranding } = useBranding();
 
@@ -61,30 +113,38 @@ export default function ResellerBrandingSettings() {
   const [form, setForm] = useState({
     subdomain: "",
     brandName: "",
-    primaryColor: "",
-    secondaryColor: "",
-    accentColor: "",
+    colors: brandColors(),
   });
   const [error, setError] = useState("");
+  const [invalidColor, setInvalidColor] = useState(null);
+  const [previewView, setPreviewView] = useState("Workspace");
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [formBranding, setFormBranding] = useState(null);
-  const { primaryColor, secondaryColor, accentColor } = form;
+  const { colors } = form;
+  const previewRef = useRef(null);
 
   useEffect(() => {
-    if (!branding?.enabled || branding.isExpired) return;
-    applyBrandColors({ primaryColor, secondaryColor, accentColor });
-    return () => applyBrandColors(branding);
-  }, [primaryColor, secondaryColor, accentColor, branding]);
+    if (!previewRef.current) return;
+    const palette = Object.fromEntries(Object.entries(colors).map(([key, value]) => [key, normalizeHex(value)]));
+    applyBrandColors(palette, previewRef.current);
+  }, [colors, branding]);
 
   if (branding && branding !== formBranding) {
     setFormBranding(branding);
-    setForm({
-      subdomain: branding.subdomain || "",
-      brandName: branding.brandName || "",
-      primaryColor: branding.primaryColor || "",
-      secondaryColor: branding.secondaryColor || "",
-      accentColor: branding.accentColor || "",
-    });
+    const savedColors = editableColors(branding);
+    const previousColors = editableColors(formBranding);
+    if (
+      !formBranding ||
+      branding.brandName !== formBranding.brandName ||
+      branding.subdomain !== formBranding.subdomain ||
+      Object.keys(savedColors).some(key => savedColors[key] !== previousColors[key])
+    ) {
+      setForm({
+        subdomain: branding.subdomain || "",
+        brandName: branding.brandName || "",
+        colors: savedColors,
+      });
+    }
   }
 
   const saveMutation = useMutation({
@@ -93,8 +153,7 @@ export default function ResellerBrandingSettings() {
       queryClient.setQueryData(["resellerBranding"], data.branding);
       setCustomBranding(data.branding);
       toast.add({
-        title: "Branding updated",
-        description: "Your custom branding and theme have been saved.",
+        title: isSuperAdmin ? "Platform branding saved" : "White-label branding saved",
         type: "success",
       });
       setError("");
@@ -178,18 +237,36 @@ export default function ResellerBrandingSettings() {
   function handleSave(e) {
     e.preventDefault();
     setError("");
+    setInvalidColor(null);
+
+    if (form.brandName && form.brandName.trim().length > 30) {
+      setError("Website name cannot exceed 30 characters.");
+      return;
+    }
 
     if (!isSuperAdmin && form.subdomain && !/^[a-z0-9](?:[a-z0-9-]{1,28}[a-z0-9])?$/i.test(form.subdomain)) {
       setError("Subdomain must be 3-30 lowercase characters, numbers or hyphens.");
       return;
     }
 
+    const palette = {};
+    for (const key of Object.keys(BRAND_COLOR_FIELDS)) {
+      const value = normalizeHex(colors[key]);
+      if (value && !BRAND_COLOR_PATTERN.test(value)) {
+        setInvalidColor(key);
+        const input = document.getElementById("branding-" + key);
+        const group = input?.closest("details");
+        if (group) group.open = true;
+        input?.focus();
+        return;
+      }
+      palette[key] = value;
+    }
+
     saveMutation.mutate({
       ...(!isSuperAdmin ? { subdomain: form.subdomain.trim().toLowerCase() } : {}),
       brandName: form.brandName.trim(),
-      primaryColor: form.primaryColor.trim(),
-      secondaryColor: form.secondaryColor.trim(),
-      accentColor: form.accentColor.trim(),
+      ...palette,
     });
   }
 
@@ -269,45 +346,56 @@ export default function ResellerBrandingSettings() {
     );
   }
 
-  // Keep draft previews local until the existing save action is submitted.
   const currentLogo = branding.logoUrl || "https://res.cloudinary.com/dyfjy8kmv/image/upload/v1793689940/Navy_Blue_Bird_Chat_Logo_n0udpf.webp";
   const previewName = form.brandName.trim() || "Your brand";
-  const defaultTheme = !form.primaryColor && !form.secondaryColor && !form.accentColor;
-  const previewColor = /^#[0-9a-f]{6}$/i.test(form.primaryColor) ? form.primaryColor : "#00875a";
-  const previewSecondary = /^#[0-9a-f]{6}$/i.test(form.secondaryColor) ? form.secondaryColor : "#f5f5f5";
-  const channels = previewColor.slice(1).match(/.{2}/g).map(value => {
-    const channel = parseInt(value, 16) / 255;
-    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-  });
-  const luminance = channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
-  const previewButtonText = luminance > 0.179 ? "#111111" : "#ffffff";
+  const customizedColors = Object.values(colors).filter(Boolean).length;
+  const savedColors = editableColors(branding);
+  const hasChanges = form.brandName.trim() !== (branding.brandName || "") ||
+    (!isSuperAdmin && form.subdomain !== (branding.subdomain || "")) ||
+    Object.keys(colors).some(key => normalizeHex(colors[key]).toLowerCase() !== savedColors[key].toLowerCase());
+
+  function updateColor(key, value) {
+    if (KPI_CARDS.some(card => card.key === key)) setPreviewView("KPI cards");
+    else if (COMPONENT_COLORS.includes(key)) setPreviewView("Components");
+    else if (COLOR_GROUPS.at(-1).keys.includes(key)) setPreviewView("Status & charts");
+    else setPreviewView("Workspace");
+    if (invalidColor === key) setInvalidColor(null);
+    setForm(previous => ({ ...previous, colors: { ...previous.colors, [key]: value } }));
+  }
+
   const previewAddress = isSuperAdmin ? "yourdomain.com" : `${form.subdomain || "yourbrand"}.yourdomain.com`;
   const logoBusy = uploadingLogo || logoMutation.isPending || removeLogoMutation.isPending;
 
   return (
     <div className="branding-editor">
-      <div className="branding-access">
-        <div><Sparkles aria-hidden="true" /><strong>White-label branding</strong><span className="branding-access-dot" aria-hidden="true" /><span>Active</span></div>
-        <span>{branding.expiresAt ? `Access expires ${dateTime(branding.expiresAt)}` : "Lifetime access"}</span>
-      </div>
+      {!isSuperAdmin && (
+        <div className="branding-access">
+          <div><Sparkles aria-hidden="true" /><strong>White-label access</strong><span className="branding-access-dot" aria-hidden="true" /><span>Active</span></div>
+          <span>{branding.expiresAt ? `Access expires ${dateTime(branding.expiresAt)}` : "Lifetime access"}</span>
+        </div>
+      )}
       <form onSubmit={handleSave}>
         <div className="branding-grid">
           <div className="branding-fields">
-            <section className="branding-section" aria-labelledby="branding-identity-heading">
-              <div className="branding-section-header"><span className="branding-section-icon"><ImageIcon aria-hidden="true" /></span><div><h3 id="branding-identity-heading">Brand identity</h3><p>Give your workspace a familiar name and logo.</p></div></div>
+            <section className="branding-section branding-identity" aria-labelledby="branding-identity-heading">
+              <div className="branding-section-header"><span className="branding-section-icon"><ImageIcon aria-hidden="true" /></span><div><h3 id="branding-identity-heading">Brand identity</h3></div></div>
               <div className="branding-section-body">
                 <div className="branding-field">
-                  <label htmlFor="reseller-brand-name">Website name</label>
-                  <Input id="reseller-brand-name" placeholder="e.g. Acme Marketing" value={form.brandName} onChange={e => setForm({ ...form, brandName: e.target.value })} maxLength={100} aria-describedby="branding-name-help" />
-                  <p id="branding-name-help" className="branding-help">Shown as your website name in the sidebar and browser tab.</p>
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="reseller-brand-name">Website name</label>
+                    <span className="text-[11px] text-muted-foreground font-mono">{form.brandName.length}/30</span>
+                  </div>
+                  <Input id="reseller-brand-name" placeholder="e.g. Acme Marketing" value={form.brandName} onChange={e => setForm({ ...form, brandName: e.target.value.slice(0, 30) })} maxLength={30} aria-describedby="branding-name-help" />
+                  <p id="branding-name-help" className="branding-help">Appears in the sidebar and browser tab.</p>
                 </div>
                 <div className="branding-field"><span>Company logo</span>
                   <div className="branding-logo-upload">
                     <div className="branding-logo-image"><img src={currentLogo} alt="Current company logo" /></div>
-                    <div className="branding-logo-actions"><div>
+                    <p className="branding-help branding-logo-help">PNG, JPG or WebP, up to 5 MB.<br />Logo changes apply immediately.</p>
+                    <div className="branding-logo-actions">
                       <Button type="button" variant="outline" size="sm" disabled={logoBusy} onClick={() => document.getElementById("logo-file-input")?.click()}>{logoBusy ? <Loader2 className="animate-spin" /> : <Upload />}{uploadingLogo ? "Uploading…" : "Upload logo"}</Button>
                       {branding.logoUrl && <Button type="button" variant="ghost" size="sm" disabled={logoBusy} onClick={() => removeLogoMutation.mutate()}><Trash2 />Remove</Button>}
-                    </div><p className="branding-help">PNG, JPG or WebP, up to 5 MB.<br />Logo uploads and removal take effect immediately.</p></div>
+                    </div>
                     <input id="logo-file-input" type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" aria-label="Upload company logo" disabled={logoBusy} onChange={handleFileChange} />
                   </div>
                 </div>
@@ -323,35 +411,173 @@ export default function ResellerBrandingSettings() {
                 </div></div>
               </section>
             )}
-            <section className="branding-section" aria-labelledby="branding-colors-heading">
-              <div className="branding-section-header"><span className="branding-section-icon"><Paintbrush aria-hidden="true" /></span><div><h3 id="branding-colors-heading">Brand colors</h3><p>Add your brand color to buttons and accents.</p></div></div>
-              <div className="branding-section-body">
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-muted/30 p-3">
-                  <div><p className="text-xs font-medium">Original theme</p><p className="branding-help">Keep the platform’s default light and dark colors.</p></div>
-                  <Button type="button" size="sm" variant="outline" aria-pressed={defaultTheme} disabled={saveMutation.isPending} onClick={() => setForm(previous => ({ ...previous, primaryColor: "", secondaryColor: "", accentColor: "" }))}>{defaultTheme ? <Check /> : <RotateCcw />}{defaultTheme ? "Default theme selected" : "Use default theme"}</Button>
+            <section className="branding-section branding-colors" aria-labelledby="branding-colors-heading">
+              <div className="branding-section-header branding-colors-header">
+                <span className="branding-section-icon"><Paintbrush aria-hidden="true" /></span>
+                <div>
+                  <h3 id="branding-colors-heading">Brand colors</h3>
+                  <p>Pick a swatch or enter a hex code. Your palette applies to both light and dark mode.</p>
                 </div>
-                <div className="branding-field"><span id="branding-palette-label">Choose a palette</span><div className="branding-presets" role="group" aria-labelledby="branding-palette-label">
-                  {COLOR_PRESETS.map(preset => {
-                    const selected = form.primaryColor.toLowerCase() === preset.primary.toLowerCase() && form.secondaryColor.toLowerCase() === preset.secondary.toLowerCase();
-                    return <button key={preset.name} type="button" className="branding-preset" aria-pressed={selected} onClick={() => setForm({ ...form, primaryColor: preset.primary, secondaryColor: preset.secondary, accentColor: "" })}><span className="branding-swatch" style={{ background: preset.primary }} /><span>{preset.name}</span>{selected && <Check aria-hidden="true" />}</button>;
-                  })}
-                </div></div>
-                <div className="branding-field"><label htmlFor="reseller-custom-hex">Custom primary color</label><div className="branding-color-input"><input id="reseller-custom-color" type="color" aria-label="Choose primary color" value={previewColor} onChange={e => setForm({ ...form, primaryColor: e.target.value })} /><Input id="reseller-custom-hex" placeholder="#245e59" value={form.primaryColor} onChange={e => setForm({ ...form, primaryColor: e.target.value })} className="font-mono" maxLength={7} /></div><p className="branding-help">Pick a color or enter its hex code.</p></div>
+                <Button type="button" size="sm" variant="outline" disabled={!customizedColors || saveMutation.isPending} onClick={() => {
+                  setForm(previous => ({ ...previous, colors: brandColors() }));
+                  setInvalidColor(null);
+                }}><RotateCcw />Reset all colors</Button>
+                <Button className="branding-preview-jump" type="button" size="sm" variant="outline" onClick={() => previewRef.current?.scrollIntoView({ block: "center" })}>View preview</Button>
+              </div>
+              <div className="branding-section-body branding-colors-body">
+                <details className="branding-color-group branding-palette-group">
+                  <summary><span>Button palettes</span><ChevronDown aria-hidden="true" /></summary>
+                  <div className="branding-presets">
+                    {COLOR_PRESETS.map(preset => {
+                      const selected = normalizeHex(colors.primaryColor).toLowerCase() === preset.primary &&
+                        normalizeHex(colors.secondaryColor).toLowerCase() === preset.secondary;
+                      return (
+                        <button key={preset.name} type="button" className="branding-preset" aria-pressed={selected} disabled={saveMutation.isPending} onClick={() => {
+                          setForm(previous => ({ ...previous, colors: { ...previous.colors, primaryColor: preset.primary, secondaryColor: preset.secondary } }));
+                          setPreviewView("Workspace");
+                          if (invalidColor === "primaryColor" || invalidColor === "secondaryColor") setInvalidColor(null);
+                        }}>
+                          <span className="branding-preset-swatches" aria-hidden="true">
+                            <span className="branding-swatch" style={{ background: preset.primary }} />
+                            <span className="branding-swatch" style={{ background: preset.secondary }} />
+                          </span>
+                          <span>{preset.name}</span>
+                          {selected && <Check aria-hidden="true" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </details>
+                {COLOR_GROUPS.map(({ label, keys }, index) => (
+                  <details key={label} className="branding-color-group" open={index === 0 || undefined}>
+                    <summary><span>{label}</span><ChevronDown aria-hidden="true" /></summary>
+                    <div className="branding-color-list">
+                      {keys.map(key => {
+                        const [fieldLabel, token, fallback] = BRAND_COLOR_FIELDS[key];
+                        const kpi = KPI_CARDS.find(card => card.key === key);
+                        const name = kpi ? (isSuperAdmin ? kpi.adminLabel : kpi.resellerLabel) : fieldLabel;
+                        const invalid = invalidColor === key;
+                        const value = pickerColor(normalizeHex(colors[key]));
+                        return (
+                          <div key={key} className="branding-color-row">
+                            <label htmlFor={"branding-" + key}>{name}{!colors[key].trim() && <span className="branding-color-default">Default</span>}</label>
+                            <div className="branding-color-input">
+                              <span className="branding-color-picker" style={{ backgroundColor: value || "var(--" + token + ", " + fallback + ")" }}>
+                                <input
+                                  type="color"
+                                  aria-label={"Pick a color for " + name.toLowerCase()}
+                                  value={value || fallback}
+                                  onChange={event => updateColor(key, event.target.value)}
+                                  disabled={saveMutation.isPending}
+                                />
+                              </span>
+                              <Input
+                                id={"branding-" + key}
+                                placeholder={fallback}
+                                value={colors[key]}
+                                onChange={event => updateColor(key, event.target.value)}
+                                onBlur={() => {
+                                  const hex = normalizeHex(colors[key]);
+                                  if (hex && BRAND_COLOR_PATTERN.test(hex) && hex !== colors[key]) updateColor(key, hex);
+                                }}
+                                aria-invalid={invalid || undefined}
+                                aria-describedby={invalid ? "branding-error-" + key : undefined}
+                                autoComplete="off"
+                                spellCheck={false}
+                                disabled={saveMutation.isPending}
+                              />
+                              <Button type="button" variant="ghost" size="sm" disabled={!colors[key] || saveMutation.isPending} aria-label={"Reset " + name.toLowerCase()} onClick={() => updateColor(key, "")}>
+                                <RotateCcw />Reset
+                              </Button>
+                            </div>
+                            {invalid && <p id={"branding-error-" + key} role="alert">Enter a hex color such as #4285f4.</p>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </details>
+                ))}
               </div>
             </section>
           </div>
-          <aside className="branding-preview" aria-label="Branding preview" style={{ "--preview-primary": previewColor, "--preview-secondary": previewSecondary, "--preview-button-text": previewButtonText }}>
-            <div className="branding-preview-heading">Workspace preview<span><span className="branding-access-dot" />Live</span></div>
-            <div className="branding-preview-content"><div className="branding-preview-window">
-              <div className="branding-preview-browser" aria-hidden="true"><i /><i /><i /><span>{previewAddress}</span><Lock className="size-3 text-muted-foreground" /></div>
-              <div className="branding-preview-brand"><img src={currentLogo} alt="" /><strong>{previewName}</strong></div>
-              <div className="branding-preview-workspace"><div className="branding-preview-nav"><LayoutDashboard aria-hidden="true" />Overview</div><h4>Your workspace</h4><p className="branding-help">A look at your brand in the dashboard.</p><div className="branding-preview-stat"><OverviewMetricCard label="Available credits" value={12500} caption="Example balance" icon={ArrowRight} accent /></div><div className="branding-preview-action">Create campaign<ArrowRight aria-hidden="true" /></div></div>
-            </div></div>
-            <p className="branding-help branding-preview-note">Colors preview across your dashboard as you choose. Save changes to keep them.</p>
+          <aside ref={previewRef} className="branding-preview" aria-label={previewLabel}>
+            <div className="branding-preview-heading">{previewLabel}<span><span className="branding-access-dot" />Live</span></div>
+            <div className="branding-preview-views" role="group" aria-label="Preview example">
+              {PREVIEW_VIEWS.map(({ label, icon: Icon }) => (
+                <button key={label} type="button" aria-pressed={previewView === label} onClick={() => setPreviewView(label)}>
+                  <Icon aria-hidden="true" />
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+            <div className="branding-preview-content">
+              {previewView === "Workspace" && (
+                <div className="branding-preview-window">
+                  <div className="branding-preview-browser" aria-hidden="true"><i /><i /><i /><span>{previewAddress}</span><Lock className="size-3 text-muted-foreground" /></div>
+                  <div className="branding-preview-brand"><img src={currentLogo} alt="" /><strong>{previewName}</strong></div>
+                  <div className="branding-preview-workspace">
+                    <div className="branding-preview-nav"><LayoutDashboard aria-hidden="true" />Overview</div>
+                    <h4>Your workspace</h4>
+                    <p className="branding-help">Campaign activity</p>
+                    <div className="branding-preview-stat"><OverviewMetricCard label="Available credits" value={12500} caption="Example balance" icon={ArrowRight} accent brandSlot="credits" /></div>
+                    <div className="branding-preview-action">Create campaign<ArrowRight aria-hidden="true" /></div>
+                  </div>
+                </div>
+              )}
+              {previewView === "KPI cards" && (
+                <OverviewMetricCards
+                  columns={2}
+                  label="KPI card preview"
+                  className="branding-kpi-preview"
+                  items={(isSuperAdmin ? KPI_CARDS : [KPI_CARDS[3], KPI_CARDS[0], KPI_CARDS[2], KPI_CARDS[1]]).map(card => ({
+                    label: isSuperAdmin ? card.adminLabel : card.resellerLabel,
+                    value: isSuperAdmin ? card.value : card.resellerSample ?? card.value,
+                    brandSlot: card.brandSlot,
+                    valueSize: !isSuperAdmin && card.resellerSample ? "text" : undefined,
+                    icon: isSuperAdmin ? card.icon : card.resellerIcon ?? card.icon,
+                  }))}
+                />
+              )}
+              {previewView === "Components" && (
+                <div className="branding-preview-components">
+                  <div className="branding-preview-secondary">Secondary button</div>
+                  <div className="branding-preview-menu">
+                    <strong>Menu</strong>
+                    <span>Selected item</span>
+                  </div>
+                  <div className="branding-preview-muted">Muted surface</div>
+                  <div className="branding-preview-focus">Focused input</div>
+                </div>
+              )}
+              {previewView === "Status & charts" && (
+                <div className="branding-preview-components">
+                  {STATUS_EXAMPLES.map(([tone, message]) => (
+                    <div className="branding-preview-status" key={tone} style={{
+                      "--example-status-bg": "var(--status-" + tone + "-bg)",
+                      "--example-status-text": "var(--status-" + tone + "-text)",
+                      "--example-status-border": "var(--status-" + tone + "-border)",
+                    }}>
+                      <strong>{tone === "danger" ? "Error" : tone}</strong>
+                      <span>{message}</span>
+                    </div>
+                  ))}
+                  <div className="branding-preview-chart">
+                    <strong>Campaign chart</strong>
+                    <div className="branding-preview-bars" aria-hidden="true"><i /><i /><i /><i /><i /></div>
+                  </div>
+                </div>
+              )}
+            </div>
           </aside>
         </div>
         <div className="mt-5"><FormError message={error} /></div>
-        <div className="branding-savebar"><div><strong>Make it your own</strong><p className="branding-help">{isSuperAdmin ? "Save your website name and brand colors." : "Save your website name, subdomain and brand colors."}</p></div><Button type="submit" disabled={saveMutation.isPending || logoBusy}>{saveMutation.isPending ? <Loader2 className="animate-spin" /> : <Check />}{saveMutation.isPending ? "Saving…" : "Save changes"}</Button></div>
+        <div className="branding-savebar">
+          <span role="status">{hasChanges ? "Unsaved changes" : "All changes saved"}</span>
+          <Button type="submit" disabled={!hasChanges || saveMutation.isPending || logoBusy}>
+            {saveMutation.isPending ? <Loader2 className="animate-spin" /> : <Check />}
+            {saveMutation.isPending ? "Saving..." : isSuperAdmin ? "Save platform branding" : "Save white-label branding"}
+          </Button>
+        </div>
       </form>
     </div>
   );

@@ -135,3 +135,71 @@
   }
   .dashboard-summary-metrics .overview-metric-card:not([data-featured]) .overview-metric-sub-value { font-size: 18px; }
 }
+
+@container portal (min-width: 32rem) and (max-width: 68rem) {
+  .reseller-overview .dashboard-summary-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .reseller-overview .dashboard-summary-metrics .overview-metric-card {
+    grid-column: auto;
+    border-radius: 14px;
+  }
+  .reseller-overview .dashboard-summary-metrics .overview-metric-content {
+    min-height: 108px;
+    padding: 12px 16px;
+    gap: 10px;
+  }
+  .reseller-overview .dashboard-summary-metrics .overview-metric-icon {
+    width: 22px;
+    height: 22px;
+    flex-basis: 22px;
+  }
+  .reseller-overview .dashboard-summary-metrics .overview-metric-split {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin: 0;
+  }
+  .reseller-overview .dashboard-summary-metrics .overview-metric-card .overview-metric-sub {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .reseller-overview .dashboard-summary-metrics .overview-metric-card :is(.overview-metric-value, .overview-metric-sub-value) {
+    font-size: 24px;
+    line-height: 1.05;
+    white-space: normal;
+  }
+}
+
+@container portal (min-width: 68.001rem) {
+  .reseller-overview .dashboard-summary-metrics {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .reseller-overview .dashboard-summary-metrics .overview-metric-card { grid-column: auto; }
+}
+
+.reseller-overview .dashboard-summary-metrics .overview-metric-sub-label {
+  white-space: normal;
+  overflow: visible;
+  opacity: 1;
+}
+.reseller-overview .reseller-purchase-rates .overview-metric-value-suffix {
+  display: inline-block;
+  margin-inline-start: 0.375rem;
+  font-size: 11px;
+  white-space: nowrap;
+}
+@container portal (width < 32rem) {
+  .reseller-overview .dashboard-summary-metrics { grid-template-columns: minmax(0, 1fr); }
+  .reseller-overview .dashboard-summary-metrics .overview-metric-content { min-height: 0; padding: 12px 16px; gap: 8px; }
+  .reseller-overview .dashboard-summary-metrics .overview-metric-split {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .reseller-overview .dashboard-summary-metrics .overview-metric-card .overview-metric-sub {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

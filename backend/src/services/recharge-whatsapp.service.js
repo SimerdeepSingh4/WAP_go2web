@@ -3,32 +3,58 @@ import User from "../models/user.model.js";
 import { NotificationEvent } from "../models/notification.model.js";
 import { roleBase } from "../helpers/notification-policy.js";
 
+export const rechargeNumberPattern = /^\+[1-9]\d{6,14}$/;
+
+export function buyerRechargeChatLink(purchase, viewerId) {
+    const seller = purchase.sellerId;
+    const buyerId = String(purchase.buyerId?._id || purchase.buyerId || "");
+    const viewer = String(viewerId || "");
+    if (!buyerId || buyerId !== viewer ||
+        !purchase.paymentProofKey || !["PENDING", "REVIEW_REQUIRED"].includes(purchase.status) ||
+        !["Reseller", "Super Admin"].includes(seller?.role) || seller.status !== "active" ||
+        (seller.expiresAt && seller.expiresAt <= new Date()) ||
+        !seller?.rechargeWhatsAppNumber ||
+        !rechargeNumberPattern.test(String(seller.rechargeWhatsAppNumber).trim())) return null;
+    const credits = purchase.category === "NUMBER_FILTERING" ? "number filtering" : "campaign";
+    const cleanNumber = String(seller.rechargeWhatsAppNumber).trim();
+    const message = `Hello, I've submitted payment proof for recharge #${String(purchase._id).slice(-8)} for ${purchase.quantity.toLocaleString("en-IN")} ${credits} credits. Please review my request.`;
+    return `https://wa.me/${cleanNumber.slice(1)}?text=${encodeURIComponent(message)}`;
+}
+
+export function rechargeSenderConfigured(env = process.env) {
+    return Boolean(/^v\d+\.\d+$/.test(env.WHATSAPP_GRAPH_VERSION) &&
+        /^\d+$/.test(env.WHATSAPP_PHONE_NUMBER_ID) && env.WHATSAPP_ACCESS_TOKEN?.trim() &&
+        env.WHATSAPP_RECHARGE_TEMPLATE?.trim() && URL.canParse(env.WHATSAPP_PANEL_URL) &&
+        new URL(env.WHATSAPP_PANEL_URL).protocol === "https:");
+}
+
+export function rechargeRecipient(account, accountId) {
+    // An explicitly cleared website setting also disables any legacy destination.
+    return account.rechargeWhatsAppNumber ?? JSON.parse(process.env.WHATSAPP_RECHARGE_RECIPIENTS || "{}")[String(accountId)] ?? "";
+}
+
 export async function queueRechargeAlerts(purchase, stage, session) {
     const eventKey = `recharge:${purchase._id}:proof:${stage}`;
     const data = { id: purchase._id, buyerId: purchase.buyerId, sellerId: purchase.sellerId, stage, version: purchase.updatedAt.getTime() };
     const events = [{ eventKey, kind: "recharge", data }];
-    if (process.env.WHATSAPP_RECHARGE_RECIPIENTS) {
-        events.push({ eventKey: `${eventKey}:whatsapp`, kind: "recharge-whatsapp", data });
-    }
+    events.push({ eventKey: `${eventKey}:whatsapp`, kind: "recharge-whatsapp", data });
     await NotificationEvent.create(events, { session, ordered: true });
-}
+}   
 
 export async function deliverRechargeWhatsApp({ data }) {
     const env = process.env;
-    const recipients = JSON.parse(env.WHATSAPP_RECHARGE_RECIPIENTS || "{}");
-    const to = recipients[String(data.sellerId)];
+    const seller = await User.findById(data.sellerId).select("role status expiresAt +rechargeWhatsAppNumber").lean();
+    if (!seller || !["Super Admin", "Reseller"].includes(seller.role) || seller.status !== "active" || (seller.expiresAt && seller.expiresAt <= new Date())) return;
+    const to = rechargeRecipient(seller, data.sellerId);
     if (!to) return;
-    if (!/^\+[1-9]\d{6,14}$/.test(to)) throw new Error("Invalid reviewer WhatsApp number");
+    if (!rechargeNumberPattern.test(to)) throw new Error("Invalid reviewer WhatsApp number");
     const purchase = await CreditPurchase.findOne({ _id: data.id, sellerId: data.sellerId, status: { $in: ["PENDING", "REVIEW_REQUIRED"] } }).lean();
     if (!purchase || (data.stage === "submitted" && purchase.fixedAt)) return;
-    const seller = await User.findById(purchase.sellerId).select("role status expiresAt").lean();
-    if (!seller || !["Super Admin", "Reseller"].includes(seller.role) || seller.status !== "active" || (seller.expiresAt && seller.expiresAt <= new Date())) return;
     const buyer = await User.findById(purchase.buyerId).select("username").lean();
-    if (!/^v\d+\.\d+$/.test(env.WHATSAPP_GRAPH_VERSION) || !/^\d+$/.test(env.WHATSAPP_PHONE_NUMBER_ID) || !env.WHATSAPP_ACCESS_TOKEN || !env.WHATSAPP_RECHARGE_TEMPLATE) {
+    if (!rechargeSenderConfigured(env)) {
         throw new Error("WhatsApp recharge sender settings are incomplete");
     }
     const url = new URL(`${roleBase(seller.role)}/credits?tab=requests`, env.WHATSAPP_PANEL_URL);
-    if (url.protocol !== "https:") throw new Error("WhatsApp panel URL requires HTTPS");
     const values = [
         data.stage === "fixed" ? "Corrected payment proof" : "New payment proof",
         buyer?.username || "Account", String(purchase._id).slice(-8),

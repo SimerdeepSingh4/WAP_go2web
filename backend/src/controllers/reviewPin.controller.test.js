@@ -12,7 +12,7 @@ Object.assign(process.env, {
 
 const { Types } = await import("mongoose");
 const { default: ReviewPin } = await import("../models/reviewPin.model.js");
-const { resolvePin } = await import("./reviewPin.controller.js");
+const { resolvePin, deletePin } = await import("./reviewPin.controller.js");
 
 const pinId = new Types.ObjectId().toString();
 const userId = new Types.ObjectId();
@@ -27,6 +27,34 @@ const response = () => ({
     statusCode: 200,
     status(code) { this.statusCode = code; return this; },
     json(body) { this.body = body; return this; },
+});
+
+test("an owner can retry deletion after the pin is gone", async t => {
+    let pin = { _id: pinId, page: "/user" };
+    t.mock.method(ReviewPin, "findOneAndDelete", async filter => {
+        assert.deepEqual(filter, { _id: pinId, createdByUserId: userId });
+        const deleted = pin;
+        pin = null;
+        return deleted;
+    });
+    t.mock.method(ReviewPin, "exists", async () => null);
+    for (const message of ["Pin deleted.", "Pin already deleted."]) {
+        const res = response();
+        await deletePin(request(), res);
+        assert.equal(res.statusCode, 200);
+        assert.deepEqual(res.body, { success: true, message });
+    }
+});
+
+test("an existing pin owned by another user cannot be deleted", async t => {
+    t.mock.method(ReviewPin, "findOneAndDelete", async filter => {
+        assert.deepEqual(filter, { _id: pinId, createdByUserId: userId });
+        return null;
+    });
+    t.mock.method(ReviewPin, "exists", async () => ({ _id: pinId }));
+    const res = response();
+    await deletePin(request(), res);
+    assert.equal(res.statusCode, 403);
 });
 
 test("resolution records a trimmed name, authenticated user and server date/time", async t => {

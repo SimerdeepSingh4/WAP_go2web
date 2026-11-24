@@ -30,6 +30,7 @@ import { toast } from "@/components/ui/toast";
 import api from "@/api/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
+import { initialCampaignReportRows } from "../../../../../../shared/campaignContacts.js";
 import { normalizeDuplicateRows } from "@campaign-sheet";
 import { number } from "@/lib/format";
 import OverviewMetricCards from "@/features/dashboard/components/OverviewMetricCards";
@@ -84,58 +85,15 @@ export default function CampaignCategoryCards({ campaign }) {
   /* ---------------- 1. Extract Original Upload Sequence ---------------- */
   // Preserves the EXACT sequence in which the user uploaded their phone numbers
   const originalUploadedNumbers = useMemo(() => {
-    const list = [];
-    let counter = 1;
-
-    // If campaign already had saved entries, use those row numbers
-    if (campaign.recipientEntries && campaign.recipientEntries.length > 0) {
-      const sorted = [...campaign.recipientEntries].sort(
-        (a, b) => (Number(a.rowNumber) || 0) - (Number(b.rowNumber) || 0)
-      );
-      return normalizeDuplicateRows(sorted).map((e) => ({
-        ...e,
-        rowNumber: Number(e.rowNumber) || counter++,
-        phoneNumber: digits(e.phoneNumber),
-        initialTab: e.tabKey || (e.status === "failed" ? "wrong" : "delivered"),
-        initialBilling: e.billingAction || "keep",
-      }));
-    }
-
-    // Otherwise, build from campaign.recipients, duplicatesList, and invalidList
-    for (const r of campaign.recipients || []) {
-      const clean = digits(r.phoneNumber);
-      if (!clean) continue;
-      list.push({
-        rowNumber: counter++,
-        phoneNumber: clean,
-        initialTab: r.status === "delivered" ? "delivered" : r.status === "failed" ? "wrong" : "delivered",
-        initialBilling: r.status === "failed" ? "refund" : "keep",
-      });
-    }
-
-    for (const dup of campaign.recipientStats?.duplicatesList || []) {
-      const clean = digits(dup);
-      if (!clean) continue;
-      list.push({
-        rowNumber: counter++,
-        phoneNumber: clean,
-        initialTab: "duplicate",
-        initialBilling: "refund",
-      });
-    }
-
-    for (const inv of campaign.recipientStats?.invalidList || []) {
-      const clean = digits(inv);
-      if (!clean) continue;
-      list.push({
-        rowNumber: counter++,
-        phoneNumber: clean,
-        initialTab: "wrong",
-        initialBilling: "refund",
-      });
-    }
-
-    return list;
+    const rows = campaign.recipientEntries?.length ? campaign.recipientEntries : initialCampaignReportRows(campaign);
+    const sorted = [...rows].sort((a, b) => Number(a.rowNumber) - Number(b.rowNumber));
+    return normalizeDuplicateRows(sorted).map((entry) => ({
+      ...entry,
+      rowNumber: Number(entry.rowNumber),
+      phoneNumber: digits(entry.phoneNumber),
+      initialTab: entry.tabKey || (entry.status === "failed" ? "wrong" : "delivered"),
+      initialBilling: entry.billingAction || "keep",
+    }));
   }, [campaign]);
 
   /* ---------------- 2. Custom Categories State ---------------- */

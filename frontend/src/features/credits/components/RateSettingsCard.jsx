@@ -6,6 +6,7 @@ import { Field } from "@/features/dashboard/components/shared";
 import { IndianRupee, Landmark, LoaderCircle, Save, Smartphone } from "lucide-react";
 import { usePaymentInstructions, useUpdatePaymentInstructions } from "../hooks/useCredits";
 import { PurchaseRateEditor } from "./PurchaseRateEditor";
+import RechargeAlertSettings from "./RechargeAlertSettings";
 import "./credit-settings.css";
 
 const bankFields = [
@@ -47,6 +48,7 @@ export default function RateSettingsCard({ showPurchaseRates = false }) {
   return (
     <div className="credit-settings">
       <div className="credit-settings-layout">
+        <RechargeAlertSettings />
         <section className="credit-settings-panel" aria-labelledby="selling-rates-title">
           <header className="credit-settings-heading">
             <span className="credit-settings-icon"><IndianRupee aria-hidden="true" /></span>

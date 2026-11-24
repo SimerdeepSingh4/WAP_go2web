@@ -35,6 +35,7 @@ export default function UserOverview() {
     <QueryState query={balance} variant="cards"><OverviewMetricCards className="dashboard-summary-metrics" columns={3} items={[
       {
         label: "Available Credits",
+        brandSlot: "credits",
         metrics: [
           { label: "Campaign", value: campaignCredits },
           { label: "Filtering", value: filteringCredits },
@@ -46,6 +47,7 @@ export default function UserOverview() {
       },
       {
         label: "Campaigns",
+        brandSlot: "campaigns",
         metrics: [
           { label: "Total", value: totalCampaigns, loading: campaigns.isPending },
           { label: "Completed", value: completedCampaigns, loading: campaigns.isPending },
@@ -57,6 +59,7 @@ export default function UserOverview() {
       },
       {
         label: "Purchase Rates",
+        brandSlot: "network",
         metrics: [
           { label: "Campaign", value: campaignRate, valueSuffix: "Paisa", loading: ratesQuery.isPending },
           { label: "Filtering", value: filteringRate, valueSuffix: "Paisa", loading: ratesQuery.isPending },

@@ -81,10 +81,13 @@
   .credit-ledger-filters { display: grid; grid-template-columns: minmax(0, 1fr); }
   .credit-ledger-type-filter, .credit-ledger-account-filter { width: 100%; }
   .credit-ledger-filters :is([data-slot="select-trigger"], .account-picker-trigger) { min-height: 44px; height: 44px; }
+}
+
+@media (max-width: 980px) {
   .credit-ledger .mobile-record-value .credit-ledger-reference { font-size: 12px; }
   .portal-main .credit-ledger .mobile-record-value .credit-ledger-reference button { min-width: 36px; min-height: 36px; }
   .credit-ledger .mobile-record { gap: 8px; }
   .credit-ledger .mobile-record-highlights { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr)); align-items: start; gap: 8px; }
-  .credit-ledger .credit-ledger-note { display: block; overflow: visible; -webkit-line-clamp: unset; }
+  .credit-ledger .mobile-record .credit-ledger-note { display: block; overflow: visible; -webkit-line-clamp: unset; }
   .credit-ledger .mobile-record-actions:has([aria-label="No action available"]) { display: none; }
 }

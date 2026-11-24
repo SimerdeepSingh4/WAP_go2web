@@ -1,3 +1,7 @@
+.credit-ledger.transaction-ledger-table .responsive-table-desktop table {
+  table-layout: auto;
+}
+
 .transaction-ledger-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -40,29 +44,13 @@
   white-space: nowrap;
 }
 
-.transaction-ledger-table .transaction-allocate-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  min-height: 34px;
-  height: 34px;
-  padding: 0 12px;
-  border-color: var(--border);
-  color: var(--primary);
-  font-size: 12px;
-  line-height: 1;
-  white-space: nowrap;
-}
-
 @media (max-width: 640px) {
   .transaction-ledger-filters {
     width: 100%;
     gap: 8px;
   }
 
-  .transaction-ledger-filters :is([data-slot="select-trigger"], .account-picker-trigger),
-  .transaction-ledger-table .transaction-allocate-button {
+  .transaction-ledger-filters :is([data-slot="select-trigger"], .account-picker-trigger) {
     min-height: 44px;
     height: 44px;
   }

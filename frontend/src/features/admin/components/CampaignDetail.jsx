@@ -451,7 +451,7 @@ export default function CampaignDetail({ id, initialReport, initialStatus, onClo
               <p className="whitespace-pre-wrap break-words">{values.adminNotes || "No report note."}</p>
             </>
           )}
-          submitLabel="Publish report"
+          submitLabel={reported ? "Update report" : "Publish report"}
         />
       )}
 

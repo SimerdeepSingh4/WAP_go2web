@@ -1,3 +1,4 @@
+import { BRAND_COLOR_FIELDS, BRAND_COLOR_PATTERN } from "../../../shared/brandingColors.js";
 import { notificationHooks } from "../helpers/notification-hooks.js";
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
@@ -29,6 +30,7 @@ const userSchema = new mongoose.Schema(
             validate: { validator: value => !value || /^\+?\d{7,15}$/.test(value), message: "Enter a valid phone number with 7 to 15 digits." },
         },
         companyName: { type: String, trim: true, default: "", maxlength: 150 },
+        rechargeWhatsAppNumber: { type: String, select: false },
         password: {
             type: String,
             required: [true, "Password is required"],
@@ -106,40 +108,19 @@ const userSchema = new mongoose.Schema(
                 type: String,
                 trim: true,
                 default: "",
-                maxlength: 100,
+                maxlength: 30,
             },
             logoUrl: {
                 type: String,
                 trim: true,
                 default: "",
             },
-            primaryColor: {
+            ...Object.fromEntries(Object.keys(BRAND_COLOR_FIELDS).map(key => [key, {
                 type: String,
                 trim: true,
                 default: "",
-                validate: {
-                    validator: (v) => !v || /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v),
-                    message: "Primary color must be a valid hex color code.",
-                },
-            },
-            secondaryColor: {
-                type: String,
-                trim: true,
-                default: "",
-                validate: {
-                    validator: (v) => !v || /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v),
-                    message: "Secondary color must be a valid hex color code.",
-                },
-            },
-            accentColor: {
-                type: String,
-                trim: true,
-                default: "",
-                validate: {
-                    validator: (v) => !v || /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v),
-                    message: "Accent color must be a valid hex color code.",
-                },
-            },
+                validate: value => !value || BRAND_COLOR_PATTERN.test(value),
+            }])),
         },
         paymentInstructions: {
             bankName: { type: String, trim: true, default: "", maxlength: 100 },

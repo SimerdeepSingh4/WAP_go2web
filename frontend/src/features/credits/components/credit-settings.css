@@ -249,6 +249,14 @@
 .credit-settings-payment-body input { min-height: 2.625rem; background: var(--card); }
 .credit-settings-payment-body textarea { min-height: 4.5rem; }
 
+.credit-alert-form { padding: var(--credit-settings-gutter); }
+.credit-alert-fields { display: grid; min-width: 0; gap: 0.5rem; }
+.credit-alert-fields label { font-size: 0.8125rem; font-weight: 500; }
+.credit-alert-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; max-width: 30rem; }
+.credit-alert-controls input { flex: 1 1 15rem; min-width: 0; }
+.credit-alert-controls button { flex: none; width: fit-content; }
+.credit-alert-controls :is(input, button) { min-height: 2.625rem; }
+
 .credit-settings-save {
   display: flex;
   flex-wrap: wrap;

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router";
+import { Pencil } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable, FilterSelect, SearchBox } from "@/features/dashboard/components/shared";
 import { number } from "@/lib/format";
@@ -9,7 +11,7 @@ import FilteringNumberActions from "./FilteringNumberActions";
 const tones = { valid: "success", duplicates: "info", wrong: "danger", "not-on-whatsapp": "warning" };
 const mobileLayout = { primary: "phoneNumber", featured: ["category"] };
 
-export default function FilteringPublishedResults({ request }) {
+export default function FilteringPublishedResults({ request, onEdit }) {
   const heading = useRef(null);
   const { hash } = useLocation();
   useEffect(() => {
@@ -53,12 +55,20 @@ export default function FilteringPublishedResults({ request }) {
 
   return (
     <section className="filtering-result-view min-w-0 space-y-4" aria-labelledby="published-results">
-      <header>
-        <h2 id="published-results" ref={heading} tabIndex={-1} className="scroll-mt-20 text-base font-semibold">Published results</h2>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {number(result.rows.length)} of {number(request.submittedRowCount)} submitted rows categorized
-          {unclassified > 0 && <> · {number(unclassified)} without a category</>}
-        </p>
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 id="published-results" ref={heading} tabIndex={-1} className="scroll-mt-20 text-base font-semibold">Published results</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {number(result.rows.length)} of {number(request.submittedRowCount)} submitted rows categorized
+            {unclassified > 0 && <> · {number(unclassified)} without a category</>}
+          </p>
+        </div>
+        {onEdit && (
+          <Button variant="outline" size="sm" onClick={onEdit} className="h-8 gap-1.5 text-xs">
+            <Pencil className="size-3.5" />
+            Edit results
+          </Button>
+        )}
       </header>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(9rem,1fr))]">
         {summary.map(item => (

@@ -336,6 +336,7 @@ export default function ResellerCampaigns({ reports = false }) {
           columns={columns}
           compact={true}
           className="campaign-list-table"
+          mobile={{ featured: ["status", "audience", "report"] }}
         />
       </QueryState>
 

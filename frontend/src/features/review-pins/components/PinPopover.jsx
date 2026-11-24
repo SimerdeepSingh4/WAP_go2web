@@ -14,7 +14,7 @@ const POPOVER_HEIGHT_EST = 300;
  *   onDelete  (pin) => void
  *   canDelete {boolean}
  */
-export default function PinPopover({ pin, onClose, onDelete, canDelete, onResolve, resolverName = "", isResolving = false, resolveError }) {
+export default function PinPopover({ pin, onClose, onDelete, canDelete, isDeleting = false, onResolve, resolverName = "", isResolving = false, resolveError }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [askingName, setAskingName] = useState(false);
   const [name, setName] = useState(resolverName);
@@ -145,13 +145,14 @@ export default function PinPopover({ pin, onClose, onDelete, canDelete, onResolv
               <button
                 type="button"
                 onClick={handleDeleteClick}
+                disabled={isDeleting}
                 className={`flex-shrink-0 text-xs px-3 py-2 rounded-lg transition-colors font-medium whitespace-nowrap ${
                   confirmDelete
                     ? "bg-red-700 hover:bg-red-600 text-white"
                     : "bg-neutral-800 hover:bg-neutral-700 text-neutral-300 border border-neutral-700"
                 } ${pin.status === "resolved" || !onResolve ? "ml-auto" : ""}`}
               >
-                {confirmDelete ? "Confirm delete" : "Delete"}
+                {isDeleting ? "Deleting…" : confirmDelete ? "Confirm delete" : "Delete"}
               </button>
             )}
           </div>

@@ -2,6 +2,7 @@ import TransactionAmount from "@/features/credits/components/TransactionAmount";
 import TransactionReference from "@/features/credits/components/TransactionReference";
 import "./admin-transactions.css";
 import "@/features/credits/components/credit-history.css";
+import { Popover } from "@base-ui/react/popover";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import {
@@ -10,12 +11,14 @@ import {
   RotateCcw,
   Coins,
   ReceiptText,
+  MoreHorizontal,
   Lock,
   Send,
   PhoneCall,
   Inbox,
   Settings,
 } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import OverviewMetricCards from "@/features/dashboard/components/OverviewMetricCards";
 import { CreditBalancePreview } from "@/features/dashboard/components/ActionReview";
@@ -32,7 +35,7 @@ import {
   Pager,
 } from "../../dashboard/components/shared";
 import ActionForm from "../components/ActionForm";
-import { dateTime, number, ownerName } from "../../../lib/format";
+import { number, ownerName } from "../../../lib/format";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { getTransactionDisplay, getCategoryDisplay, getTransactionNote } from "@/features/credits/lib/creditTransactionDisplay";
 import PurchasesTable from "@/features/credits/components/PurchasesTable";
@@ -161,38 +164,30 @@ export default function AdminCredits({ activity = false }) {
       render: (t) => <span className="credit-ledger-account text-xs text-muted-foreground" title={ownerName(t.performedBy)}>{ownerName(t.performedBy)}</span>,
     },
     {
-      key: "note",
-      label: "Note",
-      render: (t) => {
-        const noteText = getTransactionNote(t) || "—";
-        return (
-          <span
-            className="credit-ledger-note text-xs text-muted-foreground"
-            title={noteText !== "—" ? noteText : undefined}
-          >
-            {noteText}
-          </span>
-        );
-      },
-    },
-    {
       key: "actions",
-      label: "Action",
+      label: "Actions",
       className: "text-right",
-      render: (t) => t.type === "REQUEST" ? (
-        <Button
-          size="sm"
-          variant="outline"
-          nativeButton={false}
-          className="credit-ledger-allocate transaction-allocate-button"
-          aria-label="Allocate credits"
-          title="Allocate credits"
-          render={<Link to={`/admin/credits?allocate=${t.toUser?._id || t.toUser}&amount=${t.amount}&category=${t.category || "CAMPAIGN"}`} />}
-        >
-          <Plus aria-hidden="true" className="size-3.5" />
-          <span className="credit-ledger-action-label">Allocate</span>
-        </Button>
-      ) : <span className="text-muted-foreground" aria-label="No action available">&mdash;</span>,
+      render: (t) => (
+        <Popover.Root>
+          <Popover.Trigger render={<Button variant="ghost" size="icon" aria-label={`Actions for transaction ${t.transactionId || t._id}`} />}>
+            <MoreHorizontal aria-hidden="true" />
+          </Popover.Trigger>
+          <Popover.Portal>
+            <Popover.Positioner align="end" sideOffset={4} className="z-50">
+              <Popover.Popup className="w-64 max-w-(--available-width) max-h-(--available-height) overflow-y-auto rounded-lg border bg-popover p-3 text-popover-foreground shadow-md">
+                <Popover.Title className="text-xs font-medium text-muted-foreground">Transaction note</Popover.Title>
+                <p className="mt-1 whitespace-pre-wrap wrap-anywhere text-sm">{getTransactionNote(t) || "No note recorded."}</p>
+                {t.type === "REQUEST" && (
+                  <Button size="sm" variant="outline" nativeButton={false} className="mt-3"
+                    render={<Link to={`/admin/credits?allocate=${t.toUser?._id || t.toUser}&amount=${t.amount}&category=${t.category || "CAMPAIGN"}`} />}>
+                    <Plus aria-hidden="true" /> Allocate credits
+                  </Button>
+                )}
+              </Popover.Popup>
+            </Popover.Positioner>
+          </Popover.Portal>
+        </Popover.Root>
+      ),
     },
   ];
 
@@ -259,11 +254,6 @@ export default function AdminCredits({ activity = false }) {
       render: (a) => <span className="tabular-nums text-xs">{number(a.ratePerMsg)}</span>,
     },
     {
-      key: "accountExpiry",
-      label: "Account expiry",
-      render: (a) => <span className={a.isExpired ? "text-xs font-medium text-destructive" : "text-xs text-muted-foreground"}>{a.expiresAt ? dateTime(a.expiresAt) : "No expiry"}{a.isExpired ? " · Expired" : ""}</span>,
-    },
-    {
       key: "status",
       label: "Status",
       render: (a) => <StatusBadge status={a.isExpired ? "expired" : a.status} />,
@@ -273,42 +263,25 @@ export default function AdminCredits({ activity = false }) {
       label: "Actions",
       className: "text-right",
       render: (a) => (
-        <div className="flex items-center justify-end gap-1.5">
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-xs text-foreground"
-            onClick={() => update("allocate", a._id)}
-            title="Allocate credits"
-            aria-label={`Allocate credits to ${a.username}`}
-          >
-            <Plus className="size-3.5" />
-            Allocate credits
-          </Button>
-          <Button
-            size="icon-sm"
-            variant="outline"
-            className="size-7 text-amber-700 hover:text-amber-800 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/30"
-            onClick={() => {
+        <DropdownMenu>
+          <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Wallet actions for ${a.username}`} />}>
+            <MoreHorizontal aria-hidden="true" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem onClick={() => update("allocate", a._id)}>
+              <Plus aria-hidden="true" /> Allocate credits
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => {
               setReclaimAccount(a);
               setReclaimOpen(true);
-            }}
-            title="Reclaim credits"
-            aria-label={`Reclaim credits from ${a.username}`}
-          >
-            <RotateCcw className="size-3.5" />
-          </Button>
-          <Button
-            size="icon-sm"
-            variant="outline"
-            className="size-7 text-muted-foreground hover:text-foreground"
-            render={<Link to={`/admin/activity?account=${a._id}`} />}
-            title="View transactions for this account"
-            aria-label={`View transactions for ${a.username}`}
-          >
-            <ReceiptText className="size-3.5" />
-          </Button>
-        </div>
+            }}>
+              <RotateCcw aria-hidden="true" /> Reclaim credits
+            </DropdownMenuItem>
+            <DropdownMenuItem render={<Link to={`/admin/activity?account=${a._id}`} />}>
+              <ReceiptText aria-hidden="true" /> View transactions
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       ),
     },
   ];
@@ -548,6 +521,7 @@ export default function AdminCredits({ activity = false }) {
             <QueryState query={accountsQuery} empty={!accounts.length} emptyTitle="No account wallets yet" emptyDescription="Add a user or reseller account before allocating credits." emptyAction={<Button variant="outline" nativeButton={false} render={<Link to="/admin/users" />}>Manage users</Button>}>
               <DataTable
                 caption="Account wallets and balances"
+                compact
                 className="account-list-table account-list-table-wallets"
                 rows={filteredAccounts}
                 emptyTitle="No accounts match your filters"

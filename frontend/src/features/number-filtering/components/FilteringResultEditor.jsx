@@ -42,7 +42,7 @@ function makeEditorCategories(request, submittedRows) {
   }));
 }
 
-export default function FilteringResultEditor({ request }) {
+export default function FilteringResultEditor({ request, onCancel, onPublished }) {
   const idPrefix = useId();
   const [edit, setEdit] = useState(null);
   const [confirmation, setConfirmation] = useState(null);
@@ -88,7 +88,8 @@ export default function FilteringResultEditor({ request }) {
       onSuccess: () => {
         setEdit(null);
         setConfirmation(null);
-        toast.add({ title: { draft: "Draft saved", publish: "Results published", close: "Request closed" }[mode], type: "success" });
+        if (mode === "publish" && onPublished) onPublished();
+        toast.add({ title: { draft: "Draft saved", publish: request.publishedAt ? "Results updated" : "Results published", close: "Request closed" }[mode], type: "success" });
       },
     });
   }
@@ -150,8 +151,11 @@ export default function FilteringResultEditor({ request }) {
       <footer className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">{number(preview.rows.length)} of {number(request.submittedRowCount)} rows categorized</p>
         <div className="flex flex-wrap items-center gap-2">
+          {onCancel && <Button type="button" variant="ghost" onClick={onCancel}>Cancel</Button>}
           <Button type="button" variant="outline" disabled={!canSave} onClick={() => save("draft")}>Save draft</Button>
-          <Button type="button" disabled={!canSave} onClick={() => setConfirmation("publish")}>Publish results</Button>
+          <Button type="button" disabled={!canSave} onClick={() => setConfirmation("publish")}>
+            {request.publishedAt ? "Update results" : "Publish results"}
+          </Button>
           {request.status !== "CLOSED" && <Button type="button" variant="ghost" disabled={readOnly} onClick={() => setConfirmation("close")}>Close request</Button>}
         </div>
       </footer>
@@ -177,7 +181,7 @@ export default function FilteringResultEditor({ request }) {
       }}>
         <DialogContent showCloseButton={!mutation.isPending}>
           <DialogHeader>
-            <DialogTitle>{confirmation === "close" ? "Close this request?" : "Publish filtering results?"}</DialogTitle>
+            <DialogTitle>{confirmation === "close" ? "Close this request?" : request.publishedAt ? "Update filtering results?" : "Publish filtering results?"}</DialogTitle>
             <DialogDescription>{confirmation === "close" ? "The requester can still open any published results."
               : `The requester will see ${number(preview.rows.length)} categorized numbers. Billing is based on all submitted rows.`}</DialogDescription>
           </DialogHeader>
@@ -185,7 +189,7 @@ export default function FilteringResultEditor({ request }) {
           <DialogFooter>
             <Button type="button" variant="outline" disabled={mutation.isPending} onClick={() => { setConfirmation(null); mutation.reset(); }}>Back</Button>
             <Button type="button" disabled={readOnly || (confirmation === "publish" && !canSave)} onClick={() => save(confirmation)}>
-              {mutation.isPending ? "Saving…" : confirmation === "close" ? "Close request" : "Publish results"}
+              {mutation.isPending ? "Saving…" : confirmation === "close" ? "Close request" : request.publishedAt ? "Update results" : "Publish results"}
             </Button>
           </DialogFooter>
         </DialogContent>

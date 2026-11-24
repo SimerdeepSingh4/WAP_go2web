@@ -3,7 +3,7 @@ import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { useSearchParams, Link } from "react-router";
 import { Popover } from "@base-ui/react/popover";
-import { MoreHorizontal, Eye, FileText, CalendarDays, Trash2, Download, Image as ImageIcon, Video, MessageSquare, Users, CheckCircle2, Clock } from "lucide-react";
+import { MoreHorizontal, Eye, FileText, CalendarDays, Trash2, Download, Image as ImageIcon, Video, MessageSquare, Users, CheckCircle2, Clock, X } from "lucide-react";
 import CampaignDeleteDialog from "@/features/campaigns/components/CampaignDeleteDialog";
 import { useAdminMutation } from "../hooks/useAdmin";
 import { Button } from "@/components/ui/button";
@@ -432,7 +432,7 @@ export default function Campaigns({ reports = false }) {
         })}
       </div>
 
-        <div className="ml-auto flex max-w-full flex-wrap items-center gap-2">
+        <div className="ml-auto flex w-[236px] max-w-full items-center gap-2">
           <Popover.Root open={calendarOpen} onOpenChange={(open) => {
             if (open) {
               setDraftRange(selectedRange);
@@ -441,10 +441,10 @@ export default function Campaigns({ reports = false }) {
             setCalendarOpen(open);
           }}>
             <Popover.Trigger
-                render={<Button data-tour="campaign-dates" data-filtered={hasCompleteRange || undefined} type="button" variant={hasCompleteRange ? "default" : "outline"} size="sm" className="campaign-date-filter-trigger gap-2" />}
+                render={<Button data-tour="campaign-dates" data-filtered={hasCompleteRange || undefined} type="button" title={dateFilterLabel} variant={hasCompleteRange ? "default" : "outline"} size="sm" className="campaign-date-filter-trigger gap-2" />}
             >
               <CalendarDays className="size-4" />
-              {dateFilterLabel}
+              <span className="truncate">{dateFilterLabel}</span>
             </Popover.Trigger>
             <Popover.Portal>
               <Popover.Positioner align="end" sideOffset={8} className="z-50">
@@ -523,8 +523,8 @@ export default function Campaigns({ reports = false }) {
             </Popover.Portal>
           </Popover.Root>
           <motion.div initial={false} animate={{ opacity: hasFilters ? 1 : 0 }} transition={{ duration: reducedMotion ? 0 : 0.16 }} style={{ display: hasFilters ? undefined : "none" }} aria-hidden={!hasFilters}>
-            <Button variant="ghost" size="sm" disabled={!hasFilters} tabIndex={hasFilters ? 0 : -1} onClick={() => setParams({})}>
-              Clear all filters
+            <Button variant="ghost" size="icon" aria-label="Clear all filters" title="Clear all filters" disabled={!hasFilters} tabIndex={hasFilters ? 0 : -1} onClick={() => setParams({})}>
+              <X aria-hidden="true" />
             </Button>
           </motion.div>
         </div>
@@ -544,6 +544,7 @@ export default function Campaigns({ reports = false }) {
           columns={columns}
           compact={true}
           className="campaign-list-table"
+          mobile={{ featured: ["status", "audience", "report"] }}
         />
       </QueryState>
 
