@@ -3,7 +3,7 @@ import { ArrowUpRight } from "lucide-react";
 import AnimatedMetricValue from "./AnimatedMetricValue";
 import "./overview-metrics.css";
 
-export function OverviewMetricCard({ label, value, caption, icon: Icon, path, accent = false, tone, loading, valueSize, signDisplay, valueSuffix, className = "", metrics }) {
+export function OverviewMetricCard({ label, value, caption, icon: Icon, path, accent = false, tone, loading, valueSize, signDisplay, valueSuffix, className = "", metrics, brandSlot }) {
   // Navigation gets an arrow; informational cards retain their metric icon.
   const Indicator = path ? ArrowUpRight : Icon;
   const content = <>
@@ -42,7 +42,7 @@ export function OverviewMetricCard({ label, value, caption, icon: Icon, path, ac
     {caption && <div className="overview-metric-footer">{caption}</div>}
   </>;
 
-  return <article className={`overview-metric-card ${className}`} data-featured={accent || undefined} data-tone={tone}>
+  return <article className={`overview-metric-card ${className}`} data-featured={accent || undefined} data-tone={tone} data-brand-slot={brandSlot}>
     {path ? <Link className="overview-metric-content" to={path}>{content}</Link> : <div className="overview-metric-content">{content}</div>}
   </article>;
 }

@@ -1,6 +1,7 @@
 /* Green-led workspace palette with quiet mint surfaces, shared by every role. */
 :root,
-.light {
+.light,
+.branding-preview {
   color-scheme: light;
   --palette-teal: #128c7e;
   --palette-mint: #b8e3cd;
@@ -8,41 +9,41 @@
   --palette-light-gray: #dce7df;
   --palette-ink: #172b24;
 
-  --background: #fbfdfb;
-  --foreground: var(--palette-ink);
-  --card: #ffffff;
+  --background: var(--brand-background, #fbfdfb);
+  --foreground: var(--brand-foreground, var(--palette-ink));
+  --card: var(--brand-card, #ffffff);
   --card-foreground: var(--foreground);
-  --popover: var(--card);
+  --popover: var(--brand-popover, var(--card));
   --popover-foreground: var(--foreground);
   --primary: #008069;
   --primary-text: #006b58;
   --primary-hover: #006b58;
   --primary-foreground: #ffffff;
-  --secondary: #edf5ef;
-  --secondary-hover: #e2eee6;
+  --secondary: var(--theme-secondary, #edf5ef);
+  --secondary-hover: var(--theme-secondary-hover, #e2eee6);
   --secondary-foreground: var(--foreground);
-  --accent: #e7f5ed;
-  --accent-hover: #d6eddf;
+  --accent: var(--theme-accent, #e7f5ed);
+  --accent-hover: var(--theme-accent-hover, #d6eddf);
   --accent-foreground: var(--foreground);
-  --muted: #eff5f0;
-  --muted-hover: #e5eee7;
-  --muted-foreground: #5d7064;
-  --surface-subtle: #f3f8f4;
-  --border: var(--palette-light-gray);
-  --input: #cfdfd4;
-  --ring: #128c7e;
-  --destructive: #dc2626;
+  --muted: var(--brand-muted, #eff5f0);
+  --muted-hover: var(--theme-muted-hover, #e5eee7);
+  --muted-foreground: var(--brand-muted-foreground, #5d7064);
+  --surface-subtle: var(--brand-muted, #f3f8f4);
+  --border: var(--brand-border, var(--palette-light-gray));
+  --input: var(--brand-border, #cfdfd4);
+  --ring: var(--brand-ring, #128c7e);
+  --destructive: var(--brand-danger, #dc2626);
   --accent-brown: var(--muted-foreground);
   --accent-brown-foreground: #ffffff;
   --radius: 0.75rem;
 
-  --sidebar: #f7fbf8;
-  --sidebar-hover: #eaf3ed;
-  --sidebar-foreground: var(--foreground);
+  --sidebar: var(--brand-sidebar, #f7fbf8);
+  --sidebar-hover: var(--theme-sidebar-hover, #eaf3ed);
+  --sidebar-foreground: var(--brand-sidebar-foreground, var(--foreground));
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: #dff1e6;
-  --sidebar-accent-foreground: #145c43;
+  --sidebar-accent: var(--theme-sidebar-accent, #dff1e6);
+  --sidebar-accent-foreground: var(--brand-sidebar-foreground, #145c43);
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
   --portal-brown: var(--muted-foreground);
@@ -63,18 +64,18 @@
   --kpi-green-start: #104936;
   --kpi-green-end: #1b7b54;
   --kpi-green-icon: #175b40;
-  --status-success-bg: #e7f5ed;
-  --status-success-text: #176448;
-  --status-success-border: #b8dfc9;
-  --status-warning-bg: #fffbeb;
-  --status-warning-text: #92400e;
-  --status-warning-border: #fde68a;
-  --status-danger-bg: #fef2f2;
-  --status-danger-text: #b91c1c;
-  --status-danger-border: #fecaca;
-  --status-info-bg: #eff6ff;
-  --status-info-text: #1d4ed8;
-  --status-info-border: #bfdbfe;
+  --status-success-bg: var(--theme-status-success-bg, #e7f5ed);
+  --status-success-text: var(--theme-status-success-text, #176448);
+  --status-success-border: var(--theme-status-success-border, #b8dfc9);
+  --status-warning-bg: var(--theme-status-warning-bg, #fffbeb);
+  --status-warning-text: var(--theme-status-warning-text, #92400e);
+  --status-warning-border: var(--theme-status-warning-border, #fde68a);
+  --status-danger-bg: var(--theme-status-danger-bg, #fef2f2);
+  --status-danger-text: var(--theme-status-danger-text, #b91c1c);
+  --status-danger-border: var(--theme-status-danger-border, #fecaca);
+  --status-info-bg: var(--theme-status-info-bg, #eff6ff);
+  --status-info-text: var(--theme-status-info-text, #1d4ed8);
+  --status-info-border: var(--theme-status-info-border, #bfdbfe);
 
   /* Existing palette names remain aliases, so older screens stay in theme. */
   --palette-slate-gray: var(--muted-foreground);
@@ -89,11 +90,11 @@
   --palette-deep-green: var(--primary);
   --palette-rich-brown: var(--muted-foreground);
 
-  --chart-1: #087f5b;
-  --chart-2: #169b78;
-  --chart-3: #4db394;
-  --chart-4: #8acfb3;
-  --chart-5: #c9e9d7;
+  --chart-1: var(--brand-chart, #087f5b);
+  --chart-2: var(--theme-chart-2, #169b78);
+  --chart-3: var(--theme-chart-3, #4db394);
+  --chart-4: var(--theme-chart-4, #8acfb3);
+  --chart-5: var(--theme-chart-5, #c9e9d7);
   --chart-positive: #008069;
   --chart-negative: #dc2626;
   --chart-background: var(--card);
@@ -125,9 +126,9 @@
   --chart-segment-background: color-mix(in srgb, var(--palette-teal) 20%, transparent);
   --chart-segment-line: var(--input);
 
-  --toast-info-surface: var(--card);
-  --toast-info-border: var(--border);
-  --toast-info-icon: var(--primary);
+  --toast-info-surface: var(--theme-status-info-bg, var(--card));
+  --toast-info-border: var(--theme-status-info-border, var(--border));
+  --toast-info-icon: var(--theme-status-info-text, var(--primary));
   --toast-success-surface: var(--status-success-bg);
   --toast-success-border: var(--status-success-border);
   --toast-success-icon: var(--status-success-text);
@@ -139,105 +140,136 @@
   --toast-error-icon: var(--status-danger-text);
 }
 
-.dark {
+.dark,
+.dark .branding-preview {
   color-scheme: dark;
-  --background: #0f1115;
-  --foreground: #edf0f3;
-  --card: #191d23;
-  --popover: #20252c;
+  --background: var(--brand-background, #0f1115);
+  --foreground: var(--brand-foreground, #edf0f3);
+  --card: var(--brand-card, #191d23);
+  --popover: var(--brand-popover, #20252c);
   --primary: #008069;
   --primary-text: #69d8aa;
   --primary-hover: #006b58;
   --primary-foreground: #ffffff;
-  --secondary: #252b33;
-  --secondary-hover: #303842;
+  --secondary: var(--theme-secondary, #252b33);
+  --secondary-hover: var(--theme-secondary-hover, #303842);
   --secondary-foreground: var(--foreground);
-  --accent: #16372c;
-  --accent-hover: #1e493a;
+  --accent: var(--theme-accent, #16372c);
+  --accent-hover: var(--theme-accent-hover, #1e493a);
   --accent-foreground: var(--foreground);
-  --muted: #232931;
-  --muted-hover: #2c343e;
-  --muted-foreground: #a6afb8;
-  --surface-subtle: #14181e;
-  --border: #2c343e;
-  --input: #3a4450;
-  --ring: #34d399;
-  --destructive: #f87171;
+  --muted: var(--brand-muted, #232931);
+  --muted-hover: var(--theme-muted-hover, #2c343e);
+  --muted-foreground: var(--brand-muted-foreground, #a6afb8);
+  --surface-subtle: var(--brand-muted, #14181e);
+  --border: var(--brand-border, #2c343e);
+  --input: var(--brand-border, #3a4450);
+  --ring: var(--brand-ring, #34d399);
+  --destructive: var(--brand-danger, #f87171);
   --accent-brown: var(--muted-foreground);
-  --sidebar: #13171c;
-  --sidebar-hover: #242b33;
-  --sidebar-accent: #16372c;
-  --sidebar-accent-foreground: var(--foreground);
+  --sidebar: var(--brand-sidebar, #13171c);
+  --sidebar-hover: var(--theme-sidebar-hover, #242b33);
+  --sidebar-accent: var(--theme-sidebar-accent, #16372c);
+  --sidebar-accent-foreground: var(--brand-sidebar-foreground, var(--foreground));
   --palette-gray: #586573;
   --palette-light-gray: #2c343e;
   --palette-ink: #edf0f3;
   --chart-positive: #34d399;
   --chart-negative: #f87171;
-  --status-success-bg: #122c22;
-  --status-success-text: #6ee7b7;
-  --status-success-border: #21523e;
-  --status-warning-bg: #33260e;
-  --status-warning-text: #fcd34d;
-  --status-warning-border: #624a1d;
-  --status-danger-bg: #351b1b;
-  --status-danger-text: #fca5a5;
-  --status-danger-border: #643030;
-  --status-info-bg: #17253b;
-  --status-info-text: #93c5fd;
-  --status-info-border: #28486e;
+  --status-success-bg: var(--theme-status-success-bg, #122c22);
+  --status-success-text: var(--theme-status-success-text, #6ee7b7);
+  --status-success-border: var(--theme-status-success-border, #21523e);
+  --status-warning-bg: var(--theme-status-warning-bg, #33260e);
+  --status-warning-text: var(--theme-status-warning-text, #fcd34d);
+  --status-warning-border: var(--theme-status-warning-border, #624a1d);
+  --status-danger-bg: var(--theme-status-danger-bg, #351b1b);
+  --status-danger-text: var(--theme-status-danger-text, #fca5a5);
+  --status-danger-border: var(--theme-status-danger-border, #643030);
+  --status-info-bg: var(--theme-status-info-bg, #17253b);
+  --status-info-text: var(--theme-status-info-text, #93c5fd);
+  --status-info-border: var(--theme-status-info-border, #28486e);
+}
+
+
+:root,
+.branding-preview {
+  --theme-secondary: color-mix(in srgb, var(--brand-secondary) 16%, var(--card));
+  --theme-secondary-hover: color-mix(in srgb, var(--brand-secondary) 25%, var(--card));
+  --theme-accent: color-mix(in srgb, var(--brand-accent) 12%, var(--card));
+  --theme-accent-hover: color-mix(in srgb, var(--brand-accent) 20%, var(--card));
+  --theme-sidebar-hover: color-mix(in srgb, var(--brand-sidebar-foreground) 9%, var(--sidebar));
+  --theme-sidebar-accent: color-mix(in srgb, var(--brand-sidebar-foreground) 15%, var(--sidebar));
+  --theme-muted-hover: color-mix(in srgb, var(--brand-muted) 85%, var(--foreground));
+  --theme-chart-2: color-mix(in srgb, var(--brand-chart) 75%, var(--foreground));
+  --theme-chart-3: color-mix(in srgb, var(--brand-chart) 60%, var(--card));
+  --theme-chart-4: color-mix(in srgb, var(--brand-chart) 40%, var(--card));
+  --theme-chart-5: color-mix(in srgb, var(--brand-chart) 22%, var(--card));
+  --theme-status-success-text: color-mix(in srgb, var(--brand-success) 40%, var(--foreground));
+  --theme-status-success-bg: color-mix(in srgb, var(--brand-success) 12%, var(--card));
+  --theme-status-success-border: color-mix(in srgb, var(--brand-success) 35%, var(--card));
+  --theme-status-warning-text: color-mix(in srgb, var(--brand-warning) 40%, var(--foreground));
+  --theme-status-warning-bg: color-mix(in srgb, var(--brand-warning) 12%, var(--card));
+  --theme-status-warning-border: color-mix(in srgb, var(--brand-warning) 35%, var(--card));
+  --theme-status-danger-text: color-mix(in srgb, var(--brand-danger) 40%, var(--foreground));
+  --theme-status-danger-bg: color-mix(in srgb, var(--brand-danger) 12%, var(--card));
+  --theme-status-danger-border: color-mix(in srgb, var(--brand-danger) 35%, var(--card));
+  --theme-status-info-text: color-mix(in srgb, var(--brand-info) 40%, var(--foreground));
+  --theme-status-info-bg: color-mix(in srgb, var(--brand-info) 12%, var(--card));
+  --theme-status-info-border: color-mix(in srgb, var(--brand-info) 35%, var(--card));
 }
 
 /* Brand inputs drive the entire accent system, including portalled UI. */
-html[data-branded="true"] {
+html[data-branded="true"],
+.branding-preview[data-branded="true"] {
   --primary: var(--brand-primary);
   /* Brand fills and readable foreground accents serve different purposes. */
   --primary-text: color-mix(in srgb, var(--brand-primary) 30%, var(--foreground));
   --primary-hover: color-mix(in srgb, var(--brand-primary) 88%, #000);
-  --primary-foreground: var(--brand-button-text);
+  --primary-foreground: var(--brand-primary-foreground);
   --brand-highlight: color-mix(in srgb, var(--brand-primary) 80%, #000);
-  --ring: var(--brand-highlight);
-  --secondary: color-mix(in srgb, var(--brand-secondary) 16%, var(--card));
-  --secondary-hover: color-mix(in srgb, var(--brand-secondary) 25%, var(--card));
+  --ring: var(--brand-ring, var(--brand-highlight));
+  --secondary: color-mix(in srgb, var(--brand-secondary, var(--brand-primary)) 16%, var(--card));
+  --secondary-hover: color-mix(in srgb, var(--brand-secondary, var(--brand-primary)) 25%, var(--card));
   --secondary-foreground: var(--foreground);
-  --accent: color-mix(in srgb, var(--brand-accent) 12%, var(--card));
-  --accent-hover: color-mix(in srgb, var(--brand-accent) 20%, var(--card));
+  --accent: color-mix(in srgb, var(--brand-accent, var(--brand-primary)) 12%, var(--card));
+  --accent-hover: color-mix(in srgb, var(--brand-accent, var(--brand-primary)) 20%, var(--card));
   --accent-foreground: var(--foreground);
-  --muted-hover: color-mix(in srgb, var(--brand-primary) 9%, var(--card));
-  --border: color-mix(in srgb, var(--brand-primary) 12%, var(--palette-light-gray));
-  --input: color-mix(in srgb, var(--brand-primary) 22%, var(--palette-light-gray));
+  --muted-hover: var(--theme-muted-hover, color-mix(in srgb, var(--brand-primary) 9%, var(--card)));
+  --border: var(--brand-border, color-mix(in srgb, var(--brand-primary) 12%, var(--palette-light-gray)));
+  --input: var(--brand-border, color-mix(in srgb, var(--brand-primary) 22%, var(--palette-light-gray)));
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-hover: color-mix(in srgb, var(--brand-primary) 9%, var(--sidebar));
-  --sidebar-accent: color-mix(in srgb, var(--brand-primary) 15%, var(--sidebar));
-  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-hover: var(--theme-sidebar-hover, color-mix(in srgb, var(--brand-primary) 9%, var(--sidebar)));
+  --sidebar-accent: var(--theme-sidebar-accent, color-mix(in srgb, var(--brand-primary) 15%, var(--sidebar)));
+  --sidebar-accent-foreground: var(--brand-sidebar-foreground, var(--foreground));
   --sidebar-ring: var(--ring);
   --palette-teal: var(--brand-primary);
   --palette-mint: color-mix(in srgb, var(--brand-primary) 30%, var(--card));
-  --chart-1: var(--brand-highlight);
-  --chart-2: color-mix(in srgb, var(--brand-primary) 75%, var(--foreground));
-  --chart-3: color-mix(in srgb, var(--brand-primary) 60%, var(--card));
-  --chart-4: color-mix(in srgb, var(--brand-primary) 40%, var(--card));
-  --chart-5: color-mix(in srgb, var(--brand-primary) 22%, var(--card));
+  --chart-1: var(--brand-chart, var(--brand-highlight));
+  --chart-2: var(--theme-chart-2, color-mix(in srgb, var(--brand-primary) 75%, var(--foreground)));
+  --chart-3: var(--theme-chart-3, color-mix(in srgb, var(--brand-primary) 60%, var(--card)));
+  --chart-4: var(--theme-chart-4, color-mix(in srgb, var(--brand-primary) 40%, var(--card)));
+  --chart-5: var(--theme-chart-5, color-mix(in srgb, var(--brand-primary) 22%, var(--card)));
   --chart-positive: var(--brand-highlight);
-  --status-success-bg: var(--accent);
-  --status-success-text: var(--foreground);
-  --status-success-border: color-mix(in srgb, var(--brand-primary) 30%, var(--card));
-  --status-info-bg: var(--accent);
-  --status-info-text: var(--foreground);
-  --status-info-border: var(--status-success-border);
-  --toast-info-surface: var(--accent);
-  --toast-info-border: var(--status-success-border);
-  --toast-info-icon: var(--brand-highlight);
-  --toast-success-surface: var(--accent);
-  --toast-success-border: var(--status-success-border);
-  --toast-success-icon: var(--brand-highlight);
-  --toast-warning-surface: var(--accent);
-  --toast-warning-border: var(--status-success-border);
-  --toast-error-surface: var(--accent);
-  --toast-error-border: var(--status-success-border);
+  --status-success-bg: var(--theme-status-success-bg, var(--accent));
+  --status-success-text: var(--theme-status-success-text, var(--foreground));
+  --status-success-border: var(--theme-status-success-border, color-mix(in srgb, var(--brand-primary) 30%, var(--card)));
+  --status-info-bg: var(--theme-status-info-bg, var(--accent));
+  --status-info-text: var(--theme-status-info-text, var(--foreground));
+  --status-info-border: var(--theme-status-info-border, var(--status-success-border));
+  --toast-info-surface: var(--theme-status-info-bg, var(--accent));
+  --toast-info-border: var(--theme-status-info-border, var(--status-success-border));
+  --toast-info-icon: var(--theme-status-info-text, var(--brand-highlight));
+  --toast-success-surface: var(--theme-status-success-bg, var(--accent));
+  --toast-success-border: var(--theme-status-success-border, var(--status-success-border));
+  --toast-success-icon: var(--theme-status-success-text, var(--brand-highlight));
+  --toast-warning-surface: var(--theme-status-warning-bg, var(--accent));
+  --toast-warning-border: var(--theme-status-warning-border, var(--status-success-border));
+  --toast-error-surface: var(--theme-status-danger-bg, var(--accent));
+  --toast-error-border: var(--theme-status-danger-border, var(--status-success-border));
 }
 
-html.dark[data-branded="true"] {
+html.dark[data-branded="true"],
+.dark .branding-preview[data-branded="true"] {
   --brand-highlight: color-mix(in srgb, var(--brand-primary) 65%, #fff);
 }
 

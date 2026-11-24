@@ -1,3 +1,4 @@
+import { brandColors } from "../../../../../shared/brandingColors.js";
 import { createContext, useContext, useEffect, useCallback, useMemo } from "react";
 import { resolveBranding } from "../services/branding.api.js";
 import { applyBrandingToDOM } from "../lib/themeHelper";
@@ -8,9 +9,7 @@ const DEFAULT_BRANDING = {
     isWhiteLabeled: false,
     brandName: "Promotion",
     logoUrl: "https://res.cloudinary.com/dyfjy8kmv/image/upload/v1793689940/Navy_Blue_Bird_Chat_Logo_n0udpf.webp",
-    primaryColor: "",
-    secondaryColor: "",
-    accentColor: "",
+    ...brandColors(),
     subdomain: "",
 };
 
@@ -59,10 +58,9 @@ export function BrandingProvider({ children }) {
     const subdomain = detectSubdomain();
     const { data: subdomainBranding = null, isPending, refetch } = useQuery({
         queryKey: ["subdomain-branding", subdomain],
-        enabled: Boolean(subdomain),
         queryFn: async () => {
             try {
-                return await resolveBranding({ subdomain }) || null;
+                return await resolveBranding({ subdomain, host: window.location.hostname }) || null;
             } catch (err) {
                 console.warn("Could not resolve subdomain branding:", err);
                 return null;
@@ -72,15 +70,12 @@ export function BrandingProvider({ children }) {
         staleTime: Infinity,
         refetchOnWindowFocus: false,
     });
-    const isLoading = Boolean(subdomain && isPending);
-    const fetchBranding = useCallback(async () => {
-        if (subdomain) await refetch();
-        else queryClient.setQueryData(["subdomain-branding", subdomain], null);
-    }, [subdomain, refetch, queryClient]);
+    const isLoading = isPending;
+    const fetchBranding = useCallback(async () => { await refetch(); }, [refetch]);
 
     // Compute effective branding:
     // Priority:
-    // 1. If Super Admin: always default platform view.
+    // 1. If Super Admin: use their platform settings.
     // 2. If logged in Reseller with active white-label: use their own white-label.
     // 3. If logged in User with reseller white-label: use their reseller's white-label.
     // 4. If visitor on a resolved subdomain: use subdomain branding.
@@ -88,15 +83,15 @@ export function BrandingProvider({ children }) {
     const effectiveBranding = useMemo(() => {
         if (user?.role === "Super Admin") {
             const wl = user.whiteLabel || {};
-            if (wl.brandName || wl.logoUrl || wl.primaryColor || wl.isActive) {
+            const colors = brandColors(wl);
+            const hasBrand = Boolean(wl.brandName || wl.logoUrl || Object.values(colors).some(Boolean));
+            if (hasBrand || wl.isActive) {
                 return {
-                    isWhiteLabeled: Boolean(wl.brandName || wl.logoUrl || wl.primaryColor),
+                    isWhiteLabeled: hasBrand,
                     subdomain: wl.subdomain || "",
                     brandName: wl.brandName || DEFAULT_BRANDING.brandName,
                     logoUrl: wl.logoUrl || DEFAULT_BRANDING.logoUrl,
-                    primaryColor: wl.primaryColor || "",
-                    secondaryColor: wl.secondaryColor || "",
-                    accentColor: wl.accentColor || "",
+                    ...colors,
                 };
             }
             return subdomainBranding || DEFAULT_BRANDING;
@@ -108,9 +103,7 @@ export function BrandingProvider({ children }) {
                 subdomain: user.whiteLabel.subdomain || "",
                 brandName: user.whiteLabel.brandName || DEFAULT_BRANDING.brandName,
                 logoUrl: user.whiteLabel.logoUrl || DEFAULT_BRANDING.logoUrl,
-                primaryColor: user.whiteLabel.primaryColor || "",
-                secondaryColor: user.whiteLabel.secondaryColor || "",
-                accentColor: user.whiteLabel.accentColor || "",
+                ...brandColors(user.whiteLabel),
             };
         }
 
@@ -134,12 +127,8 @@ export function BrandingProvider({ children }) {
                 whiteLabel: { ...current.whiteLabel, ...newBranding, isActive: true },
             } : current);
         }
-        queryClient.setQueryData(["subdomain-branding", subdomain], (prev) => ({
-            ...prev,
-            ...newBranding,
-            isWhiteLabeled: true,
-        }));
-    }, [queryClient, user, subdomain]);
+        queryClient.invalidateQueries({ queryKey: ["subdomain-branding"] });
+    }, [queryClient, user?.role]);
 
     const value = useMemo(
         () => ({

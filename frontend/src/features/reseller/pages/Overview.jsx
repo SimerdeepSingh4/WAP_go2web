@@ -42,6 +42,7 @@ export default function Overview() {
     <QueryState query={balance} variant="cards"><OverviewMetricCards className="dashboard-summary-metrics" columns={4} items={[
       {
         label: "Available credits",
+        brandSlot: "credits",
         metrics: [
           { label: "Campaign", value: campaignCredits },
           { label: "Number filtering", value: filteringCredits },
@@ -53,6 +54,7 @@ export default function Overview() {
       },
       {
         label: "Campaigns",
+        brandSlot: "campaigns",
         metrics: [
           { label: "Total campaigns", value: totalCampaigns },
           { label: "Completed", value: completedCampaigns },
@@ -64,6 +66,7 @@ export default function Overview() {
       },
       {
         label: "User accounts",
+        brandSlot: "users",
         metrics: [
           { label: "Total users", value: totalUsers },
           { label: "Active", value: activeUsers },
@@ -75,6 +78,7 @@ export default function Overview() {
       },
       {
         label: "Purchase rates",
+        brandSlot: "network",
         metrics: [
           { label: "Campaign", value: formatCreditRatePaisa(purchaseRates?.CAMPAIGN?.unitPriceInr), valueSuffix: "paise/credit", loading: rates.isPending },
           { label: "Number filtering", value: formatCreditRatePaisa(purchaseRates?.NUMBER_FILTERING?.unitPriceInr), valueSuffix: "paise/credit", loading: rates.isPending },

@@ -20,6 +20,9 @@ function isAccountExpired(user) {
 export async function resolveUserWhiteLabel(user) {
     if (!user) return null;
     const now = new Date();
+    if (user.role === "Super Admin" && user.whiteLabel?.enabled) {
+        return { ...(user.whiteLabel.toObject?.() || user.whiteLabel), isActive: true, isExpired: false };
+    }
     if (user.role === "Reseller") {
         const isWlActive = Boolean(user.whiteLabel?.enabled && (!user.whiteLabel?.expiresAt || new Date(user.whiteLabel.expiresAt) > now));
         const isWlExpired = Boolean(user.whiteLabel?.enabled && user.whiteLabel?.expiresAt && new Date(user.whiteLabel.expiresAt) <= now);
