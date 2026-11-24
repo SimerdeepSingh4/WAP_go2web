@@ -28,6 +28,9 @@ import {
   Copy,
   Check,
   FileText,
+  Wallet,
+  ArrowUpRight,
+  ChevronDown,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import api from "@/api/client";
@@ -124,20 +127,19 @@ function AccountDetail({ account, onClose, onAction }) {
 
   return (
     <Sheet open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <SheetContent className="account-profile-sheet w-full sm:max-w-lg p-0 flex flex-col gap-0 overflow-hidden">
-        <SheetHeader className="p-5 border-b border-border bg-card flex-shrink-0">
+      <SheetContent className="w-full sm:max-w-lg p-0 flex flex-col gap-0 overflow-hidden">
+        <SheetHeader className="px-4 py-3 border-b border-border bg-card shrink-0">
           <SheetTitle className="text-base font-semibold">Account Profile & Details</SheetTitle>
-          <SheetDescription className="text-xs text-muted-foreground">{account.role} account profile, parameters, and ledger audit</SheetDescription>
+          <SheetDescription className="sr-only">{account.role} account profile, parameters, and ledger audit</SheetDescription>
         </SheetHeader>
 
-        <div className="p-5 overflow-y-auto space-y-4 flex-1">
-          {/* Profile Hero Card */}
-          <div className="rounded-2xl border border-border/80 bg-gradient-to-b from-muted/30 via-card to-card p-5 shadow-xs space-y-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="relative group">
+        <div className="overflow-y-auto flex-1 space-y-2.5 p-3 sm:p-4">
+          <section aria-labelledby="account-profile-name" className="rounded-2xl border border-border bg-card shadow-xs">
+            <div className="flex items-start gap-3 px-3 pt-3 pb-2">
+              <div className="relative shrink-0 self-start">
                 <UserAvatar
                   user={{ ...account, dp_img: dpImage }}
-                  className="size-16 rounded-2xl border-2 border-background shadow-sm ring-1 ring-border object-cover"
+                  className="size-14 rounded-xl border-2 border-background shadow-sm ring-1 ring-border object-cover"
                 />
                 <input
                   ref={dpInput}
@@ -162,217 +164,219 @@ function AccountDetail({ account, onClose, onAction }) {
                   disabled={updateDp.isPending || (account.role !== "Super Admin" && account.featureAccess?.campaignDp !== true)}
                   onClick={() => dpInput.current?.click()}
                   title={account.role !== "Super Admin" && account.featureAccess?.campaignDp !== true ? "Enable profile DP in Manage account access first" : "Change photo"}
+                  aria-label="Change profile photo"
                   className="absolute -bottom-1 -right-1 size-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-xs hover:scale-105 transition-transform disabled:opacity-50 cursor-pointer"
                 >
-                  <Camera className="size-3" />
+                  <Camera className="size-3" aria-hidden="true" />
                 </button>
               </div>
-
-              <div className="flex flex-col items-end gap-1.5">
-                <div className="flex items-center gap-1.5">
-                  <Badge variant={account.role === "Reseller" ? "default" : "secondary"} className="font-semibold text-xs px-2.5 py-0.5">
+              <div className="min-w-0 flex-1">
+                <h2 id="account-profile-name" className="break-words text-xl leading-tight font-semibold tracking-tight text-card-foreground">
+                  {account.username}
+                </h2>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <Badge variant={account.role === "Reseller" ? "default" : "secondary"}>
                     {account.role}
                   </Badge>
                   <AccountStatusMenu account={account} onSelect={nextStatus => { onClose(); onAction?.("status", account, nextStatus); }} />
                 </div>
-                {dpImage && (
-                  <Button
-                    size="xs"
-                    variant="ghost"
-                    className="h-6 text-[11px] gap-1 text-muted-foreground hover:text-foreground"
-                    disabled={downloadingDp}
-                    onClick={downloadDp}
-                  >
-                    <Download className="size-3" />
-                    {downloadingDp ? "Saving…" : "Save DP"}
-                  </Button>
-                )}
               </div>
-            </div>
-
-            <div>
-              <h2 className="text-xl font-bold tracking-tight text-foreground truncate" title={account.username}>
-                {account.username}
-              </h2>
-              <div className="mt-1 flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-xs text-muted-foreground">
-                <button
+              {dpImage && (
+                <Button
                   type="button"
-                  onClick={copyEmail}
-                  className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors cursor-pointer group"
-                  title="Copy email address"
+                  size="icon-sm"
+                  variant="outline"
+                  className="shrink-0"
+                  disabled={downloadingDp}
+                  onClick={downloadDp}
+                  title="Save profile photo"
+                  aria-label={downloadingDp ? "Saving profile photo" : "Save profile photo"}
                 >
-                  <Mail className="size-3.5 text-muted-foreground/70" />
-                  <span className="truncate max-w-[200px]">{account.email}</span>
-                  {copiedEmail ? <Check className="size-3 text-emerald-600" /> : <Copy className="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />}
-                </button>
-                {account.phone && (
-                  <span className="inline-flex items-center gap-1.5">
-                    <Phone className="size-3 text-muted-foreground/70" />
-                    {account.phone}
-                  </span>
-                )}
-                {account.companyName && (
-                  <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                    <Building2 className="size-3 text-muted-foreground/70" />
-                    {account.companyName}
-                  </span>
-                )}
-              </div>
+                  <Download aria-hidden="true" />
+                </Button>
+              )}
             </div>
 
-            <div className="flex items-center gap-2 pt-2 border-t border-border/60">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                data-account-action="edit"
-                className="account-profile-edit flex-1 h-8 text-xs gap-1.5 font-medium cursor-pointer"
-                onClick={() => { onClose(); onAction?.("edit", account); }}
-              >
-                <Pencil className="size-3.5" />
+            {(account.email || account.phone || account.companyName) && (
+              <div className="mx-3 grid gap-1.5 rounded-xl bg-muted/50 px-2.5 py-2 text-xs text-muted-foreground">
+                {account.email && (
+                  <button
+                    type="button"
+                    onClick={copyEmail}
+                    className="flex min-w-0 items-center gap-2 rounded-sm text-left hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                    aria-label={copiedEmail ? "Email copied" : "Copy email address"}
+                    title={account.email}
+                  >
+                    <Mail className="size-3.5 shrink-0" aria-hidden="true" />
+                    <span className="min-w-0 flex-1 truncate">{account.email}</span>
+                    {copiedEmail ? <Check className="size-3.5 shrink-0" aria-hidden="true" /> : <Copy className="size-3.5 shrink-0" aria-hidden="true" />}
+                  </button>
+                )}
+                {(account.phone || account.companyName) && (
+                  <div className="flex flex-wrap gap-x-4 gap-y-2">
+                    {account.phone && (
+                      <span className="inline-flex min-w-0 items-center gap-2">
+                        <Phone className="size-3.5 shrink-0" aria-hidden="true" />
+                        {account.phone}
+                      </span>
+                    )}
+                    {account.companyName && (
+                      <span className="inline-flex min-w-0 items-center gap-2">
+                        <Building2 className="size-3.5 shrink-0" aria-hidden="true" />
+                        <span className="break-words">{account.companyName}</span>
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-2 p-3">
+              <Button type="button" size="sm" onClick={() => { onClose(); onAction?.("edit", account); }}>
+                <Pencil aria-hidden="true" />
                 Edit details
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                data-account-action="role"
-                className="account-profile-role flex-1 h-8 text-xs gap-1.5 font-medium cursor-pointer"
-                onClick={() => { onClose(); onAction?.("role", account); }}
-              >
-                <UserCog className="size-3.5" />
+              <Button type="button" variant="outline" size="sm" onClick={() => { onClose(); onAction?.("role", account); }}>
+                <UserCog aria-hidden="true" />
                 Change role
               </Button>
             </div>
-          </div>
+          </section>
 
-          {/* Wallet Balance Card */}
-          <div data-locked={Boolean(balance.data?.wallet?.isLocked)} className="rounded-2xl border border-border p-3">
+          <section aria-labelledby="account-wallet-heading" data-locked={Boolean(balance.data?.wallet?.isLocked)} className="space-y-2.5 rounded-2xl border border-border bg-card p-3 shadow-xs">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground"><Wallet className="size-4" aria-hidden="true" /></span>
+              <h3 id="account-wallet-heading" className="flex-1 text-sm font-semibold">Wallet balances</h3>
+              {balance.data?.wallet?.isLocked && <Badge variant="outline" className="border-destructive/30 text-destructive"><Lock aria-hidden="true" />Wallet locked</Badge>}
+            </div>
             <QueryState query={balance}>
-              <CategoryWalletBalances wallet={balance.data?.wallet} />
-              {balance.data?.wallet?.isLocked && <p className="mt-2 text-xs text-destructive">Wallet locked</p>}
+              <div className="rounded-xl bg-muted/50 p-2.5 [&_dl]:grid-cols-2 [&_dl>div]:flex-col [&_dl>div]:gap-1 [&_dt]:text-muted-foreground">
+                <CategoryWalletBalances wallet={balance.data?.wallet} />
+              </div>
             </QueryState>
-
-            <div className="mt-4 pt-3.5 border-t border-border/60 flex items-center gap-2">
-              <Button
-                size="sm"
-                className="credit-allocate-button flex-1 h-8 text-xs gap-1.5 font-medium cursor-pointer"
-                onClick={() => { onClose(); onAction?.("allocate", account); }}
-              >
-                <Plus className="size-3.5" />
+            <div className="grid grid-cols-2 gap-2">
+              <Button size="sm" onClick={() => { onClose(); onAction?.("allocate", account); }}>
+                <Plus aria-hidden="true" />
                 Allocate credits
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => { onClose(); onAction?.("reclaim", account); }}
-                className="h-8 text-xs gap-1.5 text-amber-700 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/10 cursor-pointer font-medium"
-              >
-                <RotateCcw className="size-3.5" />
+              <Button size="sm" variant="outline" onClick={() => { onClose(); onAction?.("reclaim", account); }}>
+                <RotateCcw aria-hidden="true" />
                 Reclaim
               </Button>
             </div>
-          </div>
+          </section>
 
-          {/* Account Parameters */}
-          <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-xs space-y-3">
-            <div className="flex items-center gap-2">
-              <FileText className="size-4 text-primary" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Account Parameters</h3>
-            </div>
-
-            <div className="divide-y divide-border/60 text-xs">
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-muted-foreground">Daily Campaign Limit</span>
-                <span className="font-medium text-foreground">
-                  {account.dailyCampaignLimit ? `${number(account.dailyCampaignLimit)} campaigns / day` : "Platform default"}
-                </span>
+          <details className="group/parameters rounded-2xl border border-border bg-card shadow-xs">
+            <summary className="flex cursor-pointer list-none items-center gap-2.5 rounded-2xl p-3 focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+              <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground"><FileText className="size-4" aria-hidden="true" /></span>
+              <span className="flex-1 text-sm font-semibold">Account parameters</span>
+              <ChevronDown className="size-4 shrink-0 text-muted-foreground group-open/parameters:rotate-180" aria-hidden="true" />
+            </summary>
+            <dl className="mx-3 mb-3 divide-y divide-border/60 rounded-xl bg-muted/50 px-3 text-xs [&_dd]:min-w-0 [&_dd]:text-right [&_dd]:wrap-anywhere [&_dt]:text-muted-foreground">
+              <div className="grid grid-cols-2 items-start gap-3 py-2.5">
+                <dt>Daily campaign limit</dt>
+                <dd>
+                  <span className="font-medium text-foreground">
+                    {account.dailyCampaignLimit ? `${number(account.dailyCampaignLimit)} campaigns / day` : "Platform default"}
+                  </span>
+                </dd>
               </div>
 
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-muted-foreground">Account Expiry</span>
-                <span className={account.isExpired ? "font-semibold text-destructive flex items-center gap-1" : "font-medium text-foreground"}>
-                  {account.expiresAt ? dateTime(account.expiresAt) : "No expiry"}
-                  {account.isExpired && " · Expired"}
-                </span>
+              <div className="grid grid-cols-2 items-start gap-3 py-2.5">
+                <dt>Account expiry</dt>
+                <dd>
+                  <span className={account.isExpired ? "font-semibold text-destructive flex items-center gap-1" : "font-medium text-foreground"}>
+                    {account.expiresAt ? dateTime(account.expiresAt) : "No expiry"}
+                    {account.isExpired && " · Expired"}
+                  </span>
+                </dd>
               </div>
 
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-muted-foreground">Assigned Reseller</span>
-                {account.resellerId?.username ? (
-                  <span className="font-semibold text-foreground">{account.resellerId.username}</span>
-                ) : account.role === "User" ? (
-                  <Badge variant="secondary" className="gap-1 font-medium text-xs">
-                    <ShieldCheck className="size-3 text-primary" />
-                    Super Admin
-                  </Badge>
-                ) : (
-                  <span className="text-muted-foreground">—</span>
-                )}
+              <div className="grid grid-cols-2 items-start gap-3 py-2.5">
+                <dt>Assigned reseller</dt>
+                <dd>
+                  {account.resellerId?.username ? (
+                    <span className="font-semibold text-foreground">{account.resellerId.username}</span>
+                  ) : account.role === "User" ? (
+                    <Badge variant="secondary" className="gap-1 font-medium text-xs">
+                      <ShieldCheck className="size-3 text-primary" />
+                      Super Admin
+                    </Badge>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </dd>
               </div>
 
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-muted-foreground">Upload Limits</span>
-                <span className="font-medium text-foreground max-w-[220px] text-right truncate" title={mediaUploadSummary(account, uploadLimits.defaults)}>
-                  {mediaUploadSummary(account, uploadLimits.defaults)}
-                </span>
+              <div className="grid grid-cols-2 items-start gap-3 py-2.5">
+                <dt>Upload limits</dt>
+                <dd>
+                  <span className="font-medium text-foreground" title={mediaUploadSummary(account, uploadLimits.defaults)}>
+                    {mediaUploadSummary(account, uploadLimits.defaults)}
+                  </span>
+                </dd>
               </div>
 
               {account.role === "Reseller" && (
-                <div className="flex items-center justify-between py-2.5">
-                  <span className="text-muted-foreground">White-Label Access</span>
-                  {account.whiteLabel?.enabled ? (
-                    <Badge variant="outline" className="gap-1 text-xs border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5">
-                      <Sparkles className="size-3 text-emerald-600" />
-                      {account.whiteLabel?.subdomain ? `${account.whiteLabel.subdomain}.go2web` : "Active"}
-                    </Badge>
-                  ) : (
-                    <span className="text-muted-foreground">Disabled</span>
-                  )}
+                <div className="grid grid-cols-2 items-start gap-3 py-2.5">
+                  <dt>White-label access</dt>
+                  <dd>
+                    {account.whiteLabel?.enabled ? (
+                      <Badge variant="outline" className="gap-1 text-xs border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5">
+                        <Sparkles className="size-3 text-emerald-600" />
+                        {account.whiteLabel?.subdomain ? `${account.whiteLabel.subdomain}.go2web` : "Active"}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground">Disabled</span>
+                    )}
+                  </dd>
                 </div>
               )}
 
               {account.role === "Reseller" && (
-                <div className="flex items-center justify-between py-2.5">
-                  <span className="text-muted-foreground">Credit Reclaim</span>
-                  {account.featureAccess?.reclaimCredit ? (
-                    <Badge variant="outline" className="gap-1 text-xs border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5">
-                      Allowed
-                    </Badge>
-                  ) : (
-                    <span className="text-muted-foreground">Not allowed</span>
-                  )}
+                <div className="grid grid-cols-2 items-start gap-3 py-2.5">
+                  <dt>Credit reclaim</dt>
+                  <dd>
+                    {account.featureAccess?.reclaimCredit ? (
+                      <Badge variant="outline" className="gap-1 text-xs border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5">
+                        Allowed
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground">Not allowed</span>
+                    )}
+                  </dd>
                 </div>
               )}
 
-              <div className="flex items-center justify-between py-2.5">
-                <span className="text-muted-foreground">Registered</span>
-                <span className="text-muted-foreground">{dateTime(account.createdAt)}</span>
+              <div className="grid grid-cols-2 items-start gap-3 py-2.5">
+                <dt>Registered</dt>
+                <dd>
+                  <span className="text-muted-foreground">{dateTime(account.createdAt)}</span>
+                </dd>
               </div>
-            </div>
-          </div>
+            </dl>
+          </details>
 
-          {/* Balance & Ledger Reconciliation */}
-          <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-xs space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-xl bg-muted text-muted-foreground flex items-center justify-center">
-                  <RefreshCw className={`size-4 ${reconcile.isFetching ? "animate-spin text-primary" : ""}`} />
-                </div>
+          <section aria-labelledby="account-ledger-heading" className="space-y-2.5 rounded-2xl border border-border bg-card p-3 shadow-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2.5">
+                <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-muted-foreground">
+                  <RefreshCw className="size-4" aria-hidden="true" />
+                </span>
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Ledger Reconciliation</p>
-                  <p className="text-[11px] text-muted-foreground">Verify transactions against wallet</p>
+                  <h3 id="account-ledger-heading" className="text-sm font-semibold">Ledger reconciliation</h3>
+                  <p className="text-xs text-muted-foreground">Compare transactions with the wallet balance.</p>
                 </div>
               </div>
               <Button
+                type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setShowAudit(true)}
+                onClick={() => showAudit ? reconcile.refetch() : setShowAudit(true)}
                 disabled={reconcile.isFetching}
-                className="h-8 text-xs gap-1.5 cursor-pointer font-medium"
               >
-                <RefreshCw className={`size-3.5 ${reconcile.isFetching ? "animate-spin" : ""}`} />
-                {showAudit ? "Re-check" : "Check balance"}
+                <RefreshCw className={reconcile.isFetching ? "animate-spin" : undefined} aria-hidden="true" />
+                {reconcile.isFetching ? "Checking..." : showAudit ? "Recheck balance" : "Check balance"}
               </Button>
             </div>
 
@@ -380,21 +384,21 @@ function AccountDetail({ account, onClose, onAction }) {
               <QueryState query={reconcile}>
                 {reconcile.data && (
                   <div
-                    className={`rounded-xl border p-4 space-y-3 text-xs transition-colors ${
+                    className={`space-y-3 rounded-xl border p-3 text-xs ${
                       reconcile.data.report?.isReconciled
-                        ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-950 dark:text-emerald-200"
-                        : "border-destructive/30 bg-destructive/5 text-destructive-foreground"
+                        ? "border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[color:var(--status-success-text)]"
+                        : "border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] text-[color:var(--status-danger-text)]"
                     }`}
                   >
                     <div className="flex items-center gap-2 font-semibold">
                       {reconcile.data.report?.isReconciled ? (
                         <>
-                          <ShieldCheck className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                          <ShieldCheck className="size-4 shrink-0" />
                           <span>Wallet and recorded ledger match cleanly</span>
                         </>
                       ) : (
                         <>
-                          <ShieldAlert className="size-4 text-destructive shrink-0" />
+                          <ShieldAlert className="size-4 shrink-0" />
                           <span>
                             {reconcile.data.report?.classification === "cannot_confirm"
                               ? "Conflicting records need review"
@@ -404,28 +408,19 @@ function AccountDetail({ account, onClose, onAction }) {
                       )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-border/40 text-[11px]">
-                      <div className="p-2.5 rounded-lg bg-background/60 border border-border/40">
-                        <span className="text-muted-foreground block text-[10px] uppercase font-medium">Added (Inflow)</span>
-                        <strong className="text-emerald-600 dark:text-emerald-400 font-bold tabular-nums text-xs">
-                          +{number(reconcile.data.report?.totalInflow)}
-                        </strong>
-                      </div>
-                      <div className="p-2.5 rounded-lg bg-background/60 border border-border/40">
-                        <span className="text-muted-foreground block text-[10px] uppercase font-medium">Used (Outflow)</span>
-                        <strong className="text-muted-foreground font-bold tabular-nums text-xs">
-                          -{number(reconcile.data.report?.totalOutflow)}
-                        </strong>
-                      </div>
-                      <div className="p-2.5 rounded-lg bg-background/60 border border-border/40">
-                        <span className="text-muted-foreground block text-[10px] uppercase font-medium">Calculated</span>
-                        <strong className="tabular-nums font-bold text-xs">{number(reconcile.data.report?.calculatedBalance)}</strong>
-                      </div>
-                      <div className="p-2.5 rounded-lg bg-background/60 border border-border/40">
-                        <span className="text-muted-foreground block text-[10px] uppercase font-medium">Wallet Balance</span>
-                        <strong className="tabular-nums font-bold text-xs">{number(reconcile.data.report?.currentBalance)}</strong>
-                      </div>
-                    </div>
+                    <dl className="grid grid-cols-2 gap-2">
+                      {[
+                        ["Added (inflow)", "+" + number(reconcile.data.report?.totalInflow)],
+                        ["Used (outflow)", "-" + number(reconcile.data.report?.totalOutflow)],
+                        ["Calculated balance", number(reconcile.data.report?.calculatedBalance)],
+                        ["Wallet balance", number(reconcile.data.report?.currentBalance)],
+                      ].map(([label, value]) => (
+                        <div key={label} className="rounded-lg border border-border bg-card p-2.5 text-card-foreground">
+                          <dt className="text-[11px] text-muted-foreground">{label}</dt>
+                          <dd className="mt-1 font-semibold tabular-nums">{value}</dd>
+                        </div>
+                      ))}
+                    </dl>
 
                     <div className="pt-1">
                       <Link
@@ -433,16 +428,16 @@ function AccountDetail({ account, onClose, onAction }) {
                         onClick={onClose}
                         className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline underline-offset-4"
                       >
-                        Inspect full ledger & correction options →
+                        Inspect ledger and correction options <ArrowUpRight className="size-3.5" aria-hidden="true" />
                       </Link>
                     </div>
                   </div>
                 )}
               </QueryState>
             </AnimatedCollapse>
-          </div>
-          <div className="border-t pt-4">
-            <Button variant="outline" className="text-destructive" onClick={() => { onClose(); onAction?.("deleteAccount", account); }}>
+          </section>
+          <div className="flex justify-end pt-1">
+            <Button type="button" variant="destructive" size="sm" onClick={() => { onClose(); onAction?.("deleteAccount", account); }}>
               <Trash2 className="size-4" /> Delete account
             </Button>
           </div>
