@@ -1,8 +1,13 @@
 .campaign-list-table { container-type: inline-size; }
 
 @media (max-width: 980px) {
-  .campaign-list-table .mobile-record-header { align-items: flex-start; }
-  .campaign-list-table .mobile-record-actions button { min-width: 44px; min-height: 44px; }
+  :is(.campaign-list-table, .user-campaign-table) .mobile-record {
+    gap: 10px;
+    padding: 12px;
+  }
+
+  :is(.campaign-list-table, .user-campaign-table) .mobile-record-header { align-items: flex-start; }
+  :is(.campaign-list-table, .user-campaign-table) .mobile-record-actions button { min-width: 44px; min-height: 44px; }
   .campaign-list-table .mobile-record .campaign-title-copy {
     width: 100%;
     flex-flow: row wrap;
@@ -14,38 +19,50 @@
     white-space: normal;
     overflow-wrap: anywhere;
   }
-  .campaign-list-table .mobile-record-secondary .flex { flex-direction: row; align-items: baseline; gap: 6px; }
-  .campaign-list-table .mobile-record-highlights {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 7rem), 1fr));
-    align-items: start;
-    gap: 8px;
-    padding: 10px 0;
-    background: transparent;
-    border: 0;
-    border-block: 1px solid var(--border);
-    border-radius: 0;
+  :is(.campaign-list-table, .user-campaign-table) .mobile-record-secondary { white-space: normal; }
+  .campaign-list-table .mobile-record-secondary .flex { flex-flow: row wrap; align-items: baseline; gap: 2px 6px; }
+
+  :is(.campaign-list-table, .user-campaign-table) .mobile-record-highlights {
+    align-items: flex-start;
+    gap: 8px 18px;
+    padding: 8px 10px;
   }
-  .campaign-list-table :is(.mobile-record-stat-label, .mobile-record-detail-label) {
+  :is(.campaign-list-table, .user-campaign-table) .mobile-record-stat { gap: 4px; }
+  :is(.campaign-list-table, .user-campaign-table) .mobile-record-stat-val {
+    min-height: 22px;
+    display: flex;
+    align-items: center;
+  }
+  :is(.campaign-list-table, .user-campaign-table) :is(.mobile-record-stat-label, .mobile-record-detail-label) {
     font-size: 11px;
     text-transform: none;
     letter-spacing: normal;
   }
-  .campaign-list-table .mobile-record-details-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px 12px;
-    padding: 0;
+
+  :is(.campaign-list-table, .user-campaign-table) .mobile-record-details-grid {
+    flex-flow: row wrap;
+    align-items: flex-start;
+    gap: 8px 20px;
+    padding: 0 2px;
     border: 0;
   }
-  .campaign-list-table .mobile-record-detail-row {
+  :is(.campaign-list-table, .user-campaign-table) .mobile-record-detail-row {
     min-width: 0;
+    max-width: 100%;
     flex-direction: column;
     align-items: flex-start;
-    gap: 3px;
+    gap: 4px;
   }
-  .campaign-list-table .mobile-record-detail-val,
-  .campaign-list-table .mobile-record .campaign-account-cell { max-width: 100%; text-align: left; }
+  :is(.campaign-list-table, .user-campaign-table) .mobile-record-detail-val {
+    display: flex;
+    align-items: center;
+    min-height: 30px;
+    max-width: 100%;
+    text-align: left;
+  }
+  .campaign-list-table .mobile-record .campaign-account-cell { width: auto; max-width: 100%; gap: 8px; }
+  .campaign-list-table .mobile-record .campaign-account-avatar,
+  .campaign-list-table .mobile-record .campaign-account-avatar [data-slot="avatar"] { width: 30px; height: 30px; }
 }
 
 .portal-main .campaign-list-table :where([data-slot="table-head"], [data-slot="table-cell"]) { padding-inline: 12px; }

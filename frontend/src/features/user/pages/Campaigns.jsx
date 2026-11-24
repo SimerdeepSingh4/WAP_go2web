@@ -35,7 +35,7 @@ export default function Campaigns() {
     <PageHeading inlineMobile title="Campaigns" description="Your submissions and reported results." action={<Button nativeButton={false} render={<Link to="/user/campaigns/create" />}><Plus />Create campaign</Button>} />
     <div className="flex flex-wrap items-center justify-between gap-3"><SearchBox value={search} onChange={v => update("search", v)} label="Search campaigns" /><div className="flex flex-wrap gap-2"><FilterSelect label="Campaign status" value={status} onChange={v => update("status", v)} options={[{ value: "all", label: "All statuses" }, ...["pending", "scheduled", "ongoing", "completed", "stopped", "failed"].map(value => ({ value, label: statusLabels[value] }))]} /></div></div>
     <QueryState query={query} empty={!all.length} emptyTitle="No campaigns yet" emptyDescription="Create a campaign to submit your first message for review." emptyAction={<Button nativeButton={false} render={<Link to="/user/campaigns/create" />}>Create campaign</Button>}>
-      <DataTable key={`${search}-${status}`} className="user-campaign-table" caption="Your campaigns" rows={rows} emptyTitle="No campaigns match your filters" emptyAction={<ClearFiltersButton />} columns={[
+      <DataTable key={`${search}-${status}`} className="user-campaign-table" mobile={{ featured: ["status", "recipients", "report"] }} caption="Your campaigns" rows={rows} emptyTitle="No campaigns match your filters" emptyAction={<ClearFiltersButton />} columns={[
         { key: "campaignId", label: "Campaign ID", render: campaign => <CampaignReference campaign={campaign} compact /> },
         { key: "title", label: "Campaign", sort: c => c.campaignTitle, render: c => (
           <>
