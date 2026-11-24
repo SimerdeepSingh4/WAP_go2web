@@ -126,7 +126,28 @@
 }
 .portal-brand-copy strong span { color: var(--muted-foreground); }
 .portal-brand-copy > span { color: var(--muted-foreground); font-size: 11px; font-weight: 450; }
-.portal-sidebar-content { gap: 18px; padding: 12px 12px 24px; }
+.portal-sidebar-content {
+  --sidebar-scroll-thumb: color-mix(in srgb, var(--sidebar-foreground) 38%, transparent);
+  gap: 18px;
+  padding: 12px 12px 24px;
+  overscroll-behavior-y: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sidebar-scroll-thumb) transparent;
+}
+.portal-sidebar-content::-webkit-scrollbar { width: 6px; height: 6px; }
+.portal-sidebar-content::-webkit-scrollbar-track,
+.portal-sidebar-content::-webkit-scrollbar-corner { background: transparent; }
+.portal-sidebar-content::-webkit-scrollbar-thumb {
+  border: 0;
+  border-radius: 999px;
+  background: var(--sidebar-scroll-thumb);
+}
+.portal-sidebar-content::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--sidebar-foreground) 62%, transparent);
+}
+@media (forced-colors: active) {
+  .portal-sidebar-content { scrollbar-color: auto; }
+}
 .portal-nav-group { padding: 0; }
 .portal-nav-label { margin: 0 0 10px; padding-inline: 12px; color: var(--muted-foreground); font-size: 10px; font-weight: 650; letter-spacing: 1.2px; text-transform: uppercase; }
 .portal-nav-link { min-height: 44px; gap: 12px; padding: 10px 12px; border-radius: 9px; color: var(--foreground); font-size: 13px; font-weight: 500; }
