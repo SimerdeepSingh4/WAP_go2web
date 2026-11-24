@@ -10,13 +10,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/components/ui/toast";
 import api from "@/api/client";
 import { number } from "@/lib/format";
-import { campaignContactRows } from "../../../../../../shared/campaignContacts.js";
+import { buildCampaignContacts } from "./campaignRecipients.utils";
 
-export function buildCampaignContacts(campaign) {
-  return campaign ? campaignContactRows(campaign) : [];
-}
-
-export function getStatusBadge(status) {
+function getStatusBadge(status) {
   const s = (status || "").toLowerCase();
   switch (s) {
     case "pending_report":

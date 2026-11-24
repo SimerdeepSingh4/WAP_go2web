@@ -31,6 +31,10 @@ import {
   Wallet,
   ArrowUpRight,
   ChevronDown,
+  Users,
+  UserRoundCheck,
+  UserRoundX,
+  Clock3,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import api from "@/api/client";
@@ -47,7 +51,8 @@ import { PageHeading, QueryState, SearchBox, FilterSelect, DataTable, ClearFilte
 import ActionForm from "../components/ActionForm";
 import WhiteLabelAccessDialog from "../components/WhiteLabelAccessDialog";
 import WhiteLabelAccessMenu from "../components/WhiteLabelAccessMenu";
-import { AccountMediaLimitsDialog, mediaUploadSummary } from "../components/MediaUploadLimits";
+import { AccountMediaLimitsDialog } from "../components/MediaUploadLimits";
+import { mediaUploadSummary } from "../components/mediaUploadSummary";
 import useMediaUploadLimits from "@/features/campaigns/hooks/useMediaUploadLimits";
 import { useAdminQuery } from "../hooks/useAdmin";
 import { number, dateTime } from "../../../lib/format";
@@ -69,6 +74,7 @@ import AccountStatusMenu, { AccountStatusDialog } from "@/features/accounts/comp
 import { CreditBalancePreview } from "@/features/dashboard/components/ActionReview";
 import "@/features/accounts/components/account-list.css";
 import { resolveUserImageUrl } from "@/features/accounts/lib/profileImage";
+import "./admin-accounts.css";
 
 function AccountDetail({ account, onClose, onAction }) {
   const uploadLimits = useMediaUploadLimits();
@@ -552,6 +558,9 @@ export default function Accounts({ role }) {
   const accounts = query.data?.users || [];
   const resellers = accounts.filter((a) => a.role === "Reseller" && a.status === "active");
   const roleAccounts = accounts.filter((a) => a.role === role);
+  const activeCount = roleAccounts.filter((a) => a.status === "active" && !a.isExpired).length;
+  const blockedCount = roleAccounts.filter((a) => a.status === "blocked").length;
+  const expiredCount = roleAccounts.filter((a) => a.isExpired).length;
 
   const rows = roleAccounts.filter(
     (a) =>
@@ -688,6 +697,7 @@ export default function Accounts({ role }) {
   return (
     <>
       <PageHeading
+        eyebrow="Account management"
         title={role === "Reseller" ? "Resellers" : "Users"}
         description={
           role === "Reseller"
@@ -716,20 +726,43 @@ export default function Accounts({ role }) {
         </p>
       )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <SearchBox label="Search name or email..." value={search} onChange={(value) => update("search", value)} />
-        <FilterSelect
-          label="Account status"
-          value={status}
-          onChange={(value) => update("status", value)}
-          options={[
-            { value: "all", label: "All statuses" },
-            { value: "active", label: "Active" },
-            { value: "blocked", label: "Blocked" },
-            { value: "expired", label: "Expired" },
-          ]}
-        />
-      </div>
+      <section className="account-overview" aria-label={`${role} account overview`}>
+        <article className="account-overview-card account-overview-total">
+          <span className="account-overview-icon"><Users aria-hidden="true" /></span>
+          <div><p>Total {role === "Reseller" ? "resellers" : "users"}</p><strong>{query.isPending ? "—" : number(roleAccounts.length)}</strong><span>Accounts in your workspace</span></div>
+        </article>
+        <article className="account-overview-card account-overview-active">
+          <span className="account-overview-icon"><UserRoundCheck aria-hidden="true" /></span>
+          <div><p>Active</p><strong>{query.isPending ? "—" : number(activeCount)}</strong><span>Ready to access the platform</span></div>
+        </article>
+        <article className="account-overview-card account-overview-attention">
+          <span className="account-overview-icon"><UserRoundX aria-hidden="true" /></span>
+          <div><p>Blocked</p><strong>{query.isPending ? "—" : number(blockedCount)}</strong><span>Access currently restricted</span></div>
+        </article>
+        <article className="account-overview-card account-overview-expired">
+          <span className="account-overview-icon"><Clock3 aria-hidden="true" /></span>
+          <div><p>Expired</p><strong>{query.isPending ? "—" : number(expiredCount)}</strong><span>Accounts past their expiry</span></div>
+        </article>
+      </section>
+
+      <section className="account-directory" aria-label="Account directory">
+        <div className="account-directory-toolbar">
+          <div><h2>Account directory</h2><p>Search accounts and manage access, credits, and details.</p></div>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <SearchBox label="Search name or email..." value={search} onChange={(value) => update("search", value)} />
+            <FilterSelect
+              label="Account status"
+              value={status}
+              onChange={(value) => update("status", value)}
+              options={[
+                { value: "all", label: "All statuses" },
+                { value: "active", label: "Active" },
+                { value: "blocked", label: "Blocked" },
+                { value: "expired", label: "Expired" },
+              ]}
+            />
+          </div>
+        </div>
 
       <QueryState
         query={query}
@@ -755,6 +788,7 @@ export default function Accounts({ role }) {
           }}
         />
       </QueryState>
+      </section>
 
       {detail && <AccountDetail account={detail} onClose={closeDetail} onAction={(type, account, nextStatus) => type === "status" ? selectStatus(account, nextStatus) : setModal({ type, account })} />}
       {modal?.type === "status" && <AccountStatusDialog change={modal} mutation={statusUpdate} onClose={() => setModal(null)} />}

@@ -6,12 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Link } from "react-router";
 import useMediaUploadLimits, { useSaveMediaUploadLimits } from "@/features/campaigns/hooks/useMediaUploadLimits";
-import { DEFAULT_MEDIA_UPLOAD_LIMITS, MEDIA_UPLOAD_LABELS, MAX_MEDIA_UPLOAD_MB, resolveMediaUploadLimits } from "../../../../../shared/mediaUploadLimits.js";
-
-export function mediaUploadSummary(account, defaults) {
-  const limits = resolveMediaUploadLimits(account?.mediaUploadLimits, defaults);
-  return `Image ${limits.imageMB} MB / Video ${limits.videoMB} MB / PDF ${limits.pdfMB} MB`;
-}
+import { DEFAULT_MEDIA_UPLOAD_LIMITS, MEDIA_UPLOAD_LABELS, MAX_MEDIA_UPLOAD_MB } from "../../../../../shared/mediaUploadLimits.js";
 
 function LimitFields({ values, onChange, defaults, disabled }) {
   return <div className="grid gap-4 sm:grid-cols-3">{Object.keys(DEFAULT_MEDIA_UPLOAD_LIMITS).map(key => <label key={key} className="grid min-w-0 gap-2 text-xs font-medium">

@@ -1,0 +1,61 @@
+.account-overview {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin: 4px 0 22px;
+}
+
+.account-overview-card {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 13px;
+  padding: 18px 18px 17px;
+  border: 1px solid color-mix(in srgb, var(--account-tone) 30%, var(--border));
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 5px 16px color-mix(in srgb, var(--account-tone) 8%, transparent);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.account-overview-card::before { position: absolute; inset: 0 0 auto; height: 4px; border-radius: 16px 16px 0 0; background: var(--account-tone); content: ""; }
+.account-overview-card:hover { transform: translateY(-2px); box-shadow: 0 9px 22px color-mix(in srgb, var(--account-tone) 10%, transparent); }
+.account-overview-total { --account-tone: #4f5ed8; }
+.account-overview-active { --account-tone: #07815c; }
+.account-overview-attention { --account-tone: #c77908; }
+.account-overview-expired { --account-tone: #cc4655; }
+.account-overview-icon { display: grid; width: 42px; height: 42px; flex: 0 0 auto; place-items: center; border-radius: 12px; background: var(--account-tone); color: #fff; box-shadow: 0 4px 10px color-mix(in srgb, var(--account-tone) 24%, transparent); }
+.account-overview-icon svg { width: 19px; height: 19px; }
+.account-overview-card p, .account-overview-card strong, .account-overview-card div > span { display: block; }
+.account-overview-card p { margin: 0; color: var(--muted-foreground); font-size: 12px; font-weight: 600; }
+.account-overview-card strong { margin: 2px 0; color: var(--account-tone); font-size: 26px; font-weight: 750; letter-spacing: -.04em; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.account-overview-card div > span { color: var(--muted-foreground); font-size: 11px; line-height: 1.4; }
+
+.account-directory { overflow: hidden; border: 1px solid var(--border); border-radius: 18px; background: var(--card); box-shadow: 0 8px 28px color-mix(in srgb, var(--foreground) 4%, transparent); }
+.account-directory-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; padding: 18px 20px; border-bottom: 1px solid var(--border); background: linear-gradient(110deg, color-mix(in srgb, var(--primary) 5%, var(--card)), var(--card) 60%); }
+.account-directory-toolbar h2 { margin: 0; color: var(--foreground); font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+.account-directory-toolbar p { margin: 3px 0 0; color: var(--muted-foreground); font-size: 12px; }
+.account-directory-toolbar > div:last-child { flex: 0 1 auto; }
+.account-directory .responsive-data-table { border: 0; border-radius: 0; box-shadow: none; }
+.account-directory .responsive-table-pager { background: color-mix(in srgb, var(--muted) 42%, var(--card)); }
+
+@media (max-width: 900px) {
+  .account-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+}
+@media (max-width: 600px) {
+  .account-overview-card { gap: 10px; padding: 13px; border-radius: 14px; }
+  .account-overview-icon { width: 34px; height: 34px; border-radius: 10px; }
+  .account-overview-card strong { font-size: 22px; }
+  .account-overview-card div > span { font-size: 10px; }
+  .account-directory { border-radius: 15px; }
+  .account-directory-toolbar { align-items: stretch; padding: 15px; }
+  .account-directory-toolbar > div:last-child { width: 100%; }
+  .account-directory-toolbar .portal-search-field { width: 100%; }
+  .account-directory-toolbar [data-slot="select-trigger"] { min-width: 140px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .account-overview-card { transition: none; }
+  .account-overview-card:hover { transform: none; }
+}
