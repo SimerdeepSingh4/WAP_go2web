@@ -19,7 +19,7 @@ export default function HelpMenu({ base, user, hasTour, startTour }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        render={<Button variant="outline" size="sm" id="tour-help-button" className="relative h-8 gap-1.5 text-xs font-medium" />}
+        render={<Button variant="outline" size="sm" id="tour-help-button" className="relative h-8 gap-1.5 border-border bg-card text-xs font-medium text-foreground shadow-none hover:border-border hover:bg-muted hover:text-foreground hover:shadow-none aria-expanded:border-border aria-expanded:bg-muted aria-expanded:text-foreground dark:border-border dark:bg-card dark:text-foreground dark:hover:bg-muted" />}
         aria-label={hasActiveChat ? "Help, active support chat" : "Help"}
       >
         <HelpCircle className="size-3.5 text-muted-foreground" aria-hidden="true" />

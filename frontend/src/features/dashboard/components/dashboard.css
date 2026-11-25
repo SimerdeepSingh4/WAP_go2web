@@ -43,7 +43,7 @@ body { margin: 0; min-width: 0; }
 .portal-query-error { overflow-wrap: anywhere; }
 .portal-topbar {
   min-height: 72px;
-  background: var(--brand-header, var(--background));
+  background: var(--brand-header, var(--card));
   box-shadow: 0 1px 3px color-mix(in srgb, var(--foreground) 4%, transparent);
 }
 .portal-sidebar-header { min-height: 72px; }
