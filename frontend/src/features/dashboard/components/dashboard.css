@@ -50,8 +50,10 @@ body { margin: 0; min-width: 0; }
 .dashboard-portal .portal-sidebar-header { background: #071b46; border-bottom-color: rgb(255 255 255 / 12%); }
 .dashboard-portal .portal-sidebar-header:hover { background: #102b5b; }
 .dashboard-portal .portal-sidebar-header:hover .portal-sidebar-collapse-icon { color: #ffbf16; }
-.dashboard-portal .portal-brand-mark { width: 50px; height: 50px; flex-basis: 50px; padding: 5px; border: 1px solid rgb(255 191 22 / 60%) !important; border-radius: 13px; background: #ffffff !important; box-shadow: 0 4px 12px rgb(0 0 0 / 18%) !important; }
-.dashboard-portal .portal-brand-mark img { width: 100%; height: 100%; }
+.dashboard-portal .portal-brand-mark,
+[data-sidebar="sidebar"][data-mobile="true"] .portal-brand-mark { width: 50px; height: 50px; flex-basis: 50px; padding: 5px; border: 1px solid rgb(255 191 22 / 60%) !important; border-radius: 13px; background: #ffffff !important; box-shadow: 0 4px 12px rgb(0 0 0 / 18%) !important; }
+.dashboard-portal .portal-brand-mark img,
+[data-sidebar="sidebar"][data-mobile="true"] .portal-brand-mark img { width: 100%; height: 100%; }
 .dashboard-portal .portal-sidebar-logo-toggle { border-color: rgb(255 191 22 / 65%); background: #ffffff; box-shadow: 0 4px 12px rgb(0 0 0 / 18%); }
 .dashboard-portal .portal-sidebar-logo-toggle .portal-logo-hover { color: #071b46; }
 .dashboard-portal .portal-sidebar-header:hover .portal-sidebar-logo-toggle { border-color: #ffbf16; background: #ffbf16; }
