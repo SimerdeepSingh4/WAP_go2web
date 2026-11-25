@@ -69,10 +69,10 @@ function editableColors(branding) {
 }
 
 const COLOR_GROUPS = [
-  { label: "Buttons & highlights", keys: ["primaryColor", "secondaryColor", "accentColor", "focusColor"] },
-  { label: "Backgrounds & cards", keys: ["backgroundColor", "cardColor", "popoverColor", "mutedColor", "borderColor"] },
-  { label: "KPI cards", keys: KPI_CARDS.map(card => card.key) },
-  { label: "Navigation", keys: ["sidebarColor", "headerColor"] },
+  { label: "Buttons & highlights", keys: ["primaryColor", "primaryTextColor", "secondaryColor", "secondaryTextColor", "accentColor", "accentTextColor", "focusColor"] },
+  { label: "Backgrounds & cards", keys: ["backgroundColor", "cardColor", "cardTextColor", "popoverColor", "popoverTextColor", "mutedColor", "borderColor"] },
+  { label: "KPI cards", keys: ["kpiCampaignsColor", "kpiCampaignsTextColor", "kpiNetworkColor", "kpiNetworkTextColor", "kpiUsersColor", "kpiUsersTextColor", "kpiCreditsColor", "kpiCreditsTextColor"] },
+  { label: "Navigation", keys: ["sidebarColor", "sidebarTextColor", "headerColor", "headerTextColor"] },
   { label: "Text", keys: ["textColor", "mutedTextColor"] },
   { label: "Status & charts", keys: ["successColor", "warningColor", "dangerColor", "infoColor", "chartColor"] },
 ];
@@ -83,7 +83,7 @@ const PREVIEW_VIEWS = [
   { label: "Components", icon: PanelsTopLeft },
   { label: "Status & charts", icon: AlertTriangle },
 ];
-const COMPONENT_COLORS = ["cardColor", "secondaryColor", "accentColor", "popoverColor", "mutedColor", "borderColor", "focusColor"];
+const COMPONENT_COLORS = ["cardColor", "cardTextColor", "secondaryColor", "secondaryTextColor", "accentColor", "accentTextColor", "popoverColor", "popoverTextColor", "mutedColor", "borderColor", "focusColor"];
 const STATUS_EXAMPLES = [
   ["success", "Campaign sent"],
   ["warning", "Credits are running low"],
@@ -355,7 +355,7 @@ export default function ResellerBrandingSettings() {
     Object.keys(colors).some(key => normalizeHex(colors[key]).toLowerCase() !== savedColors[key].toLowerCase());
 
   function updateColor(key, value) {
-    if (KPI_CARDS.some(card => card.key === key)) setPreviewView("KPI cards");
+    if (KPI_CARDS.some(card => card.key === key) || key.startsWith("kpi")) setPreviewView("KPI cards");
     else if (COMPONENT_COLORS.includes(key)) setPreviewView("Components");
     else if (COLOR_GROUPS.at(-1).keys.includes(key)) setPreviewView("Status & charts");
     else setPreviewView("Workspace");

@@ -23,6 +23,7 @@ export function applyBrandColors(branding, preview) {
         else root.style.removeProperty(property);
     }
     for (const [key, [, token]] of Object.entries(BRAND_COLOR_FIELDS)) {
+        if (token.endsWith("-foreground")) continue;
         const color = pickerColor(branding?.[key]);
         applyColor("--brand-" + token, color);
         if (["primary", "sidebar", "header", "kpi"].includes(token) || token.startsWith("kpi-")) {
@@ -32,6 +33,26 @@ export function applyBrandColors(branding, preview) {
             if (token.startsWith("kpi")) {
                 applyColor("--brand-" + token + "-shade", text && (text === "#ffffff" ? "#000000" : "#ffffff"));
             }
+        }
+    }
+    const autoContrasted = new Set([
+        "primary-foreground",
+        "sidebar-foreground",
+        "header-foreground",
+        "kpi-campaigns-foreground",
+        "kpi-network-foreground",
+        "kpi-users-foreground",
+        "kpi-credits-foreground",
+    ]);
+    for (const [key, [, token]] of Object.entries(BRAND_COLOR_FIELDS)) {
+        if (!token.endsWith("-foreground")) continue;
+        const color = pickerColor(branding?.[key]);
+        if (color || !autoContrasted.has(token)) {
+            applyColor("--brand-" + token, color);
+        }
+        if (color && token.startsWith("kpi-")) {
+            const base = token.slice(0, -"-foreground".length);
+            applyColor("--brand-" + base + "-shade", contrastingText(color) === "#000000" ? "#000000" : "#ffffff");
         }
     }
     if (pickerColor(branding?.primaryColor)) root.dataset.branded = "true";
