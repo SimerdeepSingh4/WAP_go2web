@@ -122,6 +122,44 @@ try {
     });
     console.log(`${r}: layout checks complete`);
   }
+  const rowActionCases = [
+    { role: 'Super Admin', path: '/admin/resellers', name: reseller.username, action: 'Upload limits', nextTitle: `Upload limits for ${reseller.username}` },
+    { role: 'Super Admin', path: '/admin/users', name: owner.username, action: 'Account details', nextTitle: 'Account Profile & Details' },
+    { role: 'Reseller', path: '/reseller/users', name: owner.username, action: 'Manage access & expiry', nextTitle: 'Manage account access' },
+    { role: 'User', path: '/user/campaigns', name: campaigns[0].campaignTitle, action: 'View Campaign', nextPath: '/user/campaigns/campaign-0' },
+  ];
+  for (const example of rowActionCases) {
+    role = example.role;
+    await check(`Mobile row actions on ${example.path}`, async () => {
+      await navigate(example.path, 390);
+      const visibleButtons = labels => `[...document.querySelectorAll('button[aria-label]')].filter(button =>
+        ${JSON.stringify(labels)}.includes(button.getAttribute('aria-label')) && button.getClientRects().length)`;
+      const triggerLabel = `Actions for ${example.name}`;
+      const trigger = `${visibleButtons([triggerLabel])}[0]`;
+      await waitFor(`Boolean(${trigger})`);
+      const labels = [triggerLabel];
+      if (example.role !== 'User') labels.push(`Allocate credits to ${example.name}`);
+      if (example.role === 'Super Admin') labels.push(`Log in as ${example.name}`);
+      const rowControls = visibleButtons(labels);
+      assert.equal(await evaluate(`${rowControls}.length`), labels.length, 'The account controls should only render once per record');
+      await evaluate(`(${trigger}).click()`);
+      const sheet = `document.querySelector('[data-slot="sheet-content"][data-side="bottom"]')`;
+      await waitFor(`Boolean(${sheet})`);
+      assert.equal(await evaluate(`getComputedStyle(document.querySelector('[data-slot="sheet-overlay"][data-open]')).backdropFilter`), 'none', 'The mobile sheet backdrop should leave the page readable');
+      assert.equal(await evaluate(`${rowControls}.length`), labels.length, 'Opening the sheet should not duplicate the row controls');
+      const dimensions = await evaluate(`(() => {
+        const sheet = ${sheet};
+        const rows = [...sheet.querySelectorAll('.detail-sheet-body [data-slot="sheet-close"]')];
+        return { width: sheet.clientWidth, rows: rows.map(row => ({ width: row.offsetWidth, height: row.offsetHeight })) };
+      })()`);
+      assert(dimensions.rows.length >= 3, 'The sheet should contain the row actions');
+      assert(dimensions.rows.every(row => row.width >= dimensions.width * 0.75 && row.height >= 44), 'Action rows should be full-width touch targets');
+      await click(example.action);
+      await waitFor(`!${sheet}`);
+      if (example.nextPath) await waitFor(`location.pathname === ${JSON.stringify(example.nextPath)}`);
+      else await waitFor(`Array.from(document.querySelectorAll('[role="dialog"] h2')).some(title => title.textContent === ${JSON.stringify(example.nextTitle)})`);
+    });
+  }
   role = 'User';
   await check('Campaign foreground accents remain readable with dark and pale reseller colors in both themes', async () => {
     await navigate('/user/campaigns/create'); await setValue('#recipients', '919876543210');
@@ -152,7 +190,18 @@ try {
     }
   });
   await check('User detail is read-only', async () => { await navigate('/user/campaigns?campaign=campaign-0', 390); await waitFor("Boolean(document.querySelector('[role=dialog]'))"); const text=await evaluate('document.body.innerText'); assert(!text.includes('Change status') && !text.includes('Publish report')); });
-  await check('Mobile navigation', async () => { await navigate('/user', 390); await evaluate("document.querySelector('[aria-label=\"Toggle navigation\"]').click()"); await waitFor("Boolean(document.querySelector('[role=dialog]'))"); await click('Campaigns'); await waitFor("location.pathname==='/user/campaigns'"); });
+  await check('Mobile navigation labels are readable and links work', async () => {
+    await navigate('/user', 390);
+    await evaluate("document.querySelector('[aria-label=\"Toggle navigation\"]').click()");
+    await waitFor(`Boolean(document.querySelector('[data-sidebar="sidebar"][data-mobile="true"] .portal-nav-text'))`);
+    const colors = await evaluate(`Array.from(
+      document.querySelectorAll('[data-sidebar="sidebar"][data-mobile="true"] .portal-nav-link:not([data-active]) .portal-nav-text'),
+      label => getComputedStyle(label).color
+    )`);
+    assert(colors.length > 0 && colors.every(color => color === 'rgb(255, 255, 255)'), 'Inactive mobile navigation labels should use the default white sidebar text');
+    await click('Campaigns');
+    await waitFor("location.pathname==='/user/campaigns'");
+  });
   await check('Recipient input blocks extra digits, characters and invalid paste while allowing replacement and new lines', async () => {
     await navigate('/user/campaigns/create'); await setValue('#recipients', '919876543210');
     await evaluate("(()=>{const input=document.querySelector('#recipients');input.focus();input.setSelectionRange(input.value.length,input.value.length);})()");

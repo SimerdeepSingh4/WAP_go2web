@@ -31,6 +31,8 @@
 .credit-workspace-nav button:hover { color: var(--foreground); }
 .credit-workspace-nav button:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }
 .credit-workspace-nav svg { flex: none; width: 1rem; height: 1rem; }
+.credit-workspace-icon { display: contents; }
+.credit-workspace-short-label { display: none; }
 
 .credit-workspace-nav button[aria-pressed="true"] {
   border-color: var(--border);
@@ -43,6 +45,7 @@
 .credit-workspace-count {
   display: inline-grid;
   flex: none;
+  order: 1;
   min-width: 1.375rem;
   min-height: 1.375rem;
   padding-inline: 0.3125rem;
@@ -307,14 +310,26 @@
   .credit-settings-rates .credit-rate-hint { grid-column: 2; }
 }
 
-@media (max-width: 43rem) {
+@container portal (max-width: 50rem) {
   .credit-workspace-nav {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
     width: 100%;
   }
-  .credit-workspace-nav button { min-height: 2.75rem; padding-inline: 0.5rem; }
-  .credit-workspace-nav button:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .credit-workspace-nav button {
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.25rem;
+    min-height: 3.5rem;
+    padding-inline: 0.125rem;
+    font-size: 0.75rem;
+    text-align: center;
+  }
+  .credit-workspace-icon { display: flex; align-items: center; gap: 0.25rem; min-height: 1.25rem; }
+  .credit-workspace-count { min-width: 1.25rem; min-height: 1.25rem; padding-inline: 0.25rem; font-size: 0.6875rem; }
+  .credit-workspace-label { display: none; }
+  .credit-workspace-short-label { display: inline; }
 }
 
 @media (max-width: 23rem) {

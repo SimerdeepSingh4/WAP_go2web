@@ -36,7 +36,7 @@ function DialogOverlay({
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        "ui-motion-backdrop fixed inset-0 isolate z-50 bg-black/10 supports-backdrop-filter:backdrop-blur-xs",
+        "ui-motion-backdrop fixed inset-0 isolate z-50 bg-black/20 md:bg-black/10 md:supports-backdrop-filter:backdrop-blur-xs",
         className
       )}
       {...props}

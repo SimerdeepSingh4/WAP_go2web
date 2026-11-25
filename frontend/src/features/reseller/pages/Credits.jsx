@@ -34,10 +34,10 @@ import CreditWorkspaceNav from "@/features/credits/components/CreditWorkspaceNav
 import "@/features/credits/components/credit-history.css";
 
 const resellerCreditSections = [
-  { value: "ledger", label: "Transaction Ledger", icon: ReceiptText },
-  { value: "requests", label: "Client Recharge Requests", icon: Inbox },
-  { value: "my-orders", label: "My Credit Recharges", icon: ShoppingCart },
-  { value: "rates", label: "Rates & Bank Details", icon: Settings },
+  { value: "ledger", label: "Transaction Ledger", shortLabel: "Ledger", icon: ReceiptText },
+  { value: "requests", label: "Client Recharge Requests", shortLabel: "Requests", icon: Inbox },
+  { value: "my-orders", label: "My Credit Recharges", shortLabel: "Recharges", icon: ShoppingCart },
+  { value: "rates", label: "Rates & Bank Details", shortLabel: "Rates", icon: Settings },
 ];
 
 export default function ResellerCredits({ activity = false }) {

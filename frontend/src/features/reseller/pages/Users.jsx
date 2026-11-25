@@ -6,7 +6,6 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import {
   Plus,
-  MoreHorizontal,
   Eye,
   Pencil,
   Lock,
@@ -17,8 +16,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { PageHeading, QueryState, SearchBox, FilterSelect, DataTable, ClearFiltersButton } from "@/features/dashboard/components/shared";
+import RowActionsMenu from "@/features/dashboard/components/RowActionsMenu";
 import ResellerActionForm from "../components/ResellerActionForm";
 import { useResellerQuery } from "../hooks/useReseller";
 import { number, dateTime } from "@/lib/format";
@@ -154,6 +153,7 @@ function UserDetail({ account, onClose, onAction }) {
  */
 export default function ResellerUsers() {
   const { user: signedInUser } = useAuth();
+  const isPreview = signedInUser?.isPreview;
   const canReclaim = signedInUser?.role === "Super Admin" || signedInUser?.featureAccess?.reclaimCredit === true;
   const query = useResellerQuery("accounts");
   const [params, setParams] = useSearchParams();
@@ -243,52 +243,18 @@ export default function ResellerUsers() {
       label: <span className="sr-only">Actions</span>,
       render: (a) => (
         <div className="portal-row-actions account-row-actions">
-        <Button type="button" variant="outline" size="sm" className="credit-allocate-button" title="Allocate credits" aria-label={`Allocate credits to ${a.username}`} disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "allocate", account: a })}>Allocate credits</Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={`Actions for ${a.username}`}
-              />
-            }
-          >
-            <MoreHorizontal />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onClick={() => setDetail(a)}>
-              <Eye className="size-4 mr-2" />
-              Account details
-            </DropdownMenuItem>
-            <DropdownMenuItem disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "accountAccess", account: a })}>
-              <Lock className="size-4 mr-2" />
-              Manage access & expiry
-            </DropdownMenuItem>
-            <DropdownMenuItem disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "rate", account: a })}>
-              <Pencil className="size-4 mr-2" />
-              Purchase rates
-            </DropdownMenuItem>
-            <DropdownMenuItem disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "allocate", account: a })}>
-              <Wallet className="size-4 mr-2" />
-              Allocate credits
-            </DropdownMenuItem>
-            {canReclaim && (
-              <DropdownMenuItem disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "reclaim", account: a })}>
-                <MinusCircle className="size-4 mr-2" />
-                Reclaim credits
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuItem
-              disabled={signedInUser?.isPreview}
-              className="text-destructive focus:text-destructive"
-              onClick={() => setModal({ type: "deleteAccount", account: a })}
-            >
-              <Trash2 className="size-4 mr-2" />
-              Delete user
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          <Button type="button" variant="outline" size="sm" className="credit-allocate-button" title="Allocate credits" aria-label={`Allocate credits to ${a.username}`} disabled={isPreview} onClick={() => setModal({ type: "allocate", account: a })}>Allocate credits</Button>
+          <RowActionsMenu
+            name={a.username}
+            actions={[
+              { label: "Account details", icon: Eye, onClick: () => setDetail(a) },
+              { label: "Manage access & expiry", icon: Lock, disabled: isPreview, onClick: () => setModal({ type: "accountAccess", account: a }) },
+              { label: "Purchase rates", icon: Pencil, disabled: isPreview, onClick: () => setModal({ type: "rate", account: a }) },
+              { label: "Allocate credits", icon: Wallet, disabled: isPreview, onClick: () => setModal({ type: "allocate", account: a }) },
+              ...(canReclaim ? [{ label: "Reclaim credits", icon: MinusCircle, disabled: isPreview, onClick: () => setModal({ type: "reclaim", account: a }) }] : []),
+              { label: "Delete user", icon: Trash2, disabled: isPreview, destructive: true, onClick: () => setModal({ type: "deleteAccount", account: a }) },
+            ]}
+          />
         </div>
       ),
     },

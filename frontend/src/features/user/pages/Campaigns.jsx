@@ -2,16 +2,11 @@ import CampaignReference from "@/features/campaigns/components/CampaignReference
 import "@/features/campaigns/components/campaign-list.css";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
-import { Plus, MoreHorizontal, Eye, FileText, Trash2 } from "lucide-react";
+import { Plus, Eye, FileText, Trash2 } from "lucide-react";
 import CampaignDeleteDialog from "@/features/campaigns/components/CampaignDeleteDialog";
 import { useUserMutation } from "../hooks/useUser";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
+import RowActionsMenu from "@/features/dashboard/components/RowActionsMenu";
 import { useUserQuery } from "../hooks/useUser";
 import { PageHeading, SearchBox, FilterSelect, QueryState, DataTable, StatusBadge, ClearFiltersButton } from "@/features/dashboard/components/shared";
 import { dateTime, number, statusLabels, published } from "@/lib/format";
@@ -62,30 +57,14 @@ export default function Campaigns() {
           key: "actions",
           label: <span className="sr-only">Actions</span>,
           render: (c) => (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={<Button variant="ghost" size="icon" aria-label={`Actions for ${c.campaignTitle}`} />}
-              >
-                <MoreHorizontal />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 p-1.5">
-                <DropdownMenuItem className="min-h-9 gap-2 px-2 py-2" render={<Link to={`/user/campaigns/${c._id}`} />}>
-                  <Eye className="size-4" />
-                  View Campaign
-                </DropdownMenuItem>
-                <DropdownMenuItem className="min-h-9 gap-2 px-2 py-2" render={<Link to={`/user/campaigns/${c._id}/report`} />}>
-                  <FileText className="size-4" />
-                  View Report
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="min-h-9 gap-2 px-2 py-2 text-destructive focus:text-destructive"
-                  onClick={() => setCampaignToDelete(c)}
-                >
-                  <Trash2 className="size-4" />
-                  Delete Campaign
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <RowActionsMenu
+              name={c.campaignTitle}
+              actions={[
+                { label: "View Campaign", icon: Eye, to: `/user/campaigns/${c._id}` },
+                { label: "View Report", icon: FileText, to: `/user/campaigns/${c._id}/report` },
+                { label: "Delete Campaign", icon: Trash2, destructive: true, onClick: () => setCampaignToDelete(c) },
+              ]}
+            />
           ),
         },
       ]} />

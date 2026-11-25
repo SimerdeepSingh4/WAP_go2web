@@ -363,7 +363,7 @@ export default function ResellerBrandingSettings() {
     setForm(previous => ({ ...previous, colors: { ...previous.colors, [key]: value } }));
   }
 
-  const previewAddress = isSuperAdmin ? "yourdomain.com" : `${form.subdomain || "yourbrand"}.yourdomain.com`;
+  const previewAddress = isSuperAdmin ? "wap-go2web-2.onrender.com" : `${form.subdomain || "yourbrand"}.wap-go2web-2.onrender.com`;
   const logoBusy = uploadingLogo || logoMutation.isPending || removeLogoMutation.isPending;
 
   return (
@@ -406,7 +406,7 @@ export default function ResellerBrandingSettings() {
                 <div className="branding-section-header"><span className="branding-section-icon"><Globe aria-hidden="true" /></span><div><h3 id="branding-address-heading">Workspace address</h3><p>Choose the subdomain your clients will recognize.</p></div></div>
                 <div className="branding-section-body"><div className="branding-field">
                   <label htmlFor="reseller-subdomain">Subdomain</label>
-                  <div className="branding-address"><span>https://</span><Input id="reseller-subdomain" placeholder="yourbrand" value={form.subdomain} onChange={e => setForm({ ...form, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })} maxLength={30} className="font-mono text-sm focus-visible:ring-0 focus-visible:outline-none" aria-describedby="branding-address-help" /><span>.yourdomain.com</span></div>
+                  <div className="branding-address"><span>https://</span><Input id="reseller-subdomain" placeholder="yourbrand" value={form.subdomain} onChange={e => setForm({ ...form, subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })} maxLength={30} className="font-mono text-sm focus-visible:ring-0 focus-visible:outline-none" aria-describedby="branding-address-help" /><span>.wap-go2web-2.onrender.com</span></div>
                   <p id="branding-address-help" className="branding-help">Use 3–30 lowercase letters, numbers or hyphens. The domain shown here is an example.</p>
                 </div></div>
               </section>

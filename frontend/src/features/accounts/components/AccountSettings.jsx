@@ -119,8 +119,8 @@ export default function AccountSettings() {
       ["profile", "Profile", UserRound],
       ["password", "Password", LockKeyhole],
       ["devices", "Devices", MonitorSmartphone],
-      ...(isWhiteLabelActive ? [["branding", isSuperAdmin ? "Platform Branding" : "White-Label Branding", Palette]] : []),
-    ].map(([section, label, Icon], index, tabs) => <button key={section} id={`account-tab-${section}`} type="button" role="tab" aria-selected={visibleTab === section} aria-controls={`account-${section}`} tabIndex={visibleTab === section ? 0 : -1} onClick={() => setActiveTab(section)} onKeyDown={event => {
+      ...(isWhiteLabelActive ? [["branding", isSuperAdmin ? "Platform Branding" : "White-Label Branding", Palette, "Branding"]] : []),
+    ].map(([section, label, Icon, compactLabel], index, tabs) => <button key={section} id={`account-tab-${section}`} type="button" role="tab" aria-label={compactLabel ? label : undefined} aria-selected={visibleTab === section} aria-controls={`account-${section}`} tabIndex={visibleTab === section ? 0 : -1} onClick={() => setActiveTab(section)} onKeyDown={event => {
       let next;
       if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
       if (event.key === "ArrowLeft") next = (index + tabs.length - 1) % tabs.length;
@@ -130,7 +130,11 @@ export default function AccountSettings() {
       event.preventDefault();
       setActiveTab(tabs[next][0]);
       document.getElementById(`account-tab-${tabs[next][0]}`)?.focus();
-    }}><Icon aria-hidden="true" />{label}</button>)}</div>
+    }}>
+      <Icon aria-hidden="true" />
+      <span className={compactLabel ? "account-settings-tab-full-label" : undefined}>{label}</span>
+      {compactLabel && <span className="account-settings-tab-compact-label">{compactLabel}</span>}
+    </button>)}</div>
     <div className="account-settings-grid">
       <div className="account-settings-stack">
         <SettingsCard section="profile" active={visibleTab === "profile"} title="Your profile" description={canManageProfilePhoto ? "Your photo and account details." : "Your account details."} icon={UserRound}>

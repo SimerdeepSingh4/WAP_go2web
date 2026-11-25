@@ -7,7 +7,6 @@ import { Link, useSearchParams } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
-  MoreHorizontal,
   Eye,
   Pencil,
   ShieldCheck,
@@ -36,17 +35,12 @@ import {
   UserRoundX,
   Clock3,
 } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
 import api from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sheet, SheetTrigger, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+import OverviewMetricCards from "@/features/dashboard/components/OverviewMetricCards";
+import RowActionsMenu from "@/features/dashboard/components/RowActionsMenu";
 import { PageHeading, QueryState, SearchBox, FilterSelect, DataTable, ClearFiltersButton } from "../../dashboard/components/shared";
 import ActionForm from "../components/ActionForm";
 import WhiteLabelAccessDialog from "../components/WhiteLabelAccessDialog";
@@ -460,44 +454,7 @@ const accountMenuItems = [
   { type: "detail", label: "Account details", icon: Eye },
 ];
 
-function AccountActionsMenu({ account, mobile, loading, onAction }) {
-  const Trigger = mobile ? SheetTrigger : DropdownMenuTrigger;
-  const Item = mobile ? SheetClose : DropdownMenuItem;
-  const trigger = (
-    <Trigger render={<Button variant="ghost" size="icon" title="Account actions" aria-label={`Actions for ${account.username}`} />}>
-      <MoreHorizontal />
-    </Trigger>
-  );
-  const itemClass = mobile ? "flex min-h-11 w-full items-center gap-3 rounded-md px-2 text-left hover:bg-accent disabled:opacity-50" : "min-h-6 py-0.5 text-[13px]";
-  const actions = accountMenuItems.map(({ type, label, icon: Icon, needsData }) => (
-    <Item key={type} className={itemClass} disabled={needsData && loading} onClick={() => onAction(type)}>
-      <Icon className="size-4" />
-      {label}
-    </Item>
-  ));
-  if (mobile) {
-    return (
-      <Sheet>
-        {trigger}
-        <SheetContent side="bottom" className="max-h-[90dvh] gap-1 overflow-y-auto rounded-t-xl p-4">
-          <SheetHeader className="p-0 pb-2 pr-8">
-            <SheetTitle className="break-all">Actions for {account.username}</SheetTitle>
-          </SheetHeader>
-          {actions}
-        </SheetContent>
-      </Sheet>
-    );
-  }
-  return (
-    <DropdownMenu>
-      {trigger}
-      <DropdownMenuContent align="end" className="w-44">{actions}</DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
 export default function Accounts({ role }) {
-  const mobile = useIsMobile();
   const query = useAdminQuery("accounts");
   const queryClient = useQueryClient();
   const [params, setParams] = useSearchParams();
@@ -561,6 +518,36 @@ export default function Accounts({ role }) {
   const activeCount = roleAccounts.filter((a) => a.status === "active" && !a.isExpired).length;
   const blockedCount = roleAccounts.filter((a) => a.status === "blocked").length;
   const expiredCount = roleAccounts.filter((a) => a.isExpired).length;
+  const accountMetrics = [
+    {
+      label: role === "Reseller" ? "Total resellers" : "Total users",
+      value: roleAccounts.length,
+      caption: "Accounts in your workspace",
+      icon: Users,
+      tone: "blue-filled",
+    },
+    {
+      label: "Active",
+      value: activeCount,
+      caption: "Ready to access the platform",
+      icon: UserRoundCheck,
+      accent: true,
+    },
+    {
+      label: "Blocked",
+      value: blockedCount,
+      caption: "Access currently restricted",
+      icon: UserRoundX,
+      tone: "rose-filled",
+    },
+    {
+      label: "Expired",
+      value: expiredCount,
+      caption: "Accounts past their expiry",
+      icon: Clock3,
+      tone: "purple-filled",
+    },
+  ].map((metric) => ({ ...metric, loading: query.isPending }));
 
   const rows = roleAccounts.filter(
     (a) =>
@@ -683,11 +670,14 @@ export default function Accounts({ role }) {
           <Button type="button" variant="outline" size="sm" className="credit-allocate-button" title="Allocate credits" aria-label={`Allocate credits to ${a.username}`} onClick={() => setModal({ type: "allocate", account: a })}>
             <span>Allocate<span className="account-credit-label"> credits</span></span>
           </Button>
-          <AccountActionsMenu
-            account={a}
-            mobile={mobile}
-            loading={query.isPending}
-            onAction={(type) => type === "detail" ? setDetail(a) : setModal({ type, account: a })}
+          <RowActionsMenu
+            name={a.username}
+            actions={accountMenuItems.map(({ type, label, icon, needsData }) => ({
+              label,
+              icon,
+              disabled: needsData && query.isPending,
+              onClick: () => type === "detail" ? setDetail(a) : setModal({ type, account: a }),
+            }))}
           />
         </div>
       ),
@@ -726,24 +716,11 @@ export default function Accounts({ role }) {
         </p>
       )}
 
-      <section className="account-overview" aria-label={`${role} account overview`}>
-        <article className="account-overview-card account-overview-total">
-          <span className="account-overview-icon"><Users aria-hidden="true" /></span>
-          <div><p>Total {role === "Reseller" ? "resellers" : "users"}</p><strong>{query.isPending ? "—" : number(roleAccounts.length)}</strong><span>Accounts in your workspace</span></div>
-        </article>
-        <article className="account-overview-card account-overview-active">
-          <span className="account-overview-icon"><UserRoundCheck aria-hidden="true" /></span>
-          <div><p>Active</p><strong>{query.isPending ? "—" : number(activeCount)}</strong><span>Ready to access the platform</span></div>
-        </article>
-        <article className="account-overview-card account-overview-attention">
-          <span className="account-overview-icon"><UserRoundX aria-hidden="true" /></span>
-          <div><p>Blocked</p><strong>{query.isPending ? "—" : number(blockedCount)}</strong><span>Access currently restricted</span></div>
-        </article>
-        <article className="account-overview-card account-overview-expired">
-          <span className="account-overview-icon"><Clock3 aria-hidden="true" /></span>
-          <div><p>Expired</p><strong>{query.isPending ? "—" : number(expiredCount)}</strong><span>Accounts past their expiry</span></div>
-        </article>
-      </section>
+      <OverviewMetricCards
+        className="account-overview overview-metrics-compact"
+        label={`${role} account overview`}
+        items={accountMetrics}
+      />
 
       <section className="account-directory" aria-label="Account directory">
         <div className="account-directory-toolbar">

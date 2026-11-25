@@ -137,7 +137,11 @@ body { margin: 0; min-width: 0; }
 .portal-campaign-copy strong, .portal-reseller-copy strong, .portal-reseller-copy > span { white-space: normal; overflow-wrap: anywhere; }
 .portal-metric-value { font-size: 28px; }
 .portal-eyebrow { text-transform: none; letter-spacing: 0; font-size: 13px; }
-.dashboard-portal [data-sidebar="sidebar"], [data-sidebar="sidebar"]:has(.portal-brand) { background: var(--sidebar); --sidebar-foreground: var(--brand-sidebar-foreground, #ffffff); }
+.dashboard-portal [data-sidebar="sidebar"],
+[data-sidebar="sidebar"][data-mobile="true"]:has(.portal-sidebar-header) {
+  background: var(--sidebar);
+  --sidebar-foreground: var(--brand-sidebar-foreground, #ffffff);
+}
 .portal-nav-link { position: relative; color: var(--sidebar-foreground); }
 .portal-nav-link > svg { color: var(--brand-highlight, #dce9fb); }
 .dark .portal-nav-link > svg { color: var(--chart-2); }

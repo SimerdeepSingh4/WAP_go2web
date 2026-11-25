@@ -43,9 +43,9 @@ import RateSettingsCard from "@/features/credits/components/RateSettingsCard";
 import CreditWorkspaceNav from "@/features/credits/components/CreditWorkspaceNav";
 
 const adminCreditSections = [
-  { value: "wallets", label: "Account Wallets & Balances", icon: Wallet },
-  { value: "requests", label: "Platform Recharge Requests", icon: Inbox },
-  { value: "rates", label: "Rates & Bank Details", icon: Settings },
+  { value: "wallets", label: "Account Wallets & Balances", shortLabel: "Wallets", icon: Wallet },
+  { value: "requests", label: "Platform Recharge Requests", shortLabel: "Requests", icon: Inbox },
+  { value: "rates", label: "Rates & Bank Details", shortLabel: "Rates", icon: Settings },
 ];
 
 const transactionLabels = {
