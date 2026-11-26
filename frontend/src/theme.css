@@ -1,7 +1,8 @@
 /* Clean navy, blue, and gold workspace palette shared by every role. */
 :root,
 .light,
-.branding-preview {
+.branding-preview,
+.branding-preview.light {
   color-scheme: light;
   --palette-teal: #0b63e5;
   --palette-mint: #dce9fb;
@@ -144,35 +145,36 @@
 }
 
 .dark,
-.dark .branding-preview {
+.dark .branding-preview:not(.light),
+.branding-preview.dark {
   color-scheme: dark;
-  --background: var(--brand-background, #0f1115);
-  --foreground: var(--brand-foreground, #edf0f3);
-  --card: var(--brand-card, #191d23);
-  --card-foreground: var(--brand-card-foreground, var(--foreground));
-  --popover: var(--brand-popover, #20252c);
-  --popover-foreground: var(--brand-popover-foreground, var(--foreground));
+  --background: #0f1115;
+  --foreground: #edf0f3;
+  --card: #191d23;
+  --card-foreground: var(--foreground);
+  --popover: #20252c;
+  --popover-foreground: var(--foreground);
   --primary: #0b63e5;
   --primary-text: #7fb2ff;
   --primary-hover: #084eae;
   --primary-foreground: #ffffff;
   --secondary: var(--theme-secondary, #252b33);
   --secondary-hover: var(--theme-secondary-hover, #303842);
-  --secondary-foreground: var(--brand-secondary-foreground, var(--foreground));
+  --secondary-foreground: var(--foreground);
   --accent: var(--theme-accent, #16372c);
   --accent-hover: var(--theme-accent-hover, #1e493a);
-  --accent-foreground: var(--brand-accent-foreground, var(--foreground));
-  --muted: var(--brand-muted, #232931);
+  --accent-foreground: var(--foreground);
+  --muted: #232931;
   --muted-hover: #2c343e;
-  --muted-foreground: var(--brand-muted-foreground, #a6afb8);
-  --surface-subtle: var(--brand-muted, #14181e);
-  --border: var(--brand-border, #2c343e);
-  --input: var(--brand-border, #3a4450);
+  --muted-foreground: #a6afb8;
+  --surface-subtle: #14181e;
+  --border: #2c343e;
+  --input: #3a4450;
   --ring: var(--brand-ring, #4d91ff);
   --destructive: var(--brand-danger, #f87171);
   --accent-brown: var(--muted-foreground);
   --sidebar: var(--brand-sidebar, #13171c);
-  --sidebar-hover: #242b33;
+  --sidebar-hover: var(--theme-sidebar-hover, #242b33);
   --sidebar-accent: var(--theme-sidebar-accent, #ffbf16);
   --sidebar-accent-foreground: var(--brand-sidebar-foreground, #071b46);
   --palette-gray: #586573;
@@ -274,8 +276,11 @@ html[data-branded="true"],
 }
 
 html.dark[data-branded="true"],
-.dark .branding-preview[data-branded="true"] {
+.dark .branding-preview[data-branded="true"]:not(.light),
+.branding-preview.dark[data-branded="true"] {
   --brand-highlight: color-mix(in srgb, var(--brand-primary) 65%, #fff);
+  --secondary-foreground: var(--foreground);
+  --accent-foreground: var(--foreground);
 }
 
 html[data-branded="true"] .credit-recharge-button {

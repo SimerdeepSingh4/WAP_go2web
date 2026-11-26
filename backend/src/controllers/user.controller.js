@@ -5,7 +5,7 @@ import config from "../config/config.js";
 import userModel from "../models/user.model.js";
 import sessionModel from "../models/session.model.js";
 import walletModel from "../models/wallet.model.js";
-import { notifyUser, notifySession } from "../services/socket.service.js";
+import { notifyUser, notifySession, notifyResellerClients } from "../services/socket.service.js";
 import sharp from "sharp";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -13,6 +13,7 @@ import cloudinary, { isCloudinaryConfigured } from "../config/cloudinary.config.
 import { getDefaultRatePerMsg, calculateDefaultAccountExpiry } from "../services/platform-settings.service.js";
 import { categoryBalances, validCategoryBalance } from "../helpers/credit-categories.js";
 import { runCreditTransaction } from "../helpers/credit-operation.js";
+import { createUserWithWallet } from "../helpers/user-account.helper.js";
 
 /**
  * Get all users accessible by current user:
@@ -44,7 +45,7 @@ export async function getUsers(req, res) {
             const isWlExpired = Boolean(user.whiteLabel?.enabled && user.whiteLabel?.expiresAt && new Date(user.whiteLabel.expiresAt) <= now);
             return {
                 ...user.toObject(),
-                maxVideoSizeMB: user.maxVideoSizeMB ?? 9,
+                maxVideoSizeMB: user.maxVideoSizeMB ?? 3,
                 mediaUploadLimits: user.mediaUploadLimits,
                 wallet: w
                     ? {
@@ -396,38 +397,30 @@ export async function createUser(req, res) {
             accountExpiry = await calculateDefaultAccountExpiry();
         }
 
-        const newUser = await userModel.create({
-            username,
-            email,
-            phone,
-            companyName,
-            password,
-            role: assignedRole,
-            resellerId: assignedReseller,
-            ratePerMsg: customRate,
-            maxVideoSizeMB: customMaxVideoSizeMB,
-            dailyCampaignLimit: customDailyCampaignLimit,
-            mediaUploadLimits: req.user.role === "Super Admin" && req.body.maxVideoSizeMB != null && req.body.maxVideoSizeMB !== "" ? { videoMB: customMaxVideoSizeMB } : undefined,
-            featureAccess: req.user.role === "Super Admin" && req.body.featureAccess ? {
-                campaignDp: req.body.featureAccess.campaignDp === true,
-                campaignNumber: req.body.featureAccess.campaignNumber === true,
-                campaignLink: req.body.featureAccess.campaignLink === true,
-                reclaimCredit: req.body.featureAccess.reclaimCredit === true,
-            } : undefined,
-            expiresAt: accountExpiry,
-            createdBy: req.user._id,
-        });
-
-        // Initialize user wallet
-        try {
-            await walletModel.create({
-                userId: newUser._id,
-                balance: 0,
+        const newUser = await createUserWithWallet(
+            {
+                username,
+                email,
+                phone,
+                companyName,
+                password,
+                role: assignedRole,
                 resellerId: assignedReseller,
-            });
-        } catch (walletErr) {
-            console.error("Auto-wallet creation error on createUser:", walletErr);
-        }
+                ratePerMsg: customRate,
+                maxVideoSizeMB: customMaxVideoSizeMB,
+                dailyCampaignLimit: customDailyCampaignLimit,
+                mediaUploadLimits: req.user.role === "Super Admin" && req.body.maxVideoSizeMB != null && req.body.maxVideoSizeMB !== "" ? { videoMB: customMaxVideoSizeMB } : undefined,
+                featureAccess: req.user.role === "Super Admin" && req.body.featureAccess ? {
+                    campaignDp: req.body.featureAccess.campaignDp === true,
+                    campaignNumber: req.body.featureAccess.campaignNumber === true,
+                    campaignLink: req.body.featureAccess.campaignLink === true,
+                    reclaimCredit: req.body.featureAccess.reclaimCredit === true,
+                } : undefined,
+                expiresAt: accountExpiry,
+                createdBy: req.user._id,
+            },
+            { resellerId: assignedReseller }
+        );
 
         return res.status(201).json({
             message: "User account created successfully",
@@ -439,7 +432,7 @@ export async function createUser(req, res) {
                 role: newUser.role,
                 resellerId: newUser.resellerId,
                 ratePerMsg: newUser.ratePerMsg,
-                maxVideoSizeMB: newUser.maxVideoSizeMB ?? 9,
+                maxVideoSizeMB: newUser.maxVideoSizeMB ?? 3,
             },
         });
     } catch (error) {
@@ -584,7 +577,7 @@ export async function updateUserAccess(req, res) {
                 id: targetUser._id,
                 status: targetUser.status,
                 expiresAt: targetUser.expiresAt,
-                maxVideoSizeMB: targetUser.maxVideoSizeMB ?? 9,
+                maxVideoSizeMB: targetUser.maxVideoSizeMB ?? 3,
                 dailyCampaignLimit: targetUser.dailyCampaignLimit,
                 featureAccess: targetUser.featureAccess,
             },
@@ -651,6 +644,9 @@ export async function updateWhiteLabelAccess(req, res) {
 
         notifyUser(targetUser._id, "WHITE_LABEL_ACCESS_UPDATED", {
             whiteLabel: targetUser.whiteLabel,
+            isWhiteLabelActive: targetUser.isWhiteLabelActive,
+        });
+        notifyResellerClients(targetUser._id, "WHITE_LABEL_ACCESS_UPDATED", {
             isWhiteLabelActive: targetUser.isWhiteLabelActive,
         });
 
@@ -1309,7 +1305,7 @@ export async function updateUser(req, res) {
                 ratePerMsg: targetUser.ratePerMsg,
                 status: targetUser.status,
                 expiresAt: targetUser.expiresAt,
-                maxVideoSizeMB: targetUser.maxVideoSizeMB ?? 9,
+                maxVideoSizeMB: targetUser.maxVideoSizeMB ?? 3,
                 dailyCampaignLimit: targetUser.dailyCampaignLimit,
                 resellerId: targetUser.resellerId,
             },

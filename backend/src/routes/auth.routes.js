@@ -11,13 +11,14 @@ import {
     forgotPassword,
 } from "../controllers/auth.controller.js";
 import { protect, authorizeRoles } from "../middlewares/auth.middleware.js";
+import { forgotPasswordRateLimiter, loginRateLimiter } from "../middlewares/rate-limit.middleware.js";
 
 const authRouter = Router();
 
 // Public routes
-authRouter.post("/login", login);
+authRouter.post("/login", loginRateLimiter, login);
 authRouter.post("/logout", logout);
-authRouter.post("/forgot-password", forgotPassword);
+authRouter.post("/forgot-password", forgotPasswordRateLimiter, forgotPassword);
 
 // Protected routes (validates session in MongoDB)
 authRouter.post("/register", protect, authorizeRoles("Super Admin", "Reseller"), register);

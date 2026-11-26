@@ -28,6 +28,11 @@ import { uploadsStatic } from "./middlewares/uploads-static.middleware.js";
 import { isTrustedOrigin, protectBrowserRequest } from "./middlewares/browser-request.middleware.js";
 import reviewPinRouter from "./routes/reviewPin.routes.js";
 import numberFilteringRouter from "./routes/number-filtering.routes.js";
+import redisClient from "./config/redis.js";
+import { setRateLimitRedisClient } from "./middlewares/rate-limit.middleware.js";
+import { apiNotFoundHandler, BULK_JSON_LIMIT, DEFAULT_JSON_LIMIT, errorHandler } from "./middlewares/error-handler.middleware.js";
+
+setRateLimitRedisClient(redisClient);
 
 const app = express();
 if (process.env.TRUST_PROXY) app.set("trust proxy", process.env.TRUST_PROXY.split(",").map((entry) => entry.trim()).filter(Boolean));
@@ -44,9 +49,13 @@ app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 app.use(auditRequestContext);
-app.use(express.json({ limit: "50mb" }));
+const bulkJsonParser = express.json({ limit: BULK_JSON_LIMIT });
+app.use("/api/campaigns", bulkJsonParser);
+app.use("/api/number-filtering", bulkJsonParser);
+app.use("/api/contacts", bulkJsonParser);
+app.use(express.json({ limit: DEFAULT_JSON_LIMIT }));
 app.use(morgan("dev"));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: DEFAULT_JSON_LIMIT }));
 app.use(cookieParser());
 app.use("/api", protectBrowserRequest);
 
@@ -120,5 +129,8 @@ if (frontendDist && fs.existsSync(path.join(frontendDist, "index.html"))) {
 } else {
     console.warn("[Static Server] No frontend build found. Run 'npm run build' inside frontend directory to serve the frontend.");
 }
+
+app.use("/api", apiNotFoundHandler);
+app.use(errorHandler);
 
 export default app;

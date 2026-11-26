@@ -34,6 +34,16 @@ test("a website number overrides the legacy recipient and clearing it disables d
     assert.equal(rechargeRecipient({ rechargeWhatsAppNumber: "" }, "seller"), "");
 });
 
+test("malformed WHATSAPP_RECHARGE_RECIPIENTS falls back to empty string without throwing", t => {
+    const previous = process.env.WHATSAPP_RECHARGE_RECIPIENTS;
+    process.env.WHATSAPP_RECHARGE_RECIPIENTS = "{invalid-json";
+    t.after(() => {
+        if (previous === undefined) delete process.env.WHATSAPP_RECHARGE_RECIPIENTS;
+        else process.env.WHATSAPP_RECHARGE_RECIPIENTS = previous;
+    });
+    assert.equal(rechargeRecipient({}, "seller"), "");
+});
+
 test("the settings endpoint validates numbers and updates only the signed-in account", async t => {
     const writes = [];
     t.mock.method(User, "updateOne", async (filter, update) => {

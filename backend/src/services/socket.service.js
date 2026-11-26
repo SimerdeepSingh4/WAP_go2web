@@ -391,6 +391,17 @@ export function notifyReseller(resellerId, event, payload) {
 }
 
 /**
+ * Emit event to all connected client users under a specific reseller.
+ * @param {string|mongoose.Types.ObjectId} resellerId
+ * @param {string} event
+ * @param {object} payload
+ */
+export function notifyResellerClients(resellerId, event, payload) {
+    if (!io || !resellerId) return;
+    return emitAuthorized(`client_of:${resellerId.toString()}`, event, payload);
+}
+
+/**
  * Emit event to a specific device session (e.g. For instant 4th-device eviction).
  * @param {string} sessionId
  * @param {string} event
@@ -420,6 +431,7 @@ export default {
     notifyUser,
     notifyRole,
     notifyReseller,
+    notifyResellerClients,
     notifySession,
     broadcastAll,
 };

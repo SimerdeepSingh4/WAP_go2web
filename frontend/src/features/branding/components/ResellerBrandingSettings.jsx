@@ -9,7 +9,8 @@ import {
 } from "@/features/branding/services/branding.api.js";
 import { useBranding } from "@/features/branding/context/BrandingContext";
 import { BRAND_COLOR_FIELDS, BRAND_COLOR_PATTERN, brandColors } from "../../../../../shared/brandingColors.js";
-import { applyBrandColors, pickerColor } from "@/features/branding/lib/themeHelper";
+import { applyBrandColors, contrastRatio, mixHex, pickerColor } from "@/features/branding/lib/themeHelper";
+import { useTheme } from "@/features/branding/context/ThemeProvider";
 import OverviewMetricCards, { OverviewMetricCard } from "@/features/dashboard/components/OverviewMetricCards";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,8 @@ import {
   Users,
   Wallet,
   Coins,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 import "./reseller-branding.css";
@@ -96,6 +99,64 @@ function normalizeHex(input) {
   return value && !value.startsWith("#") ? "#" + value : value;
 }
 
+const LIGHT_DEFAULTS = {
+  backgroundColor: "#f5f8fd",
+  cardColor: "#ffffff",
+  popoverColor: "#ffffff",
+  sidebarColor: "#071b46",
+  headerColor: "#ffffff",
+  primaryColor: "#0b63e5",
+  secondaryColor: "#e8f5ee",
+  accentColor: "#fff2c8",
+  textColor: "#071b46",
+  mutedTextColor: "#566985",
+  kpiCampaignsColor: "#0b63e5",
+  kpiNetworkColor: "#63497b",
+  kpiUsersColor: "#8d405f",
+  kpiCreditsColor: "#175b40",
+};
+
+const CONTRAST_PAIRS = [
+  { textKey: "textColor", bgKey: "backgroundColor", bgLabel: "page background" },
+  { textKey: "mutedTextColor", bgKey: "backgroundColor", bgLabel: "page background" },
+  { textKey: "cardTextColor", bgKey: "cardColor", fallbackTextKey: "textColor", bgLabel: "card background" },
+  { textKey: "popoverTextColor", bgKey: "popoverColor", fallbackTextKey: "textColor", fallbackBgKey: "cardColor", bgLabel: "menu background" },
+  { textKey: "secondaryTextColor", bgKey: "secondaryColor", fallbackTextKey: "textColor", mixWeight: 0.16, bgLabel: "secondary surface" },
+  { textKey: "accentTextColor", bgKey: "accentColor", fallbackTextKey: "textColor", mixWeight: 0.12, bgLabel: "accent surface" },
+  { textKey: "primaryTextColor", bgKey: "primaryColor", autoContrast: true, bgLabel: "primary button" },
+  { textKey: "sidebarTextColor", bgKey: "sidebarColor", autoContrast: true, bgLabel: "sidebar" },
+  { textKey: "headerTextColor", bgKey: "headerColor", fallbackBgKey: "cardColor", autoContrast: true, bgLabel: "top bar" },
+  { textKey: "kpiCampaignsTextColor", bgKey: "kpiCampaignsColor", autoContrast: true, bgLabel: "campaign KPI card" },
+  { textKey: "kpiNetworkTextColor", bgKey: "kpiNetworkColor", autoContrast: true, bgLabel: "network KPI card" },
+  { textKey: "kpiUsersTextColor", bgKey: "kpiUsersColor", autoContrast: true, bgLabel: "user accounts KPI card" },
+  { textKey: "kpiCreditsTextColor", bgKey: "kpiCreditsColor", autoContrast: true, bgLabel: "credits KPI card" },
+];
+
+function pairContrastWarning(key, colors) {
+  const pick = colorKey => pickerColor(normalizeHex(colors[colorKey] || ""));
+  const cardHex = pick("cardColor") || LIGHT_DEFAULTS.cardColor;
+  for (const pair of CONTRAST_PAIRS) {
+    if (pair.textKey !== key && pair.bgKey !== key) continue;
+    const explicitText = pick(pair.textKey);
+    if (pair.autoContrast && !explicitText) continue;
+
+    const explicitBg = pick(pair.bgKey);
+    const fallbackText = pair.fallbackTextKey ? pick(pair.fallbackTextKey) : null;
+    if (!explicitText && !explicitBg && !fallbackText) continue;
+
+    const textHex = explicitText || fallbackText || LIGHT_DEFAULTS[pair.fallbackTextKey || pair.textKey];
+    const fallbackBg = pair.fallbackBgKey ? pick(pair.fallbackBgKey) : (pair.mixWeight ? pick("primaryColor") : null);
+    const rawBgHex = explicitBg || fallbackBg || LIGHT_DEFAULTS[pair.bgKey];
+    const bgHex = pair.mixWeight ? mixHex(rawBgHex, cardHex, pair.mixWeight) : rawBgHex;
+
+    const ratio = contrastRatio(textHex, bgHex);
+    if (ratio != null && ratio < 4.5) {
+      return `Low contrast (${ratio.toFixed(1)}:1) against ${pair.bgLabel} — text may be hard to read in light mode.`;
+    }
+  }
+  return null;
+}
+
 export default function ResellerBrandingSettings() {
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "Super Admin";
@@ -117,7 +178,10 @@ export default function ResellerBrandingSettings() {
   });
   const [error, setError] = useState("");
   const [invalidColor, setInvalidColor] = useState(null);
+  const { resolvedTheme } = useTheme();
   const [previewView, setPreviewView] = useState("Workspace");
+  const [previewThemeOverride, setPreviewThemeOverride] = useState(null);
+  const previewTheme = previewThemeOverride || (resolvedTheme === "dark" ? "dark" : "light");
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [formBranding, setFormBranding] = useState(null);
   const { colors } = form;
@@ -416,7 +480,7 @@ export default function ResellerBrandingSettings() {
                 <span className="branding-section-icon"><Paintbrush aria-hidden="true" /></span>
                 <div>
                   <h3 id="branding-colors-heading">Brand colors</h3>
-                  <p>Pick a swatch or enter a hex code. Your palette applies to both light and dark mode.</p>
+                  <p>Pick a swatch or enter a hex code. Brand accents, navigation, and KPI cards apply across both modes; dark mode keeps dark surfaces for readability.</p>
                 </div>
                 <Button type="button" size="sm" variant="outline" disabled={!customizedColors || saveMutation.isPending} onClick={() => {
                   setForm(previous => ({ ...previous, colors: brandColors() }));
@@ -457,6 +521,7 @@ export default function ResellerBrandingSettings() {
                         const kpi = KPI_CARDS.find(card => card.key === key);
                         const name = kpi ? (isSuperAdmin ? kpi.adminLabel : kpi.resellerLabel) : fieldLabel;
                         const invalid = invalidColor === key;
+                        const warning = !invalid ? pairContrastWarning(key, colors) : null;
                         const value = pickerColor(normalizeHex(colors[key]));
                         return (
                           <div key={key} className="branding-color-row">
@@ -491,6 +556,7 @@ export default function ResellerBrandingSettings() {
                               </Button>
                             </div>
                             {invalid && <p id={"branding-error-" + key} role="alert">Enter a hex color such as #4285f4.</p>}
+                            {warning && <p className="branding-color-warning">{warning}</p>}
                           </div>
                         );
                       })}
@@ -500,8 +566,22 @@ export default function ResellerBrandingSettings() {
               </div>
             </section>
           </div>
-          <aside ref={previewRef} className="branding-preview" aria-label={previewLabel}>
-            <div className="branding-preview-heading">{previewLabel}<span><span className="branding-access-dot" />Live</span></div>
+          <aside ref={previewRef} className={`branding-preview ${previewTheme}`} aria-label={previewLabel}>
+            <div className="branding-preview-heading">
+              <span>{previewLabel}</span>
+              <div className="branding-preview-heading-meta">
+                <button
+                  type="button"
+                  className="branding-preview-mode-toggle"
+                  onClick={() => setPreviewThemeOverride(previewTheme === "dark" ? "light" : "dark")}
+                  aria-label={`Preview in ${previewTheme === "dark" ? "light" : "dark"} mode`}
+                >
+                  {previewTheme === "dark" ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
+                  <span>{previewTheme === "dark" ? "Dark" : "Light"}</span>
+                </button>
+                <span className="branding-preview-live"><span className="branding-access-dot" />Live</span>
+              </div>
+            </div>
             <div className="branding-preview-views" role="group" aria-label="Preview example">
               {PREVIEW_VIEWS.map(({ label, icon: Icon }) => (
                 <button key={label} type="button" aria-pressed={previewView === label} onClick={() => setPreviewView(label)}>

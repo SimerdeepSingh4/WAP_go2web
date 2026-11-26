@@ -6,7 +6,76 @@ import sharp from "sharp";
 import userModel from "../models/user.model.js";
 import { extractSubdomain, validateSubdomain } from "../helpers/subdomain.helper.js";
 import cloudinary, { isCloudinaryConfigured } from "../config/cloudinary.config.js";
-import { notifyUser } from "../services/socket.service.js";
+import { broadcastAll, notifyResellerClients, notifyUser } from "../services/socket.service.js";
+
+function assertBrandingWritable(user, res, forbiddenMessage) {
+    if (!user || !["Reseller", "Super Admin"].includes(user.role)) {
+        res.status(403).json({ message: forbiddenMessage, success: false });
+        return null;
+    }
+
+    const isSuperAdmin = user.role === "Super Admin";
+    if (isSuperAdmin) return true;
+
+    const now = new Date();
+    const isEnabled = Boolean(user.whiteLabel?.enabled);
+    const isExpired = Boolean(isEnabled && user.whiteLabel?.expiresAt && new Date(user.whiteLabel.expiresAt) <= now);
+    if (!isEnabled) {
+        res.status(403).json({
+            message: "White-label access has not been granted by Super Admin.",
+            success: false,
+        });
+        return null;
+    }
+    if (isExpired) {
+        res.status(403).json({
+            message: "Your white-label access has expired. Please contact Super Admin to renew.",
+            success: false,
+        });
+        return null;
+    }
+    return false;
+}
+
+export async function deleteBrandLogoFile(userId, logoUrl) {
+    if (!logoUrl || typeof logoUrl !== "string") return;
+    try {
+        const filename = path.basename(logoUrl);
+        const ownedLogoFile = new RegExp(`^logo_${userId}_[a-f0-9-]+\\.webp$`, "i");
+        if (logoUrl === `/uploads/white-label-logos/${filename}` && ownedLogoFile.test(filename)) {
+            await unlink(path.join(process.cwd(), "uploads", "white-label-logos", filename)).catch(() => {});
+            return;
+        }
+        if (isCloudinaryConfigured() && logoUrl.startsWith("https://res.cloudinary.com/")) {
+            const match = logoUrl.match(/white-label-logos\/([^./?#]+)/);
+            const publicId = match?.[1];
+            if (publicId && new RegExp(`^logo_${userId}_[a-f0-9-]+$`, "i").test(publicId)) {
+                await cloudinary.uploader
+                    .destroy(`white-label-logos/${publicId}`, { resource_type: "image", invalidate: true })
+                    .catch(() => {});
+            }
+        }
+    } catch (cleanupErr) {
+        if (cleanupErr.code !== "ENOENT") {
+            console.warn("Failed to delete previous brand logo:", cleanupErr.message);
+        }
+    }
+}
+
+function broadcastBrandingUpdate(user) {
+    notifyUser(user._id, "WHITE_LABEL_BRANDING_UPDATED", {
+        whiteLabel: user.whiteLabel,
+    });
+    if (user.role === "Reseller") {
+        notifyResellerClients(user._id, "WHITE_LABEL_BRANDING_UPDATED", {
+            resellerId: user._id,
+        });
+    } else if (user.role === "Super Admin") {
+        broadcastAll("WHITE_LABEL_BRANDING_UPDATED", {
+            platform: true,
+        });
+    }
+}
 
 const DEFAULT_BRANDING = {
     isWhiteLabeled: false,
@@ -145,31 +214,12 @@ export async function getResellerBranding(req, res) {
 export async function updateResellerBranding(req, res) {
     try {
         const user = await userModel.findById(req.user._id);
-        if (!user || !["Reseller", "Super Admin"].includes(user.role)) {
-            return res.status(403).json({
-                message: "Only Resellers and Super Admin can update branding settings.",
-                success: false,
-            });
-        }
-
-        const isSuperAdmin = user.role === "Super Admin";
-        const now = new Date();
-        const isEnabled = isSuperAdmin ? true : Boolean(user.whiteLabel?.enabled);
-        const isExpired = isSuperAdmin ? false : Boolean(isEnabled && user.whiteLabel?.expiresAt && new Date(user.whiteLabel.expiresAt) <= now);
-
-        if (!isEnabled) {
-            return res.status(403).json({
-                message: "White-label access has not been granted by Super Admin.",
-                success: false,
-            });
-        }
-
-        if (isExpired) {
-            return res.status(403).json({
-                message: "Your white-label access has expired. Please contact Super Admin to renew.",
-                success: false,
-            });
-        }
+        const isSuperAdmin = assertBrandingWritable(
+            user,
+            res,
+            "Only Resellers and Super Admin can update branding settings."
+        );
+        if (isSuperAdmin === null) return;
 
         user.whiteLabel = user.whiteLabel || {};
         if (isSuperAdmin) {
@@ -235,9 +285,7 @@ export async function updateResellerBranding(req, res) {
 
         await user.save();
 
-        notifyUser(user._id, "WHITE_LABEL_BRANDING_UPDATED", {
-            whiteLabel: user.whiteLabel,
-        });
+        broadcastBrandingUpdate(user);
 
         return res.status(200).json({
             success: true,
@@ -272,26 +320,12 @@ export async function uploadResellerLogo(req, res) {
 
     try {
         const user = await userModel.findById(req.user._id);
-        if (!user || !["Reseller", "Super Admin"].includes(user.role)) {
-            return res.status(403).json({
-                message: "Only Resellers and Super Admin can upload branding logos.",
-                success: false,
-            });
-        }
-
-        const isSuperAdmin = user.role === "Super Admin";
-        const now = new Date();
-        const isEnabled = isSuperAdmin ? true : Boolean(user.whiteLabel?.enabled);
-        const isExpired = isSuperAdmin ? false : Boolean(isEnabled && user.whiteLabel?.expiresAt && new Date(user.whiteLabel.expiresAt) <= now);
-
-        if (!isEnabled || isExpired) {
-            return res.status(403).json({
-                message: isExpired
-                    ? "White-label access has expired. Please renew with Super Admin."
-                    : "White-label access has not been granted by Super Admin.",
-                success: false,
-            });
-        }
+        const isSuperAdmin = assertBrandingWritable(
+            user,
+            res,
+            "Only Resellers and Super Admin can upload branding logos."
+        );
+        if (isSuperAdmin === null) return;
 
         if (isSuperAdmin && user.whiteLabel) {
             user.whiteLabel.enabled = true;
@@ -353,26 +387,17 @@ export async function uploadResellerLogo(req, res) {
             logoUrl = `/uploads/white-label-logos/${filename}`;
         }
 
-        // Clean up old logo if Cloudinary
         const oldLogoUrl = user.whiteLabel?.logoUrl || "";
-        if (oldLogoUrl && isCloudinaryActive && oldLogoUrl.includes("res.cloudinary.com")) {
-            try {
-                const match = oldLogoUrl.match(/white-label-logos\/([^./]+)/);
-                if (match && match[1]) {
-                    await cloudinary.uploader.destroy(`white-label-logos/${match[1]}`, { resource_type: "image" });
-                }
-            } catch (cleanupErr) {
-                console.warn("Failed to delete previous logo from Cloudinary:", cleanupErr.message);
-            }
-        }
 
         user.whiteLabel = user.whiteLabel || {};
         user.whiteLabel.logoUrl = logoUrl;
         await user.save();
 
-        notifyUser(user._id, "WHITE_LABEL_BRANDING_UPDATED", {
-            whiteLabel: user.whiteLabel,
-        });
+        if (oldLogoUrl && oldLogoUrl !== logoUrl) {
+            await deleteBrandLogoFile(user._id, oldLogoUrl);
+        }
+
+        broadcastBrandingUpdate(user);
 
         return res.status(200).json({
             success: true,
@@ -401,32 +426,24 @@ export async function uploadResellerLogo(req, res) {
 export async function removeResellerLogo(req, res) {
     try {
         const user = await userModel.findById(req.user._id);
-        if (!user || !["Reseller", "Super Admin"].includes(user.role)) {
-            return res.status(403).json({
-                message: "Only Resellers and Super Admin can modify branding.",
-                success: false,
-            });
-        }
+        const isSuperAdmin = assertBrandingWritable(
+            user,
+            res,
+            "Only Resellers and Super Admin can modify branding."
+        );
+        if (isSuperAdmin === null) return;
 
         const oldLogoUrl = user.whiteLabel?.logoUrl || "";
-        if (oldLogoUrl && isCloudinaryConfigured() && oldLogoUrl.includes("res.cloudinary.com")) {
-            try {
-                const match = oldLogoUrl.match(/white-label-logos\/([^./]+)/);
-                if (match && match[1]) {
-                    await cloudinary.uploader.destroy(`white-label-logos/${match[1]}`, { resource_type: "image" });
-                }
-            } catch (cleanupErr) {
-                console.warn("Failed to delete logo from Cloudinary:", cleanupErr.message);
-            }
-        }
 
         user.whiteLabel = user.whiteLabel || {};
         user.whiteLabel.logoUrl = "";
         await user.save();
 
-        notifyUser(user._id, "WHITE_LABEL_BRANDING_UPDATED", {
-            whiteLabel: user.whiteLabel,
-        });
+        if (oldLogoUrl) {
+            await deleteBrandLogoFile(user._id, oldLogoUrl);
+        }
+
+        broadcastBrandingUpdate(user);
 
         return res.status(200).json({
             success: true,

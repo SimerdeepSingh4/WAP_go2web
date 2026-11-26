@@ -1,12 +1,14 @@
-.portal-main .account-list-table [data-slot="table-cell"][data-column="name"] button { display:block; max-width:100%; width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.account-name-secondary { display:none; }
-@container (max-width:1000px) {
-  .account-list-table :is(.account-login-label, .account-credit-label) { display:none; }
-  .account-list-table .portal-row-actions.account-row-actions { flex-wrap:nowrap; }
+.portal-main .account-list-table [data-slot="table-cell"][data-column="name"] button {
+  display: block;
+  max-width: 100%;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .portal-main .account-list-table-wallets [data-column="account"] .truncate { max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 /* Dark, colored actions stand out in account profile drawers. */
-.account-profile-sheet { --primary:#25815a; --primary-text:#1c6546; --primary-hover:#1c6546; --ring:#25815a; }
+html:not([data-branded="true"]) .account-profile-sheet { --primary:#25815a; --primary-text:#1c6546; --primary-hover:#1c6546; --ring:var(--brand-ring, #25815a); }
 .account-profile-sheet .account-profile-edit { border-color:#176448; background:#176448; color:#ffffff; box-shadow:0 2px 5px rgb(23 100 72 / 22%); }
 .account-profile-sheet .account-profile-edit:hover { border-color:#10543b; background:#10543b; color:#ffffff; }
 .account-profile-sheet .account-profile-edit svg { color:inherit; }
@@ -38,52 +40,198 @@
     color:var(--primary-foreground);
     border-color:var(--primary);
   }
-  .account-card-list .mobile-record-highlights {
-    display:grid;
-    grid-template-columns:repeat(2,minmax(0,1fr));
-    align-items:start;
-    gap:10px 16px;
-    padding:12px 0 0;
-    border:0;
-    border-top:1px solid var(--border);
-    border-radius:0;
-    background:transparent;
+
+  .account-list-table .mobile-record-heading {
+    flex-basis: 100%;
   }
-  .account-card-list .mobile-record-stat-label { text-transform:none; letter-spacing:normal; font-size:11px; }
-  .account-card-list .mobile-record-stat-val { overflow-wrap:anywhere; }
-  .account-card-list .mobile-record-stat:last-child:nth-child(odd) { grid-column:1 / -1; }
+
+  .account-list-table .mobile-record-actions,
+  .account-list-table .mobile-record-actions>div {
+    width: 100%;
+  }
+
+  .account-list-table .mobile-record-actions .portal-row-actions {
+    justify-content: space-between;
+  }
+
+  .portal-main .account-list-table .mobile-record-actions [data-slot="button"] {
+    min-height: 44px;
+  }
 }
+
 @media(min-width:980px) {
   @container portal (max-width:1000px) {
-    .portal-main .account-list-table [data-slot="table"] { table-layout:fixed; }
-    .portal-main .account-list-table :is([data-slot="table-head"], [data-slot="table-cell"]) { padding-inline:6px; font-size:11px; }
-    .portal-main .account-list-table [data-slot="table-head"] { white-space:normal; overflow-wrap:anywhere; }
-    .portal-main .account-list-table-wallets .responsive-table-desktop table { table-layout:auto; }
-    .portal-main .account-list-table-wallets .responsive-table-desktop [data-column="actions"] { width:4rem; }
-    .portal-main .account-list-table-wallets .portal-table-sort > span { overflow-wrap:normal; }
-    .portal-main .account-list-table .portal-table-sort { gap:4px; font-size:10px; }
-    .portal-main .account-list-table [data-column="email"] { display:none; }
-    .portal-main .account-list-table [data-column="dp_img"] { width:7%; }
-    .portal-main .account-list-table [data-column="name"] { width:22%; }
-    .portal-main .account-list-table [data-column="reseller"] { width:12%; }
-    .portal-main .account-list-table [data-column="rate"] { width:8%; }
-    .portal-main .account-list-table [data-column="accountExpiry"] { width:15%; white-space:normal; }
-    .portal-main .account-list-table [data-column="status"] { width:12%; }
-    .portal-main .account-list-table [data-column="actions"] { width:24%; }
-    .portal-main .account-list-table-resellers [data-column="name"] { width:19%; }
-    .portal-main .account-list-table-resellers [data-column="users"] { width:9%; }
-    .portal-main .account-list-table-resellers [data-slot="table-head"][data-column="users"] { font-size:10px; }
-    .portal-main .account-list-table-resellers [data-column="status"] { width:12%; }
-    .portal-main .account-list-table-resellers [data-column="rate"] { width:7%; }
-    .portal-main .account-list-table-resellers [data-column="accountExpiry"] { width:12%; }
-    .portal-main .account-list-table-resellers [data-column="whiteLabel"] { width:12%; }
-    .portal-main .account-list-table-resellers [data-column="actions"] { width:22%; }
-    .portal-main .account-list-table-managed [data-column="name"] { width:30%; }
-    .portal-main .account-list-table-managed [data-column="rate"] { width:9%; }
-    .portal-main .account-list-table-managed [data-column="accountExpiry"] { width:16%; }
-    .portal-main .account-list-table-managed [data-column="status"] { width:14%; }
-    .portal-main .account-list-table .account-name-secondary { display:block; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--muted-foreground); font-size:10px; }
-    .portal-main .account-list-table .portal-row-actions { gap:2px; }
-    .portal-main .account-list-table .portal-row-actions > [data-slot="button"] { padding-inline:7px; font-size:10px; }
+    .portal-main .account-list-table [data-slot="table"] {
+      table-layout: fixed;
+    }
+
+    .portal-main .account-list-table :is([data-slot="table-head"], [data-slot="table-cell"]) {
+      padding-inline: 6px;
+      font-size: 11px;
+    }
+
+    .portal-main .account-list-table [data-slot="table-head"] {
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .portal-main .account-list-table .portal-table-sort {
+      gap: 4px;
+      font-size: 10px;
+    }
+
+    .portal-main .account-list-table [data-column="email"] {
+      display: none;
+    }
+
+    .portal-main .account-list-table [data-column="dp_img"] {
+      width: 7%;
+    }
+
+    .portal-main .account-list-table [data-column="name"] {
+      width: 22%;
+    }
+
+    .portal-main .account-list-table [data-column="reseller"] {
+      width: 12%;
+    }
+
+    .portal-main .account-list-table [data-column="rate"] {
+      width: 8%;
+    }
+
+    .portal-main .account-list-table [data-column="accountExpiry"] {
+      width: 15%;
+      white-space: normal;
+    }
+
+    .portal-main .account-list-table [data-column="status"] {
+      width: 12%;
+    }
+
+    .portal-main .account-list-table [data-column="actions"] {
+      width: 24%;
+    }
+
+    .portal-main .account-list-table-resellers [data-column="name"] {
+      width: 19%;
+    }
+
+    .portal-main .account-list-table-resellers [data-column="users"] {
+      width: 9%;
+    }
+
+    .portal-main .account-list-table-resellers [data-slot="table-head"][data-column="users"] {
+      font-size: 10px;
+    }
+
+    .portal-main .account-list-table-resellers [data-column="status"] {
+      width: 12%;
+    }
+
+    .portal-main .account-list-table-resellers [data-column="rate"] {
+      width: 7%;
+    }
+
+    .portal-main .account-list-table-resellers [data-column="accountExpiry"] {
+      width: 12%;
+    }
+
+    .portal-main .account-list-table-resellers [data-column="whiteLabel"] {
+      width: 12%;
+    }
+
+    .portal-main .account-list-table-resellers [data-column="actions"] {
+      width: 22%;
+    }
+
+    .portal-main .account-list-table-managed [data-column="name"] {
+      width: 30%;
+    }
+
+    .portal-main .account-list-table-managed [data-column="rate"] {
+      width: 9%;
+    }
+
+    .portal-main .account-list-table-managed [data-column="accountExpiry"] {
+      width: 16%;
+    }
+
+    .portal-main .account-list-table-managed [data-column="status"] {
+      width: 14%;
+    }
+
+    .portal-main .account-list-table .account-name-secondary {
+      display: block;
+      margin-top: 3px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--muted-foreground);
+      font-size: 10px;
+    }
+
+    .portal-main .account-list-table .portal-row-actions {
+      gap: 2px;
+    }
+
+    .portal-main .account-list-table .portal-row-actions>[data-slot="button"] {
+      padding-inline: 7px;
+      font-size: 10px;
+    }
+
+    .portal-main .account-list-table-wallets [data-column="account"] {
+      width: 20%;
+    }
+
+    .portal-main .account-list-table-wallets [data-column="role"] {
+      width: 9%;
+    }
+
+    .portal-main .account-list-table-wallets [data-column="reseller"] {
+      width: 11%;
+      white-space: normal;
+    }
+
+    .portal-main .account-list-table-wallets [data-column="balance"] {
+      width: 13%;
+    }
+
+    .portal-main .account-list-table-wallets [data-column="balance"]>div {
+      flex-wrap: wrap;
+    }
+
+    .portal-main .account-list-table-wallets [data-column="balance"] .tabular-nums {
+      max-width: 100%;
+      overflow-wrap: anywhere;
+      white-space: normal;
+    }
+
+    .portal-main .account-list-table-wallets [data-column="rate"] {
+      width: 8%;
+    }
+
+    .portal-main .account-list-table-wallets [data-column="expiry"] {
+      width: 12%;
+      white-space: normal;
+    }
+
+    .portal-main .account-list-table-wallets [data-column="status"] {
+      width: 9%;
+    }
+
+    .portal-main .account-list-table-wallets [data-column="actions"] {
+      width: 18%;
+    }
+
+    .portal-main .account-list-table-wallets [data-column="actions"]>div {
+      flex-wrap: wrap;
+    }
+
+    .portal-main .account-list-table-wallets [data-column="actions"]>div>button:first-child {
+      flex-basis: 100%;
+      padding-inline: 4px;
+      font-size: 10px;
+    }
   }
 }

@@ -30,7 +30,16 @@ export function rechargeSenderConfigured(env = process.env) {
 
 export function rechargeRecipient(account, accountId) {
     // An explicitly cleared website setting also disables any legacy destination.
-    return account.rechargeWhatsAppNumber ?? JSON.parse(process.env.WHATSAPP_RECHARGE_RECIPIENTS || "{}")[String(accountId)] ?? "";
+    if (account.rechargeWhatsAppNumber != null) return account.rechargeWhatsAppNumber;
+    const raw = process.env.WHATSAPP_RECHARGE_RECIPIENTS;
+    if (!raw) return "";
+    try {
+        const recipients = JSON.parse(raw);
+        return (recipients && typeof recipients === "object" ? recipients[String(accountId)] : undefined) ?? "";
+    } catch {
+        console.warn("Invalid WHATSAPP_RECHARGE_RECIPIENTS JSON; ignoring legacy recipients.");
+        return "";
+    }
 }
 
 export async function queueRechargeAlerts(purchase, stage, session) {

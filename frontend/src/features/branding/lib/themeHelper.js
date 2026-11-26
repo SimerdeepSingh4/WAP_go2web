@@ -6,13 +6,38 @@ export function pickerColor(value, fallback) {
     return color.length === 4 ? "#" + [...color.slice(1)].map(char => char + char).join("") : color;
 }
 
-function contrastingText(hex) {
+function relativeLuminance(hex) {
     const channels = hex.slice(1).match(/../g).map(value => {
         const channel = parseInt(value, 16) / 255;
         return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
     });
-    const luminance = channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
-    return luminance > 0.179 ? "#000000" : "#ffffff";
+    return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+}
+
+function contrastingText(hex) {
+    return relativeLuminance(hex) > 0.179 ? "#000000" : "#ffffff";
+}
+
+export function mixHex(hexA, hexB, weightA = 0.5) {
+    const a = pickerColor(hexA);
+    const b = pickerColor(hexB);
+    if (!a || !b) return null;
+    const toRgb = hex => hex.slice(1).match(/../g).map(part => parseInt(part, 16));
+    const [r1, g1, b1] = toRgb(a);
+    const [r2, g2, b2] = toRgb(b);
+    const blend = (c1, c2) => Math.round(c1 * weightA + c2 * (1 - weightA)).toString(16).padStart(2, "0");
+    return "#" + blend(r1, r2) + blend(g1, g2) + blend(b1, b2);
+}
+
+export function contrastRatio(hexA, hexB) {
+    const a = pickerColor(hexA);
+    const b = pickerColor(hexB);
+    if (!a || !b) return null;
+    const lumA = relativeLuminance(a);
+    const lumB = relativeLuminance(b);
+    const lighter = Math.max(lumA, lumB);
+    const darker = Math.min(lumA, lumB);
+    return (lighter + 0.05) / (darker + 0.05);
 }
 
 export function applyBrandColors(branding, preview) {

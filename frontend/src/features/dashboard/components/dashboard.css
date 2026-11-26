@@ -8,21 +8,21 @@ body { margin: 0; min-width: 0; }
 .dashboard-portal { --dashboard-background: var(--brand-background, var(--surface-subtle)); width: 100%; min-width: 0; overflow-x: clip; background: var(--dashboard-background); }
 .dark .dashboard-portal { --dashboard-background: var(--background); }
 .dashboard-portal .portal-inset { background: var(--dashboard-background); }
-.dashboard-portal[data-role="Super Admin"] { --primary: #0b63e5; --primary-text: #084eae; --primary-hover: #084eae; --ring: #0b63e5; }
-.dashboard-portal[data-role="Reseller"] { --primary: #128c7e; --primary-text: #087363; --primary-hover: #087363; --ring: #128c7e; }
-.dashboard-portal[data-role="User"] { --primary: #7356bf; --primary-text: #59419d; --primary-hover: #59419d; --ring: #7356bf; }
-/* Give each workspace area its own coordinated action and tab color. */
-.dashboard-portal[data-page*="/campaigns"] { --primary: #7451b8; --primary-text: #573c92; --primary-hover: #5f429b; --ring: #7451b8; }
-.dashboard-portal[data-page*="/number-filtering"] { --primary: #118779; --primary-text: #0c6d60; --primary-hover: #0c6d60; --ring: #118779; }
-.dashboard-portal[data-page*="/contacts"],
-.dashboard-portal[data-page*="/users"],
-.dashboard-portal[data-page*="/resellers"] { --primary: #25815a; --primary-text: #1c6546; --primary-hover: #1c6546; --ring: #25815a; }
-.dashboard-portal[data-page*="/credits"] { --primary: #946200; --primary-text: #805500; --primary-hover: #774e00; --ring: #c08a1b; }
-.dashboard-portal[data-page*="/notifications"] { --primary: #bf4458; --primary-text: #9c3446; --primary-hover: #a3384b; --ring: #bf4458; }
-.dashboard-portal[data-page*="/reconciliation"] { --primary: #c45d42; --primary-text: #a24732; --primary-hover: #a24732; --ring: #c45d42; }
-.dashboard-portal[data-page*="/activity"],
-.dashboard-portal[data-page*="/audit"] { --primary: #52667f; --primary-text: #3f536c; --primary-hover: #40556e; --ring: #7187a1; }
-.dashboard-portal[data-page*="/settings"] { --primary: #6651a3; --primary-text: #503d87; --primary-hover: #55428e; --ring: #8069bf; }
+html:not([data-branded="true"]) .dashboard-portal[data-role="Super Admin"] { --primary: #0b63e5; --primary-text: #084eae; --primary-hover: #084eae; --ring: var(--brand-ring, #0b63e5); }
+html:not([data-branded="true"]) .dashboard-portal[data-role="Reseller"] { --primary: #128c7e; --primary-text: #087363; --primary-hover: #087363; --ring: var(--brand-ring, #128c7e); }
+html:not([data-branded="true"]) .dashboard-portal[data-role="User"] { --primary: #7356bf; --primary-text: #59419d; --primary-hover: #59419d; --ring: var(--brand-ring, #7356bf); }
+/* Give each workspace area its own coordinated action and tab color when unbranded. */
+html:not([data-branded="true"]) .dashboard-portal[data-page*="/campaigns"] { --primary: #7451b8; --primary-text: #573c92; --primary-hover: #5f429b; --ring: var(--brand-ring, #7451b8); }
+html:not([data-branded="true"]) .dashboard-portal[data-page*="/number-filtering"] { --primary: #118779; --primary-text: #0c6d60; --primary-hover: #0c6d60; --ring: var(--brand-ring, #118779); }
+html:not([data-branded="true"]) .dashboard-portal[data-page*="/contacts"],
+html:not([data-branded="true"]) .dashboard-portal[data-page*="/users"],
+html:not([data-branded="true"]) .dashboard-portal[data-page*="/resellers"] { --primary: #25815a; --primary-text: #1c6546; --primary-hover: #1c6546; --ring: var(--brand-ring, #25815a); }
+html:not([data-branded="true"]) .dashboard-portal[data-page*="/credits"] { --primary: #946200; --primary-text: #805500; --primary-hover: #774e00; --ring: var(--brand-ring, #c08a1b); }
+html:not([data-branded="true"]) .dashboard-portal[data-page*="/notifications"] { --primary: #bf4458; --primary-text: #9c3446; --primary-hover: #a3384b; --ring: var(--brand-ring, #bf4458); }
+html:not([data-branded="true"]) .dashboard-portal[data-page*="/reconciliation"] { --primary: #c45d42; --primary-text: #a24732; --primary-hover: #a24732; --ring: var(--brand-ring, #c45d42); }
+html:not([data-branded="true"]) .dashboard-portal[data-page*="/activity"],
+html:not([data-branded="true"]) .dashboard-portal[data-page*="/audit"] { --primary: #52667f; --primary-text: #3f536c; --primary-hover: #40556e; --ring: var(--brand-ring, #7187a1); }
+html:not([data-branded="true"]) .dashboard-portal[data-page*="/settings"] { --primary: #6651a3; --primary-text: #503d87; --primary-hover: #55428e; --ring: var(--brand-ring, #8069bf); }
 .portal-shell, .portal-inset, .portal-topbar { min-width: 0; max-width: 100%; }
 #tour-topbar-search { min-width: 0; flex: 1 1 0%; }
 :where(a, button, input, textarea, select, [tabindex]):focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
@@ -47,22 +47,25 @@ body { margin: 0; min-width: 0; }
   box-shadow: 0 1px 3px color-mix(in srgb, var(--foreground) 4%, transparent);
 }
 .portal-sidebar-header { min-height: 72px; }
-.dashboard-portal .portal-sidebar-header { background: #071b46; border-bottom-color: rgb(255 255 255 / 12%); }
-.dashboard-portal .portal-sidebar-header:hover { background: #102b5b; }
-.dashboard-portal .portal-sidebar-header:hover .portal-sidebar-collapse-icon { color: #ffbf16; }
+.dashboard-portal .portal-sidebar-header,
+[data-sidebar="sidebar"][data-mobile="true"] .portal-sidebar-header { background: var(--sidebar, #071b46); border-bottom-color: color-mix(in srgb, var(--sidebar-foreground, #ffffff) 14%, transparent); }
+.dashboard-portal .portal-sidebar-header:hover,
+[data-sidebar="sidebar"][data-mobile="true"] .portal-sidebar-header:hover { background: var(--sidebar-hover, #102b5b); }
 .dashboard-portal .portal-brand-mark,
-[data-sidebar="sidebar"][data-mobile="true"] .portal-brand-mark { width: 50px; height: 50px; flex-basis: 50px; padding: 5px; border: 1px solid rgb(255 191 22 / 60%) !important; border-radius: 13px; background: #ffffff !important; box-shadow: 0 4px 12px rgb(0 0 0 / 18%) !important; }
+[data-sidebar="sidebar"][data-mobile="true"] .portal-brand-mark { width: 50px; height: 50px; flex-basis: 50px; padding: 5px; border: 1px solid color-mix(in srgb, var(--brand-primary, #ffbf16) 60%, transparent) !important; border-radius: 13px; background: #ffffff !important; box-shadow: 0 4px 12px rgb(0 0 0 / 18%) !important; }
 .dashboard-portal .portal-brand-mark img,
 [data-sidebar="sidebar"][data-mobile="true"] .portal-brand-mark img { width: 100%; height: 100%; }
-.dashboard-portal .portal-sidebar-logo-toggle { border-color: rgb(255 191 22 / 65%); background: #ffffff; box-shadow: 0 4px 12px rgb(0 0 0 / 18%); }
-.dashboard-portal .portal-sidebar-logo-toggle .portal-logo-hover { color: #071b46; }
-.dashboard-portal .portal-sidebar-header:hover .portal-sidebar-logo-toggle { border-color: #ffbf16; background: #ffbf16; }
+.dashboard-portal .portal-sidebar-logo-toggle { border-color: color-mix(in srgb, var(--brand-primary, #ffbf16) 65%, transparent); background: #ffffff; box-shadow: 0 4px 12px rgb(0 0 0 / 18%); }
+.dashboard-portal .portal-sidebar-logo-toggle .portal-logo-hover { color: var(--brand-primary-foreground, #071b46); }
+.dashboard-portal .portal-sidebar-header:hover .portal-sidebar-logo-toggle { border-color: var(--brand-primary, #ffbf16); background: var(--brand-primary, #ffbf16); }
 .portal-brand-copy strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; word-break: break-word; font-size: 15px; letter-spacing: -.3px; font-weight: 700; line-height: 1.25; }
-.portal-brand-copy strong, .portal-brand-copy > span { color: #ffffff; }
-.portal-brand-copy strong span { color: #ffbf16; }
-.portal-sidebar-collapse-icon { width: 32px; height: 32px; flex-shrink: 0; padding: 7px; border: 1px solid rgb(255 255 255 / 18%); border-radius: 9px; background: rgb(255 255 255 / 7%); color: #dce9fb; transition: color .16s, background .16s, border-color .16s; }
+.portal-brand-copy strong { color: var(--sidebar-foreground, #ffffff); }
+.portal-brand-copy > span { color: color-mix(in srgb, var(--sidebar-foreground, #ffffff) 78%, transparent); }
+.portal-brand-copy strong span { color: var(--brand-primary, #ffbf16); }
+.portal-sidebar-collapse-icon { width: 32px; height: 32px; flex-shrink: 0; padding: 7px; border: 1px solid color-mix(in srgb, var(--sidebar-foreground, #ffffff) 20%, transparent); border-radius: 9px; background: color-mix(in srgb, var(--sidebar-foreground, #ffffff) 8%, transparent); color: var(--sidebar-foreground, #dce9fb); transition: color .16s, background .16s, border-color .16s; }
 .portal-sidebar-header:hover .portal-sidebar-collapse-icon { color: var(--primary-text); }
-.dashboard-portal .portal-sidebar-header:hover .portal-sidebar-collapse-icon { border-color: #ffbf16; background: #ffbf16; color: #071b46; }
+.dashboard-portal .portal-sidebar-header:hover .portal-sidebar-collapse-icon,
+[data-sidebar="sidebar"][data-mobile="true"] .portal-sidebar-header:hover .portal-sidebar-collapse-icon { border-color: var(--brand-primary, #ffbf16); background: var(--brand-primary, #ffbf16); color: var(--brand-primary-foreground, #071b46); }
 .portal-page-heading { flex-wrap: wrap; }
 .portal-page-heading h1 { font-size: 28px; line-height: 1.2; letter-spacing: -.8px; font-weight: 650; overflow-wrap: anywhere; }
 .portal-page-heading p { max-width: 65ch; font-size: 14px; line-height: 1.55; }
@@ -144,9 +147,12 @@ body { margin: 0; min-width: 0; }
   background: var(--sidebar);
   --sidebar-foreground: var(--brand-sidebar-foreground, #ffffff);
 }
+html[data-branded="true"] .dashboard-portal [data-sidebar="sidebar"],
+html[data-branded="true"] [data-sidebar="sidebar"][data-mobile="true"]:has(.portal-sidebar-header) {
+  --sidebar-accent-foreground: var(--sidebar-foreground);
+}
 .portal-nav-link { position: relative; color: var(--sidebar-foreground); }
-.portal-nav-link > svg { color: var(--brand-highlight, #dce9fb); }
-.dark .portal-nav-link > svg { color: var(--chart-2); }
+.portal-nav-link > svg { color: color-mix(in srgb, var(--sidebar-foreground, #dce9fb) 85%, transparent); }
 .portal-nav-link[data-active] { background: var(--sidebar-accent); color: var(--sidebar-accent-foreground); font-weight: 650; box-shadow: none; }
 .portal-nav-link[data-active] > svg { color: var(--sidebar-accent-foreground); }
 .portal-nav-link[data-active]::before {
@@ -155,7 +161,7 @@ body { margin: 0; min-width: 0; }
   inset-inline-start: 0;
   width: 3px;
   border-radius: 999px;
-  background: #ffbf16;
+  background: var(--brand-primary, #ffbf16);
   content: "";
 }
 .portal-nav-link:not([data-active]):hover { background: var(--sidebar-hover); color: var(--sidebar-foreground); }

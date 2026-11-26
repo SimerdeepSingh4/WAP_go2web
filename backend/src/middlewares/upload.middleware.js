@@ -246,8 +246,11 @@ const documentFilter = (req, file, cb) => {
         cb(null, true);
     } else {
         cb(
-            new Error(
-                `Unsupported file format: "${ext}". Please upload a valid CSV (.csv) or Excel spreadsheet (.xlsx, .xls).`
+            Object.assign(
+                new Error(
+                    `Unsupported file format: "${ext}". Please upload a valid CSV (.csv) or Excel spreadsheet (.xlsx, .xls).`
+                ),
+                { statusCode: 400 }
             ),
             false
         );
@@ -269,7 +272,7 @@ export const uploadProfileImage = multer({
         if (["image/jpeg", "image/png", "image/webp"].includes(file.mimetype)) {
             cb(null, true);
         } else {
-            cb(new Error("Profile image must be JPG, PNG, or WebP."), false);
+            cb(Object.assign(new Error("Profile image must be JPG, PNG, or WebP."), { statusCode: 400 }), false);
         }
     },
 }).single("dp_img");

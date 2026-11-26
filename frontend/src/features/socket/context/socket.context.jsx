@@ -125,6 +125,13 @@ export const SocketProvider = ({ children }) => {
             queryClient.invalidateQueries({ queryKey: ["admin"] });
             queryClient.invalidateQueries({ queryKey: ["reseller"] });
         });
+        for (const event of ["WHITE_LABEL_BRANDING_UPDATED", "WHITE_LABEL_ACCESS_UPDATED"]) {
+            socket.on(event, () => {
+                queryClient.invalidateQueries({ queryKey: ["authUser"] });
+                queryClient.invalidateQueries({ queryKey: ["resellerBranding"] });
+                queryClient.invalidateQueries({ queryKey: ["subdomain-branding"] });
+            });
+        }
         socket.on("ACCOUNT_ACCESS_CHANGED", (access) => {
             if (access?.status) {
                 notificationRestriction.current = accountRestriction(access);

@@ -10,6 +10,7 @@ import { Notification, NotificationPreference, PushSubscription, PushDelivery } 
 import { notifySession, notifyUser, notifyRole } from "../services/socket.service.js";
 import { authenticateBrowserSession, requestSessionCredentials, revokeBrowserSessions, sessionCookieOptions, tokenHash as hashSessionToken } from "../helpers/browser-session.js";
 import { deleteUserDpImageFile } from "./user.controller.js";
+import { createUserWithWallet } from "../helpers/user-account.helper.js";
 
 const MAX_CONCURRENT_DEVICES = 3;
 
@@ -196,31 +197,23 @@ export async function register(req, res) {
             }
         }
 
-        const user = await userModel.create({
-            username,
-            email,
-            phone,
-            companyName,
-            password,
-            role: assignedRole,
-            resellerId: assignedReseller,
-            ratePerMsg: customRate,
-            maxVideoSizeMB: customMaxVideoSizeMB,
-            mediaUploadLimits: req.user?.role === "Super Admin" && req.body.maxVideoSizeMB != null && req.body.maxVideoSizeMB !== "" ? { videoMB: customMaxVideoSizeMB } : undefined,
-            expiresAt: accountExpiry,
-            createdBy: req.user?._id || null,
-        });
-
-        // Initialize user wallet
-        try {
-            await walletModel.create({
-                userId: user._id,
-                balance: 0,
+        const user = await createUserWithWallet(
+            {
+                username,
+                email,
+                phone,
+                companyName,
+                password,
+                role: assignedRole,
                 resellerId: assignedReseller,
-            });
-        } catch (walletErr) {
-            console.error("Auto-wallet creation error on register:", walletErr);
-        }
+                ratePerMsg: customRate,
+                maxVideoSizeMB: customMaxVideoSizeMB,
+                mediaUploadLimits: req.user?.role === "Super Admin" && req.body.maxVideoSizeMB != null && req.body.maxVideoSizeMB !== "" ? { videoMB: customMaxVideoSizeMB } : undefined,
+                expiresAt: accountExpiry,
+                createdBy: req.user?._id || null,
+            },
+            { resellerId: assignedReseller }
+        );
 
         return res.status(201).json({
             message: "User registered successfully",
@@ -234,11 +227,17 @@ export async function register(req, res) {
                 role: user.role,
                 resellerId: user.resellerId,
                 ratePerMsg: user.ratePerMsg,
-                maxVideoSizeMB: user.maxVideoSizeMB ?? 9,
+                maxVideoSizeMB: user.maxVideoSizeMB ?? 3,
                 featureAccess: user.featureAccess,
             },
         });
     } catch (error) {
+        if (error?.code === 11000) {
+            return res.status(400).json({
+                message: "Email already exists",
+                success: false,
+            });
+        }
         console.error("Register error:", error);
         return res.status(500).json({
             message: "Internal server error",
@@ -303,7 +302,7 @@ export async function login(req, res) {
                 isBlocked: user.status === "blocked",
                 accessReason: user.accessReason || "",
                 isExpired: isAccountExpired(user),
-                maxVideoSizeMB: user.maxVideoSizeMB ?? 9,
+                maxVideoSizeMB: user.maxVideoSizeMB ?? 3,
                 featureAccess: user.featureAccess,
                 whiteLabel,
             },
@@ -460,7 +459,7 @@ export async function getMe(req, res) {
                 isPreview: req.isPreview || false,
                 isImpersonation: req.isImpersonation || false,
                 originalAdmin: req.originalAdmin || null,
-                maxVideoSizeMB: req.user.maxVideoSizeMB ?? 9,
+                maxVideoSizeMB: req.user.maxVideoSizeMB ?? 3,
                 featureAccess: req.user.featureAccess,
                 whiteLabel,
             },
