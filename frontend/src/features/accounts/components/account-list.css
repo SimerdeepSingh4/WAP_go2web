@@ -81,7 +81,8 @@ html:not([data-branded="true"]) .account-profile-sheet {
   color: #071b46;
 }
 
-.credit-allocate-button {
+.credit-allocate-button,
+.account-card-list .mobile-record .credit-allocate-button {
   border-color: #e2a500;
   background: #ffbf16;
   color: #071b46;
@@ -89,7 +90,12 @@ html:not([data-branded="true"]) .account-profile-sheet {
   font-weight: 650;
 }
 
-.credit-allocate-button:hover {
+.credit-allocate-button:hover,
+.credit-allocate-button:focus-visible,
+.credit-allocate-button:active,
+.account-card-list .mobile-record .credit-allocate-button:hover,
+.account-card-list .mobile-record .credit-allocate-button:focus-visible,
+.account-card-list .mobile-record .credit-allocate-button:active {
   border-color: #c99100;
   background: #edac00;
   color: #071b46;
@@ -145,12 +151,6 @@ html:not([data-branded="true"]) .account-profile-sheet {
 
   .account-card-list .mobile-record .account-login-label {
     display: inline;
-  }
-
-  .account-card-list .mobile-record .account-row-actions>button:first-child {
-    background: var(--primary);
-    color: var(--primary-foreground);
-    border-color: var(--primary);
   }
 
   .account-list-table .mobile-record-heading {
