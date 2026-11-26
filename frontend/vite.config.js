@@ -50,4 +50,34 @@ export default defineConfig({
       '@base-ui/react/context-menu',
     ],
   },
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: 'react-vendor',
+              test: /node_modules[\\/](react|react-dom|react-router|scheduler)[\\/]/,
+              priority: 30,
+            },
+            {
+              name: 'ui-vendor',
+              test: /node_modules[\\/](@base-ui|lucide-react|motion|framer-motion|sonner)[\\/]/,
+              priority: 20,
+            },
+            {
+              name: 'data-vendor',
+              test: /node_modules[\\/](@tanstack|axios|socket\.io-client|engine\.io-client|zustand)[\\/]/,
+              priority: 20,
+            },
+            {
+              name: 'editor-vendor',
+              test: /node_modules[\\/](react-quill-new|quill|parchment|quill-delta)[\\/]/,
+              priority: 20,
+            },
+          ],
+        },
+      },
+    },
+  },
 })

@@ -1,7 +1,7 @@
 import { Moon, Sun } from "lucide-react";
 import { useRef } from "react";
 import { flushSync } from "react-dom";
-import { useTheme } from "@/features/branding/context/ThemeProvider";
+import { useTheme } from "@/features/branding/context/theme-context";
 import { Button } from "@/components/ui/button";
 
 export default function ThemeToggle() {

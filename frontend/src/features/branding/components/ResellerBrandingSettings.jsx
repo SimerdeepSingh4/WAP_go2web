@@ -7,10 +7,10 @@ import {
   uploadResellerLogo,
   removeResellerLogo,
 } from "@/features/branding/services/branding.api.js";
-import { useBranding } from "@/features/branding/context/BrandingContext";
+import { useBranding } from "@/features/branding/context/branding-context";
 import { BRAND_COLOR_FIELDS, BRAND_COLOR_PATTERN, brandColors } from "../../../../../shared/brandingColors.js";
 import { applyBrandColors, contrastRatio, mixHex, pickerColor } from "@/features/branding/lib/themeHelper";
-import { useTheme } from "@/features/branding/context/ThemeProvider";
+import { useTheme } from "@/features/branding/context/theme-context";
 import OverviewMetricCards, { OverviewMetricCard } from "@/features/dashboard/components/OverviewMetricCards";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

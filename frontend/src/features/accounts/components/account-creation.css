@@ -20,11 +20,15 @@
 .account-create-field-grid p { font-size:11px; line-height:1.6; color:var(--muted-foreground); }
 .account-create-field-grid input:focus-visible { box-shadow:0 0 0 2px color-mix(in srgb,var(--ring) 20%,transparent); }
 .account-create-password { position:relative; }
-.account-create-password input { padding-right:44px; }
-.account-create-password button { position:absolute; top:0; right:0; display:grid; width:42px; height:100%; place-items:center; border-radius:8px; color:var(--muted-foreground); }
-.account-create-password button:hover { color:var(--foreground); background:var(--muted); }
-.account-create-password button:focus-visible { outline:2px solid var(--ring); outline-offset:-3px; }
-.account-create-password svg { width:16px; height:16px; }
+.account-create-password input { padding-right:126px; }
+.account-create-password-actions { position:absolute; top:4px; right:4px; bottom:4px; display:flex; align-items:center; gap:2px; }
+.account-create-password-actions button { display:inline-flex; height:100%; align-items:center; justify-content:center; border-radius:7px; color:var(--muted-foreground); }
+.account-create-password-generate { gap:4px; padding:0 8px; font-size:11px; font-weight:500; }
+.account-create-password-toggle { width:34px; }
+.account-create-password-actions button:hover { color:var(--foreground); background:var(--muted); }
+.account-create-password-actions button:focus-visible { outline:2px solid var(--ring); outline-offset:-2px; }
+.account-create-password-generate svg { width:12px; height:12px; }
+.account-create-password-toggle svg { width:16px; height:16px; }
 .account-create-footer { display:flex; flex-shrink:0; align-items:center; justify-content:space-between; gap:16px; border-top:1px solid var(--border); padding:16px 26px; background:var(--card); }
 .account-create-footer > span { max-width:250px; font-size:11px; line-height:1.6; color:var(--muted-foreground); }
 .account-create-footer > div { display:flex; flex-shrink:0; gap:8px; }

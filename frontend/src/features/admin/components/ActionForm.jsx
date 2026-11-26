@@ -1,4 +1,6 @@
-import { AccountCreationFields, AccountCreationPassword, accountCreationLabel, accountCreationPlaceholders } from "@/features/accounts/components/AccountCreationFields";
+import { AccountCreationFields, AccountCreationLabel, AccountCreationPassword } from "@/features/accounts/components/AccountCreationFields";
+import AccountCredentialsShareDialog from "@/features/accounts/components/AccountCredentialsShareDialog";
+import { accountCreationPlaceholders } from "@/features/accounts/lib/accountCredentials";
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,14 +14,21 @@ import { readCampaignDraft, removeCampaignDraft, writeCampaignDraft } from "@/fe
 
 export default function ActionForm({ title, description, action, successMessage, fields, initialValues, validate, payload, review, onClose, submitLabel = "Confirm changes", draftKey }) {
   const submitting = useRef(false);
+  const pendingCredentials = useRef(null);
   const draftSaveTimer = useRef(null);
   const [values, setValues] = useState(initialValues);
+  const [sharedCredentials, setSharedCredentials] = useState(null);
   const [draftReady, setDraftReady] = useState(!draftKey);
   const [reviewing, setReviewing] = useState(false);
   const [errors, setErrors] = useState({});
   const [error, setError] = useState("");
   const mutation = useAdminMutation(action, successMessage, async (data) => {
     if (draftKey) await removeCampaignDraft(draftKey).catch(() => {});
+    if (pendingCredentials.current) {
+      setSharedCredentials({ ...pendingCredentials.current, result: data });
+      pendingCredentials.current = null;
+      return;
+    }
     onClose?.(data);
   });
   useEffect(() => {
@@ -53,7 +62,21 @@ export default function ActionForm({ title, description, action, successMessage,
   function submit(event) {
     event.preventDefault();
     if (submitting.current) return;
-    if (reviewing) { submitting.current = true; mutation.mutate(payload(values), { onSettled: () => { submitting.current = false; } }); return; }
+    if (reviewing) {
+      submitting.current = true;
+      const body = payload(values);
+      pendingCredentials.current = isAccountForm && body.password?.trim()
+        ? {
+            username: body.username || values.username,
+            email: body.email || values.email,
+            phone: body.phone ?? values.phone ?? "",
+            password: body.password.trim(),
+            isReset: action === "updateAccount",
+          }
+        : null;
+      mutation.mutate(body, { onSettled: () => { submitting.current = false; } });
+      return;
+    }
     const invalid = {};
     for (const field of fields) {
       const value = String(values[field.key] ?? "");
@@ -79,7 +102,7 @@ export default function ActionForm({ title, description, action, successMessage,
     }
     const Control = isAccountForm && field.type === "password" ? AccountCreationPassword : Input;
     const isAllocationAmount = action === "allocate" && field.key === "amount";
-    return <Field key={field.key} id={`admin-${field.key}`} label={isAccountForm ? accountCreationLabel(field.label) : field.label} hint={field.hint}>
+    return <Field key={field.key} id={`admin-${field.key}`} label={isAccountForm ? <AccountCreationLabel label={field.label} /> : field.label} hint={field.hint}>
         {field.options ? <FilterSelect id={`admin-${field.key}`} label={field.label} invalid={Boolean(errors[field.key])} describedBy={errors[field.key] ? `error-${field.key}` : field.hint ? `admin-${field.key}-hint` : undefined} value={values[field.key]} onChange={(value) => change(field.key, value)} options={field.options} accountSearch={field.key === "resellerId" ? { role: "Reseller" } : ["toUserId", "fromUserId", "userId"].includes(field.key) ? { active: true, purpose: "credits" } : undefined} /> : field.type === "textarea" ? <Textarea id={`admin-${field.key}`} value={values[field.key]} onChange={(e) => change(field.key, e.target.value)} maxLength={field.maxLength} aria-invalid={Boolean(errors[field.key])} aria-describedby={errors[field.key] ? `error-${field.key}` : undefined} rows={3} /> : <Control
           placeholder={isAccountForm ? accountCreationPlaceholders[field.key] : undefined}
           id={`admin-${field.key}`}
@@ -98,6 +121,14 @@ export default function ActionForm({ title, description, action, successMessage,
         />}
         {errors[field.key] && <p id={`error-${field.key}`} className="text-xs text-destructive">{errors[field.key]}</p>}
       </Field>;
+  }
+  if (sharedCredentials) {
+    return (
+      <AccountCredentialsShareDialog
+        credentials={sharedCredentials}
+        onClose={() => onClose?.(sharedCredentials.result)}
+      />
+    );
   }
   return <Dialog open onOpenChange={(open) => { if (!open && !mutation.isPending) onClose(); }}><DialogContent className={isAccountForm ? "account-create-dialog" : "action-dialog"} showCloseButton={!mutation.isPending}>
     <DialogHeader><DialogTitle>{reviewing ? `Review: ${title.toLowerCase()}` : title}</DialogTitle><DialogDescription>{description}</DialogDescription></DialogHeader>

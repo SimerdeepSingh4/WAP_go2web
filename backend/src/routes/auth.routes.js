@@ -1,6 +1,5 @@
 import { Router } from "express";
 import {
-    register,
     login,
     logout,
     logoutAll,
@@ -21,7 +20,6 @@ authRouter.post("/logout", logout);
 authRouter.post("/forgot-password", forgotPasswordRateLimiter, forgotPassword);
 
 // Protected routes (validates session in MongoDB)
-authRouter.post("/register", protect, authorizeRoles("Super Admin", "Reseller"), register);
 authRouter.get("/me", protect, getMe);
 authRouter.get("/sessions", protect, getActiveSessions);
 authRouter.post("/logout-all", protect, logoutAll);

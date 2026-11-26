@@ -1,14 +1,16 @@
 import http from "http";
+import mongoose from "mongoose";
 import app from "./src/app.js";
-import { initSocket } from "./src/services/socket.service.js";
+import redisClient from "./src/config/redis.js";
+import { getIO, initSocket } from "./src/services/socket.service.js";
 import { initCampaignWorker, closeCampaignWorker } from "./src/workers/campaign.worker.js";
 import { campaignQueue } from "./src/queues/campaign.queue.js";
 import { startNotificationWorker, closeNotificationWorker } from "./src/workers/notification.worker.js";
 import { startCreditReconciliationWorker, closeCreditReconciliationWorker } from "./src/workers/credit-reconciliation.worker.js";
+import { createGracefulShutdown } from "./src/helpers/graceful-shutdown.js";
 
 const PORT = process.env.PORT || 3000;
 const server = http.createServer(app);
-
 
 // 1. Initialize Socket.IO on HTTP Server
 initSocket(server);
@@ -22,23 +24,16 @@ server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
 
-// Graceful shutdown
-async function gracefulShutdown(signal) {
-    console.log(`Received ${signal}. Shutting down gracefully...`);
-    try {
-        await closeNotificationWorker();
-        await closeCreditReconciliationWorker();
-        await closeCampaignWorker();
-        await campaignQueue.close();
-        server.close(() => {
-            console.log("HTTP server closed.");
-            process.exit(0);
-        });
-    } catch (err) {
-        console.error("Error during graceful shutdown:", err);
-        process.exit(1);
-    }
-}
+const gracefulShutdown = createGracefulShutdown({
+    server,
+    getIO,
+    closeNotificationWorker,
+    closeCreditReconciliationWorker,
+    closeCampaignWorker,
+    campaignQueue,
+    mongooseConnection: mongoose.connection,
+    redisClient,
+});
 
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));

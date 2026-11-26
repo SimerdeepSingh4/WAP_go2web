@@ -11,7 +11,7 @@ export async function register(username, email, password) {
         ? username
         : { username, email, password };
 
-    const response = await apiClient.post("/auth/register", payload);
+    const response = await apiClient.post("/users", payload);
     return response.data;
 }
 

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useLocation, useNavigate } from "react-router";
 import { useAuthContext } from "@/features/auth/context/auth.context";
-import { useBranding } from "@/features/branding/context/BrandingContext";
+import { useBranding } from "@/features/branding/context/branding-context";
 import { toast } from "@/components/ui/toast";
 import { X, GripHorizontal, Pin, Eye, EyeOff, Globe, MapPin, CheckCircle2, ExternalLink, HelpCircle } from "lucide-react";
 import { useReviewPins, useAllReviewPins, useCreatePin, useDeletePin, useResolvePin } from "@/features/review-pins/hooks/useReviewPins";

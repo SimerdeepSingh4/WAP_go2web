@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthContext } from "@/features/auth/context/auth.context.jsx";
@@ -6,8 +6,7 @@ import { toast } from "@/components/ui/toast";
 import { syncPushAccount, clearPushOwner } from "@/features/notifications/services/push";
 import { clearCurrentSessionToken, getSessionRequestScope, isSessionRequestCurrent, isSessionControlInProgress } from "@/api/sessionToken";
 import { accountRestriction } from "../../../../../shared/accountAccess.js";
-
-const SocketContext = createContext(null);
+import { SocketContext } from "./socket-context";
 
 export const SocketProvider = ({ children }) => {
     const { user } = useAuthContext();
@@ -206,6 +205,3 @@ export const SocketProvider = ({ children }) => {
 
     return <SocketContext.Provider value={{ socket: connectedSocket }}>{children}</SocketContext.Provider>;
 };
-
-export const useSocket = () => useContext(SocketContext);
-export { SocketContext };

@@ -7,7 +7,7 @@ import { Suspense, useState } from "react";
 import { Link, NavLink, Navigate, Outlet, useLocation } from "react-router";
 import { LayoutDashboard, Megaphone, Users, Building2, Wallet, ReceiptText, Settings, LogOut, ChevronDown, PanelLeftClose, PanelLeftOpen, Bell, HelpCircle, ShieldCheck, ListFilter, X } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { useBranding } from "@/features/branding/context/BrandingContext";
+import { useBranding } from "@/features/branding/context/branding-context";
 import { useNotifications } from "@/features/notifications/hooks/useNotifications";
 import UserAvatar from "@/features/accounts/components/UserAvatar";
 import { TooltipProvider } from "@/components/ui/tooltip";

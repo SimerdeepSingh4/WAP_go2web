@@ -15,22 +15,32 @@ Object.assign(process.env, {
 
 const { default: userModel } = await import("../models/user.model.js");
 const { default: walletModel } = await import("../models/wallet.model.js");
+const { default: platformSettings } = await import("../models/platformSettings.model.js");
 const { NotificationEvent } = await import("../models/notification.model.js");
 const { createUserWithWallet } = await import("./user-account.helper.js");
-const { register } = await import("../controllers/auth.controller.js");
+const { createUser } = await import("../controllers/user.controller.js");
 
 let mongo;
 
 before(async () => {
     mongo = await MongoMemoryReplSet.create({ replSet: { count: 1 } });
     await mongoose.connect(mongo.getUri(), { autoIndex: false });
-    await Promise.all([userModel.init(), walletModel.init(), NotificationEvent.init()]);
+    await Promise.all([userModel.init(), walletModel.init(), platformSettings.init(), NotificationEvent.init()]);
 });
 
 after(async () => {
     await mongoose.disconnect();
     if (mongo) await mongo.stop();
 });
+
+function mockResponse() {
+    return {
+        statusCode: 200,
+        body: null,
+        status(code) { this.statusCode = code; return this; },
+        json(payload) { this.body = payload; return this; },
+    };
+}
 
 test("createUserWithWallet rolls back user creation when wallet creation fails", async (t) => {
     const originalCreate = walletModel.create.bind(walletModel);
@@ -54,20 +64,24 @@ test("createUserWithWallet rolls back user creation when wallet creation fails",
     assert.equal(typeof originalCreate, "function");
 });
 
-test("register creates user + zero-balance wallet and defaults maxVideoSizeMB to 3", async () => {
-    const res = {
-        statusCode: 200,
-        body: null,
-        status(code) { this.statusCode = code; return this; },
-        json(payload) { this.body = payload; return this; },
-    };
+test("createUser applies platform defaults, creates wallet, and returns complete account details", async () => {
+    await platformSettings.updateOne(
+        { _id: "platform" },
+        { $set: { defaultRatePerMsg: 7, accountExpiryValue: 1, accountExpiryUnit: "years" } },
+        { upsert: true }
+    );
 
-    await register(
+    const res = mockResponse();
+    await createUser(
         {
             body: {
-                username: "freshuser",
-                email: "freshuser@example.test",
+                username: "  Fresh User  ",
+                email: "FreshUser@Example.Test",
+                phone: "9876543210",
+                companyName: "Acme Corp",
                 password: "password123",
+                dailyCampaignLimit: 5,
+                featureAccess: { campaignNumber: true, reclaimCredit: true },
             },
             user: { _id: new mongoose.Types.ObjectId(), role: "Super Admin" },
         },
@@ -76,9 +90,42 @@ test("register creates user + zero-balance wallet and defaults maxVideoSizeMB to
 
     assert.equal(res.statusCode, 201);
     assert.equal(res.body.success, true);
+    assert.equal(res.body.user.email, "freshuser@example.test");
+    assert.equal(res.body.user.ratePerMsg, 7);
     assert.equal(res.body.user.maxVideoSizeMB, 3);
+    assert.equal(res.body.user.dailyCampaignLimit, 5);
+    assert.equal(res.body.user.phone, "9876543210");
+    assert.equal(res.body.user.dp_img, "");
+    assert.equal(res.body.user.featureAccess.campaignNumber, true);
+    assert.equal(res.body.user.featureAccess.reclaimCredit, true);
+    assert.ok(res.body.user.expiresAt);
 
     const wallet = await walletModel.findOne({ userId: res.body.user.id }).lean();
     assert.ok(wallet);
     assert.equal(wallet.balance, 0);
+});
+
+test("createUser rejects invalid role, invalid resellerId, and invalid expiry date with 400", async () => {
+    const admin = { _id: new mongoose.Types.ObjectId(), role: "Super Admin" };
+
+    const badRole = mockResponse();
+    await createUser(
+        { body: { username: "a", email: "badrole@example.test", password: "password123", role: "Super Admin" }, user: admin },
+        badRole
+    );
+    assert.equal(badRole.statusCode, 400);
+
+    const badReseller = mockResponse();
+    await createUser(
+        { body: { username: "b", email: "badreseller@example.test", password: "password123", resellerId: "not-an-id" }, user: admin },
+        badReseller
+    );
+    assert.equal(badReseller.statusCode, 400);
+
+    const badExpiry = mockResponse();
+    await createUser(
+        { body: { username: "c", email: "badexpiry@example.test", password: "password123", expiresAt: "not-a-date" }, user: admin },
+        badExpiry
+    );
+    assert.equal(badExpiry.statusCode, 400);
 });

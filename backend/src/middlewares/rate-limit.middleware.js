@@ -47,23 +47,41 @@ function createMemoryCounter(now = Date.now) {
         }
     }
 
-    return function increment(key, windowMs) {
-        const currentTime = now();
-        const existing = store.get(key);
-        if (!existing || currentTime >= existing.resetAt) {
-            if (store.size >= MAX_MEMORY_ENTRIES) prune(currentTime);
-            const resetAt = currentTime + windowMs;
-            store.set(key, { count: 1, resetAt });
-            return { count: 1, ttlMs: windowMs };
-        }
-        existing.count += 1;
-        return { count: existing.count, ttlMs: Math.max(1, existing.resetAt - currentTime) };
+    return {
+        increment(key, windowMs) {
+            const currentTime = now();
+            const existing = store.get(key);
+            if (!existing || currentTime >= existing.resetAt) {
+                if (store.size >= MAX_MEMORY_ENTRIES) prune(currentTime);
+                const resetAt = currentTime + windowMs;
+                store.set(key, { count: 1, resetAt });
+                return { count: 1, ttlMs: windowMs };
+            }
+            existing.count += 1;
+            return { count: existing.count, ttlMs: Math.max(1, existing.resetAt - currentTime) };
+        },
+        reset(key) {
+            store.delete(key);
+        },
     };
 }
 
-async function incrementRedis(redis, key, windowMs) {
+async function withRedisTimeout(operation) {
     let timer;
-    const operation = async () => {
+    try {
+        return await Promise.race([
+            operation(),
+            new Promise((_, reject) => {
+                timer = setTimeout(() => reject(new Error("Rate limit Redis timeout")), REDIS_TIMEOUT_MS);
+            }),
+        ]);
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+async function incrementRedis(redis, key, windowMs) {
+    return withRedisTimeout(async () => {
         if (typeof redis.eval === "function") {
             const [count, ttl] = await redis.eval(RATE_LIMIT_LUA, 1, key, String(windowMs));
             return { count: Number(count), ttlMs: Math.max(1, Number(ttl) || windowMs) };
@@ -79,18 +97,11 @@ async function incrementRedis(redis, key, windowMs) {
             ttlMs = windowMs;
         }
         return { count, ttlMs: Math.max(1, ttlMs) };
-    };
+    });
+}
 
-    try {
-        return await Promise.race([
-            operation(),
-            new Promise((_, reject) => {
-                timer = setTimeout(() => reject(new Error("Rate limit Redis timeout")), REDIS_TIMEOUT_MS);
-            }),
-        ]);
-    } finally {
-        clearTimeout(timer);
-    }
+async function deleteRedis(redis, key) {
+    return withRedisTimeout(() => redis.del(key));
 }
 
 /**
@@ -105,8 +116,9 @@ export function createRateLimiter({
     keyGenerator = (req) => clientIp(req),
     getRedis = () => sharedRedisClient,
     now = Date.now,
+    resetOnSuccess = false,
 }) {
-    const memoryIncrement = createMemoryCounter(now);
+    const memoryCounter = createMemoryCounter(now);
 
     return async function rateLimiter(req, res, next) {
         const keySuffix = keyGenerator(req);
@@ -123,7 +135,7 @@ export function createRateLimiter({
             }
         }
         if (!result) {
-            result = memoryIncrement(key, windowMs);
+            result = memoryCounter.increment(key, windowMs);
         }
 
         const remaining = Math.max(0, max - result.count);
@@ -140,6 +152,32 @@ export function createRateLimiter({
                 code: "RATE_LIMIT_EXCEEDED",
             });
         }
+
+        if (resetOnSuccess) {
+            // Reset before sending the 2xx response so an immediate retry does not race Redis DEL or memory cleanup.
+            const originalEnd = res.end;
+            let resetHandled = false;
+            res.end = function rateLimitResetEnd(...args) {
+                if (resetHandled) return originalEnd.apply(res, args);
+                resetHandled = true;
+                res.end = originalEnd;
+                if (res.statusCode >= 200 && res.statusCode < 300) {
+                    memoryCounter.reset(key);
+                    if (!res.headersSent) {
+                        res.set("RateLimit-Remaining", String(max));
+                    }
+                    const activeRedis = getRedis?.();
+                    if (activeRedis && activeRedis.status === "ready" && typeof activeRedis.del === "function") {
+                        deleteRedis(activeRedis, key)
+                            .catch((err) => console.warn(`Rate limiter reset failed for ${prefix}:`, err.message))
+                            .finally(() => originalEnd.apply(res, args));
+                        return res;
+                    }
+                }
+                return originalEnd.apply(res, args);
+            };
+        }
+
         return next();
     };
 }
@@ -155,8 +193,9 @@ export const loginRateLimiter = [
     createRateLimiter({
         prefix: "rl:auth:login:acct",
         windowMs: WINDOW_MS,
-        max: 10,
-        message: "Too many login attempts for this account. Please wait a few minutes and try again.",
+        max: 5,
+        resetOnSuccess: true,
+        message: "Too many failed login attempts for this account. Please wait a few minutes and try again.",
         keyGenerator: (req) => {
             const id = accountIdentifier(req);
             return id ? `${clientIp(req)}:${id}` : null;

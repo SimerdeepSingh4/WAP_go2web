@@ -8,7 +8,7 @@ import GradientChatInput from "@/components/ui/gradient-chat-input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { useSocket } from "@/features/socket/context/socket.context.jsx";
+import { useSocket } from "@/features/socket/context/socket-context";
 import { supportApi } from "@/features/support/services/support.api.js";
 import { useSupportChat } from "@/features/support/hooks/useSupportChat";
 import SupportMessage from "../components/SupportMessage";

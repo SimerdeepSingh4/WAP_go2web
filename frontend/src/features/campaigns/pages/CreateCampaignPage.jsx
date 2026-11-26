@@ -265,10 +265,24 @@ export default function CreateCampaignPage() {
   };
 
   /* ---- Recipients file ---- */
+  const MAX_RECIPIENTS_FILE_MB = 10;
   const readRecipientsFile = (file) => {
+    if (fileInputRef.current) fileInputRef.current.value = "";
     if (!file) return;
     if (!/\.(csv|txt)$/i.test(file.name)) {
       toast.add({ title: "Use a .csv or .txt file", type: "error" });
+      return;
+    }
+    if (file.size === 0) {
+      toast.add({ title: "Recipients file is empty", type: "error" });
+      return;
+    }
+    if (file.size > MAX_RECIPIENTS_FILE_MB * MB) {
+      toast.add({
+        title: `Recipients file exceeds ${MAX_RECIPIENTS_FILE_MB} MB`,
+        description: `"${file.name}" is ${formatFileSize(file.size)}.`,
+        type: "error",
+      });
       return;
     }
     const reader = new FileReader();
@@ -285,7 +299,6 @@ export default function CreateCampaignPage() {
     };
     reader.onerror = () => toast.add({ title: "Couldn't read that file", type: "error" });
     reader.readAsText(file);
-    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const createCampaignMutation = useMutation({

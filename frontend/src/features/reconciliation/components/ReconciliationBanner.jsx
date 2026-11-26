@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRight, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { useSocket } from "@/features/socket/context/socket.context.jsx";
+import { useSocket } from "@/features/socket/context/socket-context";
 import { useReconciliationSummary } from "../hooks/useReconciliationSummary";
 import "../reconciliation.css";
 

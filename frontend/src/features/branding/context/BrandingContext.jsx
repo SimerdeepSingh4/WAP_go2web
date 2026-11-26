@@ -1,25 +1,10 @@
 import { brandColors } from "../../../../../shared/brandingColors.js";
-import { createContext, useContext, useEffect, useCallback, useMemo } from "react";
+import { useEffect, useCallback, useMemo } from "react";
 import { resolveBranding } from "../services/branding.api.js";
 import { applyBrandingToDOM } from "../lib/themeHelper";
 import { useAuthContext } from "@/features/auth/context/auth.context.jsx";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-
-const DEFAULT_BRANDING = {
-    isWhiteLabeled: false,
-    brandName: "Promotion",
-    logoUrl: "https://res.cloudinary.com/dyfjy8kmv/image/upload/v1793689940/Navy_Blue_Bird_Chat_Logo_n0udpf.webp",
-    ...brandColors(),
-    subdomain: "",
-};
-
-const BrandingContext = createContext({
-    branding: DEFAULT_BRANDING,
-    isWhiteLabeled: false,
-    isLoading: true,
-    refreshBranding: async () => {},
-    setCustomBranding: () => {},
-});
+import { BrandingContext, DEFAULT_BRANDING } from "./branding-context";
 
 export function BrandingProvider({ children }) {
     const queryClient = useQueryClient();
@@ -142,9 +127,5 @@ export function BrandingProvider({ children }) {
     );
 
     return <BrandingContext.Provider value={value}>{children}</BrandingContext.Provider>;
-}
-
-export function useBranding() {
-    return useContext(BrandingContext);
 }
 

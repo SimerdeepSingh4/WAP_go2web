@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Eye, EyeOff, CheckCircle2, ArrowLeft } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
-import { useBranding } from "@/features/branding/context/BrandingContext";
+import { useBranding } from "@/features/branding/context/branding-context";
 import { forgotPassword as forgotPasswordApi } from "../services/auth.api";
 
 function PortalIcon({ type = "network", className = "size-5" }) {

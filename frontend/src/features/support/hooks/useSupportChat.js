@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSocket } from "@/features/socket/context/socket.context.jsx";
+import { useSocket } from "@/features/socket/context/socket-context";
 import { supportApi } from "@/features/support/services/support.api.js";
 
 const merge = (previous, incoming) => [...new Map([...previous, ...incoming].map(message => [String(message._id), message])).values()].sort((a, b) => a.sequenceNumber - b.sequenceNumber);

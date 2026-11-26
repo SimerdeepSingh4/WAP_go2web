@@ -1,18 +1,17 @@
+import { Suspense, lazy } from "react";
 import { createBrowserRouter, Navigate, useParams, useLocation, Outlet } from "react-router";
 import LoginPage from "./features/auth/pages/Login.jsx";
 import { useAuth } from "./features/auth/hooks/useAuth.js";
 import RoleRoute from "./components/guards/RoleRoute.jsx";
 import PreviewBanner from "./components/guards/PreviewBanner.jsx";
-import Skiper46DevButton from "./components/dev/Skiper46DevButton.jsx";
 import WorkspacePageError from "./components/ui/workspace-page-error.jsx";
-
-import { lazy } from "react";
 import AdminAccess from "./features/admin/guards/AdminAccess.jsx";
-import ImpersonationHandoff from "./features/auth/pages/ImpersonationHandoff.jsx";
 
-import AdminLayout from "./features/admin/components/AdminLayout.jsx";
-import ResellerLayout from "./features/reseller/components/ResellerLayout.jsx";
-import UserLayout from "./features/user/components/UserLayout.jsx";
+const Skiper46DevButton = lazy(() => import("./components/dev/Skiper46DevButton.jsx"));
+const ImpersonationHandoff = lazy(() => import("./features/auth/pages/ImpersonationHandoff.jsx"));
+const AdminLayout = lazy(() => import("./features/admin/components/AdminLayout.jsx"));
+const ResellerLayout = lazy(() => import("./features/reseller/components/ResellerLayout.jsx"));
+const UserLayout = lazy(() => import("./features/user/components/UserLayout.jsx"));
 const AdminOverview = lazy(() => import("./features/admin/pages/Overview.jsx"));
 const AdminCampaigns = lazy(() => import("./features/admin/pages/Campaigns.jsx"));
 const AdminContacts = lazy(() => import("./features/admin/pages/Contacts.jsx"));
@@ -119,7 +118,11 @@ function RootDevLayout() {
   return (
     <>
       <Outlet />
-      {user && !isLoading && inWorkspace && <Skiper46DevButton />}
+      {user && !isLoading && inWorkspace && (
+        <Suspense fallback={null}>
+          <Skiper46DevButton />
+        </Suspense>
+      )}
     </>
   );
 }

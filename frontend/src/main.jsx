@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "./index.css";
 import "./features/dashboard/components/dashboard.css";
 import App from "./App.jsx";
-import { initializeTheme } from "./features/branding/context/ThemeProvider";
+import { initializeTheme } from "./features/branding/context/theme-context";
 import { initializeSessionState } from "./api/sessionToken";
 
 initializeTheme();

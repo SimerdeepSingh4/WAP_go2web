@@ -1,16 +1,13 @@
-import { normalizeAccountPhone, normalizeAccountCompany } from "../helpers/account-phone.js";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import config from "../config/config.js";
 import userModel from "../models/user.model.js";
 import sessionModel from "../models/session.model.js";
-import walletModel from "../models/wallet.model.js";
 import { Notification, NotificationPreference, PushSubscription, PushDelivery } from "../models/notification.model.js";
 import { notifySession, notifyUser, notifyRole } from "../services/socket.service.js";
 import { authenticateBrowserSession, requestSessionCredentials, revokeBrowserSessions, sessionCookieOptions, tokenHash as hashSessionToken } from "../helpers/browser-session.js";
 import { deleteUserDpImageFile } from "./user.controller.js";
-import { createUserWithWallet } from "../helpers/user-account.helper.js";
 
 const MAX_CONCURRENT_DEVICES = 3;
 
@@ -135,115 +132,6 @@ async function createDeviceSession(user, req, res) {
     });
 
     return { token, session };
-}
-
-export async function register(req, res) {
-    try {
-        const { username, email, password, role } = req.body;
-        let phone, companyName;
-        try { phone = normalizeAccountPhone(req.body.phone); companyName = normalizeAccountCompany(req.body.companyName); }
-        catch (error) { return res.status(400).json({ success: false, message: error.message }); }
-
-        if (!username || !email || !password) {
-            return res.status(400).json({
-                message: "Username, email, and password are required",
-                success: false,
-            });
-        }
-
-        const existingUser = await userModel.findOne({ email });
-        if (existingUser) {
-            return res.status(400).json({
-                message: "Email already exists",
-                success: false,
-            });
-        }
-
-        let assignedReseller = null;
-        let assignedRole = "User";
-
-        if (req.user?.role === "Reseller") {
-            assignedReseller = req.user._id;
-            assignedRole = "User";
-        } else if (req.user?.role === "Super Admin") {
-            assignedReseller = req.body.resellerId || null;
-            assignedRole = role || "User";
-        }
-
-        let customRate = 12; // default ratePerMsg
-        if (req.body.ratePerMsg !== undefined && req.body.ratePerMsg !== null && req.body.ratePerMsg !== "") {
-            const parsed = Number(req.body.ratePerMsg);
-            if (!isNaN(parsed) && parsed >= 0) {
-                customRate = parsed;
-            }
-        }
-
-        let customMaxVideoSizeMB = 3;
-        if (req.user?.role === "Super Admin" && req.body.maxVideoSizeMB !== undefined && req.body.maxVideoSizeMB !== null && req.body.maxVideoSizeMB !== "") {
-            const parsedVideoSize = Number(req.body.maxVideoSizeMB);
-            if (Number.isFinite(parsedVideoSize) && parsedVideoSize >= 1 && parsedVideoSize <= 100) {
-                customMaxVideoSizeMB = parsedVideoSize;
-            }
-        }
-
-        let accountExpiry = null;
-        if (req.body.expiresAt) {
-            const parsedExpiry = new Date(req.body.expiresAt);
-            if (!Number.isNaN(parsedExpiry.getTime())) {
-                if (/^\d{4}-\d{2}-\d{2}$/.test(String(req.body.expiresAt))) {
-                    parsedExpiry.setUTCHours(23, 59, 59, 999);
-                }
-                accountExpiry = parsedExpiry;
-            }
-        }
-
-        const user = await createUserWithWallet(
-            {
-                username,
-                email,
-                phone,
-                companyName,
-                password,
-                role: assignedRole,
-                resellerId: assignedReseller,
-                ratePerMsg: customRate,
-                maxVideoSizeMB: customMaxVideoSizeMB,
-                mediaUploadLimits: req.user?.role === "Super Admin" && req.body.maxVideoSizeMB != null && req.body.maxVideoSizeMB !== "" ? { videoMB: customMaxVideoSizeMB } : undefined,
-                expiresAt: accountExpiry,
-                createdBy: req.user?._id || null,
-            },
-            { resellerId: assignedReseller }
-        );
-
-        return res.status(201).json({
-            message: "User registered successfully",
-            success: true,
-            user: {
-                id: user._id,
-                username: user.username,
-                email: user.email,
-                phone: user.phone || "",
-                dp_img: user.dp_img || "",
-                role: user.role,
-                resellerId: user.resellerId,
-                ratePerMsg: user.ratePerMsg,
-                maxVideoSizeMB: user.maxVideoSizeMB ?? 3,
-                featureAccess: user.featureAccess,
-            },
-        });
-    } catch (error) {
-        if (error?.code === 11000) {
-            return res.status(400).json({
-                message: "Email already exists",
-                success: false,
-            });
-        }
-        console.error("Register error:", error);
-        return res.status(500).json({
-            message: "Internal server error",
-            success: false,
-        });
-    }
 }
 
 export async function login(req, res) {
@@ -711,7 +599,6 @@ export async function forgotPassword(req, res) {
 }
 
 export default {
-    register,
     login,
     logout,
     logoutAll,

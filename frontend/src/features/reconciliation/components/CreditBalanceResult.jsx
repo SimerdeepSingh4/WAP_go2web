@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { useSocket } from "@/features/socket/context/socket.context.jsx";
+import { useSocket } from "@/features/socket/context/socket-context";
 import { toast } from "@/components/ui/toast";
 import { reconciliationApi } from "../services/reconciliation.api";
 

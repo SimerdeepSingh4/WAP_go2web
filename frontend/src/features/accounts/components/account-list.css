@@ -6,39 +6,151 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.portal-main .account-list-table-wallets [data-column="account"] .truncate { max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+.portal-main .account-list-table-wallets [data-column="account"] .truncate {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Dark, colored actions stand out in account profile drawers. */
-html:not([data-branded="true"]) .account-profile-sheet { --primary:#25815a; --primary-text:#1c6546; --primary-hover:#1c6546; --ring:var(--brand-ring, #25815a); }
-.account-profile-sheet .account-profile-edit { border-color:#176448; background:#176448; color:#ffffff; box-shadow:0 2px 5px rgb(23 100 72 / 22%); }
-.account-profile-sheet .account-profile-edit:hover { border-color:#10543b; background:#10543b; color:#ffffff; }
-.account-profile-sheet .account-profile-edit svg { color:inherit; }
+html:not([data-branded="true"]) .account-profile-sheet {
+  --primary: #25815a;
+  --primary-text: #1c6546;
+  --primary-hover: #1c6546;
+  --ring: var(--brand-ring, #25815a);
+}
+
+.account-profile-sheet .account-profile-edit {
+  border-color: #176448;
+  background: #176448;
+  color: #ffffff;
+  box-shadow: 0 2px 5px rgb(23 100 72 / 22%);
+}
+
+.account-profile-sheet .account-profile-edit:hover {
+  border-color: #10543b;
+  background: #10543b;
+  color: #ffffff;
+}
+
+.account-profile-sheet .account-profile-edit svg {
+  color: inherit;
+}
+
 .account-profile-sheet .account-profile-role,
-.account-profile-sheet .account-profile-rate { border-color:#573c92; background:#63439f; color:#ffffff; box-shadow:0 2px 5px rgb(87 60 146 / 20%); }
+.account-profile-sheet .account-profile-rate {
+  border-color: #573c92;
+  background: #63439f;
+  color: #ffffff;
+  box-shadow: 0 2px 5px rgb(87 60 146 / 20%);
+}
+
 .account-profile-sheet .account-profile-role:hover,
-.account-profile-sheet .account-profile-rate:hover { border-color:#49327d; background:#49327d; color:#ffffff; }
-.account-profile-sheet .account-profile-allocate { border-color:#176448; background:#176448; color:#ffffff; box-shadow:0 2px 5px rgb(23 100 72 / 22%); }
-.account-profile-sheet .account-profile-allocate:hover { border-color:#10543b; background:#10543b; color:#ffffff; }
-.account-profile-sheet .credit-allocate-button { border-color:#e2a500; background:#ffbf16; color:#071b46; box-shadow:0 3px 8px rgb(190 132 0 / 22%); font-weight:650; }
-.account-profile-sheet .credit-allocate-button:hover { border-color:#c99100; background:#edac00; color:#071b46; }
-.credit-allocate-button { border-color:#e2a500; background:#ffbf16; color:#071b46; box-shadow:0 3px 8px rgb(190 132 0 / 22%); font-weight:650; }
-.credit-allocate-button:hover { border-color:#c99100; background:#edac00; color:#071b46; }
-.account-profile-sheet .account-profile-ledger { border-color:#40556e; background:#52667f; color:#ffffff; }
-.account-profile-sheet .account-profile-ledger:hover { border-color:#34485f; background:#40556e; color:#ffffff; }
+.account-profile-sheet .account-profile-rate:hover {
+  border-color: #49327d;
+  background: #49327d;
+  color: #ffffff;
+}
+
+.account-profile-sheet .account-profile-allocate {
+  border-color: #176448;
+  background: #176448;
+  color: #ffffff;
+  box-shadow: 0 2px 5px rgb(23 100 72 / 22%);
+}
+
+.account-profile-sheet .account-profile-allocate:hover {
+  border-color: #10543b;
+  background: #10543b;
+  color: #ffffff;
+}
+
+.account-profile-sheet .credit-allocate-button {
+  border-color: #e2a500;
+  background: #ffbf16;
+  color: #071b46;
+  box-shadow: 0 3px 8px rgb(190 132 0 / 22%);
+  font-weight: 650;
+}
+
+.account-profile-sheet .credit-allocate-button:hover {
+  border-color: #c99100;
+  background: #edac00;
+  color: #071b46;
+}
+
+.credit-allocate-button {
+  border-color: #e2a500;
+  background: #ffbf16;
+  color: #071b46;
+  box-shadow: 0 3px 8px rgb(190 132 0 / 22%);
+  font-weight: 650;
+}
+
+.credit-allocate-button:hover {
+  border-color: #c99100;
+  background: #edac00;
+  color: #071b46;
+}
+
+.account-profile-sheet .account-profile-ledger {
+  border-color: #40556e;
+  background: #52667f;
+  color: #ffffff;
+}
+
+.account-profile-sheet .account-profile-ledger:hover {
+  border-color: #34485f;
+  background: #40556e;
+  color: #ffffff;
+}
+
 @media(max-width:980px) {
-  .account-list-table:not(.account-list-table-wallets) .mobile-record-header { flex-wrap:wrap; }
-  .account-list-table:not(.account-list-table-wallets) .mobile-record-heading { flex-basis:100%; }
-  .account-list-table:not(.account-list-table-wallets) .mobile-record-actions, .account-list-table:not(.account-list-table-wallets) .mobile-record-actions > div { width:100%; }
-  .account-list-table .mobile-record-actions .portal-row-actions { justify-content:space-between; }
-  .portal-main .account-list-table .mobile-record-actions [data-slot="button"] { min-height:44px; }
-  .account-list-table.account-card-list .mobile-record-heading { flex:1 1 11rem; }
+  .account-list-table:not(.account-list-table-wallets) .mobile-record-header {
+    flex-wrap: wrap;
+  }
+
+  .account-list-table:not(.account-list-table-wallets) .mobile-record-heading {
+    flex-basis: 100%;
+  }
+
+  .account-list-table:not(.account-list-table-wallets) .mobile-record-actions,
+  .account-list-table:not(.account-list-table-wallets) .mobile-record-actions>div {
+    width: 100%;
+  }
+
+  .account-list-table .mobile-record-actions .portal-row-actions {
+    justify-content: space-between;
+  }
+
+  .portal-main .account-list-table .mobile-record-actions [data-slot="button"] {
+    min-height: 44px;
+  }
+
+  .account-list-table.account-card-list .mobile-record-heading {
+    flex: 1 1 11rem;
+  }
+
   .account-list-table.account-card-list .mobile-record-actions,
-  .account-list-table.account-card-list .mobile-record-actions > div { width:auto; }
-  .account-card-list .mobile-record-actions .portal-row-actions { justify-content:flex-start; gap:6px; }
-  .account-card-list .mobile-record .account-login-label { display:inline; }
-  .account-card-list .mobile-record .account-row-actions > button:first-child {
-    background:var(--primary);
-    color:var(--primary-foreground);
-    border-color:var(--primary);
+  .account-list-table.account-card-list .mobile-record-actions>div {
+    width: auto;
+  }
+
+  .account-card-list .mobile-record-actions .portal-row-actions {
+    justify-content: flex-start;
+    gap: 6px;
+  }
+
+  .account-card-list .mobile-record .account-login-label {
+    display: inline;
+  }
+
+  .account-card-list .mobile-record .account-row-actions>button:first-child {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border-color: var(--primary);
   }
 
   .account-list-table .mobile-record-heading {

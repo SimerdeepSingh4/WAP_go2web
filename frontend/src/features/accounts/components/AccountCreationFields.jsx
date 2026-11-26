@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Eye, EyeOff, ShieldCheck, UserRound } from "lucide-react";
+import { Eye, EyeOff, RefreshCw, ShieldCheck, UserRound } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { generateTemporaryPassword } from "../lib/accountCredentials";
 import "./account-creation.css";
 
 export function AccountCreationFields({ fields, renderField }) {
@@ -14,13 +15,43 @@ export function AccountCreationFields({ fields, renderField }) {
   </section>)}</div>;
 }
 
-export function AccountCreationPassword(props) {
+export function AccountCreationPassword({ onChange, ...props }) {
   const [visible, setVisible] = useState(false);
-  return <div className="account-create-password"><Input {...props} type={visible ? "text" : "password"} /><button type="button" aria-label={visible ? "Hide password" : "Show password"} aria-pressed={visible} onClick={() => setVisible(current => !current)}>{visible ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}</button></div>;
+
+  function handleGenerate() {
+    const generated = generateTemporaryPassword();
+    setVisible(true);
+    onChange?.({ target: { value: generated } });
+  }
+
+  return (
+    <div className="account-create-password">
+      <Input {...props} onChange={onChange} type={visible ? "text" : "password"} />
+      <div className="account-create-password-actions">
+        <button
+          type="button"
+          className="account-create-password-generate"
+          onClick={handleGenerate}
+          aria-label="Generate random password"
+          title="Generate random password"
+        >
+          <RefreshCw aria-hidden="true" />
+          <span>Generate</span>
+        </button>
+        <button
+          type="button"
+          className="account-create-password-toggle"
+          aria-label={visible ? "Hide password" : "Show password"}
+          aria-pressed={visible}
+          onClick={() => setVisible((current) => !current)}
+        >
+          {visible ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+        </button>
+      </div>
+    </div>
+  );
 }
 
-export function accountCreationLabel(label) {
+export function AccountCreationLabel({ label }) {
   return label.includes("(optional)") ? <>{label.replace(" (optional)", "")} <span className="account-create-optional">Optional</span></> : label;
 }
-
-export const accountCreationPlaceholders = { username: "e.g. Alex Morgan", email: "name@company.com", companyName: "e.g. Northstar Media", phone: "+91 98765 43210", password: "At least 8 characters", ratePerMsg: "e.g. 1.00" };

@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toast";
 import { useAuth } from "@/features/auth/hooks/useAuth";
-import { useSocket } from "@/features/socket/context/socket.context.jsx";
+import { useSocket } from "@/features/socket/context/socket-context";
 import { supportApi } from "../services/support.api";
 import { accountActionPayload, supportDate, supportMenuActions } from "../lib/quickActions";
 import { accountRestriction } from "../../../../../shared/accountAccess.js";

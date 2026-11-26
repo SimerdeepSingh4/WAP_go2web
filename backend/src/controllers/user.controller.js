@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { normalizeAccountPhone, normalizeAccountCompany } from "../helpers/account-phone.js";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
@@ -324,7 +325,10 @@ export async function uploadManagedUserProfileImage(req, res) {
  */
 export async function createUser(req, res) {
     try {
-        const { username, email, password, role } = req.body;
+        const username = String(req.body.username || "").trim();
+        const email = String(req.body.email || "").trim().toLowerCase();
+        const password = req.body.password;
+        const { role } = req.body;
         let phone, companyName;
         try { phone = normalizeAccountPhone(req.body.phone); companyName = normalizeAccountCompany(req.body.companyName); }
         catch (error) { return res.status(400).json({ success: false, message: error.message }); }
@@ -352,7 +356,10 @@ export async function createUser(req, res) {
             assignedRole = "User";
         } else if (req.user.role === "Super Admin") {
             assignedReseller = req.body.resellerId || null;
-            assignedRole = role || "User";
+            assignedRole = role ? String(role).trim() : "User";
+            if (!["User", "Reseller"].includes(assignedRole)) {
+                return res.status(400).json({ message: "Role must be User or Reseller.", success: false });
+            }
             if (assignedReseller && (assignedRole !== "User" || !mongoose.isValidObjectId(assignedReseller)
                 || !await userModel.exists({ _id: assignedReseller, role: "Reseller" }))) {
                 return res.status(400).json({ message: "Choose a valid reseller for this user.", success: false });
@@ -363,9 +370,10 @@ export async function createUser(req, res) {
         let customRate = platformRate;
         if (req.body.ratePerMsg !== undefined && req.body.ratePerMsg !== null && req.body.ratePerMsg !== "") {
             const parsed = Number(req.body.ratePerMsg);
-            if (!isNaN(parsed) && parsed >= 0) {
-                customRate = parsed;
+            if (!Number.isFinite(parsed) || parsed < 0) {
+                return res.status(400).json({ message: "Rate per message must be 0 or greater.", success: false });
             }
+            customRate = parsed;
         }
 
         let customMaxVideoSizeMB = 3;
@@ -379,20 +387,22 @@ export async function createUser(req, res) {
         let customDailyCampaignLimit = null;
         if (req.user.role === "Super Admin" && req.body.dailyCampaignLimit !== undefined && req.body.dailyCampaignLimit !== null && req.body.dailyCampaignLimit !== "") {
             const parsedLimit = Number(req.body.dailyCampaignLimit);
-            if (Number.isInteger(parsedLimit) && parsedLimit >= 1) {
-                customDailyCampaignLimit = parsedLimit;
+            if (!Number.isInteger(parsedLimit) || parsedLimit < 1) {
+                return res.status(400).json({ message: "Daily campaign limit must be a whole number of at least 1.", success: false });
             }
+            customDailyCampaignLimit = parsedLimit;
         }
 
         let accountExpiry = null;
-        if (req.body.expiresAt) {
+        if (req.body.expiresAt !== undefined && req.body.expiresAt !== null && req.body.expiresAt !== "") {
             const parsedExpiry = new Date(req.body.expiresAt);
-            if (!Number.isNaN(parsedExpiry.getTime())) {
-                if (/^\d{4}-\d{2}-\d{2}$/.test(String(req.body.expiresAt))) {
-                    parsedExpiry.setUTCHours(23, 59, 59, 999);
-                }
-                accountExpiry = parsedExpiry;
+            if (Number.isNaN(parsedExpiry.getTime())) {
+                return res.status(400).json({ message: "Enter a valid account expiry date.", success: false });
             }
+            if (/^\d{4}-\d{2}-\d{2}$/.test(String(req.body.expiresAt))) {
+                parsedExpiry.setUTCHours(23, 59, 59, 999);
+            }
+            accountExpiry = parsedExpiry;
         } else {
             accountExpiry = await calculateDefaultAccountExpiry();
         }
@@ -429,13 +439,25 @@ export async function createUser(req, res) {
                 id: newUser._id,
                 username: newUser.username,
                 email: newUser.email,
+                phone: newUser.phone || "",
+                companyName: newUser.companyName || "",
+                dp_img: newUser.dp_img || "",
                 role: newUser.role,
                 resellerId: newUser.resellerId,
                 ratePerMsg: newUser.ratePerMsg,
                 maxVideoSizeMB: newUser.maxVideoSizeMB ?? 3,
+                dailyCampaignLimit: newUser.dailyCampaignLimit ?? null,
+                featureAccess: newUser.featureAccess,
+                expiresAt: newUser.expiresAt || null,
             },
         });
     } catch (error) {
+        if (error?.code === 11000) {
+            return res.status(400).json({
+                message: "Email already in use",
+                success: false,
+            });
+        }
         console.error("CreateUser error:", error);
         return res.status(500).json({
             message: "Failed to create user account",
