@@ -101,6 +101,59 @@ html:not([data-branded="true"]) .account-profile-sheet {
   color: #071b46;
 }
 
+.account-login-button,
+.account-card-list .mobile-record .account-login-button {
+  border-color: #1c6546;
+  background: #25815a;
+  color: #ffffff;
+  box-shadow: 0 2px 5px rgb(23 100 72 / 22%);
+  font-weight: 550;
+}
+
+.account-login-button:hover,
+.account-login-button:focus-visible,
+.account-login-button:active,
+.account-card-list .mobile-record .account-login-button:hover,
+.account-card-list .mobile-record .account-login-button:focus-visible,
+.account-card-list .mobile-record .account-login-button:active {
+  border-color: #10543b;
+  background: #1c6546;
+  color: #ffffff;
+}
+
+.account-login-button svg,
+.account-card-list .mobile-record .account-login-button svg {
+  color: inherit;
+}
+
+@media (max-width: 1230px) {
+  .portal-main .responsive-table-desktop .portal-row-actions .account-credit-label,
+  .portal-main .responsive-table-desktop .portal-row-actions .account-login-label {
+    display: none;
+  }
+
+  .portal-main .responsive-table-desktop .portal-row-actions .credit-allocate-button,
+  .portal-main .responsive-table-desktop .portal-row-actions .account-login-button {
+    padding-inline: 8px;
+    gap: 0;
+    min-width: 32px;
+  }
+}
+
+@container portal (max-width: 1230px) {
+  .portal-main .responsive-table-desktop .portal-row-actions .account-credit-label,
+  .portal-main .responsive-table-desktop .portal-row-actions .account-login-label {
+    display: none;
+  }
+
+  .portal-main .responsive-table-desktop .portal-row-actions .credit-allocate-button,
+  .portal-main .responsive-table-desktop .portal-row-actions .account-login-button {
+    padding-inline: 8px;
+    gap: 0;
+    min-width: 32px;
+  }
+}
+
 .account-profile-sheet .account-profile-ledger {
   border-color: #40556e;
   background: #52667f;

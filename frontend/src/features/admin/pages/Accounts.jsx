@@ -658,17 +658,26 @@ export default function Accounts({ role }) {
             type="button"
             variant="outline"
             size="sm"
-            className="min-w-11 lg:min-w-8"
+            className="credit-allocate-button"
+            title="Allocate credits"
+            aria-label={`Allocate credits to ${a.username}`}
+            onClick={() => setModal({ type: "allocate", account: a })}
+          >
+            <Wallet className="size-4" aria-hidden="true" />
+            <span className="account-credit-label">Allocate credits</span>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="min-w-11 lg:min-w-8 account-login-button"
             title="Log in as account"
             aria-label={`Log in as ${a.username}`}
             disabled={accessAccount.isPending || query.isPending}
             onClick={() => openAccount(a)}
           >
-            <LogIn className="size-4" />
+            <LogIn className="size-4" aria-hidden="true" />
             <span className="account-login-label">Log in</span>
-          </Button>
-          <Button type="button" variant="outline" size="sm" className="credit-allocate-button" title="Allocate credits" aria-label={`Allocate credits to ${a.username}`} onClick={() => setModal({ type: "allocate", account: a })}>
-            <span>Allocate<span className="account-credit-label"> credits</span></span>
           </Button>
           <RowActionsMenu
             name={a.username}
