@@ -656,14 +656,14 @@ export default function Accounts({ role }) {
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size={role === "Reseller" ? "icon-sm" : "sm"}
             className="credit-allocate-button"
             title="Allocate credits"
             aria-label={`Allocate credits to ${a.username}`}
             onClick={() => setModal({ type: "allocate", account: a })}
           >
             <Wallet className="size-4" aria-hidden="true" />
-            <span className="account-credit-label">Allocate credits</span>
+            {role !== "Reseller" && <span className="account-credit-label">Allocate credits</span>}
           </Button>
           <Button
             type="button"
