@@ -448,34 +448,42 @@ export default function Campaigns({ reports = false }) {
       />
 
       {/* Filter Tabs Bar */}
-      <div className="campaign-list-toolbar flex flex-wrap items-center justify-between gap-3 border-b pb-3">
-      <div data-tour="campaign-status" className="flex flex-wrap items-center gap-1.5">
-        {quickFilterTabs.map((tab) => {
-          const isCurrent = status === tab.val;
-          return (
-            <button
-              key={tab.val}
-              onClick={() => update("status", tab.val === defaultStatus ? "" : tab.val)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                isCurrent
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <span>{tab.label}</span>
-              <span
-                className={`rounded-full px-1.5 py-0.2 text-[10px] font-semibold ${
-                  isCurrent ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted-foreground/15 text-foreground"
+      <div className="campaign-list-toolbar flex flex-col gap-3 border-b pb-3 md:flex-row md:flex-wrap md:items-center md:justify-between">
+        <div
+          data-tour="campaign-status"
+          className="grid w-full grid-cols-2 gap-2 md:flex md:w-auto md:flex-wrap md:items-center md:gap-1.5"
+        >
+          {quickFilterTabs.map((tab, index) => {
+            const isCurrent = status === tab.val;
+            const spanLastOdd =
+              quickFilterTabs.length % 2 === 1 && index === quickFilterTabs.length - 1
+                ? "col-span-2 md:col-span-1"
+                : "";
+            return (
+              <button
+                key={tab.val}
+                type="button"
+                onClick={() => update("status", tab.val === defaultStatus ? "" : tab.val)}
+                className={`inline-flex min-h-10 items-center justify-between gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors md:min-h-0 md:justify-center md:rounded-md md:py-1.5 ${spanLastOdd} ${
+                  isCurrent
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
                 }`}
               >
-                {query.isSuccess ? tab.count : "-"}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+                <span className="truncate">{tab.label}</span>
+                <span
+                  className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] leading-none font-semibold tabular-nums ${
+                    isCurrent ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted-foreground/15 text-foreground"
+                  }`}
+                >
+                  {query.isSuccess ? tab.count : "-"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
 
-        <div className="ml-auto flex w-[236px] max-w-full items-center gap-2">
+        <div className="flex w-full items-center gap-2 md:ml-auto md:w-[236px]">
           <Popover.Root open={calendarOpen} onOpenChange={(open) => {
             if (open) {
               setDraftRange(selectedRange);

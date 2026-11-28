@@ -7,7 +7,7 @@ import walletModel from "../models/wallet.model.js";
 import { CREDIT_CATEGORIES, isCreditQuantity } from "../helpers/credit-categories.js";
 import { purchaseTotalPaisa } from "../helpers/credit-purchase-price.js";
 import { resolveSellerForBuyer, getActivePurchaseRate } from "./credit-rate.controller.js";
-import { savePaymentProofFile, getPaymentProofPath, removePaymentProofFile } from "../services/payment-proof.service.js";
+import { savePaymentProofFile, loadPaymentProof, removePaymentProofFile } from "../services/payment-proof.service.js";
 import { postCreditMovement } from "../services/credit-posting.service.js";
 import { startCreditSession, creditPostingKey, saveCreditReceipt, abortCreditSession, creditErrorDetails, runCreditTransaction } from "../helpers/credit-operation.js";
 import { notifyUser } from "../services/socket.service.js";
@@ -261,29 +261,29 @@ export async function getProof(req, res) {
             return res.status(404).json({ success: false, message: "No payment proof uploaded for this purchase." });
         }
 
-        const filePath = await getPaymentProofPath(purchase.paymentProofKey);
-        if (!filePath) {
-            return res.status(404).json({ success: false, message: "Proof file not found on disk." });
+        const proof = await loadPaymentProof(purchase.paymentProofKey);
+        if (!proof) {
+            return res.status(404).json({ success: false, message: "Proof file not found in storage." });
         }
 
-        const ext = filePath.split(".").pop().toLowerCase();
-        const mimeTypes = {
-            jpg: "image/jpeg",
-            jpeg: "image/jpeg",
-            png: "image/png",
-            webp: "image/webp",
-            pdf: "application/pdf",
-        };
-
-        res.setHeader("Content-Type", mimeTypes[ext] || "application/octet-stream");
-        res.setHeader("Content-Disposition", `inline; filename="proof_${purchase._id}.${ext}"`);
+        res.setHeader("Content-Type", proof.mime || "application/octet-stream");
+        res.setHeader("Content-Disposition", `inline; filename="proof_${purchase._id}.${proof.ext}"`);
         res.setHeader("Cache-Control", "private, no-cache, no-store, must-revalidate");
 
-        const stream = fs.createReadStream(filePath);
-        stream.pipe(res);
+        if (proof.buffer) {
+            return res.send(proof.buffer);
+        }
+        const stream = fs.createReadStream(proof.filePath);
+        stream.on("error", () => {
+            if (!res.headersSent) res.status(500).json({ success: false, message: "Failed to load proof image" });
+        });
+        return stream.pipe(res);
     } catch (error) {
         console.error("GetProof error:", error);
-        return res.status(500).json({ success: false, message: "Failed to load proof image" });
+        return res.status(error.statusCode || 500).json({
+            success: false,
+            message: error.statusCode ? error.message : "Failed to load proof image",
+        });
     }
 }
 

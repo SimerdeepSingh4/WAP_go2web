@@ -26,7 +26,13 @@ export default function ReconciliationWorkspace({ renderAccount }) {
   const rechecking = summary.data?.rechecking ?? 0;
   const checking = rechecking > 0 || summary.data?.pending > 0;
   const client = useQueryClient();
-  const cases = useQuery({ queryKey: ["credit-reconciliation", accountId, "cases", state, page, search], queryFn: ({ signal }) => reconciliationApi.cases({ state, page, search }, signal), enabled: Boolean(allowed && accountId), refetchInterval: rechecking || summary.data?.pending ? 5000 : 30000 });
+  const cases = useQuery({
+    queryKey: ["credit-reconciliation", accountId, "cases", state, page, search],
+    queryFn: ({ signal }) => reconciliationApi.cases({ state, page, search }, signal),
+    enabled: Boolean(allowed && accountId),
+    refetchInterval: rechecking || summary.data?.pending ? 5000 : 30000,
+    retry: (failureCount, error) => ![401, 403].includes(error?.response?.status) && failureCount < 1,
+  });
   const scan = useMutation({ mutationFn: reconciliationApi.scan, onSuccess: () => { void client.invalidateQueries({ queryKey: ["credit-reconciliation"] }); toast.add({ title: "Credit scan started", description: "Every wallet will be checked. Scanning does not change balances.", type: "success" }); }, onError: error => toast.add({ title: "Scan could not start", description: error.message, type: "error" }) });
   if (!allowed) return <div className="credit-empty"><ShieldAlert /><strong>Super Admin access required</strong><p>Reconciliation is available in your own Super Admin workspace.</p></div>;
   const monitor = summary.data?.monitor;

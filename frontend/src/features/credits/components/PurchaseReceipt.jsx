@@ -17,7 +17,11 @@ export default function PurchaseReceipt({ purchase, onLoaded }) {
       url = URL.createObjectURL(file);
       onLoaded?.(true);
       setReceipt({ id, url, isImage: file.type.startsWith("image/") });
-    }).catch(() => { if (!controller.signal.aborted) setReceipt({ id, error: true }); });
+    }).catch((err) => {
+      if (!controller.signal.aborted) {
+        setReceipt({ id, error: true, notFound: err?.response?.status === 404 });
+      }
+    });
     return () => { controller.abort(); if (url) URL.revokeObjectURL(url); };
   }, [hasProof, id, onLoaded]);
 
@@ -42,7 +46,7 @@ export default function PurchaseReceipt({ purchase, onLoaded }) {
         {!hasProof ? (
           <p>No payment proof submitted.</p>
         ) : proof?.error ? (
-          <p role="alert">The payment proof could not be loaded.</p>
+          <p role="alert">{proof.notFound ? "Payment proof file was not found on this server." : "The payment proof could not be loaded."}</p>
         ) : !proof ? (
           <p role="status"><Loader2 className="motion-safe:animate-spin" aria-hidden="true" /> Loading payment proof</p>
         ) : proof.isImage ? (
