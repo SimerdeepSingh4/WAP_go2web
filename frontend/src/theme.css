@@ -296,7 +296,7 @@ html[data-branded="true"] .credit-recharge-button {
 
 @layer base {
   body { background: var(--background); color: var(--foreground); }
-  ::selection { background: var(--accent-hover); color: var(--accent-foreground); }
+  ::selection { background: var(--primary); color: var(--primary-foreground); }
 }
 
 /* Native dropdowns share the same clean, compact treatment as SelectTrigger. */

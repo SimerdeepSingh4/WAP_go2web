@@ -190,6 +190,11 @@ html[data-branded="true"] [data-sidebar="sidebar"][data-mobile="true"]:has(.port
 .campaign-editor { container: campaign / inline-size; }
 .campaign-editor form > div, .campaign-editor [data-slot="card"], .campaign-editor [data-slot="card-content"] { min-width: 0; }
 .campaign-editor [data-slot="card-title"] { flex-wrap: wrap; }
+.campaign-message::selection,
+.campaign-message *::selection {
+  background: var(--primary-hover, #084eae);
+  color: #ffffff;
+}
 .campaign-message p + p { margin-top: .75em; }
 .campaign-message ul { list-style: disc; padding-left: 1.25rem; }
 .campaign-message ol { list-style: decimal; padding-left: 1.25rem; }

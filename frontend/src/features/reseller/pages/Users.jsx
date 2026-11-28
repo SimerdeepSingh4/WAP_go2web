@@ -284,7 +284,18 @@ export default function ResellerUsers() {
       label: <span className="sr-only">Actions</span>,
       render: (a) => (
         <div className="portal-row-actions account-row-actions">
-          <Button type="button" variant="outline" size="sm" className="credit-allocate-button" title="Allocate credits" aria-label={`Allocate credits to ${a.username}`} disabled={isPreview} onClick={() => setModal({ type: "allocate", account: a })}>Allocate credits</Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            className="credit-allocate-button"
+            title="Allocate credits"
+            aria-label={`Allocate credits to ${a.username}`}
+            disabled={isPreview}
+            onClick={() => setModal({ type: "allocate", account: a })}
+          >
+            <Wallet className="size-4" aria-hidden="true" />
+          </Button>
           <Button
             type="button"
             variant="default"
