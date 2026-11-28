@@ -201,9 +201,25 @@ a.overview-metric-content:hover .overview-metric-icon svg { transform: translate
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
-.overview-metric-value[data-numeric="true"] {
-  white-space: nowrap;
+.overview-metric-value[data-numeric="true"] { white-space: nowrap; }
+.overview-metric-value[data-numeric="true"],
+.overview-metric-value-trigger {
   font-size: clamp(14px, calc(100cqi / (max(var(--metric-chars, 6), 5) * 0.65)), var(--metric-max-size, 42px));
+}
+.overview-metric-value-trigger {
+  display: block;
+  max-width: 100%;
+  cursor: pointer;
+  text-align: start;
+  text-decoration: underline dotted;
+  text-decoration-color: color-mix(in srgb, currentColor 60%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: .18em;
+}
+.overview-metric-value-trigger:focus-visible {
+  border-radius: 2px;
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
 }
 .overview-metric-value[data-size="text"] { font-size: 22px; line-height: 1.3; letter-spacing: -.5px; }
 .overview-metric-value-suffix { font-size: 14px; font-weight: 400; letter-spacing: normal; margin-inline-start: 6px; }

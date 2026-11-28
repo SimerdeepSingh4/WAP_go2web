@@ -3,7 +3,7 @@ import TransactionReference from "@/features/credits/components/TransactionRefer
 import "./admin-transactions.css";
 import "@/features/credits/components/credit-history.css";
 import { Popover } from "@base-ui/react/popover";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import {
   Plus,
@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import AnimatedMetricValue from "@/features/dashboard/components/AnimatedMetricValue";
 import OverviewMetricCards from "@/features/dashboard/components/OverviewMetricCards";
 import { CreditBalancePreview } from "@/features/dashboard/components/ActionReview";
 import "@/features/accounts/components/account-list.css";
@@ -55,6 +57,38 @@ const transactionLabels = {
   REFUND: "Refund",
   RECLAIM: "Credit Deducted",
 };
+
+const allocatedCreditUnits = [
+  { divisor: 1_000_000_000_000, label: "lakh crore" },
+  { divisor: 10_000_000, label: "Cr" },
+  { divisor: 100_000, label: "lakh" },
+];
+
+function AllocatedCreditsValue({ total, unit }) {
+  const [exactOpen, setExactOpen] = useState(false);
+  const exactId = useId();
+  const compactValue = total / unit.divisor;
+  const headline = `${number(compactValue)} ${unit.label}`;
+
+  return (
+    <Tooltip open={exactOpen} onOpenChange={setExactOpen}>
+      <TooltipTrigger
+        type="button"
+        className="overview-metric-value-trigger"
+        style={{ "--metric-chars": headline.length }}
+        aria-label={`${headline} credits, show exact total`}
+        aria-describedby={exactOpen ? exactId : undefined}
+        closeOnClick={false}
+        onClick={() => setExactOpen(true)}
+      >
+        <AnimatedMetricValue key={unit.label} value={compactValue} /> {unit.label}
+      </TooltipTrigger>
+      <TooltipContent id={exactId} role="tooltip" sideOffset={8} className="tabular-nums">
+        {`${number(total)} credits`}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 export default function AdminCredits({ activity = false }) {
   const { user } = useAuth();
@@ -443,6 +477,10 @@ export default function AdminCredits({ activity = false }) {
     const stats = overview.data?.stats;
     const campaignCirculating = stats?.credits?.categoryBalances?.CAMPAIGN?.available ?? stats?.credits?.totalCreditsInCirculation ?? 0;
     const filteringCirculating = stats?.credits?.categoryBalances?.NUMBER_FILTERING?.available ?? 0;
+    const totalAllocated = stats?.credits?.totalAllocatedBySuperAdmin;
+    const allocatedUnit = Number.isFinite(totalAllocated)
+      ? allocatedCreditUnits.find(({ divisor }) => Math.abs(totalAllocated) >= divisor)
+      : undefined;
 
     return (
       <>
@@ -485,7 +523,13 @@ export default function AdminCredits({ activity = false }) {
                 { label: "Admin Balance", value: "Unlimited", caption: "Unlimited minting pool", icon: Wallet, accent: true },
                 { label: "Campaign Circulating", tone: "blue-filled", value: campaignCirculating, caption: "Campaign broadcast credits in wallets", icon: Send },
                 { label: "Filtering Circulating", tone: "purple-filled", value: filteringCirculating, caption: "Number verification credits in wallets", icon: PhoneCall },
-                { label: "Total Allocated", tone: "rose-filled", value: stats?.credits?.totalAllocatedBySuperAdmin, caption: "Lifetime allocated by Super Admin", icon: Coins },
+                {
+                  label: "Total Allocated",
+                  tone: "rose-filled",
+                  value: allocatedUnit ? <AllocatedCreditsValue total={totalAllocated} unit={allocatedUnit} /> : totalAllocated,
+                  caption: "Lifetime allocated by Super Admin",
+                  icon: Coins,
+                },
               ]}
             />
           </div>
