@@ -8,7 +8,7 @@ const schema = new mongoose.Schema({
     }])),
     dailyCampaignLimit: {
         type: Number,
-        default: 10,
+        default: 5,
         min: 1,
         max: 1000,
     },

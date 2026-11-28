@@ -83,6 +83,7 @@ const userSchema = new mongoose.Schema(
             default: null,
             min: [1, "Daily campaign limit must be at least 1"],
         },
+        canManageClientCampaignLimits: { type: Boolean, default: false },
         featureAccess: {
             campaignDp: { type: Boolean, default: false },
             campaignNumber: { type: Boolean, default: false },

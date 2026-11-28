@@ -385,7 +385,11 @@ export async function createUser(req, res) {
         }
 
         let customDailyCampaignLimit = null;
-        if (req.user.role === "Super Admin" && req.body.dailyCampaignLimit !== undefined && req.body.dailyCampaignLimit !== null && req.body.dailyCampaignLimit !== "") {
+        const canManageCampaignLimit = req.user.role === "Super Admin" || (req.user.role === "Reseller" && req.user.canManageClientCampaignLimits === true);
+        if (Object.hasOwn(req.body, "dailyCampaignLimit") && !canManageCampaignLimit) {
+            return res.status(403).json({ message: "Your Super Admin must grant permission to manage client campaign limits.", success: false });
+        }
+        if (canManageCampaignLimit && req.body.dailyCampaignLimit !== undefined && req.body.dailyCampaignLimit !== null && req.body.dailyCampaignLimit !== "") {
             const parsedLimit = Number(req.body.dailyCampaignLimit);
             if (!Number.isInteger(parsedLimit) || parsedLimit < 1) {
                 return res.status(400).json({ message: "Daily campaign limit must be a whole number of at least 1.", success: false });
@@ -558,6 +562,26 @@ export async function updateUserAccess(req, res) {
                 const oldDp = targetUser.dp_img;
                 updates.dp_img = "";
                 void deleteUserDpImageFile(targetUser._id, oldDp);
+            }
+        }
+
+        if (Object.hasOwn(req.body, "canManageClientCampaignLimits")) {
+            if (!isSuperAdmin || targetUser.role !== "Reseller" || typeof req.body.canManageClientCampaignLimits !== "boolean") {
+                return res.status(403).json({ message: "Only Super Admin can grant campaign limit management to a reseller.", success: false });
+            }
+            updates.canManageClientCampaignLimits = req.body.canManageClientCampaignLimits;
+        }
+
+        if (Object.hasOwn(req.body, "dailyCampaignLimit")) {
+            if (!isSuperAdmin && !(ownsUser && req.user.canManageClientCampaignLimits === true)) {
+                return res.status(403).json({ message: "Your Super Admin must grant permission to manage client campaign limits.", success: false });
+            }
+            if (req.body.dailyCampaignLimit === null || req.body.dailyCampaignLimit === "" || req.body.dailyCampaignLimit === undefined) {
+                updates.dailyCampaignLimit = null;
+            } else {
+                const parsedLimit = Number(req.body.dailyCampaignLimit);
+                if (!Number.isInteger(parsedLimit) || parsedLimit < 1) return res.status(400).json({ message: "Daily campaign limit must be a whole number of at least 1, or empty for platform default.", success: false });
+                updates.dailyCampaignLimit = parsedLimit;
             }
         }
 
@@ -1227,18 +1251,15 @@ export async function updateUser(req, res) {
             }
         }
 
-        // 5b. Update dailyCampaignLimit (Super Admin only)
         if (Object.hasOwn(req.body, "dailyCampaignLimit")) {
-            if (!isSuperAdmin) {
-                return res.status(403).json({ message: "Only Super Admin can manage daily campaign limits.", success: false });
+            if (!isSuperAdmin && !(ownsUser && req.user.canManageClientCampaignLimits === true)) {
+                return res.status(403).json({ message: "Your Super Admin must grant permission to manage client campaign limits.", success: false });
             }
             if (req.body.dailyCampaignLimit === null || req.body.dailyCampaignLimit === "" || req.body.dailyCampaignLimit === undefined) {
                 targetUser.dailyCampaignLimit = null;
             } else {
                 const parsedLimit = Number(req.body.dailyCampaignLimit);
-                if (!Number.isInteger(parsedLimit) || parsedLimit < 1) {
-                    return res.status(400).json({ message: "Daily campaign limit must be a whole number of at least 1, or empty for platform default.", success: false });
-                }
+                if (!Number.isInteger(parsedLimit) || parsedLimit < 1) return res.status(400).json({ message: "Daily campaign limit must be a whole number of at least 1, or empty for platform default.", success: false });
                 targetUser.dailyCampaignLimit = parsedLimit;
             }
         }

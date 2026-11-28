@@ -1033,6 +1033,7 @@ export default function Accounts({ role }) {
             allowCampaignNumber: modal.account.featureAccess?.campaignNumber === true,
             allowCampaignLink: modal.account.featureAccess?.campaignLink === true,
             allowCreditReclaim: modal.account.featureAccess?.reclaimCredit === true,
+            canManageClientCampaignLimits: modal.account.canManageClientCampaignLimits === true,
           }}
           fields={[
             { key: "status", label: `${role} status`, options: [{ value: "active", label: "Active" }, { value: "blocked", label: "Blocked" }, { value: "expired", label: "Expired" }] },
@@ -1053,6 +1054,7 @@ export default function Accounts({ role }) {
             ] : []),
             ...(role === "Reseller" ? [
               { key: "allowCreditReclaim", label: "Reclaim credits from client users", type: "checkbox", hint: "Allow this reseller to reclaim unused credits from their client users back to their reseller wallet." },
+              { key: "canManageClientCampaignLimits", label: "Manage client daily campaign limits", type: "checkbox", hint: "Allow this reseller to set or clear daily campaign limits for their client users." },
             ] : []),
           ]}
           payload={(values) => ({
@@ -1069,6 +1071,7 @@ export default function Accounts({ role }) {
                 ...(role === "Reseller" ? { reclaimCredit: values.allowCreditReclaim } : {}),
               }
             } : {}),
+            ...(role === "Reseller" ? { canManageClientCampaignLimits: values.canManageClientCampaignLimits } : {}),
           })}
           review={(values) => (
             <>
@@ -1081,6 +1084,7 @@ export default function Accounts({ role }) {
               {(role === "User" || role === "Reseller") && <p>Campaign number: <strong>{values.allowCampaignNumber ? "Allowed" : "Not allowed"}</strong></p>}
               {(role === "User" || role === "Reseller") && <p>Campaign link: <strong>{values.allowCampaignLink ? "Allowed" : "Not allowed"}</strong></p>}
               {role === "Reseller" && <p>Reclaim credits: <strong>{values.allowCreditReclaim ? "Allowed" : "Not allowed"}</strong></p>}
+              {role === "Reseller" && <p>Manage client daily campaign limits: <strong>{values.canManageClientCampaignLimits ? "Allowed" : "Not allowed"}</strong></p>}
             </>
           )}
           submitLabel={`Save ${role.toLowerCase()} access`}
