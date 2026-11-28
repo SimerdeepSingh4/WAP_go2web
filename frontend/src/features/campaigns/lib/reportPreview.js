@@ -1,12 +1,17 @@
-import { buildPublishedSheet, normalizeDuplicateRows } from "../../../../../shared/campaignSpreadsheet.js";
+import { buildPublishedSheet, maskSheetPhoneNumbers, normalizeDuplicateRows } from "../../../../../shared/campaignSpreadsheet.js";
 import { failureReportSheet } from "../../../../../shared/campaignFailure.js";
 
 // Use the same evaluator and saved rows as publication, never the older snapshot.
 export function buildCampaignReportPreview(campaign) {
-  if (campaign.status === "failed") return { ...campaign, publishedSpreadsheet: failureReportSheet(campaign, campaign.draftReportNotes || campaign.publishedSpreadsheet?.notes || "") };
+  const maskNumbers = campaign.maskReportNumbers !== false;
+  if (campaign.status === "failed") {
+    const failedSheet = failureReportSheet(campaign, campaign.draftReportNotes || campaign.publishedSpreadsheet?.notes || "");
+    return { ...campaign, publishedSpreadsheet: maskNumbers ? maskSheetPhoneNumbers(failedSheet) : failedSheet };
+  }
   const categorized = campaign.category === "CAMPAIGN" || Boolean(campaign.campaignCreditCharge);
   const entries = categorized ? campaign.recipientEntries || [] : normalizeDuplicateRows(campaign.recipientEntries || []);
-  const sheet = buildPublishedSheet(entries, campaign.spreadsheetColumns);
+  const rawSheet = buildPublishedSheet(entries, campaign.spreadsheetColumns);
+  const sheet = maskNumbers ? maskSheetPhoneNumbers(rawSheet) : rawSheet;
   const rate = categorized ? 1 : campaign.rateSnapshot ?? campaign.userId?.ratePerMsg ?? 12;
   const refunded = entries.filter((row) => row.billingAction === "refund").length;
   let creditsRefunded = Math.min(Math.round(refunded * rate * 100) / 100, campaign.creditsDeducted || 0);

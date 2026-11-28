@@ -11,10 +11,11 @@ import { FailureContacts } from "./FailedCampaignReport";
 
 export default function FailedCampaignReportEditor({ campaign }) {
   const [reason, setReason] = useState(campaign.draftReportNotes || campaign.publishedSpreadsheet?.notes || "");
+  const [maskNumbers, setMaskNumbers] = useState(campaign.maskReportNumbers !== false);
   const client = useQueryClient();
   const navigate = useNavigate();
   const save = useMutation({
-    mutationFn: async () => (await api.put(`/campaigns/${campaign._id}/recipients-management`, { entries: [], saveMode: "draft", spreadsheetRevision: campaign.spreadsheetRevision || 0, reportNotes: reason.trim() })).data.data,
+    mutationFn: async () => (await api.put(`/campaigns/${campaign._id}/recipients-management`, { entries: [], saveMode: "draft", spreadsheetRevision: campaign.spreadsheetRevision || 0, reportNotes: reason.trim(), maskReportNumbers: maskNumbers })).data.data,
     onSuccess: (saved) => {
       client.setQueryData(["campaign-detail", campaign._id], saved);
       client.invalidateQueries({ queryKey: ["campaign-report", campaign._id] });
@@ -24,7 +25,7 @@ export default function FailedCampaignReportEditor({ campaign }) {
     onError: (error) => toast.add({ title: error.message || "Could not save the failure report", type: "error" }),
   });
   return <form data-tour="report-editor" className="space-y-5" onSubmit={(event) => { event.preventDefault(); save.mutate(); }}>
-    <section className="rounded-xl border border-border bg-card p-4 sm:p-5"><label htmlFor="failure-reason" className="text-sm font-semibold">Reason for failure <span className="text-destructive">*</span></label><p className="mb-3 mt-1 text-xs leading-5 text-muted-foreground">Explain why this campaign failed. The campaign creator will see this note after you publish the report.</p><Textarea id="failure-reason" required maxLength={4000} value={reason} onChange={(event) => setReason(event.target.value)} rows={4} placeholder="Explain why the campaign could not be completed..." className="resize-y" /><div className="mt-3 flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-muted-foreground">The full refund is posted on publication. Saving a draft does not change credits.</p><Button type="submit" size="sm" disabled={save.isPending || !reason.trim()}>{save.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}Save and review</Button></div></section>
+    <section className="rounded-xl border border-border bg-card p-4 sm:p-5"><label htmlFor="failure-reason" className="text-sm font-semibold">Reason for failure <span className="text-destructive">*</span></label><p className="mb-3 mt-1 text-xs leading-5 text-muted-foreground">Explain why this campaign failed. The campaign creator will see this note after you publish the report.</p><Textarea id="failure-reason" required maxLength={4000} value={reason} onChange={(event) => setReason(event.target.value)} rows={4} placeholder="Explain why the campaign could not be completed..." className="resize-y" /><div className="mt-3 flex flex-wrap items-center justify-between gap-3"><p className="text-xs text-muted-foreground">The full refund is posted on publication. Saving a draft does not change credits.</p><div className="flex flex-wrap items-center gap-3"><label className="inline-flex cursor-pointer items-center gap-2 text-xs font-medium text-foreground select-none"><span>{maskNumbers ? "Encrypted numbers" : "Decrypted numbers"}</span><input type="checkbox" role="switch" checked={maskNumbers} disabled={save.isPending} onChange={(event) => setMaskNumbers(event.target.checked)} title="Show numbers as 98XXXXXX10 in the campaign creator's report" className="portal-toggle !mt-0" /></label><Button type="submit" size="sm" disabled={save.isPending || !reason.trim()}>{save.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}Save and review</Button></div></div></section>
     <FailureContacts rows={failureReportEntries(campaign)} />
   </form>;
 }
