@@ -582,6 +582,10 @@ export default function AdminCredits({ activity = false }) {
                 emptyTitle="No accounts match your filters"
                 emptyAction={<Button variant="outline" onClick={() => { setWalletSearch(""); setWalletRole("all"); }}>Clear filters</Button>}
                 columns={walletColumns}
+                mobile={{
+                  primary: "account",
+                  featured: ["campaignCredits", "filteringCredits", "status"],
+                }}
                 pageSize={10}
               />
             </QueryState>
