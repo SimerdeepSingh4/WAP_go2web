@@ -18,7 +18,7 @@ export default function PreviewBanner() {
     },
   });
 
-  if (!user?.isPreview || user?.isImpersonation) return null;
+  if (!user?.isPreview && !user?.isImpersonation) return null;
 
   return (
     <aside
@@ -27,11 +27,11 @@ export default function PreviewBanner() {
     >
       <div className="flex items-center gap-2.5">
         <span className="font-bold uppercase tracking-wider text-[10px] bg-stone-900 text-amber-300 px-2 py-0.5 rounded">
-          {user.isPreview ? "Preview Mode" : "Admin account access"}
+          {user.isPreview ? "Preview Mode" : "Account access"}
         </span>
         <span>
           {user.isPreview ? "Viewing" : "Acting as"} client account: <strong>{user.username}</strong> ({user.email}).
-          {user.isPreview ? " Sensitive actions are disabled." : " Actions are recorded under your administrator account."}
+          {user.isPreview ? " Sensitive actions are disabled." : " Actions are recorded under your manager account."}
         </span>
       </div>
 

@@ -63,6 +63,6 @@ userRouter.get("/:id", getUserById);
 
 // Preview / Access user account (Super Admin or assigned Reseller)
 userRouter.post("/:id/access", authorizeRoles("Reseller", "Super Admin"), impersonateUser);
-userRouter.post("/:id/impersonate", authorizeRoles("Super Admin"), startFullAccessImpersonation);
+userRouter.post("/:id/impersonate", authorizeRoles("Reseller", "Super Admin"), startFullAccessImpersonation);
 
 export default userRouter;

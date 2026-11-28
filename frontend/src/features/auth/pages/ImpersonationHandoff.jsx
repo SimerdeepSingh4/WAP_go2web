@@ -6,7 +6,7 @@ import { setImpersonationToken } from "@/api/sessionToken";
 export default function ImpersonationHandoff() {
   const { checkAuth } = useAuth();
   const navigate = useNavigate();
-  const [error, setError] = useState(() => window.opener ? "" : "Open this page from the superadmin account list.");
+  const [error, setError] = useState(() => window.opener ? "" : "Open this page from the account list.");
 
   useEffect(() => {
     const opener = window.opener;
@@ -51,7 +51,7 @@ export default function ImpersonationHandoff() {
       <div className="max-w-md space-y-3">
         <h1 className="text-lg font-semibold text-foreground">Opening account</h1>
         <p className="text-sm text-muted-foreground">
-          {error || "Waiting for a secure account session from the superadmin tab…"}
+          {error || "Waiting for a secure account session from the manager tab…"}
         </p>
       </div>
     </main>

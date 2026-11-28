@@ -1024,6 +1024,13 @@ export async function startFullAccessImpersonation(req, res) {
             return res.status(404).json({ message: "Account not found", success: false });
         }
 
+        const isSuperAdmin = req.user.role === "Super Admin";
+        const isAssignedUser = req.user.role === "Reseller" && targetUser.role === "User"
+            && String(targetUser.resellerId || "") === String(req.user._id);
+        if (!isSuperAdmin && !isAssignedUser) {
+            return res.status(403).json({ message: "You can only open users assigned to your reseller account.", success: false });
+        }
+
         const expired = targetUser.status !== "active" || Boolean(
             targetUser.expiresAt && new Date(targetUser.expiresAt) <= new Date()
         );
@@ -1057,7 +1064,7 @@ export async function startFullAccessImpersonation(req, res) {
             parentSessionId: req.session._id,
             tokenHash,
             ip: req.ip || req.headers["x-forwarded-for"] || null,
-            userAgent: `Full access as ${targetUser.role}; started by Super Admin ${req.user.username}`,
+            userAgent: `Full access as ${targetUser.role}; started by ${req.user.role} ${req.user.username}`,
             expiresAt,
         });
 
@@ -1088,7 +1095,7 @@ export async function startFullAccessImpersonation(req, res) {
 
 export async function exitFullAccessImpersonation(req, res) {
     try {
-        if (!req.isImpersonation || req.originalAdmin?.role !== "Super Admin") {
+        if (!req.isImpersonation || !["Super Admin", "Reseller"].includes(req.originalAdmin?.role)) {
             return res.status(400).json({ message: "Not in a full access session.", success: false });
         }
 
