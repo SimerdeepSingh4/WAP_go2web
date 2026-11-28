@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BASE_COLUMNS } from "../../../../../shared/campaignSpreadsheet.js";
+import { BASE_COLUMNS, maskReportPhoneNumber } from "../../../../../shared/campaignSpreadsheet.js";
 import { buildCampaignReportPreview } from "./reportPreview.js";
 import { normalizeDuplicateRows } from "../../../../../shared/campaignSpreadsheet.js";
 
@@ -53,4 +53,21 @@ test("formula errors block preview and publication", () => {
     spreadsheetColumns: [...BASE_COLUMNS, { id: "broken", label: "Broken", letter: "F", formula: "=1/0" }],
     recipientEntries: [{ rowNumber: 8, phoneNumber: "919876543210" }],
   }), /Fix formula errors/);
+});
+
+test("maskReportPhoneNumber formats numbers as 98XXXXXX10 and reportPreview masks numbers by default", () => {
+  assert.equal(maskReportPhoneNumber("9876543210"), "98XXXXXX10");
+  assert.equal(maskReportPhoneNumber("919876543210"), "91XXXXXXXX10");
+  const campaign = {
+    recipientEntries: [
+      { rowNumber: 1, phoneNumber: "9876543210", status: "delivered", category: "Delivered", billingAction: "keep" },
+    ],
+  };
+  const masked = buildCampaignReportPreview(campaign).publishedSpreadsheet;
+  assert.equal(masked.rows[0].phoneNumber, "98XXXXXX10");
+  assert.equal(masked.rows[0].values.phoneNumber, "98XXXXXX10");
+
+  const unmasked = buildCampaignReportPreview({ ...campaign, maskReportNumbers: false }).publishedSpreadsheet;
+  assert.equal(unmasked.rows[0].phoneNumber, "9876543210");
+  assert.equal(unmasked.rows[0].values.phoneNumber, "9876543210");
 });

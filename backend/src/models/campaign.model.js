@@ -374,6 +374,7 @@ const campaignSchema = new mongoose.Schema(
         spreadsheetColumns: { type: [mongoose.Schema.Types.Mixed], default: [] },
         spreadsheetRevision: { type: Number, default: 0 },
         draftReportNotes: { type: String, default: "", maxlength: 4000 },
+        maskReportNumbers: { type: Boolean, default: true },
         publishedSpreadsheet: { type: mongoose.Schema.Types.Mixed, default: null },
         recipientCategoryLabels: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
         customRecipientTabs: [
