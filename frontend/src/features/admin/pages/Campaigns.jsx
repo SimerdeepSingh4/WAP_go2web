@@ -1,17 +1,20 @@
 import CampaignReference from "@/features/campaigns/components/CampaignReference";
+import CampaignStatusMenu from "@/features/campaigns/components/CampaignStatusMenu";
 import { useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { useSearchParams, Link } from "react-router";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Popover } from "@base-ui/react/popover";
-import { MoreHorizontal, Eye, FileText, CalendarDays, Trash2, Download, Image as ImageIcon, Video, MessageSquare, Users, CheckCircle2, Clock, X } from "lucide-react";
+import { MoreHorizontal, Eye, FileText, CalendarDays, Trash2, Download, Image as ImageIcon, Video, MessageSquare, Users, CheckCircle2, Clock, X, Loader2 } from "lucide-react";
 import CampaignDeleteDialog from "@/features/campaigns/components/CampaignDeleteDialog";
-import { useAdminMutation } from "../hooks/useAdmin";
+import { useAdminMutation, useAdminQuery } from "../hooks/useAdmin";
+import { adminActions } from "../services/admin.api.js";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import CampaignFilterCalendar from "../components/CampaignFilterCalendar";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { PageHeading, QueryState, DataTable, StatusBadge, ClearFiltersButton } from "../../dashboard/components/shared";
-import { useAdminQuery } from "../hooks/useAdmin";
-import { number, dateTime, ownerName, needsReport, published, waiting } from "../../../lib/format";
+import { number, dateTime, ownerName, needsReport, published, waiting, statusLabels } from "../../../lib/format";
 import CampaignDetail from "../components/CampaignDetail";
 import UserAvatar from "@/features/accounts/components/UserAvatar";
 import { downloadProfileDp } from "@/features/campaigns/lib/downloadProfileDp";
@@ -94,14 +97,43 @@ export default function Campaigns({ reports = false }) {
   const [params, setParams] = useSearchParams();
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [draftRange, setDraftRange] = useState({ from: undefined, to: undefined });
+  const queryClient = useQueryClient();
   const [campaignToDelete, setCampaignToDelete] = useState(null);
+  const [campaignToFail, setCampaignToFail] = useState(null);
+  const [updatingStatusId, setUpdatingStatusId] = useState(null);
   const deleteMutation = useAdminMutation("deleteCampaign", "Campaign deleted successfully", () => setCampaignToDelete(null));
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status: nextStatus }) => adminActions.status({ id, status: nextStatus }),
+    onMutate: ({ id }) => setUpdatingStatusId(id),
+    onSuccess: async (_data, { id, status: nextStatus }) => {
+      setCampaignToFail(null);
+      toast.add({ title: `Campaign status updated to "${statusLabels[nextStatus] || nextStatus}"`, type: "success" });
+      await queryClient.invalidateQueries({ queryKey: ["admin"] });
+      for (const key of ["campaigns", "admin-campaigns", "user-campaigns", "reseller-campaigns"]) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
+      queryClient.invalidateQueries({ queryKey: ["campaign-detail", id] });
+      queryClient.invalidateQueries({ queryKey: ["campaign-report", id] });
+    },
+    onError: (error) => {
+      toast.add({ title: "Status update failed", description: error?.response?.data?.message || error.message, type: "error" });
+    },
+    onSettled: () => setUpdatingStatusId(null),
+  });
+  const handleStatusChange = (campaign, nextStatus) => {
+    if (!nextStatus || nextStatus === campaign.status) return;
+    if (nextStatus === "failed") {
+      setCampaignToFail(campaign);
+      return;
+    }
+    statusMutation.mutate({ id: campaign._id, status: nextStatus });
+  };
   const today = dateFromKey(campaignDay(new Date()));
   const yesterday = today ? new Date(today.getTime() - 86400000) : undefined;
   const sevenDaysAgo = today ? new Date(today.getTime() - 6 * 86400000) : undefined;
   const search = params.get("search") || "";
-  const defaultStatus = reports ? "all" : "pending";
-  const status = params.get("status") || defaultStatus;
+  const defaultStatus = reports ? "all" : "active";
+  const rawStatus = params.get("status") || defaultStatus;
   const selectedDateKey = params.get("date") || "";
   const rangeFromKey = params.get("from") || selectedDateKey;
   const rangeToKey = params.get("to") || selectedDateKey;
@@ -172,7 +204,6 @@ export default function Campaigns({ reports = false }) {
       ? selectedRange.from.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
       : `${selectedRange.from.toLocaleDateString("en-IN", { day: "numeric", month: "short" })} – ${selectedRange.to.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`;
   })();
-  const hasFilters = Boolean(search || status !== defaultStatus || hasDateFilter);
   const reducedMotion = useReducedMotion();
   const selected = params.get("campaign");
 
@@ -195,27 +226,30 @@ export default function Campaigns({ reports = false }) {
       })
     : all;
 
-  // Published, completed campaigns leave the work queue but remain in history.
-  const campaignQueue = datedCampaigns.filter((campaign) =>
-    !(["completed", "sent"].includes(campaign.status) && published(campaign))
-  );
+  const isFinished = (campaign) => ["completed", "sent", "failed"].includes(campaign.status);
+  const isCompletedUnreported = (campaign) => ["completed", "sent"].includes(campaign.status) && !published(campaign);
 
   // Metrics counts
-  const totalCount = reports ? datedCampaigns.length : campaignQueue.length;
-  const pendingCount = datedCampaigns.filter(waiting).length;
-  const ongoingCount = datedCampaigns.filter((c) => c.status === "ongoing").length;
-  const completedCount = datedCampaigns.filter((c) => ["completed", "sent"].includes(c.status)).length;
-  const failedCount = datedCampaigns.filter((c) => c.status === "failed").length;
+  const totalCount = datedCampaigns.length;
+  const activeCount = datedCampaigns.filter((c) => !isFinished(c)).length;
+  const finishedCount = datedCampaigns.filter(isFinished).length;
+  const completedUnreportedCount = datedCampaigns.filter(isCompletedUnreported).length;
   const needsReportCount = datedCampaigns.filter(needsReport).length;
+  const status = !reports && rawStatus === "unreported" && completedUnreportedCount === 0 ? defaultStatus : rawStatus;
+  const hasFilters = Boolean(search || status !== defaultStatus || hasDateFilter);
 
-  const rows = (reports || status === "completed" ? datedCampaigns : campaignQueue).filter((c) => {
+  const rows = datedCampaigns.filter((c) => {
     const matches = `${c.campaignTitle} CMP-${c._id} ${ownerName(c.userId)} ${c.userId?.email || ""}`
       .toLowerCase()
       .includes(search.toLowerCase());
     const matchesStatus =
       status === "all" ||
-      (status === "unreported"
-        ? needsReport(c)
+      (status === "active"
+        ? !isFinished(c)
+        : status === "finished"
+        ? isFinished(c)
+        : status === "unreported"
+        ? (reports ? needsReport(c) : isCompletedUnreported(c))
         : status === "published"
         ? published(c)
         : status === "pending"
@@ -303,10 +337,19 @@ export default function Campaigns({ reports = false }) {
     {
       key: "status",
       label: "Status",
-      className: "w-28 whitespace-nowrap",
+      className: "w-32 whitespace-nowrap",
       render: (c) => (
         <div className="flex items-center gap-1.5">
-          <StatusBadge status={c.status} />
+          {reports ? (
+            <StatusBadge status={c.status} />
+          ) : (
+            <CampaignStatusMenu
+              campaign={c}
+              isUpdating={statusMutation.isPending && updatingStatusId === c._id}
+              disabled={statusMutation.isPending}
+              onSelect={(nextStatus) => handleStatusChange(c, nextStatus)}
+            />
+          )}
         </div>
       ),
     },
@@ -385,11 +428,11 @@ export default function Campaigns({ reports = false }) {
         { label: "Published", val: "published", count: datedCampaigns.filter(published).length },
       ]
     : [
-        { label: "Awaiting review", val: "pending", count: pendingCount },
-        { label: "Ongoing", val: "ongoing", count: ongoingCount },
-        { label: "Completed", val: "completed", count: completedCount },
-        { label: "Failed", val: "failed", count: failedCount },
-        { label: "Needs report", val: "unreported", count: needsReportCount },
+        { label: "Active", val: "active", count: activeCount },
+        { label: "Completed & Failed", val: "finished", count: finishedCount },
+        ...(completedUnreportedCount > 0
+          ? [{ label: "Needs report", val: "unreported", count: completedUnreportedCount }]
+          : []),
         { label: "All", val: "all", count: totalCount },
       ];
 
@@ -564,6 +607,34 @@ export default function Campaigns({ reports = false }) {
             });
           }}
         />
+      )}
+
+      {campaignToFail && (
+        <Dialog open onOpenChange={(open) => { if (!open && !statusMutation.isPending) setCampaignToFail(null); }}>
+          <DialogContent className="gap-5 rounded-2xl p-5 sm:max-w-sm">
+            <DialogHeader className="gap-1.5 pr-6">
+              <DialogTitle>Mark campaign as failed?</DialogTitle>
+              <DialogDescription className="text-xs leading-5">
+                <strong className="text-foreground">{campaignToFail.campaignTitle}</strong> will be marked as failed. Credits are refunded when you publish its failure report.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="m-0 flex-row justify-end rounded-none border-0 bg-transparent p-0">
+              <Button type="button" variant="ghost" size="sm" disabled={statusMutation.isPending} onClick={() => setCampaignToFail(null)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                disabled={statusMutation.isPending}
+                onClick={() => statusMutation.mutate({ id: campaignToFail._id, status: "failed" })}
+              >
+                {statusMutation.isPending && <Loader2 className="size-3.5 animate-spin" />}
+                Mark as failed
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
 
       {campaignToDelete && <CampaignDeleteDialog campaign={campaignToDelete} mutation={deleteMutation} onClose={() => setCampaignToDelete(null)} />}
