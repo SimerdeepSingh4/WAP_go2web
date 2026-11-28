@@ -3,6 +3,7 @@ import CategoryWalletBalances from "@/features/credits/components/CategoryWallet
 import { creditCategoryField, creditCategoryNames } from "@/features/credits/lib/creditTransactionDisplay";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useSearchParams } from "react-router";
 import {
   Plus,
@@ -13,6 +14,7 @@ import {
   MinusCircle,
   Wallet,
   Trash2,
+  LogIn,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -38,6 +40,8 @@ import { CreditBalancePreview } from "@/features/dashboard/components/ActionRevi
 import "@/features/accounts/components/account-list.css";
 import useMediaUploadLimits from "@/features/campaigns/hooks/useMediaUploadLimits";
 import { resolveMediaUploadLimits } from "../../../../../shared/mediaUploadLimits.js";
+import { exitFullAccessImpersonation, startFullAccessImpersonation } from "@/features/accounts/services/users.api.js";
+import { toast } from "@/components/ui/toast";
 
 function accountUploadSummary(account, defaults) {
   const limits = resolveMediaUploadLimits(account.mediaUploadLimits, defaults);
@@ -153,6 +157,7 @@ function UserDetail({ account, onClose, onAction }) {
  */
 export default function ResellerUsers() {
   const { user: signedInUser } = useAuth();
+  const queryClient = useQueryClient();
   const isPreview = signedInUser?.isPreview;
   const canReclaim = signedInUser?.role === "Super Admin" || signedInUser?.featureAccess?.reclaimCredit === true;
   const query = useResellerQuery("accounts");
@@ -167,8 +172,44 @@ export default function ResellerUsers() {
     setDetail(null);
     setParams((previous) => { const next = new URLSearchParams(previous); next.delete("account"); return next; }, { replace: true });
   }
-  const removeAccount = useResellerMutation("deleteAccount", "User removed", () => setModal(null));
-  const statusUpdate = useResellerMutation("accountAccess", "User status updated", () => setModal(null));
+  const removeAccount = useResellerMutation("deleteAccount", "User account removed", () => setModal(null));
+  const statusUpdate = useResellerMutation("accountAccess", "Account status updated", () => setModal(null));
+  const accountAccess = useMutation({
+    mutationFn: ({ id }) => startFullAccessImpersonation(id),
+    onSuccess: async (data, { targetWindow }) => {
+      if (targetWindow.closed) {
+        await exitFullAccessImpersonation(data.token).catch(() => {});
+        return;
+      }
+      targetWindow.postMessage({ type: "FULL_ACCESS_SESSION", token: data.token }, window.location.origin);
+      queryClient.invalidateQueries({ queryKey: ["activeSessions"] });
+    },
+    onError: (error, { targetWindow }) => {
+      if (!targetWindow.closed) targetWindow.close();
+      toast.add({ title: "Could not open user account", description: error.message, type: "error" });
+    },
+  });
+
+  function openUserAccount(account) {
+    const targetWindow = window.open("about:blank", "_blank");
+    if (!targetWindow) {
+      toast.add({ title: "New tab blocked", description: "Allow pop-ups to open the user account in a separate tab.", type: "error" });
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      window.removeEventListener("message", handleReady);
+      if (!targetWindow.closed) targetWindow.close();
+      toast.add({ title: "Account tab did not respond", type: "error" });
+    }, 30000);
+    function handleReady(event) {
+      if (event.origin !== window.location.origin || event.source !== targetWindow || event.data?.type !== "FULL_ACCESS_READY") return;
+      window.clearTimeout(timeout);
+      window.removeEventListener("message", handleReady);
+      accountAccess.mutate({ id: account._id, targetWindow });
+    }
+    window.addEventListener("message", handleReady);
+    targetWindow.location.href = "/impersonation-handoff";
+  }
   function selectStatus(account, nextStatus) {
     statusUpdate.reset();
     setModal({ type: "status", account, nextStatus });
@@ -243,18 +284,18 @@ export default function ResellerUsers() {
       label: <span className="sr-only">Actions</span>,
       render: (a) => (
         <div className="portal-row-actions account-row-actions">
+          <Button type="button" variant="outline" size="sm" className="credit-allocate-button" title="Allocate credits" aria-label={`Allocate credits to ${a.username}`} disabled={isPreview} onClick={() => setModal({ type: "allocate", account: a })}>Allocate credits</Button>
           <Button
             type="button"
-            variant="outline"
-            size="sm"
-            className="credit-allocate-button"
-            title="Allocate credits"
-            aria-label={`Allocate credits to ${a.username}`}
-            disabled={isPreview}
-            onClick={() => setModal({ type: "allocate", account: a })}
+            variant="default"
+            size="icon-sm"
+            className="bg-green-700 text-white hover:bg-green-800 dark:bg-green-700 dark:text-white dark:hover:bg-green-800"
+            title={`Log in as ${a.username}`}
+            aria-label={`Log in as ${a.username}`}
+            disabled={isPreview || accountAccess.isPending || a.status !== "active" || a.isExpired}
+            onClick={() => openUserAccount(a)}
           >
-            <Wallet className="size-4" aria-hidden="true" />
-            <span className="account-credit-label">Allocate credits</span>
+            <LogIn aria-hidden="true" />
           </Button>
           <RowActionsMenu
             name={a.username}
