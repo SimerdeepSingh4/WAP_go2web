@@ -4,9 +4,11 @@ import ThemeToggle from "../../branding/components/ThemeToggle";
 import HelpMenu from "./HelpMenu";
 import Breadcrumbs from "@/components/navigation/Breadcrumbs";
 import { Suspense, useState } from "react";
-import { Link, NavLink, Navigate, Outlet, useLocation } from "react-router";
+import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from "react-router";
 import { LayoutDashboard, Megaphone, Users, Building2, Wallet, ReceiptText, Settings, LogOut, ChevronDown, PanelLeftClose, PanelLeftOpen, Bell, HelpCircle, ShieldCheck, ListFilter, X } from "lucide-react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
+import { useMutation } from "@tanstack/react-query";
+import { exitFullAccessImpersonation } from "@/features/accounts/services/users.api.js";
 import { useBranding } from "@/features/branding/context/branding-context";
 import { useNotifications } from "@/features/notifications/hooks/useNotifications";
 import UserAvatar from "@/features/accounts/components/UserAvatar";
@@ -135,7 +137,8 @@ function Navigation({ role, base, items }) {
 }
 
 export default function DashboardLayout({ role }) {
-  const { user, logout, isLoggingOut } = useAuth();
+  const { user, logout, isLoggingOut, checkAuth } = useAuth();
+  const navigate = useNavigate();
   const { startTour, hasTour } = useAppTour(role, user?._id || user?.id);
   const [open, setOpen] = useState(true);
   const { pathname } = useLocation();
@@ -160,6 +163,14 @@ export default function DashboardLayout({ role }) {
 
   const notificationQuery = useNotifications({ limit: 6 });
   const unreadNotifications = notificationQuery.data?.unreadCount || 0;
+  const exitAccountAccess = useMutation({
+    mutationFn: exitFullAccessImpersonation,
+    onSuccess: async () => {
+      await checkAuth();
+      navigate("/", { replace: true });
+    },
+    onError: error => toast.add({ title: "Could not exit account access", description: error.message, type: "error" }),
+  });
 
   async function signOut() {
     try { await logout(); }
@@ -240,6 +251,12 @@ export default function DashboardLayout({ role }) {
                       <Settings aria-hidden="true" className="size-4" />
                       Settings
                     </DropdownMenuItem>
+                    {user?.isImpersonation && (
+                      <DropdownMenuItem disabled={exitAccountAccess.isPending} onClick={() => exitAccountAccess.mutate()}>
+                        <LogOut aria-hidden="true" className="size-4" />
+                        {exitAccountAccess.isPending ? "Returning to reseller…" : "Exit account access"}
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem disabled={isLoggingOut} onClick={signOut} className="text-red-600 focus:text-red-600">
                       <LogOut aria-hidden="true" className="size-4" />
                       {isLoggingOut ? "Signing out…" : "Sign out"}
