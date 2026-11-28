@@ -55,19 +55,54 @@ test("formula errors block preview and publication", () => {
   }), /Fix formula errors/);
 });
 
-test("maskReportPhoneNumber formats numbers as 98XXXXXX10 and reportPreview masks numbers by default", () => {
+test("maskReportPhoneNumber shows 4 prefix digits for 12-digit 91 numbers, 2 otherwise, keeping last 2 digits", () => {
   assert.equal(maskReportPhoneNumber("9876543210"), "98XXXXXX10");
-  assert.equal(maskReportPhoneNumber("919876543210"), "91XXXXXXXX10");
+  assert.equal(maskReportPhoneNumber("919876543210"), "9198XXXXXX10");
+  assert.equal(maskReportPhoneNumber("+91 9876543210"), "+91 98XXXXXX10");
+  assert.equal(maskReportPhoneNumber("9112345678"), "91XXXXXX78");
+  assert.equal(maskReportPhoneNumber("447911123456"), "44XXXXXXXX56");
   const campaign = {
     recipientEntries: [
       { rowNumber: 1, phoneNumber: "9876543210", status: "delivered", category: "Delivered", billingAction: "keep" },
+      { rowNumber: 2, phoneNumber: "919876543210", status: "delivered", category: "Delivered", billingAction: "keep" },
     ],
   };
   const masked = buildCampaignReportPreview(campaign).publishedSpreadsheet;
   assert.equal(masked.rows[0].phoneNumber, "98XXXXXX10");
   assert.equal(masked.rows[0].values.phoneNumber, "98XXXXXX10");
+  assert.equal(masked.rows[1].phoneNumber, "9198XXXXXX10");
+  assert.equal(masked.rows[1].values.phoneNumber, "9198XXXXXX10");
 
   const unmasked = buildCampaignReportPreview({ ...campaign, maskReportNumbers: false }).publishedSpreadsheet;
   assert.equal(unmasked.rows[0].phoneNumber, "9876543210");
   assert.equal(unmasked.rows[0].values.phoneNumber, "9876543210");
+  assert.equal(unmasked.rows[1].phoneNumber, "919876543210");
+});
+
+test("reportPreview and duplicate normalization support independent message status and billing rules", () => {
+  const sheet = buildCampaignReportPreview({
+    creditsDeducted: 10,
+    rateSnapshot: 2,
+    recipientEntries: [
+      { rowNumber: 1, phoneNumber: "9876543210", status: "failed", category: "Wrong number", billingAction: "keep" },
+      { rowNumber: 2, phoneNumber: "919876543210", status: "delivered", category: "Delivered free", billingAction: "refund" },
+    ],
+  }).publishedSpreadsheet;
+  assert.equal(sheet.summary.delivered, 1);
+  assert.equal(sheet.summary.failed, 1);
+  assert.equal(sheet.summary.creditsRefunded, 2);
+  assert.equal(sheet.rows[0].status, "failed");
+  assert.equal(sheet.rows[0].billingAction, "keep");
+  assert.equal(sheet.rows[1].status, "delivered");
+  assert.equal(sheet.rows[1].billingAction, "refund");
+
+  const normalized = normalizeDuplicateRows(
+    [
+      { rowNumber: 1, phoneNumber: "9876543210", tabKey: "delivered", status: "delivered", billingAction: "keep" },
+      { rowNumber: 2, phoneNumber: "9876543210", tabKey: "duplicate", status: "delivered", billingAction: "keep" },
+    ],
+    { status: "delivered", billingAction: "keep" }
+  );
+  assert.equal(normalized[1].status, "delivered");
+  assert.equal(normalized[1].billingAction, "keep");
 });

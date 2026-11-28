@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import {
   Users,
   CheckCircle2,
+  XCircle,
   Copy,
   Check,
   Plus,
@@ -47,24 +48,28 @@ const DEFAULT_CARDS = [
     label: "Delivered / Valid Numbers",
     description: "Successfully delivered messages to recipient",
     defaultBilling: "keep",
+    defaultStatus: "delivered",
   },
   {
     key: "duplicate",
     label: "Duplicate Numbers",
     description: "Duplicate numbers detected in submission",
     defaultBilling: "refund",
+    defaultStatus: "failed",
   },
   {
     key: "wrong",
     label: "Wrong Numbers",
     description: "Invalid format, wrong country code or wrong number",
     defaultBilling: "refund",
+    defaultStatus: "failed",
   },
   {
     key: "non_whatsapp",
     label: "Not on WhatsApp Numbers",
     description: "Numbers not registered on WhatsApp",
     defaultBilling: "refund",
+    defaultStatus: "failed",
   },
 ];
 
@@ -94,6 +99,7 @@ export default function CampaignCategoryCards({ campaign }) {
       phoneNumber: digits(entry.phoneNumber),
       initialTab: entry.tabKey || (entry.status === "failed" ? "wrong" : "delivered"),
       initialBilling: entry.billingAction || "keep",
+      initialStatus: entry.status === "delivered" || entry.status === "read" ? "delivered" : entry.status === "failed" ? "failed" : undefined,
     }));
   }, [campaign]);
 
@@ -108,7 +114,11 @@ export default function CampaignCategoryCards({ campaign }) {
   const [renameCard, setRenameCard] = useState(null);
   const [renameValue, setRenameValue] = useState("");
   const allCards = useMemo(() => {
-    return [...DEFAULT_CARDS, ...customCards].map((card) => ({ ...card, label: cardLabels[card.key] || card.label }));
+    return [...DEFAULT_CARDS, ...customCards].map((card) => ({
+      ...card,
+      label: cardLabels[card.key] || card.label,
+      defaultStatus: card.defaultStatus || card.deliveryStatus || ((card.defaultBilling || card.billingAction) === "refund" ? "failed" : "delivered"),
+    }));
   }, [customCards, cardLabels]);
   const handleRenameCard = () => {
     const label = renameValue.trim();
@@ -121,7 +131,7 @@ export default function CampaignCategoryCards({ campaign }) {
     setRenameCard(null);
   };
 
-  /* ---------------- 3. Card Billing Settings State ---------------- */
+  /* ---------------- 3. Card Billing & Delivery Status State ---------------- */
   const [cardBillings, setCardBillings] = useState(() => {
     const billings = {
       delivered: "keep",
@@ -130,7 +140,7 @@ export default function CampaignCategoryCards({ campaign }) {
       non_whatsapp: "refund",
     };
     for (const c of campaign.customRecipientTabs || []) {
-      billings[c.key] = c.defaultBilling || "refund";
+      billings[c.key] = c.defaultBilling || c.billingAction || "refund";
     }
     for (const entry of campaign.recipientEntries || []) {
       if (entry.tabKey in billings && entry.billingAction) {
@@ -138,6 +148,25 @@ export default function CampaignCategoryCards({ campaign }) {
       }
     }
     return billings;
+  });
+
+  const [cardStatuses, setCardStatuses] = useState(() => {
+    const statuses = {
+      delivered: "delivered",
+      duplicate: "failed",
+      wrong: "failed",
+      non_whatsapp: "failed",
+    };
+    for (const c of campaign.customRecipientTabs || []) {
+      const billing = c.defaultBilling || c.billingAction || "refund";
+      statuses[c.key] = c.deliveryStatus || c.defaultStatus || (billing === "refund" ? "failed" : "delivered");
+    }
+    for (const entry of campaign.recipientEntries || []) {
+      if (entry.tabKey in statuses && (entry.status === "delivered" || entry.status === "failed")) {
+        statuses[entry.tabKey] = entry.status;
+      }
+    }
+    return statuses;
   });
 
   /* ---------------- 4. Direct Textarea Text State per Card ---------------- */
@@ -165,7 +194,7 @@ export default function CampaignCategoryCards({ campaign }) {
     return texts;
   });
 
-  const editorSnapshot = () => JSON.stringify({ customCards, cardLabels, cardBillings, cardTexts, maskNumbers });
+  const editorSnapshot = () => JSON.stringify({ customCards, cardLabels, cardBillings, cardStatuses, cardTexts, maskNumbers });
   const [serverSnapshot, setServerSnapshot] = useState(() => editorSnapshot());
   const currentSnapshot = editorSnapshot();
   const hasLocalEdits = currentSnapshot !== serverSnapshot;
@@ -178,6 +207,7 @@ export default function CampaignCategoryCards({ campaign }) {
         setCustomCards(draft.customCards || campaign.customRecipientTabs || []);
         setCardLabels(draft.cardLabels || campaign.recipientCategoryLabels || {});
         setCardBillings(draft.cardBillings || {});
+        if (draft.cardStatuses) setCardStatuses((prev) => ({ ...prev, ...draft.cardStatuses }));
         setCardTexts(draft.cardTexts || {});
         if (typeof draft.maskNumbers === "boolean") setMaskNumbers(draft.maskNumbers);
         toast.add({ title: "Unfinished report edits restored", description: "Your category changes are ready to continue.", type: "info" });
@@ -197,10 +227,10 @@ export default function CampaignCategoryCards({ campaign }) {
       return undefined;
     }
     draftSaveTimer.current = window.setTimeout(() => {
-      writeCampaignDraft(draftKey, { customCards, cardLabels, cardBillings, cardTexts, maskNumbers }).catch(() => {});
+      writeCampaignDraft(draftKey, { customCards, cardLabels, cardBillings, cardStatuses, cardTexts, maskNumbers }).catch(() => {});
     }, 250);
     return () => window.clearTimeout(draftSaveTimer.current);
-  }, [draftReady, draftKey, hasLocalEdits, customCards, cardLabels, cardBillings, cardTexts, maskNumbers]);
+  }, [draftReady, draftKey, hasLocalEdits, customCards, cardLabels, cardBillings, cardStatuses, cardTexts, maskNumbers]);
 
   // Read-only all contacts text
   const allContactsText = useMemo(() => {
@@ -216,13 +246,15 @@ export default function CampaignCategoryCards({ campaign }) {
         .split(/\r?\n/)
         .map(digits)
         .filter((p) => p.length >= 7);
+      const billing = cardBillings[card.key] || card.defaultBilling || "keep";
       stats[card.key] = {
         count: lines.length,
-        billing: cardBillings[card.key] || card.defaultBilling || "keep",
+        billing,
+        status: cardStatuses[card.key] || card.defaultStatus || (billing === "refund" ? "failed" : "delivered"),
       };
     }
     return stats;
-  }, [cardTexts, cardBillings, allCards]);
+  }, [cardTexts, cardBillings, cardStatuses, allCards]);
 
   /* ---------------- 6. Live Financial Breakdown ---------------- */
   const liveFinancials = useMemo(() => {
@@ -284,12 +316,27 @@ export default function CampaignCategoryCards({ campaign }) {
     });
   };
 
-  /* ---------------- 8. Card Billing Toggle ---------------- */
+  /* ---------------- 8. Card Billing & Status Controls ---------------- */
   const handleToggleCardBilling = (cardKey) => {
+    const nextBilling = cardBillings[cardKey] === "refund" ? "keep" : "refund";
     setCardBillings((prev) => ({
       ...prev,
-      [cardKey]: prev[cardKey] === "refund" ? "keep" : "refund",
+      [cardKey]: nextBilling,
     }));
+    setCustomCards((prev) =>
+      prev.map((card) => (card.key === cardKey ? { ...card, defaultBilling: nextBilling } : card))
+    );
+  };
+
+  const handleChangeCardStatus = (cardKey, nextStatus) => {
+    if (nextStatus !== "delivered" && nextStatus !== "failed") return;
+    setCardStatuses((prev) => ({
+      ...prev,
+      [cardKey]: nextStatus,
+    }));
+    setCustomCards((prev) =>
+      prev.map((card) => (card.key === cardKey ? { ...card, deliveryStatus: nextStatus } : card))
+    );
   };
 
   /* ---------------- 9. Copy Text to Clipboard (for Excel) ---------------- */
@@ -317,8 +364,16 @@ export default function CampaignCategoryCards({ campaign }) {
   const [createCategoryModalOpen, setCreateCategoryModalOpen] = useState(false);
   const [newCatName, setNewCatName] = useState("");
   const [newCatBilling, setNewCatBilling] = useState("refund");
+  const [newCatStatus, setNewCatStatus] = useState("failed");
+  const [newCatStatusTouched, setNewCatStatusTouched] = useState(false);
 
-
+  const handleOpenCreateCategory = () => {
+    setNewCatName("");
+    setNewCatBilling("refund");
+    setNewCatStatus("failed");
+    setNewCatStatusTouched(false);
+    setCreateCategoryModalOpen(true);
+  };
 
   const [isSaving, setIsSaving] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
@@ -334,17 +389,22 @@ export default function CampaignCategoryCards({ campaign }) {
     const newCard = {
       key,
       label: trimmed,
-      description: `Custom category with ${newCatBilling === "refund" ? "Refund" : "Keep Charged"} rule`,
+      description: `Custom category with ${newCatStatus === "delivered" ? "Delivered" : "Failed"} status and ${newCatBilling === "refund" ? "Refund" : "Keep Charged"} rule`,
       defaultBilling: newCatBilling,
+      deliveryStatus: newCatStatus,
     };
     setCustomCards((prev) => [...prev, newCard]);
     setCardBillings((prev) => ({ ...prev, [key]: newCatBilling }));
+    setCardStatuses((prev) => ({ ...prev, [key]: newCatStatus }));
     setCardTexts((prev) => ({ ...prev, [key]: "" }));
     setNewCatName("");
+    setNewCatBilling("refund");
+    setNewCatStatus("failed");
+    setNewCatStatusTouched(false);
     setCreateCategoryModalOpen(false);
     toast.add({
       title: `Created category "${trimmed}"`,
-      description: `Default billing: ${newCatBilling === "refund" ? "Refund Credit" : "Keep Charged"}.`,
+      description: `Message status: ${newCatStatus === "delivered" ? "Delivered" : "Failed"} · Billing: ${newCatBilling === "refund" ? "Refund Credit" : "Keep Charged"}.`,
       type: "success",
     });
   };
@@ -396,11 +456,19 @@ export default function CampaignCategoryCards({ campaign }) {
   // CRITICAL: Builds entries in the EXACT original sequence uploaded by the user!
   const [isDownloading, setIsDownloading] = useState(false);
   const buildCurrentEntries = () => {
-      // Build a reverse map from phoneNumber -> { cardKey, cardLabel, billingAction }
+      // Build a reverse map from phoneNumber -> { cardKey, cardLabel, billingAction, status }
       const phoneToCardMap = new Map();
+      const cardDefaults = new Map();
       for (const card of allCards) {
         const text = cardTexts[card.key] || "";
         const billing = cardBillings[card.key] || card.defaultBilling || "keep";
+        const status = cardStatuses[card.key] || card.defaultStatus || (billing === "refund" ? "failed" : "delivered");
+        cardDefaults.set(card.key, {
+          cardKey: card.key,
+          cardLabel: card.label,
+          billingAction: billing,
+          status,
+        });
         const lines = text
           .split(/\r?\n/)
           .map(digits)
@@ -412,9 +480,17 @@ export default function CampaignCategoryCards({ campaign }) {
             cardKey: card.key,
             cardLabel: card.label,
             billingAction: billing,
+            status,
           });
         }
       }
+
+      const fallbackCard = cardDefaults.get("delivered") || {
+        cardKey: "delivered",
+        cardLabel: "Delivered / Valid Numbers",
+        billingAction: "keep",
+        status: "delivered",
+      };
 
       // Reconstruct final entries in the EXACT uploaded sequence
       const finalEntries = [];
@@ -423,19 +499,14 @@ export default function CampaignCategoryCards({ campaign }) {
       for (const item of originalUploadedNumbers) {
         const phone = item.phoneNumber;
         accountedPhones.add(phone);
-        const cardInfo = phoneToCardMap.get(phone) || {
-          cardKey: "delivered",
-          cardLabel: "Delivered / Valid Numbers",
-          billingAction: "keep",
-        };
+        const cardInfo = phoneToCardMap.get(phone) || fallbackCard;
 
-        const isFailed = cardInfo.billingAction === "refund";
         finalEntries.push({
           notes: item.notes || "",
           cells: item.cells || {},
           rowNumber: item.rowNumber,
           phoneNumber: phone,
-          status: isFailed ? "failed" : "delivered",
+          status: cardInfo.status,
           classification: cardInfo.cardKey,
           category: cardInfo.cardLabel,
           tabKey: cardInfo.cardKey,
@@ -447,11 +518,10 @@ export default function CampaignCategoryCards({ campaign }) {
       let nextRow = finalEntries.reduce((max, row) => Math.max(max, row.rowNumber), 0) + 1;
       for (const [phone, cardInfo] of phoneToCardMap.entries()) {
         if (!accountedPhones.has(phone)) {
-          const isFailed = cardInfo.billingAction === "refund";
           finalEntries.push({
             rowNumber: nextRow++,
             phoneNumber: phone,
-            status: isFailed ? "failed" : "delivered",
+            status: cardInfo.status,
             classification: cardInfo.cardKey,
             category: cardInfo.cardLabel,
             tabKey: cardInfo.cardKey,
@@ -460,8 +530,11 @@ export default function CampaignCategoryCards({ campaign }) {
         }
       }
 
-
-    return normalizeDuplicateRows(finalEntries);
+    const duplicateCard = cardDefaults.get("duplicate");
+    return normalizeDuplicateRows(finalEntries, {
+      status: duplicateCard?.status,
+      billingAction: duplicateCard?.billingAction,
+    });
   };
 
   const handleDownloadExcel = async () => {
@@ -470,7 +543,15 @@ export default function CampaignCategoryCards({ campaign }) {
       const response = await api.post(`/campaigns/${campaign._id}/recipient-report/export`, {
         entries: buildCurrentEntries(), spreadsheetColumns: campaign.spreadsheetColumns,
         originalEntries: originalUploadedNumbers.map(({ rowNumber, phoneNumber }) => ({ rowNumber, phoneNumber })),
-        cards: allCards.map((card) => ({ key: card.key, label: cardLabels[card.key] || card.label, billingAction: cardBillings[card.key] || card.defaultBilling || "keep" })),
+        cards: allCards.map((card) => {
+          const billingAction = cardBillings[card.key] || card.defaultBilling || "keep";
+          return {
+            key: card.key,
+            label: cardLabels[card.key] || card.label,
+            billingAction,
+            deliveryStatus: cardStatuses[card.key] || card.defaultStatus || (billingAction === "refund" ? "failed" : "delivered"),
+          };
+        }),
       }, { responseType: "blob" });
       const url = URL.createObjectURL(response.data);
       const anchor = document.createElement("a");
@@ -549,12 +630,12 @@ export default function CampaignCategoryCards({ campaign }) {
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div className="flex flex-wrap items-center gap-3">
             <h2 className="text-sm font-semibold text-foreground">Recipient report</h2>
-            <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-medium text-foreground select-none"><span>{maskNumbers ? "Encrypted numbers" : "Decrypted numbers"}</span><input type="checkbox" role="switch" checked={maskNumbers} disabled={isSaving} onChange={(event) => setMaskNumbers(event.target.checked)} title="Show numbers as 98XXXXXX10 in the campaign creator's report" className="portal-toggle !mt-0" /></label>
+            <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-medium text-foreground select-none"><span>{maskNumbers ? "Encrypted numbers" : "Decrypted numbers"}</span><input type="checkbox" role="switch" checked={maskNumbers} disabled={isSaving} onChange={(event) => setMaskNumbers(event.target.checked)} title="Show numbers as 9198XXXXXX10 or 98XXXXXX10 in the campaign creator's report" className="portal-toggle !mt-0" /></label>
           </div>
           <div className="flex flex-wrap items-center gap-2">
 
             <Button type="button" variant="outline" size="sm" onClick={handleDownloadExcel} disabled={isDownloading || isSaving || isStarting || originalUploadedNumbers.length === 0}>{isDownloading ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />} Download Excel</Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => setCreateCategoryModalOpen(true)} disabled={isSaving}><Plus className="size-3.5" /> Add category</Button>
+            <Button type="button" variant="outline" size="sm" onClick={handleOpenCreateCategory} disabled={isSaving}><Plus className="size-3.5" /> Add category</Button>
             {campaign.status === "pending" && <Button type="button" variant="outline" size="sm" onClick={handleStartCampaign} disabled={isStarting || isSaving}>{isStarting ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />} Start campaign</Button>}
             <Button type="button" variant="outline" size="sm" onClick={() => handleSave("draft")} disabled={isSaving || isStarting}>{isSaving ? <Loader2 className="size-3.5 animate-spin" /> : <FileSpreadsheet className="size-3.5" />} Save draft</Button>
             <Button type="button" size="sm" onClick={() => handleSave("draft", true)} disabled={isSaving || isStarting || originalUploadedNumbers.length === 0}><CheckCircle2 className="size-3.5" /> Save &amp; review report</Button>
@@ -578,8 +659,13 @@ export default function CampaignCategoryCards({ campaign }) {
 
       <div data-tour="report-categories" className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
         {allCards.map((card) => {
-          const stat = cardStats[card.key] || { count: 0, billing: card.defaultBilling || "keep" };
+          const stat = cardStats[card.key] || {
+            count: 0,
+            billing: card.defaultBilling || "keep",
+            status: card.defaultStatus || "delivered",
+          };
           const isRefund = stat.billing === "refund";
+          const isDelivered = stat.status === "delivered";
           const text = cardTexts[card.key] || "";
           const isCustom = card.key.startsWith("custom_");
           const title = cardLabels[card.key] || { delivered: "Delivered / valid", duplicate: "Duplicates", wrong: "Wrong numbers", non_whatsapp: "Not on WhatsApp" }[card.key] || card.label;
@@ -589,7 +675,57 @@ export default function CampaignCategoryCards({ campaign }) {
               <div className="flex items-center gap-1"><Button type="button" variant="ghost" size="xs" onClick={() => handleCopyText(card.key, text, card.label)} disabled={!text.trim()} aria-label={"Copy " + title + " for Excel"}>{copiedCard === card.key ? <Check className="size-3" /> : <Copy className="size-3" />}{copiedCard === card.key ? "Copied" : "Copy"}</Button>{isCustom && <Button type="button" variant="ghost" size="icon-xs" onClick={() => handleDeleteCategory(card.key, card.label)} disabled={isSaving} aria-label={"Delete " + title} className="text-muted-foreground hover:text-destructive"><Trash2 className="size-3.5" /></Button>}</div>
             </div>
             <div className="space-y-3 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2"><label htmlFor={"numbers-" + card.key} className="text-[11px] text-muted-foreground">Phone numbers</label><Select value={stat.billing} items={[{ value: "keep", label: "Keep charged" }, { value: "refund", label: "Refund credits" }]} onValueChange={(nextValue) => { if (nextValue && nextValue !== stat.billing) handleToggleCardBilling(card.key); }} disabled={isSaving}><SelectTrigger aria-label={"Credit treatment for " + title} size="sm" className={"h-8 min-w-34 rounded-lg px-2.5 text-[11px] font-medium shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20 " + (isRefund ? "border-emerald-200 text-emerald-700 dark:border-emerald-800 dark:text-emerald-300" : "border-input text-foreground")}><SelectValue /></SelectTrigger><SelectContent align="end" alignItemWithTrigger={false}><SelectItem value="keep" className="text-xs">Keep charged</SelectItem><SelectItem value="refund" className="text-xs">Refund credits</SelectItem></SelectContent></Select></div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label htmlFor={"numbers-" + card.key} className="text-[11px] text-muted-foreground">Phone numbers</label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Select
+                    value={stat.status}
+                    items={[
+                      { value: "delivered", label: "Status: Delivered" },
+                      { value: "failed", label: "Status: Failed" },
+                    ]}
+                    onValueChange={(nextValue) => {
+                      if (nextValue && nextValue !== stat.status) handleChangeCardStatus(card.key, nextValue);
+                    }}
+                    disabled={isSaving}
+                  >
+                    <SelectTrigger
+                      aria-label={"Message status for " + title}
+                      size="sm"
+                      className={"h-8 min-w-32 rounded-lg px-2.5 text-[11px] font-medium shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20 " + (isDelivered ? "border-emerald-200 text-emerald-700 dark:border-emerald-800 dark:text-emerald-300" : "border-rose-200 text-rose-700 dark:border-rose-800 dark:text-rose-300")}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent align="end" alignItemWithTrigger={false}>
+                      <SelectItem value="delivered" className="text-xs">Delivered</SelectItem>
+                      <SelectItem value="failed" className="text-xs">Failed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select
+                    value={stat.billing}
+                    items={[
+                      { value: "keep", label: "Keep charged" },
+                      { value: "refund", label: "Refund credits" },
+                    ]}
+                    onValueChange={(nextValue) => {
+                      if (nextValue && nextValue !== stat.billing) handleToggleCardBilling(card.key);
+                    }}
+                    disabled={isSaving}
+                  >
+                    <SelectTrigger
+                      aria-label={"Credit treatment for " + title}
+                      size="sm"
+                      className={"h-8 min-w-34 rounded-lg px-2.5 text-[11px] font-medium shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20 " + (isRefund ? "border-emerald-200 text-emerald-700 dark:border-emerald-800 dark:text-emerald-300" : "border-input text-foreground")}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent align="end" alignItemWithTrigger={false}>
+                      <SelectItem value="keep" className="text-xs">Keep charged</SelectItem>
+                      <SelectItem value="refund" className="text-xs">Refund credits</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <textarea data-slot="textarea" id={"numbers-" + card.key} rows={5} value={text} onChange={(event) => handleCardTextChange(card.key, event.target.value)} disabled={isSaving} spellCheck={false} autoCorrect="off" autoCapitalize="none" placeholder="Type or paste numbers, one per line" className="block h-36 min-h-28 max-h-64 w-full resize-y overflow-y-auto rounded-lg border border-input bg-background px-3 py-2 font-mono text-xs leading-6 text-foreground outline-none transition-colors placeholder:font-sans placeholder:text-muted-foreground/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 disabled:opacity-60" />
             </div>
           </section>;
@@ -621,7 +757,7 @@ export default function CampaignCategoryCards({ campaign }) {
             <div className="space-y-1.5">
               <DialogTitle className="text-lg font-semibold leading-6 tracking-tight">Add category</DialogTitle>
               <DialogDescription className="text-sm leading-5">
-                Organize numbers and choose how credits are handled.
+                Organize numbers and choose message status and credit billing.
               </DialogDescription>
             </div>
           </DialogHeader>
@@ -651,6 +787,42 @@ export default function CampaignCategoryCards({ campaign }) {
             </div>
 
             <fieldset>
+              <legend className="mb-3 text-sm font-medium text-foreground">Message status</legend>
+              <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2">
+                {[
+                  { value: "delivered", title: "Delivered", description: "Mark numbers in this box as delivered.", icon: CheckCircle2 },
+                  { value: "failed", title: "Failed", description: "Mark numbers in this box as not sent.", icon: XCircle },
+                ].map(({ value, title, description, icon: Icon }) => (
+                  <label key={value} className="relative cursor-pointer">
+                    <input
+                      type="radio"
+                      name="new-category-status"
+                      value={value}
+                      checked={newCatStatus === value}
+                      onChange={() => {
+                        setNewCatStatus(value);
+                        setNewCatStatusTouched(true);
+                      }}
+                      aria-label={title}
+                      aria-describedby={`new-category-status-${value}-description`}
+                      className="peer sr-only"
+                    />
+                    <span className="flex h-full flex-col rounded-xl border border-border bg-card p-3.5 transition-colors hover:border-primary/40 hover:bg-muted/30 peer-checked:border-primary peer-checked:bg-primary/5 peer-focus-visible:ring-2 peer-focus-visible:ring-ring/30 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background">
+                      <span className="mb-2.5 flex items-center justify-between" aria-hidden="true">
+                        <Icon className={`size-5 ${newCatStatus === value ? "text-primary" : "text-muted-foreground"}`} />
+                        <span className={`flex size-4 items-center justify-center rounded-full border ${newCatStatus === value ? "border-primary bg-primary text-primary-foreground" : "border-input bg-background"}`}>
+                          {newCatStatus === value && <Check className="size-2.5" strokeWidth={3} />}
+                        </span>
+                      </span>
+                      <span className="text-sm font-semibold text-foreground">{title}</span>
+                      <span id={`new-category-status-${value}-description`} className="mt-1 text-xs leading-5 text-muted-foreground">{description}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            <fieldset>
               <legend className="mb-3 text-sm font-medium text-foreground">Billing rule</legend>
               <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2">
                 {[
@@ -663,13 +835,18 @@ export default function CampaignCategoryCards({ campaign }) {
                       name="new-category-billing"
                       value={value}
                       checked={newCatBilling === value}
-                      onChange={() => setNewCatBilling(value)}
+                      onChange={() => {
+                        setNewCatBilling(value);
+                        if (!newCatStatusTouched) {
+                          setNewCatStatus(value === "refund" ? "failed" : "delivered");
+                        }
+                      }}
                       aria-label={title}
                       aria-describedby={`new-category-billing-${value}-description`}
                       className="peer sr-only"
                     />
-                    <span className="flex h-full flex-col rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-muted/30 peer-checked:border-primary peer-checked:bg-primary/5 peer-focus-visible:ring-2 peer-focus-visible:ring-ring/30 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background">
-                      <span className="mb-3 flex items-center justify-between" aria-hidden="true">
+                    <span className="flex h-full flex-col rounded-xl border border-border bg-card p-3.5 transition-colors hover:border-primary/40 hover:bg-muted/30 peer-checked:border-primary peer-checked:bg-primary/5 peer-focus-visible:ring-2 peer-focus-visible:ring-ring/30 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background">
+                      <span className="mb-2.5 flex items-center justify-between" aria-hidden="true">
                         <Icon className={`size-5 ${newCatBilling === value ? "text-primary" : "text-muted-foreground"}`} />
                         <span className={`flex size-4 items-center justify-center rounded-full border ${newCatBilling === value ? "border-primary bg-primary text-primary-foreground" : "border-input bg-background"}`}>
                           {newCatBilling === value && <Check className="size-2.5" strokeWidth={3} />}

@@ -16,25 +16,38 @@ export function OverviewMetricCard({ label, value, caption, icon: Icon, path, ac
     </div>
     {metrics && Array.isArray(metrics) ? (
       <div className="overview-metric-split">
-        {metrics.map((m, idx) => (
-          <div key={idx} className="overview-metric-sub">
-            <span className="overview-metric-sub-label">{m.label}</span>
-            <div className="overview-metric-sub-value" aria-busy={m.loading || loading || undefined}>
-              {loading || m.loading ? (
-                <span role="status" className="overview-metric-skeleton"><span className="sr-only">Loading {m.label}</span></span>
-              ) : m.value == null || (typeof m.value === "number" && !Number.isFinite(m.value)) ? (
-                "—"
-              ) : typeof m.value === "number" ? (
-                <AnimatedMetricValue value={m.value} signDisplay={m.signDisplay} />
-              ) : (
-                m.value
-              )}
-              {!loading && !m.loading && m.value != null && m.valueSuffix && (
-                <span className="overview-metric-value-suffix"> {m.valueSuffix}</span>
-              )}
+        {metrics.map((m, idx) => {
+          const subChars = typeof m.value === "number" && Number.isFinite(m.value)
+            ? new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2, signDisplay: m.signDisplay }).format(m.value).length
+            : null;
+          return (
+            <div key={idx} className="overview-metric-sub">
+              <span className="overview-metric-sub-label">{m.label}</span>
+              <div
+                className="overview-metric-sub-value"
+                data-numeric={subChars ? "true" : undefined}
+                data-has-suffix={m.valueSuffix ? "true" : undefined}
+                style={subChars ? { "--metric-chars": subChars } : undefined}
+                aria-busy={m.loading || loading || undefined}
+              >
+                {loading || m.loading ? (
+                  <span role="status" className="overview-metric-skeleton"><span className="sr-only">Loading {m.label}</span></span>
+                ) : m.value == null || (typeof m.value === "number" && !Number.isFinite(m.value)) ? (
+                  "—"
+                ) : typeof m.value === "number" ? (
+                  <span className="overview-metric-sub-number">
+                    <AnimatedMetricValue value={m.value} signDisplay={m.signDisplay} />
+                  </span>
+                ) : (
+                  <span className="overview-metric-sub-number">{m.value}</span>
+                )}
+                {!loading && !m.loading && m.value != null && m.valueSuffix && (
+                  <span className="overview-metric-value-suffix"> {m.valueSuffix}</span>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     ) : (
       <p

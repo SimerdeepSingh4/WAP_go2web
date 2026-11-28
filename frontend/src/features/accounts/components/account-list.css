@@ -213,6 +213,20 @@ html:not([data-branded="true"]) .account-profile-sheet {
   .account-card-list .mobile-record .account-login-label {
     display: inline;
   }
+
+  .portal-main .account-card-list .mobile-record-highlights {
+    background: color-mix(in srgb, #2563eb 10%, var(--card));
+    border-color: color-mix(in srgb, #2563eb 24%, var(--border));
+  }
+
+  .dark .portal-main .account-card-list .mobile-record-highlights {
+    background: color-mix(in srgb, #3b82f6 16%, var(--card));
+    border-color: color-mix(in srgb, #3b82f6 32%, var(--border));
+  }
+
+  .portal-main .account-card-list .mobile-record-stat-label {
+    color: color-mix(in srgb, var(--foreground) 68%, transparent);
+  }
 }
 
 @media(min-width:980px) {

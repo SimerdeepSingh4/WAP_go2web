@@ -231,8 +231,8 @@ a.overview-metric-content:hover .overview-metric-icon svg { transform: translate
 }
 .overview-metric-split {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  align-items: flex-end;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: stretch;
   gap: 12px;
   min-width: 0;
   margin-top: 6px;
@@ -240,8 +240,10 @@ a.overview-metric-content:hover .overview-metric-icon svg { transform: translate
 .overview-metric-sub {
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   gap: 6px;
   min-width: 0;
+  container-type: inline-size;
 }
 .overview-metric-sub:not(:first-child) {
   padding-inline-start: 12px;
@@ -252,26 +254,41 @@ a.overview-metric-content:hover .overview-metric-icon svg { transform: translate
   font-weight: 500;
   opacity: 0.82;
   color: inherit;
-  line-height: 1.2;
+  line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .overview-metric-sub-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 4px;
+  min-width: 0;
   color: inherit;
-  font-size: clamp(24px, 2.2vw, 32px);
+  font-size: clamp(20px, 2vw, var(--sub-metric-max-size, 28px));
   font-weight: 500;
   line-height: 1.1;
-  letter-spacing: -1.2px;
+  letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
+}
+.overview-metric-sub-value[data-numeric="true"] {
+  font-size: clamp(13px, calc(100cqi / (max(var(--metric-chars, 5), 4) * 0.68)), var(--sub-metric-max-size, 28px));
+}
+.overview-metric-sub-value[data-numeric="true"]:not([data-has-suffix="true"]) {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+.overview-metric-sub-number {
+  white-space: nowrap;
 }
 .overview-metric-sub-value .overview-metric-value-suffix {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 400;
   letter-spacing: normal;
   opacity: 0.9;
-  margin-inline-start: 6px;
+  margin-inline-start: 0;
+  white-space: nowrap;
 }
 .overview-metric-footer {
   margin-top: auto;
@@ -294,7 +311,7 @@ a.overview-metric-content:hover .overview-metric-icon svg { transform: translate
   .overview-metric-icon svg { width: 14px; height: 14px; }
   .overview-metric-value { --metric-max-size: 32px; font-size: 32px; letter-spacing: -0.035em; }
   .overview-metric-value[data-size="text"] { font-size: 19px; }
-  .overview-metric-sub-value { font-size: 24px; letter-spacing: -0.8px; }
+  .overview-metric-sub-value { --sub-metric-max-size: 24px; font-size: 24px; letter-spacing: -0.025em; }
   .overview-metric-sub-value .overview-metric-value-suffix { font-size: 11px; }
 }
 @media (max-width: 370px) { .overview-metrics { grid-template-columns: minmax(0, 1fr); } }

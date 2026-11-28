@@ -483,6 +483,68 @@ test("Phase 3 — Campaign Debit and Report Refunds", async (t) => {
     assert.equal(final.body.data.netCredits, 90);
   });
 
+  await t.test("Independent category message status and custom tab deliveryStatus persist on publish", async () => {
+    const campaign = await campaignModel.findById(createdCampaignId);
+    const entries = submittedRecipients.map((phoneNumber, index) => {
+      if (index < 10) {
+        return {
+          rowNumber: index + 1,
+          phoneNumber,
+          status: "failed",
+          category: "Delivered override",
+          tabKey: "custom_failed_keep",
+          billingAction: "keep",
+        };
+      }
+      if (index < 20) {
+        return {
+          rowNumber: index + 1,
+          phoneNumber,
+          status: "delivered",
+          category: "Goodwill credit",
+          tabKey: "custom_delivered_refund",
+          billingAction: "refund",
+        };
+      }
+      return {
+        rowNumber: index + 1,
+        phoneNumber,
+        status: "delivered",
+        category: "Delivered / valid",
+        tabKey: "delivered",
+        billingAction: "keep",
+      };
+    });
+
+    const res = mockResponse();
+    await updateCampaignRecipientsManagement(
+      {
+        user: superAdmin,
+        params: { id: createdCampaignId },
+        body: {
+          entries,
+          customTabs: [
+            { key: "custom_failed_keep", label: "Delivered override", defaultBilling: "keep", deliveryStatus: "failed" },
+            { key: "custom_delivered_refund", label: "Goodwill credit", defaultBilling: "refund", deliveryStatus: "delivered" },
+          ],
+          saveMode: "publish",
+          spreadsheetRevision: campaign.spreadsheetRevision,
+        },
+      },
+      res
+    );
+
+    assert.equal(res.statusCode, 200, JSON.stringify(res.body));
+    const saved = await campaignModel.findById(createdCampaignId).lean();
+    assert.equal(saved.campaignSummary.delivered, 90);
+    assert.equal(saved.campaignSummary.failed, 10);
+    assert.equal(saved.publishedSpreadsheet.summary.delivered, 90);
+    assert.equal(saved.publishedSpreadsheet.summary.failed, 10);
+    assert.equal(saved.publishedSpreadsheet.summary.refunded, 10);
+    assert.equal(saved.customRecipientTabs[0].deliveryStatus, "failed");
+    assert.equal(saved.customRecipientTabs[1].deliveryStatus, "delivered");
+  });
+
   hooks.deregister();
   await mongoose.disconnect();
   await replSet.stop();

@@ -192,8 +192,11 @@ export function createSheetEvaluator(rows, columns) {
   };
 }
 
-export function normalizeDuplicateRows(entries) {
+export function normalizeDuplicateRows(entries, duplicateDefaults = {}) {
   const phone = (row) => String(row.phoneNumber || "").replace(/\D/g, "");
+  const duplicateStatus = duplicateDefaults.status === "delivered" || duplicateDefaults.status === "failed" ? duplicateDefaults.status : "failed";
+  const duplicateBilling = duplicateDefaults.billingAction === "keep" || duplicateDefaults.billingAction === "refund" ? duplicateDefaults.billingAction : "refund";
+  const duplicateCategory = duplicateDefaults.category || "Duplicate number";
   const totals = new Map();
   for (const row of entries) totals.set(phone(row), (totals.get(phone(row)) || 0) + 1);
   const firstRows = new Map();
@@ -211,7 +214,7 @@ export function normalizeDuplicateRows(entries) {
     }
     const note = `Already listed in row ${previous}.`;
     const existingNotes = String(row.notes || "").replace(/Already listed in row \d+\./g, "").trim();
-    updates.set(row, { ...row, tabKey: "duplicate", classification: "duplicate", category: "Duplicate number", status: "failed", billingAction: "refund", isDuplicate: true, notes: existingNotes ? `${existingNotes}\n${note}` : note });
+    updates.set(row, { ...row, tabKey: "duplicate", classification: "duplicate", category: duplicateCategory, status: duplicateStatus, billingAction: duplicateBilling, isDuplicate: true, notes: existingNotes ? `${existingNotes}\n${note}` : note });
   }
   return entries.map((row) => updates.get(row) || row);
 }
@@ -219,9 +222,25 @@ export function normalizeDuplicateRows(entries) {
 export function maskReportPhoneNumber(value) {
   const raw = String(value ?? "").trim();
   if (!raw) return "";
-  if (raw.length <= 2) return "X".repeat(raw.length);
-  if (raw.length <= 4) return `${raw[0]}${"X".repeat(raw.length - 2)}${raw.slice(-1)}`;
-  return `${raw.slice(0, 2)}${"X".repeat(raw.length - 4)}${raw.slice(-2)}`;
+  const digitsOnly = raw.replace(/\D/g, "");
+  if (digitsOnly.length < raw.length && !/^[+\d\s()-]+$/.test(raw)) {
+    if (raw.length <= 2) return "X".repeat(raw.length);
+    if (raw.length <= 4) return `${raw[0]}${"X".repeat(raw.length - 2)}${raw.slice(-1)}`;
+    return `${raw.slice(0, 2)}${"X".repeat(raw.length - 4)}${raw.slice(-2)}`;
+  }
+  const total = digitsOnly.length || raw.length;
+  if (total <= 2) return "X".repeat(raw.length);
+  const prefixCount = digitsOnly.length === 12 && digitsOnly.startsWith("91") ? 4 : total <= 4 ? 1 : 2;
+  const suffixCount = total <= 4 ? 1 : 2;
+  if (raw === digitsOnly || digitsOnly.length === 0) {
+    return `${raw.slice(0, prefixCount)}${"X".repeat(Math.max(0, raw.length - prefixCount - suffixCount))}${raw.slice(-suffixCount)}`;
+  }
+  let seen = 0;
+  return Array.from(raw, (ch) => {
+    if (!/\d/.test(ch)) return ch;
+    const index = seen++;
+    return index < prefixCount || index >= digitsOnly.length - suffixCount ? ch : "X";
+  }).join("");
 }
 
 export function maskSheetPhoneNumbers(sheet) {

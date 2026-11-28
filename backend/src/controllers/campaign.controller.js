@@ -65,6 +65,53 @@ async function findCampaignForReport(req, id) {
     return { campaign };
 }
 
+async function restorePublishedSheetPhones(campaign, sheet) {
+    if (!sheet || !Array.isArray(sheet.rows) || !sheet.rows.length) return sheet;
+    const phoneColumnIds = (sheet.columns || [])
+        .filter((column) => column.field === "phoneNumber")
+        .map((column) => column.id);
+
+    const chunkedDraftRows = campaign.spreadsheetRevision > 0 || !campaign.recipientEntries?.length
+        ? await loadSpreadsheetRows(campaign._id, "draft")
+        : [];
+    let sourceRows = chunkedDraftRows?.length
+        ? chunkedDraftRows
+        : campaign.recipientEntries;
+    if (!sourceRows?.length) {
+        sourceRows = originalCampaignEntries(campaign);
+    }
+    if (!sourceRows?.length) return sheet;
+
+    const rawPhoneByRow = new Map();
+    for (const entry of sourceRows) {
+        const rowNum = Number(entry?.rowNumber);
+        const phone = String(entry?.phoneNumber || "").trim();
+        if (Number.isFinite(rowNum) && phone && !phone.includes("X")) {
+            rawPhoneByRow.set(rowNum, phone);
+        }
+    }
+    if (!rawPhoneByRow.size) return sheet;
+
+    return {
+        ...sheet,
+        rows: sheet.rows.map((row) => {
+            const rawPhone = rawPhoneByRow.get(Number(row.rowNumber));
+            if (!rawPhone) return row;
+            const nextValues = row.values ? { ...row.values } : undefined;
+            if (nextValues) {
+                for (const colId of phoneColumnIds) {
+                    nextValues[colId] = rawPhone;
+                }
+            }
+            return {
+                ...row,
+                phoneNumber: rawPhone,
+                ...(nextValues ? { values: nextValues } : {}),
+            };
+        }),
+    };
+}
+
 export const downloadProfileDp = async (req, res) => {
     try {
         const campaign = await campaignModel.findById(req.params.id).select("profileDp userId").populate("userId", "dp_img resellerId");
@@ -378,7 +425,7 @@ export const exportRecipientDraft = async (req, res) => {
             if (!byCard.has(row.tabKey)) byCard.set(row.tabKey, []);
             byCard.get(row.tabKey).push(row);
         }
-        append("Categories", [["Category", "Numbers", "Credit treatment"], ...cards.map((card) => [card.label, byCard.get(card.key)?.length || 0, card.billingAction === "refund" ? "Refunded" : "Charged"])]);
+        append("Categories", [["Category", "Numbers", "Message status", "Credit treatment"], ...cards.map((card) => [card.label, byCard.get(card.key)?.length || 0, (card.deliveryStatus || (card.billingAction === "refund" ? "failed" : "delivered")) === "failed" ? "Failed" : "Delivered", card.billingAction === "refund" ? "Refunded" : "Charged"])]);
         for (const card of cards) append(card.label, [header, ...(byCard.get(card.key) || []).map(values)]);
         const buffer = xlsx.write(workbook, { type: "buffer", bookType: "xlsx" });
         res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
@@ -396,8 +443,11 @@ export const downloadRecipientReport = async (req, res) => {
         const { campaign } = result;
         if (campaign.publishedSpreadsheet?.publishedAt) {
             const loadedRows = await loadSpreadsheetRows(campaign._id, "published");
-            const baseSheet = { ...campaign.publishedSpreadsheet, rows: loadedRows };
-            const sheet = campaign.maskReportNumbers !== false ? maskSheetPhoneNumbers(baseSheet) : baseSheet;
+            const publishedMeta = campaign.publishedSpreadsheet?.toObject
+                ? campaign.publishedSpreadsheet.toObject()
+                : campaign.publishedSpreadsheet;
+            const restoredSheet = await restorePublishedSheetPhones(campaign, { ...publishedMeta, rows: loadedRows });
+            const sheet = campaign.maskReportNumbers !== false ? maskSheetPhoneNumbers(restoredSheet) : restoredSheet;
             const rows = [["All index", ...sheet.columns.map((column) => column.label)], ...sheet.rows.map((row) => [row.rowNumber, ...sheet.columns.map((column) => row.values[column.id] ?? "")])];
             const buffer = makeWorkbookBuffer(rows, "Campaign Report");
             res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
@@ -1102,7 +1152,15 @@ export const getCampaignById = async (req, res) => {
         }
 
         if (campaign.publishedSpreadsheet?.publishedAt) {
-            campaign.publishedSpreadsheet.rows = await loadSpreadsheetRows(campaign._id, "published");
+            const loadedRows = await loadSpreadsheetRows(campaign._id, "published");
+            const publishedMeta = campaign.publishedSpreadsheet?.toObject
+                ? campaign.publishedSpreadsheet.toObject()
+                : campaign.publishedSpreadsheet;
+            const restored = await restorePublishedSheetPhones(campaign, {
+                columns: publishedMeta?.columns || [],
+                rows: loadedRows,
+            });
+            campaign.publishedSpreadsheet.rows = restored.rows;
         }
         if (isSuperAdmin) campaign.recipientEntries = restoreOriginalCampaignEntries(campaign);
         const view = campaign.toObject ? campaign.toObject() : { ...campaign };
@@ -1956,6 +2014,7 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
         let refundCount = 0;
         let deductCount = 0;
         let deliveredCount = 0;
+        let failedCount = 0;
         const flatRecords = [];
 
         for (const e of entries) {
@@ -1965,9 +2024,11 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
                 refundCount++;
             } else {
                 deductCount++;
-                if (e.status === "delivered" || /delivered|success/i.test(e.category || "")) {
-                    deliveredCount++;
-                }
+            }
+            if (e.status === "delivered" || e.status === "read" || (e.status !== "failed" && billingAction !== "refund" && /delivered|success/i.test(e.category || ""))) {
+                deliveredCount++;
+            } else if (e.status === "failed" || billingAction === "refund") {
+                failedCount++;
             }
             flatRecords.push({
                 rowNumber: e.rowNumber,
@@ -2092,7 +2153,7 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
             campaign.campaignSummary.reportedAt = publishedAt;
             campaign.campaignSummary.reportedBy = req.user._id;
             campaign.campaignSummary.adminNotes = campaign.draftReportNotes;
-            campaign.campaignSummary.failed = refundCount;
+            campaign.campaignSummary.failed = failedCount;
             await saveSpreadsheetRows(campaign._id, "published", publishedSheet.rows, mongoSession);
             campaign.publishedSpreadsheet = {
                 columns: publishedSheet.columns, status: campaign.status, notes: campaign.draftReportNotes, publishedAt, publishedBy: req.user._id,

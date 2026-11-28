@@ -121,13 +121,14 @@
 @media (max-width: 640px) {
   .overview-metrics.dashboard-summary-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dashboard-summary-metrics .overview-metric-content { min-height: 0; gap: 12px; }
-  .dashboard-summary-metrics .overview-metric-split { display: flex; flex-wrap: wrap; gap: 8px 16px; }
-  .dashboard-summary-metrics .overview-metric-sub { flex: 1 1 max-content; }
+  .dashboard-summary-metrics .overview-metric-split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; }
+  .dashboard-summary-metrics .overview-metric-sub { min-width: 0; }
   .dashboard-summary-metrics .overview-metric-sub:not(:first-child) { border: 0; padding: 0; }
   .dashboard-summary-metrics .overview-metric-sub-label { overflow: visible; }
   .dashboard-summary-metrics .overview-metric-sub-value { white-space: nowrap; }
-  .dashboard-summary-metrics .overview-metric-card:not([data-featured]) .overview-metric-split { flex-direction: column; align-items: stretch; }
+  .dashboard-summary-metrics .overview-metric-card:not([data-featured]) .overview-metric-split { display: flex; flex-direction: column; align-items: stretch; }
   .dashboard-summary-metrics .overview-metric-card:not([data-featured]) .overview-metric-sub {
+    container-type: normal;
     flex-direction: row;
     align-items: baseline;
     justify-content: space-between;
@@ -166,10 +167,14 @@
     align-items: flex-start;
     gap: 4px;
   }
-  .reseller-overview .dashboard-summary-metrics .overview-metric-card :is(.overview-metric-value, .overview-metric-sub-value) {
+  .reseller-overview .dashboard-summary-metrics .overview-metric-card .overview-metric-value {
     font-size: 24px;
     line-height: 1.05;
     white-space: normal;
+  }
+  .reseller-overview .dashboard-summary-metrics .overview-metric-card .overview-metric-sub-value {
+    --sub-metric-max-size: 24px;
+    line-height: 1.05;
   }
 }
 

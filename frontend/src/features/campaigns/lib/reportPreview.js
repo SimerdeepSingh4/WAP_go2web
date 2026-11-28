@@ -25,6 +25,7 @@ export function buildCampaignReportPreview(campaign) {
       summary: {
         total: entries.length,
         delivered: entries.filter((row) => ["delivered", "read"].includes(row.status)).length,
+        failed: entries.filter((row) => row.status === "failed").length,
         refunded,
         creditsRefunded,
         creditsCharged: campaign.creditsDeducted || 0,

@@ -386,6 +386,10 @@ const campaignSchema = new mongoose.Schema(
                     enum: ["refund", "keep", "deduct"],
                     default: "keep",
                 },
+                deliveryStatus: {
+                    type: String,
+                    enum: ["delivered", "failed"],
+                },
             },
         ],
         deletedTabKeys: [{ type: String }],
