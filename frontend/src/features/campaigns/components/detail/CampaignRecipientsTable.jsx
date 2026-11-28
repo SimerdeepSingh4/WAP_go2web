@@ -55,7 +55,7 @@ function getStatusBadge(status) {
   }
 }
 
-export default function CampaignRecipientsTable({ campaign, trackedRows, trackedOwnerName, focusedPhone = "", onClearFocus, embedded = false }) {
+export default function CampaignRecipientsTable({ campaign, trackedRows, trackedOwnerName, campaignsById, focusedPhone = "", onClearFocus, embedded = false }) {
   const { user } = useAuth();
   const inputAudit = user?.role === "Super Admin" ? campaign.recipientInputAudit : null;
   const numberMarks = useMemo(() => recipientMarkMap(inputAudit), [inputAudit]);
@@ -181,7 +181,12 @@ export default function CampaignRecipientsTable({ campaign, trackedRows, tracked
             <TableCell data-input-risk={numberMarks.get(row.rowNumber)} className={`recipient-phone break-all font-mono text-xs font-medium ${tracked?.userPhone ? "border-l-2 border-l-blue-500 bg-blue-50/80 dark:border-l-blue-400 dark:bg-blue-950/35" : tracked ? "border-l-2 border-l-amber-500/60" : ""}`}>
               {row.phoneNumber}
               {numberMarks.has(row.rowNumber) && <div className="mt-1"><RecipientNumberHighlight mark={numberMarks.get(row.rowNumber)} /></div>}
-              <TrackedNumberBadges row={tracked} ownerName={trackedOwnerName || campaign.userId?.username} />
+              <TrackedNumberBadges
+                row={tracked}
+                ownerName={trackedOwnerName || campaign.userId?.username}
+                campaignsById={campaignsById}
+                currentCampaignId={campaign._id}
+              />
             </TableCell>
             <TableCell>{getStatusBadge(row.status)}</TableCell>
             <TableCell className="text-center"><Button type="button" size="icon-xs" variant="ghost" aria-label={`Copy phone number ${row.phoneNumber}`} onClick={() => copyNumber(row.phoneNumber)} className="text-muted-foreground hover:text-foreground">{copiedNumber === row.phoneNumber ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}</Button></TableCell>

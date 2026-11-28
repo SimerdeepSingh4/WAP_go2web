@@ -26,7 +26,15 @@ export function submittedCampaignPhones(campaign) {
     return new Set(source.map(normalizeTrackedPhone).filter(Boolean));
 }
 
-export function buildTrackedNumberRows(currentNumbers, counts, manualNumbers, profilePhone, totalCampaigns, submitted = true) {
+export function buildTrackedNumberRows(
+    currentNumbers,
+    counts,
+    manualNumbers,
+    profilePhone,
+    totalCampaigns,
+    submitted = true,
+    campaignHits = new Map(),
+) {
     const phone = normalizeTrackedPhone(profilePhone);
     const manual = new Map(manualNumbers.map((entry) => [entry.phoneNumber, entry]));
     const candidates = new Set([...currentNumbers, ...manual.keys(), ...(phone ? [phone] : [])]);
@@ -34,12 +42,14 @@ export function buildTrackedNumberRows(currentNumbers, counts, manualNumbers, pr
         const record = manual.get(phoneNumber);
         const inCampaign = currentNumbers.has(phoneNumber);
         const campaignCount = counts.get(phoneNumber) || 0;
+        const campaignIds = campaignHits.get(phoneNumber) || [];
         return {
             phoneNumber, inCampaign, campaignCount, totalCampaigns,
             repeated: submitted && inCampaign && campaignCount >= 2,
             userPhone: phoneNumber === phone,
             manual: Boolean(record), note: record?.note || "",
             addedAt: record?.createdAt || null,
+            campaignIds,
         };
     }).filter((row) => row.repeated || row.userPhone || row.manual)
         .sort((a, b) => Number(b.userPhone) - Number(a.userPhone) || b.campaignCount - a.campaignCount || a.phoneNumber.localeCompare(b.phoneNumber));

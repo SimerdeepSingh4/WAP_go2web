@@ -1,24 +1,41 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, ChevronLeft, ChevronRight, Loader2, Plus, X } from "lucide-react";
+import { ArrowUpRight, Check, ChevronLeft, ChevronRight, Loader2, Plus, X } from "lucide-react";
 import api from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/toast";
 import TrackedNumberBadges from "./TrackedNumberBadges";
+import { getRepeatedCampaigns } from "./campaignRecipients.utils";
 import TrackedNumberNote from "./TrackedNumberNote";
 
 const PAGE_SIZE = 25;
+const INLINE_CAMPAIGNS_LIMIT = 2;
+
+const shortDate = (value) => value && !Number.isNaN(new Date(value).getTime())
+  ? new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short" }).format(new Date(value))
+  : "";
 
 export default function TrackedNumbersPanel({ campaignId, query, onLocate }) {
   const client = useQueryClient();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState(new Set());
+  const [expandedCampaigns, setExpandedCampaigns] = useState(new Set());
   const [entryMode, setEntryMode] = useState(null);
   const [input, setInput] = useState("");
   const data = query.data;
-  const filtered = useMemo(() => (data?.rows || []).filter((row) => `${row.phoneNumber} ${row.note}`.toLowerCase().includes(search.trim().toLowerCase())), [data, search]);
+  const campaignsById = data?.campaigns;
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return (data?.rows || []).filter((row) => {
+      if (!term) return true;
+      const campaignText = getRepeatedCampaigns(row, campaignId, campaignsById)
+        .map((c) => c.title)
+        .join(" ");
+      return `${row.phoneNumber} ${row.note} ${campaignText}`.toLowerCase().includes(term);
+    });
+  }, [data, search, campaignId, campaignsById]);
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, pages - 1);
   const rows = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE);
@@ -49,6 +66,7 @@ export default function TrackedNumbersPanel({ campaignId, query, onLocate }) {
   const startEntry = (mode) => { add.reset(); setInput(""); setEntryMode(mode); };
   const cancelEntry = () => { if (!add.isPending) { setEntryMode(null); setInput(""); add.reset(); } };
   const toggle = (number) => setSelected((previous) => { const next = new Set(previous); if (next.has(number)) next.delete(number); else next.add(number); return next; });
+  const toggleCampaignList = (number) => setExpandedCampaigns((previous) => { const next = new Set(previous); if (next.has(number)) next.delete(number); else next.add(number); return next; });
 
   return <aside aria-label="Repeated and tracked numbers" className="min-w-0 self-start border-t border-border pt-4 @min-[900px]:border-t-0 @min-[900px]:border-l @min-[900px]:pt-0 @min-[900px]:pl-5">
     <header className="flex min-h-16 items-center justify-between gap-2 py-3">
@@ -96,7 +114,7 @@ export default function TrackedNumbersPanel({ campaignId, query, onLocate }) {
       </div>}
 
       <div className="flex items-center gap-2 border-b border-border py-2">
-        <input type="search" aria-label="Search tracked numbers" placeholder="Search numbers or notes" value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }}
+        <input type="search" aria-label="Search tracked numbers" placeholder="Search numbers, campaigns, or notes" value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }}
           className="h-7 min-w-0 flex-1 border-0 bg-transparent text-xs outline-none placeholder:text-muted-foreground focus-visible:underline" />
       </div>
       <div className="flex items-center justify-between border-b border-border py-2 text-[11px] text-muted-foreground">
@@ -104,17 +122,66 @@ export default function TrackedNumbersPanel({ campaignId, query, onLocate }) {
         <span>{data.rows.filter((row) => row.repeated).length} repeated</span>
       </div>
 
-      <ul className="max-h-[620px] divide-y divide-border overflow-y-auto">{rows.map((row) => <li key={row.phoneNumber} aria-label={row.userPhone ? `${data.username}’s own phone number` : undefined} className={`flex items-start gap-2 border-l-2 px-3 py-2.5 ${row.userPhone ? "border-l-blue-500 bg-blue-50/80 dark:border-l-blue-400 dark:bg-blue-950/35" : "border-l-transparent"}`}>
-        <input type="checkbox" aria-label={`Select ${row.phoneNumber}`} checked={selected.has(row.phoneNumber)} onChange={() => toggle(row.phoneNumber)} className="mt-0.5 shrink-0" />
-        <div className="min-w-0 flex-1">
-          <div className={`flex items-baseline justify-between gap-2 ${row.userPhone ? "font-semibold text-blue-900 dark:text-blue-100" : ""}`}>
-            {row.inCampaign ? <button type="button" title="Find in recipients" onClick={() => onLocate(row.phoneNumber)} className={`break-all text-left font-mono text-xs underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none ${row.userPhone ? "font-semibold" : "font-medium"}`}>{row.phoneNumber}</button> : <span className="break-all font-mono text-xs">{row.phoneNumber}</span>}
-            <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground" title={`Appeared in ${row.campaignCount} of ${row.totalCampaigns} campaigns as of this submission`} aria-label={`Appeared in ${row.campaignCount} of ${row.totalCampaigns} campaigns as of this submission`}>{row.campaignCount}/{row.totalCampaigns}</span>
+      <ul className="max-h-[620px] divide-y divide-border overflow-y-auto">{rows.map((row) => {
+        const priorCampaigns = getRepeatedCampaigns(row, campaignId, campaignsById);
+        const isExpanded = expandedCampaigns.has(row.phoneNumber);
+        const visibleCampaigns = isExpanded ? priorCampaigns : priorCampaigns.slice(0, INLINE_CAMPAIGNS_LIMIT);
+        const hiddenCount = priorCampaigns.length - visibleCampaigns.length;
+
+        return <li key={row.phoneNumber} aria-label={row.userPhone ? `${data.username}’s own phone number` : undefined} className={`flex items-start gap-2 border-l-2 px-3 py-2.5 ${row.userPhone ? "border-l-blue-500 bg-blue-50/80 dark:border-l-blue-400 dark:bg-blue-950/35" : "border-l-transparent"}`}>
+          <input type="checkbox" aria-label={`Select ${row.phoneNumber}`} checked={selected.has(row.phoneNumber)} onChange={() => toggle(row.phoneNumber)} className="mt-0.5 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <div className={`flex items-baseline justify-between gap-2 ${row.userPhone ? "font-semibold text-blue-900 dark:text-blue-100" : ""}`}>
+              {row.inCampaign ? <button type="button" title="Find in recipients" onClick={() => onLocate(row.phoneNumber)} className={`break-all text-left font-mono text-xs underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none ${row.userPhone ? "font-semibold" : "font-medium"}`}>{row.phoneNumber}</button> : <span className="break-all font-mono text-xs">{row.phoneNumber}</span>}
+              <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground" title={`Appeared in ${row.campaignCount} of ${row.totalCampaigns} campaigns as of this submission`} aria-label={`Appeared in ${row.campaignCount} of ${row.totalCampaigns} campaigns as of this submission`}>{row.campaignCount}/{row.totalCampaigns}</span>
+            </div>
+            <TrackedNumberBadges row={row} ownerName={data.username} showRepeated={false} />
+            {priorCampaigns.length > 0 && (
+              <div className="mt-1.5 space-y-1">
+                <p className="text-[10px] font-medium text-muted-foreground">
+                  {row.repeated ? "Repeated in:" : "Earlier in:"}
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {visibleCampaigns.map((item) => {
+                    const when = shortDate(item.createdAt);
+                    return (
+                      <Link
+                        key={item.id}
+                        to={`/admin/campaigns/${item.id}`}
+                        title={`${item.title}${when ? ` · ${when}` : ""}`}
+                        className="inline-flex max-w-full items-center gap-1 rounded-md border border-border/80 bg-muted/45 px-1.5 py-0.5 text-[10px] text-foreground transition-colors hover:border-primary/40 hover:bg-muted"
+                      >
+                        <span className="max-w-[155px] truncate font-medium">{item.title}</span>
+                        {when && <span className="shrink-0 text-muted-foreground">· {when}</span>}
+                        <ArrowUpRight className="size-2.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                      </Link>
+                    );
+                  })}
+                  {hiddenCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => toggleCampaignList(row.phoneNumber)}
+                      className="rounded-md px-1.5 py-0.5 text-[10px] font-medium text-primary hover:bg-muted"
+                    >
+                      +{hiddenCount} more
+                    </button>
+                  )}
+                  {isExpanded && priorCampaigns.length > INLINE_CAMPAIGNS_LIMIT && (
+                    <button
+                      type="button"
+                      onClick={() => toggleCampaignList(row.phoneNumber)}
+                      className="rounded-md px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+                    >
+                      Show less
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+            <TrackedNumberNote campaignId={campaignId} row={row} />
           </div>
-          <TrackedNumberBadges row={row} ownerName={data.username} showRepeated={false} />
-          <TrackedNumberNote campaignId={campaignId} row={row} />
-        </div>
-      </li>)}</ul>
+        </li>;
+      })}</ul>
       {!rows.length && <p className="py-6 text-xs text-muted-foreground">{search ? "No matching numbers." : "No repeated or manually added numbers yet."}</p>}
       <footer className="flex items-center justify-between border-t border-border py-2 text-[11px] text-muted-foreground">
         <span>{filtered.length} numbers</span>

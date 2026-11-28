@@ -362,3 +362,34 @@ test("folder pagination covers all folders and searches names, resellers and num
     await saveContactFolder(pageAdmin._id, { newFolderName: "Literal [folder]", phoneNumbers: ["919730000001"] });
     assert.equal((await page(1, "[folder]")).body.pagination.total, 1);
 });
+
+test("tracked number rows include matching campaign names and metadata newest-first", async () => {
+    const userId = oid();
+    const sharedPhone = "919600000001";
+    const c1 = {
+        _id: oid(), userId, campaignTitle: "Launch Blast", status: "completed",
+        createdAt: new Date("2026-04-01T10:00:00Z"), originalRecipients: [sharedPhone, "919600000002"],
+    };
+    const draft = {
+        _id: oid(), userId, campaignTitle: "Hidden Draft", status: "draft",
+        createdAt: new Date("2026-04-02T10:00:00Z"), originalRecipients: [sharedPhone],
+    };
+    const c2 = {
+        _id: oid(), userId, campaignTitle: "Unrelated Promo", status: "completed",
+        createdAt: new Date("2026-04-03T10:00:00Z"), originalRecipients: ["919600000003"],
+    };
+    const c3 = {
+        _id: oid(), userId, campaignTitle: "Followup Wave", status: "pending",
+        createdAt: new Date("2026-04-04T10:00:00Z"), originalRecipients: [sharedPhone],
+    };
+    await campaignModel.collection.insertMany([c1, draft, c2, c3]);
+
+    const data = await campaignTracking(c3);
+    const row = data.rows.find((entry) => entry.phoneNumber === sharedPhone);
+    assert.ok(row);
+    assert.deepEqual(row.campaignIds, [String(c3._id), String(c1._id)]);
+    assert.equal(data.campaigns[String(c1._id)].title, "Launch Blast");
+    assert.equal(data.campaigns[String(c3._id)].title, "Followup Wave");
+    assert.equal(data.campaigns[String(draft._id)], undefined, "Draft campaigns must not appear");
+    assert.equal(data.campaigns[String(c2._id)], undefined, "Unmatched campaigns must not clutter metadata");
+});
