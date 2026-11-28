@@ -146,18 +146,23 @@ export async function login(req, res) {
             });
         }
 
-        const user = await userModel.findOne({
-            $or: [{ email: identifier }, { username: identifier }]
+        const candidates = await userModel.find({
+            $or: [{ email: identifier.toLowerCase() }, { username: identifier }]
         }).select("+password");
-        if (!user) {
-            return res.status(400).json({
-                message: "Invalid credentials",
-                success: false,
-            });
-        }
 
-        const isPasswordValid = await user.comparePassword(password);
-        if (!isPasswordValid) {
+        const exactUsername = candidates.find((candidate) => candidate.username === identifier);
+        let user = null;
+        if (exactUsername) {
+            if (await exactUsername.comparePassword(password)) user = exactUsername;
+        } else {
+            for (const candidate of candidates) {
+                if (await candidate.comparePassword(password)) {
+                    user = candidate;
+                    break;
+                }
+            }
+        }
+        if (!user) {
             return res.status(400).json({
                 message: "Invalid credentials",
                 success: false,

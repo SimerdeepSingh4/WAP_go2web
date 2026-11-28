@@ -181,7 +181,7 @@ export async function submitProof(req, res) {
         };
         if (order.paymentProofKey) return res.json(replay(order));
         if (!["QUOTED", "EXPIRED"].includes(order.status)) throw purchaseError("This purchase is closed.", 409);
-        if (!reference || reference.length > 160) throw purchaseError("Enter a payment reference of up to 160 characters.", 400);
+        if (reference.length > 160) throw purchaseError("Enter a payment reference of up to 160 characters.", 400);
         if (!req.file?.buffer) throw purchaseError("Attach a screenshot or PDF payment proof.", 400);
         ({ key } = await savePaymentProofFile(req.file.buffer));
         const outcome = await runCreditTransaction(async session => {
@@ -197,7 +197,7 @@ export async function submitProof(req, res) {
             purchase.proofSubmissionStatus = purchase.status;
             if (late) purchase.reviewReason = "LATE_PROOF";
             purchase.paymentProofKey = key;
-            purchase.paymentReference = reference;
+            if (reference) purchase.paymentReference = reference;
             // Writing the same order document serializes the claim with expiry and review.
             await purchase.save({ session });
             await queueRechargeAlerts(purchase, "submitted", session);
@@ -221,7 +221,7 @@ export async function submitProof(req, res) {
                 const saved = await CreditPurchase.findById(id).select("+paymentProofKey").readConcern("majority");
                 if (saved?.paymentProofKey) {
                     keepFile = saved.paymentProofKey === key;
-                    if (saved.paymentReference === reference) return res.json(proofSubmission(saved));
+                    if ((saved.paymentReference || "") === reference) return res.json(proofSubmission(saved));
                 }
             } catch { /* Keep the proof when the commit outcome is still uncertain. */ }
         }
@@ -490,7 +490,7 @@ export async function approvePurchase(req, res) {
             if (!purchase) throw purchaseError("Purchase not found.", 404);
             if (String(purchase.sellerId) !== String(req.user._id)) throw purchaseError("Only the recorded seller can approve this purchase.", 403);
             if (!reviewable.includes(purchase.status)) throw purchaseError("This purchase is no longer awaiting review.", 409);
-            if (!purchase.paymentProofKey || !purchase.paymentReference) throw purchaseError("A payment proof and reference are required for approval.", 400);
+            if (!purchase.paymentProofKey) throw purchaseError("A payment proof screenshot or receipt is required for approval.", 400);
             if (purchase.status === "REVIEW_REQUIRED" && req.body?.confirmManualReview !== true) {
                 throw purchaseError("Confirm that the payment evidence matches the original order before approving.", 409);
             }
@@ -730,13 +730,18 @@ export async function fixFlaggedProof(req, res) {
         if ((purchase.fixAttempts || 0) >= 1) {
             throw purchaseError("You have already used your 1 chance to fix this payment proof.", 400);
         }
-        if (!reference || reference.length > 160) {
+        if (reference.length > 160) {
             throw purchaseError("Enter a valid payment reference (UTR) of up to 160 characters.", 400);
         }
+        if (!req.file?.buffer && !reference) {
+            throw purchaseError("Attach a replacement payment screenshot or PDF receipt.", 400);
+        }
 
-        const existing = await CreditPurchase.findOne({ _id: { $ne: purchase._id }, paymentReference: reference });
-        if (existing) {
-            throw purchaseError("This payment reference has already been submitted for another purchase.", 409);
+        if (reference) {
+            const existing = await CreditPurchase.findOne({ _id: { $ne: purchase._id }, paymentReference: reference });
+            if (existing) {
+                throw purchaseError("This payment reference has already been submitted for another purchase.", 409);
+            }
         }
 
         const oldKey = purchase.paymentProofKey;
@@ -746,7 +751,7 @@ export async function fixFlaggedProof(req, res) {
             purchase.paymentProofKey = key;
         }
 
-        purchase.paymentReference = reference;
+        if (reference) purchase.paymentReference = reference;
         purchase.status = "PENDING";
         purchase.proofSubmissionStatus = "PENDING";
         purchase.fixAttempts = (purchase.fixAttempts || 0) + 1;
@@ -754,7 +759,7 @@ export async function fixFlaggedProof(req, res) {
         await runCreditTransaction(async session => {
             const updated = await CreditPurchase.findOneAndUpdate(
                 { _id: id, status: "FLAGGED" },
-                { $set: { paymentReference: reference, status: "PENDING", proofSubmissionStatus: "PENDING", fixAttempts: purchase.fixAttempts, fixedAt: purchase.fixedAt, ...(key && { paymentProofKey: key }) } },
+                { $set: { ...(reference && { paymentReference: reference }), status: "PENDING", proofSubmissionStatus: "PENDING", fixAttempts: purchase.fixAttempts, fixedAt: purchase.fixedAt, ...(key && { paymentProofKey: key }) } },
                 { session, returnDocument: "after", runValidators: true }
             );
             if (!updated) throw purchaseError("This purchase is no longer flagged.", 409);
@@ -771,17 +776,17 @@ export async function fixFlaggedProof(req, res) {
                 purchaseId: purchase._id,
                 category: purchase.category,
                 quantity: purchase.quantity,
-                paymentReference: purchase.paymentReference,
+                paymentReference: purchase.paymentReference || null,
             }),
         ]);
 
         return res.status(200).json({
             success: true,
-            message: "Payment proof and reference updated successfully. It has been resubmitted for review.",
+            message: "Payment proof updated successfully. It has been resubmitted for review.",
             purchase: {
                 id: purchase._id,
                 status: purchase.status,
-                paymentReference: purchase.paymentReference,
+                paymentReference: purchase.paymentReference || null,
                 fixAttempts: purchase.fixAttempts,
             },
         });

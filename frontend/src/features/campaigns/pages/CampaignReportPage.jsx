@@ -121,7 +121,10 @@ export default function CampaignReportPage() {
   const [newCatName, setNewCatName] = useState("");
   const [newCatBilling, setNewCatBilling] = useState("refund");
 
-  const rate = campaign?.rateSnapshot || (campaign?.userId?.ratePerMsg > 0 ? campaign.userId.ratePerMsg : 12);
+  const isCategorized = Boolean(campaign?.campaignCreditCharge || campaign?.category === "CAMPAIGN");
+  const rate = isCategorized
+    ? 1
+    : campaign?.rateSnapshot || (campaign?.userId?.ratePerMsg > 0 ? campaign.userId.ratePerMsg : 12);
 
   const resetFromCampaign = useCallback(() => {
     if (!campaign || isAdmin) return;

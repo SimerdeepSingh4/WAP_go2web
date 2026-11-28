@@ -12,7 +12,8 @@ import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import cloudinary, { isCloudinaryConfigured } from "../config/cloudinary.config.js";
 import { getDefaultRatePerMsg, calculateDefaultAccountExpiry } from "../services/platform-settings.service.js";
-import { categoryBalances, validCategoryBalance } from "../helpers/credit-categories.js";
+import { categoryBalances, CREDIT_CATEGORIES, validCategoryBalance } from "../helpers/credit-categories.js";
+import { isPurchaseRate } from "../helpers/credit-purchase-price.js";
 import { runCreditTransaction } from "../helpers/credit-operation.js";
 import { createUserWithWallet } from "../helpers/user-account.helper.js";
 
@@ -49,11 +50,14 @@ export async function getUsers(req, res) {
                 maxVideoSizeMB: user.maxVideoSizeMB ?? 3,
                 mediaUploadLimits: user.mediaUploadLimits,
                 wallet: w
-                    ? {
-                          balance: w.balance ?? 0,
-                          creditBalances: categoryBalances(w),
-                          isLocked: Boolean(w.isLocked),
-                      }
+                    ? (() => {
+                          const creditBalances = categoryBalances(w);
+                          return {
+                              balance: creditBalances.CAMPAIGN.available + creditBalances.NUMBER_FILTERING.available,
+                              creditBalances,
+                              isLocked: Boolean(w.isLocked),
+                          };
+                      })()
                     : {
                           balance: 0,
                           creditBalances: categoryBalances(),
@@ -340,14 +344,6 @@ export async function createUser(req, res) {
             });
         }
 
-        const existing = await userModel.findOne({ email });
-        if (existing) {
-            return res.status(400).json({
-                message: "Email already in use",
-                success: false,
-            });
-        }
-
         let assignedReseller = null;
         let assignedRole = "User";
 
@@ -411,6 +407,24 @@ export async function createUser(req, res) {
             accountExpiry = await calculateDefaultAccountExpiry();
         }
 
+        const purchaseRateEntries = [];
+        if (req.body.purchaseRates && typeof req.body.purchaseRates === "object" && !Array.isArray(req.body.purchaseRates)) {
+            for (const [cat, rawRate] of Object.entries(req.body.purchaseRates)) {
+                if (rawRate === undefined || rawRate === null || String(rawRate).trim() === "") continue;
+                if (!CREDIT_CATEGORIES.includes(cat)) {
+                    return res.status(400).json({ message: "Invalid credit category for purchase rate.", success: false });
+                }
+                const unitPriceInr = String(rawRate).trim();
+                if (!isPurchaseRate(unitPriceInr)) {
+                    return res.status(400).json({ message: "Each purchase rate must be a positive valid INR price (e.g. '0.25').", success: false });
+                }
+                purchaseRateEntries.push({ category: cat, unitPriceInr });
+            }
+            if (purchaseRateEntries.length && assignedReseller && String(assignedReseller) !== String(req.user._id)) {
+                return res.status(403).json({ message: "Only this buyer's seller can configure their purchase rates.", success: false });
+            }
+        }
+
         const newUser = await createUserWithWallet(
             {
                 username,
@@ -433,7 +447,7 @@ export async function createUser(req, res) {
                 expiresAt: accountExpiry,
                 createdBy: req.user._id,
             },
-            { resellerId: assignedReseller }
+            { resellerId: assignedReseller, purchaseRates: purchaseRateEntries, createdBy: req.user._id }
         );
 
         return res.status(201).json({
@@ -458,7 +472,9 @@ export async function createUser(req, res) {
     } catch (error) {
         if (error?.code === 11000) {
             return res.status(400).json({
-                message: "Email already in use",
+                message: error?.keyPattern?.["whiteLabel.subdomain"]
+                    ? "This white-label subdomain is already in use."
+                    : "Duplicate account detail.",
                 success: false,
             });
         }
@@ -757,10 +773,6 @@ export async function updateManagedUserProfile(req, res) {
             const normalizedEmail = String(email).trim().toLowerCase();
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
                 return res.status(400).json({ message: "Enter a valid email address.", success: false });
-            }
-            const existing = await userModel.findOne({ email: normalizedEmail, _id: { $ne: targetUser._id } });
-            if (existing) {
-                return res.status(400).json({ message: "Email already in use.", success: false });
             }
             updates.email = normalizedEmail;
         }
@@ -1221,13 +1233,7 @@ export async function updateUser(req, res) {
             if (!trimmedEmail) {
                 return res.status(400).json({ message: "Email cannot be empty", success: false });
             }
-            if (trimmedEmail !== targetUser.email) {
-                const existing = await userModel.findOne({ email: trimmedEmail, _id: { $ne: targetUser._id } });
-                if (existing) {
-                    return res.status(400).json({ message: "Email is already taken by another account", success: false });
-                }
-                targetUser.email = trimmedEmail;
-            }
+            targetUser.email = trimmedEmail;
         }
 
         // 3. Update password (optional)

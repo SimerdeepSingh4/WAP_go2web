@@ -231,27 +231,30 @@ export default function AdminCredits({ activity = false }) {
         ),
     },
     {
-      key: "balance",
-      label: "Wallet balance",
-      sort: (a) => a.wallet?.balance ?? 0,
+      key: "campaignCredits",
+      label: "Campaign Credits",
+      sort: (a) => a.wallet?.creditBalances?.CAMPAIGN?.available ?? 0,
       render: (a) => {
         const isLocked = a.wallet?.isLocked;
         return (
           <div className="flex items-center gap-1.5">
             <span className={`tabular-nums font-semibold text-sm ${isLocked ? "text-red-700" : "text-foreground"}`}>
-              {number(a.wallet?.balance ?? 0)}
+              {number(a.wallet?.creditBalances?.CAMPAIGN?.available ?? 0)}
             </span>
-            <span className="text-[11px] text-muted-foreground">credits</span>
             {isLocked && <Lock className="size-3 text-red-600" title="Wallet locked" />}
           </div>
         );
       },
     },
     {
-      key: "rate",
-      label: "Rate per campaign credit",
-      sort: (a) => a.ratePerMsg,
-      render: (a) => <span className="tabular-nums text-xs">{number(a.ratePerMsg)}</span>,
+      key: "filteringCredits",
+      label: "Filtering Credits",
+      sort: (a) => a.wallet?.creditBalances?.NUMBER_FILTERING?.available ?? 0,
+      render: (a) => (
+        <span className="tabular-nums font-semibold text-sm text-foreground">
+          {number(a.wallet?.creditBalances?.NUMBER_FILTERING?.available ?? 0)}
+        </span>
+      ),
     },
     {
       key: "status",
@@ -347,7 +350,10 @@ export default function AdminCredits({ activity = false }) {
                 <p className="whitespace-pre-wrap break-words text-muted-foreground text-xs mt-1">
                   {v.notes || "No note."}
                 </p>
-                <CreditBalancePreview balance={target?.wallet?.balance} amount={v.amount} />
+                <CreditBalancePreview
+                  balance={target?.wallet?.creditBalances?.[v.category]?.available ?? 0}
+                  amount={v.amount}
+                />
               </>
             );
           }}
@@ -416,6 +422,11 @@ export default function AdminCredits({ activity = false }) {
                 <p className="whitespace-pre-wrap break-words text-muted-foreground text-xs mt-1">
                   {v.notes || "No reason specified."}
                 </p>
+                <CreditBalancePreview
+                  balance={target?.wallet?.creditBalances?.[v.category]?.available ?? 0}
+                  amount={v.amount}
+                  deduct
+                />
               </>
             );
           }}
@@ -581,7 +592,6 @@ export default function AdminCredits({ activity = false }) {
               { value: "all", label: "All Categories" },
               { value: "CAMPAIGN", label: "Campaign Credits" },
               { value: "NUMBER_FILTERING", label: "Number Filtering Credits" },
-              { value: "legacy", label: "Legacy Credits" },
             ]}
           />
           <div className="transaction-type-filter">

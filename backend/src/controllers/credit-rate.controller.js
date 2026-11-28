@@ -66,16 +66,25 @@ export async function getRates(req, res) {
         if (buyerId && buyerId !== "default" && ["Super Admin", "Reseller"].includes(currentUser.role)) {
             if (!mongoose.isValidObjectId(buyerId)) return res.status(400).json({ success: false, message: "Invalid buyer account ID." });
             const buyer = await userModel.findById(buyerId);
+            if (!buyer) return res.status(404).json({ success: false, message: "Buyer account not found." });
             const seller = await resolveSellerForBuyer(buyer);
-            if (!seller || String(seller._id) !== String(currentUser._id)) {
+            const isSeller = Boolean(seller && String(seller._id) === String(currentUser._id));
+            if (currentUser.role !== "Super Admin" && !isSeller) {
                 return res.status(403).json({ success: false, message: "Only this buyer's seller can view their purchase rates." });
             }
             const purchaseRates = {};
-            for (const cat of CREDIT_CATEGORIES) {
-                const active = await getActivePurchaseRate(seller._id, buyer._id, cat);
-                if (active) purchaseRates[cat] = { unitPriceInr: active.unitPriceInr.toString(), isDefault: !active.buyerId };
+            if (seller) {
+                for (const cat of CREDIT_CATEGORIES) {
+                    const active = await getActivePurchaseRate(seller._id, buyer._id, cat);
+                    if (active) purchaseRates[cat] = { unitPriceInr: active.unitPriceInr.toString(), isDefault: !active.buyerId };
+                }
             }
-            return res.json({ success: true, purchaseRates });
+            return res.json({
+                success: true,
+                purchaseRates,
+                canEdit: isSeller,
+                seller: seller ? { id: seller._id, username: seller.username, role: seller.role } : null,
+            });
         }
 
         if (currentUser.role === "Super Admin") {

@@ -11,7 +11,7 @@ import { transactionObjectId } from "../helpers/transaction-reference.js";
 import { publicAccountIdentity } from "../helpers/account-identity.js";
 import { recordSupportAction, publishSupportAction } from "../helpers/support-action.js";
 import { processNotificationWork } from "../workers/notification.worker.js";
-import { LEGACY_CREDITS, CREDIT_CATEGORIES, categoryBalances, isCreditQuantity } from "../helpers/credit-categories.js";
+import { CREDIT_CATEGORIES, categoryBalances, isCreditQuantity } from "../helpers/credit-categories.js";
 
 /**
  * GET /api/credits/balance
@@ -70,6 +70,7 @@ export async function getBalance(req, res) {
 
         const isLocked = Boolean(wallet.isLocked);
         const catBalances = categoryBalances(wallet);
+        const totalCategoryBalance = catBalances.CAMPAIGN.available + catBalances.NUMBER_FILTERING.available;
 
         const totalTransactions = await transactionModel.countDocuments({
             $or: [{ fromUser: targetUserId }, { toUser: targetUserId }],
@@ -80,16 +81,12 @@ export async function getBalance(req, res) {
             success: true,
             wallet: {
                 userId: wallet.userId,
-                balance: wallet.balance,
+                balance: totalCategoryBalance,
                 creditBalances: catBalances,
                 resellerId: wallet.resellerId,
                 ratePerMsg: targetUser.ratePerMsg,
                 isLocked,
-                messagesRemaining: isLocked
-                    ? 0
-                    : (targetUser.ratePerMsg > 0
-                        ? Math.floor(wallet.balance / targetUser.ratePerMsg)
-                        : 0),
+                messagesRemaining: isLocked ? 0 : catBalances.CAMPAIGN.available,
                 campaignCreditsRemaining: isLocked ? 0 : catBalances.CAMPAIGN.available,
                 totalTransactions,
             },
@@ -123,9 +120,8 @@ export async function allocateCredits(req, res) {
 
     try {
         const { toUserId, amount, notes, password, category } = req.body;
-        const isCategorized = Boolean(category && CREDIT_CATEGORIES.includes(category));
 
-        if ((category || req.body.supportConversationId) && !isCategorized) {
+        if (!category || !CREDIT_CATEGORIES.includes(category)) {
             await abortCreditSession(mongoSession);
             await mongoSession.endSession();
             return res.status(400).json({ message: "Choose a credit category.", success: false });
@@ -256,24 +252,14 @@ export async function allocateCredits(req, res) {
                 });
             }
 
-            if (isCategorized) {
-                const available = fromWallet.creditBalances?.[category]?.available ?? 0;
-                if (available < creditAmount) {
-                    await abortCreditSession(mongoSession);
-                    await mongoSession.endSession();
-                    return res.status(400).json({
-                        message: `Insufficient ${category} credit balance. Your balance: ${available}, requested: ${creditAmount}.`,
-                        success: false,
-                        currentBalance: available,
-                    });
-                }
-            } else if (fromWallet.balance < creditAmount) {
+            const available = fromWallet.creditBalances?.[category]?.available ?? 0;
+            if (available < creditAmount) {
                 await abortCreditSession(mongoSession);
                 await mongoSession.endSession();
                 return res.status(400).json({
-                    message: `Insufficient balance. Your balance: ${fromWallet.balance}, requested: ${creditAmount}.`,
+                    message: `Insufficient ${category} credit balance. Your balance: ${available}, requested: ${creditAmount}.`,
                     success: false,
-                    currentBalance: fromWallet.balance,
+                    currentBalance: available,
                 });
             }
 
@@ -283,23 +269,19 @@ export async function allocateCredits(req, res) {
             session: mongoSession,
             operationKey: creditPostingKey(req, "allocation"),
             type: "ALLOCATE",
+            category,
             amount: creditAmount,
             fromUser: req.user.role === "Super Admin" ? null : req.user._id,
             toUser: toUserId,
             performedBy: req.user._id,
             notes: notes || "",
-            ...(isCategorized ? { category } : { rateSnapshot: toUser.ratePerMsg || null, toWalletSet: { isLocked: false } }),
         });
-        balanceAfterFrom = isCategorized
-            ? (posting.fromWallet?.creditBalances?.[category]?.available ?? null)
-            : (posting.fromWallet?.balance ?? null);
-        const balanceAfterTo = isCategorized
-            ? (posting.toWallet?.creditBalances?.[category]?.available ?? null)
-            : posting.toWallet.balance;
+        balanceAfterFrom = posting.fromWallet?.creditBalances?.[category]?.available ?? null;
+        const balanceAfterTo = posting.toWallet?.creditBalances?.[category]?.available ?? null;
         const transaction = [posting.transaction];
 
-        await recordSupportAction(req, mongoSession, toUserId, `Allocated ${creditAmount} ${isCategorized ? `${category} ` : ""}credits. New balance: ${balanceAfterTo} credits.\nTransaction ID: ${transaction[0].transactionId}`, transaction[0]._id);
-        await saveCreditReceipt(req, mongoSession, 200, { success: true, message: "Credit allocation processed.", transaction: { id: transaction[0]._id, transactionId: transaction[0].transactionId, amount: creditAmount, category: isCategorized ? category : undefined, toUser: { id: toUser._id, username: toUser.username, role: toUser.role }, balanceAfterFrom, balanceAfterTo } });
+        await recordSupportAction(req, mongoSession, toUserId, `Allocated ${creditAmount} ${category} credits. New balance: ${balanceAfterTo} credits.\nTransaction ID: ${transaction[0].transactionId}`, transaction[0]._id);
+        await saveCreditReceipt(req, mongoSession, 200, { success: true, message: "Credit allocation processed.", transaction: { id: transaction[0]._id, transactionId: transaction[0].transactionId, amount: creditAmount, category, toUser: { id: toUser._id, username: toUser.username, role: toUser.role }, balanceAfterFrom, balanceAfterTo } });
         await mongoSession.commitTransaction();
         await mongoSession.endSession();
 
@@ -309,7 +291,7 @@ export async function allocateCredits(req, res) {
         // ── Real-Time WebSockets (POST-COMMIT) ────────────────────
         if (balanceAfterFrom !== null) {
             notifyUser(req.user._id, "WALLET_UPDATED", {
-                category: isCategorized ? category : undefined,
+                category,
                 newBalance: balanceAfterFrom,
                 delta: -creditAmount,
                 reason: "ALLOCATE",
@@ -319,7 +301,7 @@ export async function allocateCredits(req, res) {
         }
         if (req.user.role === "Super Admin") {
             notifyRole("Super Admin", "WALLET_UPDATED", {
-                category: isCategorized ? category : undefined,
+                category,
                 reason: "ALLOCATE",
                 transactionId: transaction[0]._id,
                 toUser: toUser.username,
@@ -327,7 +309,7 @@ export async function allocateCredits(req, res) {
             });
         }
         notifyUser(toUserId, "WALLET_UPDATED", {
-            category: isCategorized ? category : undefined,
+            category,
             newBalance: balanceAfterTo,
             delta: +creditAmount,
             reason: "ALLOCATE",
@@ -337,11 +319,11 @@ export async function allocateCredits(req, res) {
 
         return res.status(200).json({
             success: true,
-            message: `Successfully allocated ${creditAmount} ${isCategorized ? `${category} ` : ""}credits to ${toUser.username}.`,
+            message: `Successfully allocated ${creditAmount} ${category} credits to ${toUser.username}.`,
             transaction: {
                 id: transaction[0]._id, transactionId: transaction[0].transactionId,
                 amount: creditAmount,
-                category: isCategorized ? category : undefined,
+                category,
                 toUser: {
                     id: toUser._id,
                     username: toUser.username,
@@ -369,8 +351,7 @@ export async function requestCredits(req, res) {
   try {
     if (!["User", "Reseller"].includes(req.user.role)) return res.status(403).json({ success: false, message: "Only users and resellers can request credits." });
     const { category } = req.body;
-    const isCategorized = Boolean(category && CREDIT_CATEGORIES.includes(category));
-    if ((category || req.body.supportConversationId) && !isCategorized) {
+    if (!category || !CREDIT_CATEGORIES.includes(category)) {
       return res.status(400).json({ success: false, message: "Choose a credit category." });
     }
     const rawReqStr = String(req.body.amount).trim();
@@ -395,20 +376,20 @@ export async function requestCredits(req, res) {
     const response = await session.withTransaction(async () => {
       const [transaction] = await transactionModel.create([{
         fromUser: null, toUser: req.user._id, amount, type: "REQUEST",
-        ...(isCategorized ? { category } : {}),
+        category,
         notes: note.trim(), performedBy: req.user._id, requestedFrom: recipient?._id || null,
       }], { session });
-      await recordSupportAction(req, session, req.user._id, `Requested ${amount} ${isCategorized ? `${category} ` : ""}credits.${note.trim() ? `\n${note.trim()}` : ""}\nTransaction ID: ${transaction.transactionId}`, transaction._id);
+      await recordSupportAction(req, session, req.user._id, `Requested ${amount} ${category} credits.${note.trim() ? `\n${note.trim()}` : ""}\nTransaction ID: ${transaction.transactionId}`, transaction._id);
       const result = { success: true, message: recipient ? "Credit request sent to your reseller." : "Credit request sent to the super admin.", transaction };
       await saveCreditReceipt(req, session, 201, result);
       return result;
     }, creditTransactionOptions);
     await publishSupportAction(req);
-    notifyUser(req.user._id, "WALLET_UPDATED", { reason: "REQUEST", transactionId: response.transaction._id, amount, category: isCategorized ? category : undefined });
+    notifyUser(req.user._id, "WALLET_UPDATED", { reason: "REQUEST", transactionId: response.transaction._id, amount, category });
     if (recipient?._id) {
-      notifyUser(recipient._id, "WALLET_UPDATED", { reason: "CREDIT_REQUEST_RECEIVED", transactionId: response.transaction._id, fromUser: req.user.username, amount, category: isCategorized ? category : undefined });
+      notifyUser(recipient._id, "WALLET_UPDATED", { reason: "CREDIT_REQUEST_RECEIVED", transactionId: response.transaction._id, fromUser: req.user.username, amount, category });
     } else {
-      notifyRole("Super Admin", "WALLET_UPDATED", { reason: "CREDIT_REQUEST_RECEIVED", transactionId: response.transaction._id, fromUser: req.user.username, amount, category: isCategorized ? category : undefined });
+      notifyRole("Super Admin", "WALLET_UPDATED", { reason: "CREDIT_REQUEST_RECEIVED", transactionId: response.transaction._id, fromUser: req.user.username, amount, category });
     }
     return res.status(201).json(response);
   } catch (error) {
@@ -432,8 +413,7 @@ export async function reclaimCredits(req, res) {
 
     try {
         const { fromUserId, amount, notes, category } = req.body;
-        const isCategorized = Boolean(category && CREDIT_CATEGORIES.includes(category));
-        if ((category || req.body.supportConversationId) && !isCategorized) {
+        if (!category || !CREDIT_CATEGORIES.includes(category)) {
             await abortCreditSession(mongoSession);
             await mongoSession.endSession();
             return res.status(400).json({
@@ -545,24 +525,14 @@ export async function reclaimCredits(req, res) {
             });
         }
 
-        if (isCategorized) {
-            const available = fromWallet.creditBalances?.[category]?.available ?? 0;
-            if (available < reclaimAmount) {
-                await abortCreditSession(mongoSession);
-                await mongoSession.endSession();
-                return res.status(400).json({
-                    message: `Insufficient ${category} balance to reclaim. Target balance: ${available}, requested: ${reclaimAmount}.`,
-                    success: false,
-                    currentBalance: available,
-                });
-            }
-        } else if (fromWallet.balance < reclaimAmount) {
+        const available = fromWallet.creditBalances?.[category]?.available ?? 0;
+        if (available < reclaimAmount) {
             await abortCreditSession(mongoSession);
             await mongoSession.endSession();
             return res.status(400).json({
-                message: `Insufficient balance to reclaim. Target balance: ${fromWallet ? fromWallet.balance : 0}, requested: ${reclaimAmount}.`,
+                message: `Insufficient ${category} balance to reclaim. Target balance: ${available}, requested: ${reclaimAmount}.`,
                 success: false,
-                currentBalance: fromWallet ? fromWallet.balance : 0,
+                currentBalance: available,
             });
         }
 
@@ -570,22 +540,18 @@ export async function reclaimCredits(req, res) {
             session: mongoSession,
             operationKey: creditPostingKey(req, "reclaim"),
             type: "RECLAIM",
+            category,
             amount: reclaimAmount,
             fromUser: fromUserId,
             toUser: req.user._id,
             performedBy: req.user._id,
-            notes: notes || `Reclaimed ${reclaimAmount} ${isCategorized ? `${category} ` : ""}credits from ${fromUser.username}`,
-            ...(isCategorized ? { category } : { rateSnapshot: fromUser.ratePerMsg || null }),
+            notes: notes || `Reclaimed ${reclaimAmount} ${category} credits from ${fromUser.username}`,
         });
-        const balanceAfterFrom = isCategorized
-            ? (posting.fromWallet?.creditBalances?.[category]?.available ?? null)
-            : posting.fromWallet.balance;
-        const balanceAfterTo = isCategorized
-            ? (posting.toWallet?.creditBalances?.[category]?.available ?? null)
-            : (posting.toWallet?.balance ?? null);
+        const balanceAfterFrom = posting.fromWallet?.creditBalances?.[category]?.available ?? null;
+        const balanceAfterTo = posting.toWallet?.creditBalances?.[category]?.available ?? null;
         const transaction = [posting.transaction];
 
-        await recordSupportAction(req, mongoSession, fromUserId, `Reclaimed ${reclaimAmount} ${isCategorized ? `${category} ` : ""}credits from ${fromUser.username}.\nTransaction ID: ${transaction[0].transactionId}`, transaction[0]._id);
+        await recordSupportAction(req, mongoSession, fromUserId, `Reclaimed ${reclaimAmount} ${category} credits from ${fromUser.username}.\nTransaction ID: ${transaction[0].transactionId}`, transaction[0]._id);
         await saveCreditReceipt(req, mongoSession, 200, {
             success: true,
             message: "Credit reclaim processed.",
@@ -593,7 +559,7 @@ export async function reclaimCredits(req, res) {
                 id: transaction[0]._id,
                 transactionId: transaction[0].transactionId,
                 amount: reclaimAmount,
-                category: isCategorized ? category : undefined,
+                category,
                 fromUser: { id: fromUser._id, username: fromUser.username, role: fromUser.role },
                 balanceAfterFrom,
                 balanceAfterTo,
@@ -608,7 +574,7 @@ export async function reclaimCredits(req, res) {
         // ── Real-Time WebSockets (POST-COMMIT) ────────────────────
         if (balanceAfterFrom !== null) {
             notifyUser(fromUserId, "WALLET_UPDATED", {
-                category: isCategorized ? category : undefined,
+                category,
                 newBalance: balanceAfterFrom,
                 delta: -reclaimAmount,
                 reason: "RECLAIM",
@@ -618,7 +584,7 @@ export async function reclaimCredits(req, res) {
         }
         if (balanceAfterTo !== null) {
             notifyUser(req.user._id, "WALLET_UPDATED", {
-                category: isCategorized ? category : undefined,
+                category,
                 newBalance: balanceAfterTo,
                 delta: +reclaimAmount,
                 reason: "RECLAIM",
@@ -628,7 +594,7 @@ export async function reclaimCredits(req, res) {
         }
         if (req.user.role === "Super Admin") {
             notifyRole("Super Admin", "WALLET_UPDATED", {
-                category: isCategorized ? category : undefined,
+                category,
                 reason: "RECLAIM",
                 transactionId: transaction[0]._id,
                 fromUser: fromUser.username,
@@ -638,12 +604,12 @@ export async function reclaimCredits(req, res) {
 
         return res.status(200).json({
             success: true,
-            message: `Successfully reclaimed ${reclaimAmount} ${isCategorized ? `${category} ` : ""}credits from ${fromUser.username}.`,
+            message: `Successfully reclaimed ${reclaimAmount} ${category} credits from ${fromUser.username}.`,
             transaction: {
                 id: transaction[0]._id,
                 transactionId: transaction[0].transactionId,
                 amount: reclaimAmount,
-                category: isCategorized ? category : undefined,
+                category,
                 fromUser: {
                     id: fromUser._id,
                     username: fromUser.username,
@@ -691,9 +657,7 @@ export async function getTransactions(req, res) {
 
         // Build filter
         const filter = {};
-        if (category === "legacy") {
-            filter.category = null;
-        } else if (category && category !== "all") {
+        if (category && category !== "all") {
             if (!CREDIT_CATEGORIES.includes(category)) {
                 return res.status(400).json({ success: false, message: "Invalid credit category filter." });
             }

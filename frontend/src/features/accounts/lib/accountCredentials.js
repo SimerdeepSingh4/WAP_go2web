@@ -55,5 +55,7 @@ export const accountCreationPlaceholders = {
   phone: "Enter phone number",
   password: "Enter password",
   dailyCampaignLimit: "Enter daily limit",
+  campaignRate: "Seller default (e.g. 0.25)",
+  filteringRate: "Seller default (e.g. 0.10)",
   ratePerMsg: "Enter rate",
 };

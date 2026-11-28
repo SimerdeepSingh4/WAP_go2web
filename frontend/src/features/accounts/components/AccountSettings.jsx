@@ -5,12 +5,13 @@ import { getSessions, logoutSession, changePassword, uploadProfileImage, removeP
 import { getResellerBranding } from "@/features/branding/services/branding.api.js";
 import { QueryState, FormError } from "@/features/dashboard/components/shared";
 import { Card } from "@/components/ui/card";
-import { UserRound, LockKeyhole, MonitorSmartphone, Laptop, Smartphone, Tablet, RefreshCw, LogOut, Info, ShieldCheck, Eye, EyeOff, Loader2, Trash2, Palette } from "lucide-react";
+import { UserRound, LockKeyhole, MonitorSmartphone, Laptop, Smartphone, Tablet, RefreshCw, LogOut, Info, ShieldCheck, Eye, EyeOff, Loader2, Trash2, Palette, IndianRupee } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import UserAvatar from "@/features/accounts/components/UserAvatar";
 import ProfilePhotoUpload from "./ProfilePhotoUpload";
 import ResellerBrandingSettings from "@/features/branding/components/ResellerBrandingSettings";
+import { PurchaseRateEditor } from "@/features/credits/components/PurchaseRateEditor";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { dateTime } from "@/lib/format";
 import { toast } from "@/components/ui/toast";
@@ -64,7 +65,12 @@ export default function AccountSettings() {
               (!user?.whiteLabel?.expiresAt || new Date(user?.whiteLabel?.expiresAt) > new Date())))))
   );
 
-  const visibleTab = activeTab === "branding" && !isWhiteLabelActive ? "profile" : activeTab;
+  const visibleTab =
+    activeTab === "branding" && !isWhiteLabelActive
+      ? "profile"
+      : activeTab === "rates" && !isReseller
+        ? "profile"
+        : activeTab;
 
   const sessions = useQuery({ queryKey: ["accountSessions", user?.id || user?._id], queryFn: getSessions, enabled: !user?.isPreview });
   const password = useMutation({ mutationFn: changePassword, onSuccess: () => { setPasswords({ currentPassword: "", newPassword: "", confirmPassword: "" }); toast.add({ title: "Password changed", type: "success" }); } });
@@ -119,6 +125,7 @@ export default function AccountSettings() {
       ["profile", "Profile", UserRound],
       ["password", "Password", LockKeyhole],
       ["devices", "Devices", MonitorSmartphone],
+      ...(isReseller ? [["rates", "Default Credit Rates", IndianRupee, "Rates"]] : []),
       ...(isWhiteLabelActive ? [["branding", isSuperAdmin ? "Platform Branding" : "White-Label Branding", Palette, "Branding"]] : []),
     ].map(([section, label, Icon, compactLabel], index, tabs) => <button key={section} id={`account-tab-${section}`} type="button" role="tab" aria-label={compactLabel ? label : undefined} aria-selected={visibleTab === section} aria-controls={`account-${section}`} tabIndex={visibleTab === section ? 0 : -1} onClick={() => setActiveTab(section)} onKeyDown={event => {
       let next;
@@ -201,6 +208,23 @@ export default function AccountSettings() {
           {otherDevices.length > 0 && <div className="account-settings-devices-footer"><p>Your current device will stay signed in.</p><Button variant="outline" onClick={() => { revoke.reset(); setDisconnect("all"); }}><LogOut aria-hidden="true" />Sign out other devices</Button></div>}
         </QueryState>}
       </SettingsCard>
+      {isReseller && (
+        <SettingsCard
+          section="rates"
+          active={visibleTab === "rates"}
+          title="Default credit rates"
+          description="Set default INR prices per credit category for your client users without a custom rate."
+          icon={IndianRupee}
+        >
+          {user?.isPreview && (
+            <p className="account-settings-note">
+              <Info aria-hidden="true" />
+              <span>Exit account preview to update default credit rates.</span>
+            </p>
+          )}
+          <PurchaseRateEditor showPurchaseRates disabled={Boolean(user?.isPreview)} />
+        </SettingsCard>
+      )}
       {isWhiteLabelActive && (
         <SettingsCard
           section="branding"

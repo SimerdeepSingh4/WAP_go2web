@@ -304,7 +304,6 @@ export default function ResellerCredits({ activity = false }) {
                   { value: "all", label: "All Categories" },
                   { value: "CAMPAIGN", label: "Campaign Credits" },
                   { value: "NUMBER_FILTERING", label: "Number Filtering Credits" },
-                  { value: "legacy", label: "Legacy Credits" },
                 ]}
               />
               <FilterSelect

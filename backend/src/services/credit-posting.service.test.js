@@ -312,12 +312,15 @@ test("the controller retries rolled-back conflicts and reads a saved success aft
 });
 
 test("allocation and reclaim controllers share the ledger with historical usage debits", async () => {
-    const reseller = await account("Reseller", 30), user = await account("User", 0, reseller._id);
+    const reseller = { ...(await account("Reseller", 30)), featureAccess: { reclaimCredit: true } }, user = await account("User", 0, undefined);
+    await User.collection.updateOne({ _id: user._id }, { $set: { resellerId: reseller._id } });
+    user.resellerId = reseller._id;
+    await grantCampaignCredits(reseller, 30);
     const invoke = async (fn, body) => { const req = { user: reseller, body, params: {}, query: {} }, res = response(); await operations.retryCreditController(fn, { walletIds: [reseller._id, user._id] })(req, res); assert.equal(res.statusCode, 200, JSON.stringify(res.body)); return res.body; };
-    await invoke(controllers.allocateCredits, { toUserId: String(user._id), amount: 10 });
-    await move(user, 2, "DEDUCT", "historical-usage:" + user._id);
-    await invoke(controllers.reclaimCredits, { fromUserId: String(user._id), amount: 3, notes: "Returning unused credits to the reseller." });
-    assert.equal(await balance(reseller), 23); assert.equal(await balance(user), 5);
+    await invoke(controllers.allocateCredits, { toUserId: String(user._id), category: CAMPAIGN_CREDITS, amount: 10 });
+    await move(user, 2, "DEDUCT", "historical-usage-camp:" + user._id, { category: CAMPAIGN_CREDITS, campaignId: oid() });
+    await invoke(controllers.reclaimCredits, { fromUserId: String(user._id), category: CAMPAIGN_CREDITS, amount: 3, notes: "Returning unused credits to the reseller." });
+    assert.equal(await campaignBalance(reseller), 23); assert.equal(await campaignBalance(user), 5);
     assert.equal((await view(reseller)).summary.classification, "matched"); assert.equal((await view(user)).summary.classification, "matched");
 });
 
@@ -417,7 +420,9 @@ test("profile DP and an uploaded campaign image are saved together", async t => 
 });
 
 test("legacy wallet expiry dates no longer block balance access, allocations or deductions", async () => {
-    const reseller = await account("Reseller", 30), user = await account("User", 10, reseller._id);
+    const reseller = await account("Reseller", 0), user = await account("User", 0, reseller._id);
+    await grantCampaignCredits(reseller, 30);
+    await grantCampaignCredits(user, 10);
     await User.collection.updateOne({ _id: user._id }, { $set: { expiresAt: new Date("2030-01-01") } });
     await Wallet.collection.updateMany({ userId: { $in: [reseller._id, user._id] } }, { $set: { expiresAt: new Date("2020-01-01") } });
     const res = response();
@@ -426,14 +431,19 @@ test("legacy wallet expiry dates no longer block balance access, allocations or 
     assert.equal(res.body.wallet.isLocked, false);
     assert.equal(Object.hasOwn(res.body.wallet, "expiresAt"), false);
     assert.equal(Object.hasOwn(res.body.wallet, "isExpired"), false);
+    const legacyRejected = response();
+    await operations.retryCreditController(controllers.allocateCredits, { walletIds: [reseller._id, user._id] })({
+        user: reseller, body: { toUserId: String(user._id), amount: 5 }, params: {}, query: {},
+    }, legacyRejected);
+    assert.equal(legacyRejected.statusCode, 400);
     const allocation = response();
     await operations.retryCreditController(controllers.allocateCredits, { walletIds: [reseller._id, user._id] })({
-        user: reseller, body: { toUserId: String(user._id), amount: 5, expiryYears: 2, expiresAt: "2030-01-01" }, params: {}, query: {},
+        user: reseller, body: { toUserId: String(user._id), category: CAMPAIGN_CREDITS, amount: 5, expiryYears: 2, expiresAt: "2030-01-01" }, params: {}, query: {},
     }, allocation);
     assert.equal(allocation.statusCode, 200, JSON.stringify(allocation.body));
-    await move(user, 2, "DEDUCT", `no-wallet-expiry:${user._id}`);
-    assert.equal(await balance(user), 13);
-    assert.equal(await balance(reseller), 25);
+    await move(user, 2, "DEDUCT", `no-wallet-expiry-camp:${user._id}`, { category: CAMPAIGN_CREDITS, campaignId: oid() });
+    assert.equal(await campaignBalance(user), 13);
+    assert.equal(await campaignBalance(reseller), 25);
     assert.equal((await view(user)).summary.classification, "matched");
     assert.equal((await User.findById(user._id).lean()).expiresAt.toISOString(), "2030-01-01T00:00:00.000Z");
 });

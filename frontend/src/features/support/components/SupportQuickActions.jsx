@@ -50,20 +50,22 @@ function LedgerAudit({ audit, accountId, isFetching, onRefresh }) {
   const uncertain = audit.classification === "cannot_confirm";
   return (
     <div className="support-tool-audit">
-      <section className="support-tool-wallet">
-        <div className="support-tool-card-heading">
-          <h3>Ledger comparison</h3>
-          <span className="support-tool-state" data-tone={audit.isReconciled ? "success" : "warning"}>
-            {audit.isReconciled ? "Balances match" : uncertain ? "Evidence verification needed" : "Review needed"}
-          </span>
-        </div>
-        <dl>
-          <div><dt>Legacy wallet</dt><dd>{number(audit.currentBalance)} credits</dd></div>
-          <div><dt>Legacy ledger</dt><dd>{number(audit.calculatedBalance)} credits</dd></div>
-          <div><dt>Difference</dt><dd>{number(audit.drift)} credits</dd></div>
-        </dl>
-        {uncertain && <p className="support-tool-dialog-hint">Resolve the conflicting source records before preparing a correction.</p>}
-      </section>
+      {(audit.currentBalance || audit.calculatedBalance || audit.drift) ? (
+        <section className="support-tool-wallet">
+          <div className="support-tool-card-heading">
+            <h3>Ledger comparison</h3>
+            <span className="support-tool-state" data-tone={audit.isReconciled ? "success" : "warning"}>
+              {audit.isReconciled ? "Balances match" : uncertain ? "Evidence verification needed" : "Review needed"}
+            </span>
+          </div>
+          <dl>
+            <div><dt>Legacy wallet</dt><dd>{number(audit.currentBalance)} credits</dd></div>
+            <div><dt>Legacy ledger</dt><dd>{number(audit.calculatedBalance)} credits</dd></div>
+            <div><dt>Difference</dt><dd>{number(audit.drift)} credits</dd></div>
+          </dl>
+          {uncertain && <p className="support-tool-dialog-hint">Resolve the conflicting source records before preparing a correction.</p>}
+        </section>
+      ) : null}
       {Object.entries(audit.categories || {}).map(([category, lane]) => (
         <section className="support-tool-wallet" key={category}>
           <div className="support-tool-card-heading">

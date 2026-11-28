@@ -70,6 +70,7 @@ export default function ResellerActionForm({ title, description, action, success
           placeholder={isAccountForm ? accountCreationPlaceholders[field.key] : undefined}
           id={`reseller-${field.key}`}
           type={field.type || "text"}
+          inputMode={field.inputMode}
           min={field.min}
           step={field.step}
           value={values[field.key]}

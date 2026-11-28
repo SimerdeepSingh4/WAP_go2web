@@ -108,6 +108,7 @@ export default function ActionForm({ title, description, action, successMessage,
           placeholder={isAccountForm ? accountCreationPlaceholders[field.key] : undefined}
           id={`admin-${field.key}`}
           type={field.type || "text"}
+          inputMode={field.inputMode}
           min={field.min}
           step={field.step}
           value={values[field.key]}

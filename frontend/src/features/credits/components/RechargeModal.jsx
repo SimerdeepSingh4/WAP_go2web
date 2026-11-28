@@ -27,7 +27,6 @@ function RechargeFlow({ onOpenChange, initialCategory = "CAMPAIGN", initialQuant
   const [category, setCategory] = useState(activeQuote?.category || initialCategory);
   const [quantity, setQuantity] = useState(String(initialQuantity || 5000));
   const [currentQuote, setCurrentQuote] = useState(activeQuote);
-  const [paymentReference, setPaymentReference] = useState("");
   const [proofFile, setProofFile] = useState(null);
   const [showProof, setShowProof] = useState(false);
   const [submission, setSubmission] = useState(null);
@@ -62,9 +61,8 @@ function RechargeFlow({ onOpenChange, initialCategory = "CAMPAIGN", initialQuant
   }
   function handleSubmitProof(event) {
     event.preventDefault();
-    if (!proofFile || !paymentReference.trim() || busy) return;
+    if (!proofFile || busy) return;
     const formData = new FormData();
-    formData.append("paymentReference", paymentReference.trim());
     formData.append("proof", proofFile);
     submitProofMutation.mutate({ purchaseId: currentQuote.id || currentQuote._id, formData });
   }
@@ -208,20 +206,19 @@ function RechargeFlow({ onOpenChange, initialCategory = "CAMPAIGN", initialQuant
           </>}
           {step === 3 && <form id="recharge-proof-form" onSubmit={handleSubmitProof}>
             {late && <div className="recharge-rate-status recharge-rate-status--warning mb-4"><Clock /><p>This quote has expired. Submit proof here only if you already paid.</p></div>}
-            <fieldset disabled={busy}><PaymentProofFields reference={paymentReference} onReferenceChange={setPaymentReference} file={proofFile} onFileChange={setProofFile} /></fieldset>
+            <fieldset disabled={busy}><PaymentProofFields file={proofFile} onFileChange={setProofFile} /></fieldset>
             {submitProofMutation.isError && <p className="mt-3 text-sm text-destructive" role="alert">{submitProofMutation.error.message}</p>}
           </form>}
           {step === 4 && <div className="space-y-3">
             <div className="flex items-start gap-3 rounded-xl border bg-muted/30 p-3"><Clock className="mt-0.5 size-4 shrink-0" /><div><h3 className="font-semibold">{submission.status === "REVIEW_REQUIRED" ? "Awaiting manual review" : "Awaiting verification"}</h3>
               <p className="mt-1 text-xs text-muted-foreground">Your wallet updates when your account manager approves the payment.</p></div></div>
-            <dl className="flex flex-wrap justify-between gap-2 text-sm"><dt className="text-muted-foreground">Payment reference</dt><dd className="break-all font-mono">{submission.paymentReference || paymentReference}</dd></dl>
             <RechargeWhatsAppLink purchaseId={submission.id} />
           </div>}
         </div>
         <footer className="recharge-quote-actions">
           {step === 2 && <><Button variant="outline" onClick={() => onOpenChange(false)}>Finish later</Button><Button onClick={() => setShowProof(true)}>I’ve paid <ArrowRight /></Button></>}
           {step === 3 && <><Button variant="outline" disabled={busy} onClick={() => late ? onOpenChange(false) : setShowProof(false)}>{late ? "Close" : "Payment details"}</Button>
-            <Button type="submit" form="recharge-proof-form" disabled={busy || !paymentReference.trim() || !proofFile}>{busy ? "Submitting…" : "Submit for review"}</Button></>}
+            <Button type="submit" form="recharge-proof-form" disabled={busy || !proofFile}>{busy ? "Submitting…" : "Submit for review"}</Button></>}
           {step === 4 && <Button onClick={onViewOrders || (() => onOpenChange(false))}>{onViewOrders ? "View recharge orders" : "Done"}</Button>}
         </footer>
       </>}

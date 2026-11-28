@@ -47,7 +47,6 @@ export const getDashboardStats = async (req, res) => {
                     {
                         $group: {
                             _id: null,
-                            totalBalance: { $sum: "$balance" },
                             campaignAvailable: { $sum: { $ifNull: ["$creditBalances.CAMPAIGN.available", 0] } },
                             campaignReserved: { $sum: { $ifNull: ["$creditBalances.CAMPAIGN.reserved", 0] } },
                             filteringAvailable: { $sum: { $ifNull: ["$creditBalances.NUMBER_FILTERING.available", 0] } },
@@ -86,7 +85,10 @@ export const getDashboardStats = async (req, res) => {
                     .limit(5),
             ]);
 
-            const totalCreditsInCirculation = walletSumResult[0]?.totalBalance || 0;
+            const walletTotals = walletSumResult[0] || {};
+            const totalCreditsInCirculation =
+                (walletTotals.campaignAvailable || 0) +
+                (walletTotals.filteringAvailable || 0);
             const totalAllocated = superAdminAllocResult[0]?.total || 0;
             const agg = campaignAggregation[0] || {};
             const totalRecipientsRequested = agg.totalRecipients || 0;
@@ -160,7 +162,19 @@ export const getDashboardStats = async (req, res) => {
                     ]),
                     walletModel.aggregate([
                         { $match: { resellerId: userId } },
-                        { $group: { _id: null, total: { $sum: "$balance" } } },
+                        {
+                            $group: {
+                                _id: null,
+                                total: {
+                                    $sum: {
+                                        $add: [
+                                            { $ifNull: ["$creditBalances.CAMPAIGN.available", 0] },
+                                            { $ifNull: ["$creditBalances.NUMBER_FILTERING.available", 0] },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
                     ]),
                     transactionModel.aggregate([
                         { $match: { toUser: userId, type: "ALLOCATE" } },
@@ -220,7 +234,8 @@ export const getDashboardStats = async (req, res) => {
                     .limit(5),
             ]);
 
-            const myBalance = myWallet ? myWallet.balance : 0;
+            const myCategoryBalances = categoryBalances(myWallet);
+            const myBalance = myCategoryBalances.CAMPAIGN.available + myCategoryBalances.NUMBER_FILTERING.available;
             const creditsDistributed = distributedResult[0]?.total || 0;
             const clientWalletsTotal = clientWalletsResult[0]?.total || 0;
             const totalAllocatedBySuperAdmin = receivedResult[0]?.total || 0;
@@ -242,7 +257,7 @@ export const getDashboardStats = async (req, res) => {
                 stats: {
                     wallet: {
                         myBalance,
-                        creditBalances: categoryBalances(myWallet),
+                        creditBalances: myCategoryBalances,
                         totalAllocatedBySuperAdmin,
                         creditsPurchasedThisMonth,
                         creditsDistributedToClients: creditsDistributed,
@@ -319,9 +334,10 @@ export const getDashboardStats = async (req, res) => {
                 .limit(5),
         ]);
 
-        const myBalance = userWallet ? userWallet.balance : 0;
+        const userCategoryBalances = categoryBalances(userWallet);
+        const myBalance = userCategoryBalances.CAMPAIGN.available + userCategoryBalances.NUMBER_FILTERING.available;
         const ratePerMsg = req.user.ratePerMsg && req.user.ratePerMsg > 0 ? req.user.ratePerMsg : 12;
-        const messagesRemaining = Math.floor(myBalance / ratePerMsg);
+        const messagesRemaining = userCategoryBalances.CAMPAIGN.available;
         const agg = campaignAggregation[0] || {};
         const messagesSent = agg.totalSent || 0;
         const messagesDelivered = agg.totalDelivered || 0;

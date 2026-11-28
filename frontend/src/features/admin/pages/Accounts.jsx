@@ -822,7 +822,7 @@ export default function Accounts({ role }) {
           action="createAccount"
           successMessage={`${role} created successfully`}
           onClose={() => setModal(null)}
-          initialValues={{ username: "", email: "", phone: "", companyName: "", password: "", dailyCampaignLimit: "", resellerId: "", expiresAt: "", allowCreditReclaim: false }}
+          initialValues={{ username: "", email: "", phone: "", companyName: "", password: "", dailyCampaignLimit: "", campaignRate: "", filteringRate: "", resellerId: "", expiresAt: "", allowCreditReclaim: false }}
           fields={[
             { key: "username", label: `${role} name`, required: true, maxLength: 100 },
             { key: "email", label: "Email", type: "email", required: true },
@@ -836,6 +836,18 @@ export default function Accounts({ role }) {
               min: 1,
               step: 1,
               hint: "Max campaigns per day. Leave blank for platform default.",
+            },
+            {
+              key: "campaignRate",
+              label: "Campaign credit rate in INR (optional)",
+              inputMode: "decimal",
+              hint: "INR per Campaign Credit (e.g. 0.25). Leave blank for seller default.",
+            },
+            {
+              key: "filteringRate",
+              label: "Filtering credit rate in INR (optional)",
+              inputMode: "decimal",
+              hint: "INR per Number Filtering Credit (e.g. 0.10). Leave blank for seller default.",
             },
             {
               key: "expiresAt",
@@ -863,25 +875,42 @@ export default function Accounts({ role }) {
               ]
               : []),
           ]}
-          validate={(v) => (v.password.trim().length < 8 ? "The initial password must contain at least 8 characters." : "")}
-          payload={(v) => ({
-            username: v.username.trim(),
-            email: v.email.trim(),
-            phone: (v.phone || "").trim(),
-            companyName: (v.companyName || "").trim(),
-            password: v.password,
-            role,
-            dailyCampaignLimit: v.dailyCampaignLimit ? Number(v.dailyCampaignLimit) : null,
-            expiresAt: v.expiresAt || null,
-            // ...(role === "User" && v.resellerId ? { resellerId: v.resellerId } : {}),
-            ...(role === "Reseller" ? { featureAccess: { reclaimCredit: v.allowCreditReclaim } } : {}),
-          })}
+          validate={(v) => {
+            if (v.password.trim().length < 8) return "The initial password must contain at least 8 characters.";
+            for (const [val, label] of [[v.campaignRate, "Campaign credit rate"], [v.filteringRate, "Filtering credit rate"]]) {
+              const trimmed = String(val || "").trim();
+              if (trimmed && (!/^\d+(?:\.\d+)?$/.test(trimmed) || !(Number(trimmed) > 0))) {
+                return `${label} must be a positive INR price (e.g. 0.25).`;
+              }
+            }
+            return "";
+          }}
+          payload={(v) => {
+            const purchaseRates = {};
+            if (v.campaignRate?.trim()) purchaseRates.CAMPAIGN = v.campaignRate.trim();
+            if (v.filteringRate?.trim()) purchaseRates.NUMBER_FILTERING = v.filteringRate.trim();
+            return {
+              username: v.username.trim(),
+              email: v.email.trim(),
+              phone: (v.phone || "").trim(),
+              companyName: (v.companyName || "").trim(),
+              password: v.password,
+              role,
+              dailyCampaignLimit: v.dailyCampaignLimit ? Number(v.dailyCampaignLimit) : null,
+              expiresAt: v.expiresAt || null,
+              ...(Object.keys(purchaseRates).length ? { purchaseRates } : {}),
+              // ...(role === "User" && v.resellerId ? { resellerId: v.resellerId } : {}),
+              ...(role === "Reseller" ? { featureAccess: { reclaimCredit: v.allowCreditReclaim } } : {}),
+            };
+          }}
           review={(v) => (
             <>
               <p className="font-medium">{v.username}</p>
               <p>{v.email}</p>{v.companyName && <p>Company: {v.companyName}</p>}{v.phone && <p>Phone: {v.phone}</p>}
               <p>Role: {role}</p>
               <p>Daily limit: {v.dailyCampaignLimit ? `${v.dailyCampaignLimit} campaigns / day (Custom)` : "Platform default"}</p>
+              <p>Campaign rate: <strong>{v.campaignRate?.trim() ? `₹${v.campaignRate.trim()} / credit` : "Seller default"}</strong></p>
+              <p>Filtering rate: <strong>{v.filteringRate?.trim() ? `₹${v.filteringRate.trim()} / credit` : "Seller default"}</strong></p>
               <p>Expiry: {v.expiresAt || "No expiry"}</p>
               {/* {role === "User" && <p>Reseller: {resellers.find((a) => a._id === v.resellerId)?.username || "Direct (None)"}</p>} */}
               {role === "Reseller" && <p>Credit reclaim: <strong>{v.allowCreditReclaim ? "Allowed" : "Not allowed"}</strong></p>}

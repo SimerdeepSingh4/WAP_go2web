@@ -103,14 +103,14 @@ export default function ProofViewerModal({
                   <dt>Created</dt>
                   <dd>{dateTime(purchase.createdAt)}</dd>
                 </div>
-                <div className="payment-proof-reference">
-                  <dt>Payment reference (UTR)</dt>
-                  <dd>
-                    {purchase.paymentReference
-                      ? <RecordReference id={purchase.paymentReference} label="Payment reference" />
-                      : "—"}
-                  </dd>
-                </div>
+                {purchase.paymentReference && (
+                  <div className="payment-proof-reference">
+                    <dt>Payment reference (UTR)</dt>
+                    <dd>
+                      <RecordReference id={purchase.paymentReference} label="Payment reference" />
+                    </dd>
+                  </div>
+                )}
               </dl>
             </section>
 
@@ -155,7 +155,7 @@ export default function ProofViewerModal({
                   id="proof-flag-reason"
                   aria-describedby="proof-flag-hint"
                   rows={2}
-                  placeholder="e.g. UTR number not found in bank statement or screenshot is illegible"
+                  placeholder="e.g. Payment amount does not match or screenshot is illegible"
                   value={flagReason}
                   onChange={event => setFlagReason(event.target.value)}
                   maxLength={500}

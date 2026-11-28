@@ -13,6 +13,19 @@ import { CreditCase, CreditRecovery, CreditCaseEvent, CreditRepairPlan, CreditRe
 async function connectToDB(){
     auditSigningKey();
     await mongoose.connect(config.MONGO_URI);
+    const usersCollection = mongoose.connection.collection("users");
+    try {
+        const userIndexes = await usersCollection.indexes();
+        for (const indexName of ["email_1", "phone_1"]) {
+            const existing = userIndexes.find((idx) => idx.name === indexName && idx.unique);
+            if (existing) await usersCollection.dropIndex(indexName);
+        }
+        await usersCollection.createIndex({ email: 1 });
+    } catch (error) {
+        if (error?.codeName !== "NamespaceNotFound" && error?.codeName !== "IndexNotFound") {
+            console.warn("Could not update users indexes:", error.message);
+        }
+    }
     await ensureTransactionRefundIndex(mongoose.connection.collection("transactions"));
     await CreditOperation.createIndexes();
     await Promise.all([Transaction, CreditPurchase, CreditPurchaseRate, NumberFilterRequest, NumberFilterRowChunk].map(model => model.createIndexes()));

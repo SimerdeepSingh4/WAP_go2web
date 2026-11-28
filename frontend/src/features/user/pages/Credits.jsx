@@ -16,7 +16,7 @@ import PurchasesTable from "@/features/credits/components/PurchasesTable";
 import { useCreditRates } from "@/features/credits/hooks/useCredits";
 import "@/features/credits/components/credit-history.css";
 
-const labels = { ALLOCATE: "Allocation", DEDUCT: "Credit usage", REFUND: "Refund", RECLAIM: "Reclaim", REQUEST: "Credit request (Legacy)" };
+const labels = { ALLOCATE: "Allocation", DEDUCT: "Credit usage", REFUND: "Refund", RECLAIM: "Reclaim", REQUEST: "Credit request" };
 
 export default function UserCredits({ activity = false }) {
   const { user } = useAuth();
@@ -225,7 +225,6 @@ export default function UserCredits({ activity = false }) {
                   { value: "all", label: "All Categories" },
                   { value: "CAMPAIGN", label: "Campaign Credits" },
                   { value: "NUMBER_FILTERING", label: "Number Filtering Credits" },
-                  { value: "legacy", label: "Legacy Credits" },
                 ]}
               />
               <FilterSelect

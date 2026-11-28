@@ -478,6 +478,15 @@ test("Phase 2 — Pricing, Recharge, Allocation, and Reclaim Lifecycle", async (
     await getRates({ user: directBuyer, query: {} }, rates);
     assert.equal(rates.body.purchaseRates.CAMPAIGN.isDefault, true);
     assert.equal(rates.body.purchaseRates.NUMBER_FILTERING.unitPriceInr, "0.04");
+    const adminViewRates = mockResponse();
+    await getRates({ user: admin, query: { buyerId: String(directBuyer._id) } }, adminViewRates);
+    assert.equal(adminViewRates.statusCode, 200);
+    assert.equal(adminViewRates.body.canEdit, false);
+    assert.equal(adminViewRates.body.purchaseRates.CAMPAIGN.unitPriceInr, "0.2");
+    assert.equal(adminViewRates.body.purchaseRates.NUMBER_FILTERING.unitPriceInr, "0.04");
+    const otherResellerView = mockResponse();
+    await getRates({ user: reseller, query: { buyerId: String(directBuyer._id) } }, otherResellerView);
+    assert.equal(otherResellerView.statusCode, 403);
     const quote = mockResponse();
     await createQuote({ user: directBuyer, body: { category: "CAMPAIGN", quantity: 10 } }, quote);
     assert.equal(quote.statusCode, 201);
@@ -571,6 +580,27 @@ test("Phase 2 — Pricing, Recharge, Allocation, and Reclaim Lifecycle", async (
     assert.equal(details.body.purchase.status, "QUOTED");
     assert.equal(details.body.purchase.seller.role, "Super Admin");
     assert.equal(details.body.purchase.totalInr, quote.body.quote.totalInr);
+  });
+
+  await t.test("Screenshot-only proof submission and approval require no UTR reference", async () => {
+    const q1 = mockResponse(), q2 = mockResponse();
+    await createQuote({ user, body: { category: "CAMPAIGN", quantity: 10 } }, q1);
+    await createQuote({ user, body: { category: "CAMPAIGN", quantity: 10 } }, q2);
+    assert.equal(q1.statusCode, 201);
+    assert.equal(q2.statusCode, 201);
+
+    const file = { buffer: Buffer.from("%PDF-1.4 screenshot-only receipt") };
+    const p1 = mockResponse(), p2 = mockResponse();
+    await submitProof({ user, params: { id: q1.body.quote.id }, body: {}, file }, p1);
+    await submitProof({ user, params: { id: q2.body.quote.id }, body: {}, file }, p2);
+    assert.equal(p1.statusCode, 200);
+    assert.equal(p2.statusCode, 200);
+    assert.equal(p1.body.purchase.paymentReference, undefined);
+
+    const app = mockResponse();
+    await approvePurchase({ user: reseller, params: { id: q1.body.quote.id }, body: {} }, app);
+    assert.equal(app.statusCode, 200);
+    assert.equal(app.body.purchase.status, "APPROVED");
   });
 
 });

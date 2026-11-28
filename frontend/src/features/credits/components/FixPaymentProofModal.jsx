@@ -10,21 +10,17 @@ import PurchaseReceipt from "./PurchaseReceipt";
 import "./payment-proof-modal.css";
 
 export default function FixPaymentProofModal({ purchase, open, onOpenChange }) {
-  const original = purchase.paymentReference || "";
-  const [reference, setReference] = useState(original);
   const [file, setFile] = useState(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [review, setReview] = useState(false);
   const fix = useFixPurchaseProof(() => onOpenChange(false));
-  const changed = Boolean(file) || reference.trim().toUpperCase() !== original.trim().toUpperCase();
-  const canContinue = changed && reference.trim() && !fix.isPending;
+  const canContinue = Boolean(file) && !fix.isPending;
   function submit(event) {
     event.preventDefault();
     if (!canContinue) return;
     if (!review) { setReview(true); return; }
     const formData = new FormData();
-    formData.append("paymentReference", reference.trim());
-    if (file) formData.append("proof", file);
+    formData.append("proof", file);
     fix.mutate({ id: purchase.id || purchase._id, formData });
   }
 
@@ -38,12 +34,11 @@ export default function FixPaymentProofModal({ purchase, open, onOpenChange }) {
       <form id="fix-proof-form" className="payment-proof-body" onSubmit={submit}>
         <section className="payment-proof-notice">
           <strong>Reviewer feedback{purchase.reviewedBy?.username && " · " + purchase.reviewedBy.username}</strong>
-          <p className="mt-1 whitespace-pre-wrap">{purchase.flagReason || "Check your payment reference and receipt against the original transfer."}</p>
+          <p className="mt-1 whitespace-pre-wrap">{purchase.flagReason || "Upload an updated payment screenshot or receipt against the original transfer."}</p>
         </section>
         {review ? <section className="space-y-3" aria-label="Correction summary" aria-live="polite">
           <h3 className="font-semibold">Ready to send for review</h3>
           <dl className="space-y-3 rounded-xl border bg-muted/20 p-3 text-sm">
-            <div><dt className="text-xs text-muted-foreground">Payment reference</dt><dd className="break-all font-mono">{reference.trim()}</dd></div>
             <div><dt className="text-xs text-muted-foreground">Receipt</dt><dd className="break-all font-medium">{file?.name || "Original receipt"}</dd></div>
             <div><dt className="text-xs text-muted-foreground">Quoted amount</dt><dd className="font-medium">₹{purchase.totalInr}</dd></div>
           </dl>
@@ -54,7 +49,7 @@ export default function FixPaymentProofModal({ purchase, open, onOpenChange }) {
             {purchase.hasProof && <Button variant="outline" size="sm" type="button" aria-expanded={showReceipt} onClick={() => setShowReceipt(!showReceipt)}><Eye />{showReceipt ? "Hide original receipt" : "View original receipt"}</Button>}
           </div>
           {showReceipt && <PurchaseReceipt purchase={purchase} />}
-          <PaymentProofFields reference={reference} onReferenceChange={setReference} file={file} onFileChange={setFile} replacement />
+          <PaymentProofFields file={file} onFileChange={setFile} replacement />
         </>}
         {fix.isError && <p className="text-sm text-destructive" role="alert">{fix.error.message}</p>}
       </form>

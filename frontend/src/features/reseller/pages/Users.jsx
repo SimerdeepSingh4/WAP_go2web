@@ -442,7 +442,7 @@ export default function ResellerUsers() {
           role="User"
           successMessage="User created successfully"
           onClose={() => setModal(null)}
-          initialValues={{ username: "", email: "", phone: "", companyName: "", password: "", expiresAt: "" }}
+          initialValues={{ username: "", email: "", phone: "", companyName: "", password: "", campaignRate: "", filteringRate: "", expiresAt: "" }}
           fields={[
             { key: "username", label: "User name", required: true, maxLength: 100 },
             { key: "email", label: "Email address", type: "email", required: true },
@@ -456,31 +456,56 @@ export default function ResellerUsers() {
               hint: "Must contain at least 8 characters.",
             },
             {
+              key: "campaignRate",
+              label: "Campaign credit rate in INR (optional)",
+              inputMode: "decimal",
+              hint: "INR per Campaign Credit (e.g. 0.25). Leave blank for your default rate.",
+            },
+            {
+              key: "filteringRate",
+              label: "Filtering credit rate in INR (optional)",
+              inputMode: "decimal",
+              hint: "INR per Number Filtering Credit (e.g. 0.10). Leave blank for your default rate.",
+            },
+            {
               key: "expiresAt",
               label: "User expiry date (optional)",
               type: "date",
               hint: "The user remains active through this date. Leave blank for no expiry.",
             },
           ]}
-          validate={(v) =>
-            v.password.trim().length < 8
-              ? "The initial password must contain at least 8 characters."
-              : ""
-          }
-          payload={(v) => ({
-            username: v.username.trim(),
-            email: v.email.trim(),
-            phone: (v.phone || "").trim(),
-            companyName: (v.companyName || "").trim(),
-            password: v.password,
-            role: "User",
-            expiresAt: v.expiresAt || null,
-          })}
+          validate={(v) => {
+            if (v.password.trim().length < 8) return "The initial password must contain at least 8 characters.";
+            for (const [val, label] of [[v.campaignRate, "Campaign credit rate"], [v.filteringRate, "Filtering credit rate"]]) {
+              const trimmed = String(val || "").trim();
+              if (trimmed && (!/^\d+(?:\.\d+)?$/.test(trimmed) || !(Number(trimmed) > 0))) {
+                return `${label} must be a positive INR price (e.g. 0.25).`;
+              }
+            }
+            return "";
+          }}
+          payload={(v) => {
+            const purchaseRates = {};
+            if (v.campaignRate?.trim()) purchaseRates.CAMPAIGN = v.campaignRate.trim();
+            if (v.filteringRate?.trim()) purchaseRates.NUMBER_FILTERING = v.filteringRate.trim();
+            return {
+              username: v.username.trim(),
+              email: v.email.trim(),
+              phone: (v.phone || "").trim(),
+              companyName: (v.companyName || "").trim(),
+              password: v.password,
+              role: "User",
+              expiresAt: v.expiresAt || null,
+              ...(Object.keys(purchaseRates).length ? { purchaseRates } : {}),
+            };
+          }}
           review={(v) => (
             <>
               <p className="font-medium text-foreground">{v.username}</p>
               <p className="text-muted-foreground text-xs">{v.email}</p>{v.companyName && <p className="text-xs">Company: {v.companyName}</p>}{v.phone && <p className="text-xs">Phone: {v.phone}</p>}
               <p className="text-xs mt-1">Role: User</p>
+              <p className="text-xs">Campaign rate: <strong>{v.campaignRate?.trim() ? `₹${v.campaignRate.trim()} / credit` : "Seller default"}</strong></p>
+              <p className="text-xs">Filtering rate: <strong>{v.filteringRate?.trim() ? `₹${v.filteringRate.trim()} / credit` : "Seller default"}</strong></p>
               <p className="text-xs">
                 Expiry: <strong>{v.expiresAt || "No expiry"}</strong>
               </p>
