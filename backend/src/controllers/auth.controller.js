@@ -192,6 +192,7 @@ export async function login(req, res) {
                 isExpired: isAccountExpired(user),
                 maxVideoSizeMB: user.maxVideoSizeMB ?? 3,
                 featureAccess: user.featureAccess,
+                canManageClientCampaignLimits: user.canManageClientCampaignLimits === true,
                 whiteLabel,
             },
         });
@@ -349,6 +350,7 @@ export async function getMe(req, res) {
                 originalAdmin: req.originalAdmin || null,
                 maxVideoSizeMB: req.user.maxVideoSizeMB ?? 3,
                 featureAccess: req.user.featureAccess,
+                canManageClientCampaignLimits: req.user.canManageClientCampaignLimits === true,
                 whiteLabel,
             },
             currentSession: {

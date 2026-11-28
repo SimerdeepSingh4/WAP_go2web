@@ -511,19 +511,22 @@ export default function ResellerUsers() {
             status: modal.account.status === "expired" || (modal.account.isExpired && modal.account.status === "active") ? "expired" : modal.account.status || "active",
             accessReason: modal.account.accessReason || "",
             expiresAt: modal.account.expiresAt ? new Date(modal.account.expiresAt).toISOString().slice(0, 10) : "",
+            dailyCampaignLimit: modal.account.dailyCampaignLimit != null ? String(modal.account.dailyCampaignLimit) : "",
           }}
           fields={[
             { key: "status", label: "User status", options: [{ value: "active", label: "Active" }, { value: "blocked", label: "Blocked" }, { value: "expired", label: "Expired" }] },
             { key: "accessReason", label: "Reason shown to this user (optional)", type: "textarea", maxLength: 1000, hint: "The user can view this reason." },
             { key: "expiresAt", label: "User expiry date (optional)", type: "date", hint: "The user remains active through this date. Leave blank for no expiry." },
+            ...(signedInUser?.canManageClientCampaignLimits ? [{ key: "dailyCampaignLimit", label: "Daily campaign limit (optional)", type: "number", min: 1, step: 1, hint: "Leave blank to use the platform default of 5 campaigns per day." }] : []),
           ]}
-          payload={(values) => ({ id: modal.account._id, status: values.status, expiresAt: values.expiresAt || null, accessReason: (values.accessReason || "").trim() })}
+          payload={(values) => ({ id: modal.account._id, status: values.status, expiresAt: values.expiresAt || null, accessReason: (values.accessReason || "").trim(), ...(signedInUser?.canManageClientCampaignLimits ? { dailyCampaignLimit: values.dailyCampaignLimit ? Number(values.dailyCampaignLimit) : null } : {}) })}
           review={(values) => (
             <>
               <p className="font-medium">{modal.account.username}</p>
               <p>Status: <strong>{values.status}</strong></p>
               {values.accessReason && <p>Reason: {values.accessReason}</p>}
               <p>Expiry: <strong>{values.expiresAt || "No expiry"}</strong></p>
+              {signedInUser?.canManageClientCampaignLimits && <p>Daily limit: <strong>{values.dailyCampaignLimit ? `${values.dailyCampaignLimit} campaigns / day` : "Platform default (5 / day)"}</strong></p>}
             </>
           )}
           submitLabel="Save user access"

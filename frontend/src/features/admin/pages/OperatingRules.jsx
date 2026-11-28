@@ -21,7 +21,7 @@ import { CampaignMediaSettings } from "../components/MediaUploadLimits";
 
 const STORAGE_KEY = "admin_platform_settings";
 const DEFAULT_SETTINGS = {
-  dailyCampaignLimit: 10,
+  dailyCampaignLimit: 5,
   startTime: "09:00", endTime: "19:00", outOfWindowBehavior: "queue",
   maxAllowedDevices: 3, deviceEvictionStrategy: "fifo",
   lowBalanceThreshold: 500,

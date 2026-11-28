@@ -1,7 +1,7 @@
 import platformSettings from "../models/platformSettings.model.js";
 
 export const DEFAULT_PLATFORM_SETTINGS = {
-    dailyCampaignLimit: 10,
+    dailyCampaignLimit: 5,
     defaultRatePerMsg: 1,
     lowBalanceThreshold: 500,
     accountExpiryValue: 2,
@@ -38,7 +38,7 @@ export async function getPlatformDailyCampaignLimit() {
     const settings = await platformSettings.findById("platform").lean();
     return Number.isInteger(settings?.dailyCampaignLimit) && settings.dailyCampaignLimit >= 1
         ? settings.dailyCampaignLimit
-        : 10;
+        : 5;
 }
 
 export async function getEffectiveDailyCampaignLimit(user) {
