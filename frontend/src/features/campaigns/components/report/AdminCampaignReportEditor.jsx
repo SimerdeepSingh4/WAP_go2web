@@ -13,7 +13,7 @@ import { buildCampaignReportPreview } from "../../lib/reportPreview";
 import PublishedSpreadsheetReport from "./PublishedSpreadsheetReport";
 import FailedCampaignReport from "./FailedCampaignReport";
 
-export default function AdminCampaignReportEditor({ campaign, base, onRefresh, isRefreshing }) {
+export default function AdminCampaignReportEditor({ campaign, base, isRefreshing }) {
   const queryClient = useQueryClient();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [publishedRevision, setPublishedRevision] = useState(null);
@@ -35,6 +35,7 @@ export default function AdminCampaignReportEditor({ campaign, base, onRefresh, i
         customTabs: campaign.customRecipientTabs,
         recipientCategoryLabels: campaign.recipientCategoryLabels,
         reportNotes: sheet.notes,
+        maskReportNumbers: campaign.maskReportNumbers !== false,
         saveMode: "publish",
         status: campaign.status === "failed" ? "failed" : "completed",
       });

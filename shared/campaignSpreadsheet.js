@@ -216,6 +216,38 @@ export function normalizeDuplicateRows(entries) {
   return entries.map((row) => updates.get(row) || row);
 }
 
+export function maskReportPhoneNumber(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  if (raw.length <= 2) return "X".repeat(raw.length);
+  if (raw.length <= 4) return `${raw[0]}${"X".repeat(raw.length - 2)}${raw.slice(-1)}`;
+  return `${raw.slice(0, 2)}${"X".repeat(raw.length - 4)}${raw.slice(-2)}`;
+}
+
+export function maskSheetPhoneNumbers(sheet) {
+  if (!sheet || !Array.isArray(sheet.rows)) return sheet;
+  const phoneColumnIds = (sheet.columns || [])
+    .filter((column) => column.field === "phoneNumber")
+    .map((column) => column.id);
+  return {
+    ...sheet,
+    rows: sheet.rows.map((row) => {
+      const maskedPhone = maskReportPhoneNumber(row.phoneNumber);
+      const nextValues = row.values ? { ...row.values } : undefined;
+      if (nextValues) {
+        for (const colId of phoneColumnIds) {
+          nextValues[colId] = maskReportPhoneNumber(nextValues[colId] ?? row.phoneNumber);
+        }
+      }
+      return {
+        ...row,
+        phoneNumber: maskedPhone,
+        ...(nextValues ? { values: nextValues } : {}),
+      };
+    }),
+  };
+}
+
 export function buildPublishedSheet(entries, inputColumns) {
   const columns = normalizeColumns(inputColumns);
   const evaluator = createSheetEvaluator(entries, columns);

@@ -12,7 +12,7 @@ import { notifyUser, notifyRole, notifyReseller } from "../services/socket.servi
 import { scheduleCampaignJob, cancelCampaignJob } from "../queues/campaign.queue.js";
 import xlsx from "xlsx";
 import { loadSpreadsheetRows, saveSpreadsheetRows } from "../helpers/spreadsheet-storage.js";
-import { normalizeColumns, buildPublishedSheet, normalizeDuplicateRows } from "../../../shared/campaignSpreadsheet.js";
+import { normalizeColumns, buildPublishedSheet, maskReportPhoneNumber, maskSheetPhoneNumbers, normalizeDuplicateRows } from "../../../shared/campaignSpreadsheet.js";
 import { creditAmount, creditsForCount, creditDifference, creditTransactionOptions } from "../helpers/credit-amount.js";
 import { LEGACY_CREDITS } from "../helpers/credit-categories.js";
 import { startCreditSession, saveCreditReceipt, creditPostingKey, creditErrorDetails, abortCreditSession, runCreditTransaction } from "../helpers/credit-operation.js";
@@ -395,8 +395,9 @@ export const downloadRecipientReport = async (req, res) => {
         if (result.error) return res.status(result.error.status).json({ success: false, message: result.error.message });
         const { campaign } = result;
         if (campaign.publishedSpreadsheet?.publishedAt) {
-            const sheet = campaign.publishedSpreadsheet;
-            sheet.rows = await loadSpreadsheetRows(campaign._id, "published");
+            const loadedRows = await loadSpreadsheetRows(campaign._id, "published");
+            const baseSheet = { ...campaign.publishedSpreadsheet, rows: loadedRows };
+            const sheet = campaign.maskReportNumbers !== false ? maskSheetPhoneNumbers(baseSheet) : baseSheet;
             const rows = [["All index", ...sheet.columns.map((column) => column.label)], ...sheet.rows.map((row) => [row.rowNumber, ...sheet.columns.map((column) => row.values[column.id] ?? "")])];
             const buffer = makeWorkbookBuffer(rows, "Campaign Report");
             res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
@@ -408,6 +409,7 @@ export const downloadRecipientReport = async (req, res) => {
             return res.status(404).json({ success: false, message: "No recipient report has been published for this campaign." });
         }
 
+        const maskLegacyReport = req.user.role !== "Super Admin" && campaign.maskReportNumbers !== false;
         const categoryByNumber = new Map(report.records.map((record) => [record.phoneNumber, record.category]));
         const orderedRows = [["S.No", "Phone Number", "Status"]];
         const categoryRows = [[
@@ -416,14 +418,15 @@ export const downloadRecipientReport = async (req, res) => {
             REPORT_CATEGORY_LABELS.spam,
         ]];
         for (const [index, recipient] of (campaign.recipients || []).entries()) {
-            const phoneNumber = String(recipient.phoneNumber || "");
-            const category = categoryByNumber.get(phoneNumber);
+            const rawPhoneNumber = String(recipient.phoneNumber || "");
+            const category = categoryByNumber.get(rawPhoneNumber);
+            const displayPhone = maskLegacyReport ? maskReportPhoneNumber(rawPhoneNumber) : rawPhoneNumber;
             orderedRows.push([
                 index + 1,
-                phoneNumber,
+                displayPhone,
                 REPORT_CATEGORY_LABELS[category] || "",
             ]);
-            categoryRows.push(REPORT_CATEGORIES.map((item) => item === category ? phoneNumber : ""));
+            categoryRows.push(REPORT_CATEGORIES.map((item) => item === category ? displayPhone : ""));
         }
 
         const workbook = xlsx.utils.book_new();
@@ -1124,10 +1127,23 @@ export const getCampaignById = async (req, res) => {
             }
         }
         if (!isSuperAdmin) {
+            const shouldMaskPublishedReport = Boolean(view.publishedSpreadsheet?.publishedAt) && view.maskReportNumbers !== false;
+            if (shouldMaskPublishedReport) {
+                view.publishedSpreadsheet = maskSheetPhoneNumbers(view.publishedSpreadsheet);
+                if (Array.isArray(view.recipientReport?.records)) {
+                    view.recipientReport = {
+                        ...view.recipientReport,
+                        records: view.recipientReport.records.map((rec) => ({
+                            ...rec,
+                            phoneNumber: maskReportPhoneNumber(rec.phoneNumber),
+                        })),
+                    };
+                }
+            }
             if (Array.isArray(view.recipientEntries)) {
                 view.recipientEntries = view.recipientEntries.map((e) => ({
                     rowNumber: e.rowNumber,
-                    phoneNumber: e.phoneNumber,
+                    phoneNumber: shouldMaskPublishedReport ? maskReportPhoneNumber(e.phoneNumber) : e.phoneNumber,
                     status: e.status,
                     category: e.category,
                 }));
@@ -1756,6 +1772,9 @@ async function saveFailureReport(req, res, campaign, session) {
     if (notes.length > 4000 || (mode === "publish" && !notes)) { const error = new Error("Enter a failure reason of 1 to 4000 characters before publishing."); error.statusCode = 400; throw error; }
     const entries = failureReportEntries(campaign);
     if (!entries.length) { const error = new Error("The original campaign contacts are unavailable. Review this campaign before publishing."); error.statusCode = 409; throw error; }
+    if (typeof req.body.maskReportNumbers === "boolean") {
+        campaign.maskReportNumbers = req.body.maskReportNumbers;
+    }
     campaign.draftReportNotes = notes;
     campaign.spreadsheetRevision = (campaign.spreadsheetRevision || 0) + 1;
     let refundInfo = null;
@@ -1798,7 +1817,8 @@ async function saveFailureReport(req, res, campaign, session) {
                 transactionId: transaction._id,
             };
         }
-        const sheet = failureReportSheet(campaign, notes);
+        const rawSheet = failureReportSheet(campaign, notes);
+        const sheet = campaign.maskReportNumbers !== false ? maskSheetPhoneNumbers(rawSheet) : rawSheet;
         const publishedAt = new Date();
         campaign.status = "failed";
         campaign.publicStatus = "failed";
@@ -1863,6 +1883,9 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
             });
         }
 
+        if (typeof req.body.maskReportNumbers === "boolean") {
+            campaign.maskReportNumbers = req.body.maskReportNumbers;
+        }
         if (campaign.status === "failed") return await saveFailureReport(req, res, campaign, mongoSession);
         if (req.body.status === "failed") { const error = new Error("Select Failed on the campaign before preparing its failure report."); error.statusCode = 409; throw error; }
 
@@ -1919,7 +1942,10 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
                 return { ...entry, rowNumber, phoneNumber, notes: String(entry.notes || "").slice(0, 2000), cells };
             });
             if ([...knownIds].some((rowNumber) => !rowIds.has(rowNumber))) throw new Error("Keep existing recipient rows and their All indexes. Move rows into a category instead of deleting them.");
-            if (saveMode === "publish") publishedSheet = buildPublishedSheet(entries, sheetColumns);
+            if (saveMode === "publish") {
+              const rawPublishedSheet = buildPublishedSheet(entries, sheetColumns);
+              publishedSheet = campaign.maskReportNumbers !== false ? maskSheetPhoneNumbers(rawPublishedSheet) : rawPublishedSheet;
+            }
           } catch (error) { error.statusCode = 400; throw error; }
         }
 
@@ -2097,6 +2123,9 @@ export const updateCampaignRecipientsManagement = async (req, res) => {
 
         const viewData = campaign.toObject ? campaign.toObject() : { ...campaign };
         viewData.recipientEntries = entries;
+        if (saveMode === "publish" && publishedSheet) {
+            viewData.publishedSpreadsheet = { ...viewData.publishedSpreadsheet, rows: publishedSheet.rows };
+        }
 
         return res.status(200).json({
             success: true,

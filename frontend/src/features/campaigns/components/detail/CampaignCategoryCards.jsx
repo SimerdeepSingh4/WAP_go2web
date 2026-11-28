@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -102,6 +103,7 @@ export default function CampaignCategoryCards({ campaign }) {
   );
 
   const [cardLabels, setCardLabels] = useState(campaign.recipientCategoryLabels || {});
+  const [maskNumbers, setMaskNumbers] = useState(campaign.maskReportNumbers !== false);
   const [savedRevision, setSavedRevision] = useState(campaign.spreadsheetRevision || 0);
   const [renameCard, setRenameCard] = useState(null);
   const [renameValue, setRenameValue] = useState("");
@@ -163,7 +165,7 @@ export default function CampaignCategoryCards({ campaign }) {
     return texts;
   });
 
-  const editorSnapshot = () => JSON.stringify({ customCards, cardLabels, cardBillings, cardTexts });
+  const editorSnapshot = () => JSON.stringify({ customCards, cardLabels, cardBillings, cardTexts, maskNumbers });
   const [serverSnapshot, setServerSnapshot] = useState(() => editorSnapshot());
   const currentSnapshot = editorSnapshot();
   const hasLocalEdits = currentSnapshot !== serverSnapshot;
@@ -177,6 +179,7 @@ export default function CampaignCategoryCards({ campaign }) {
         setCardLabels(draft.cardLabels || campaign.recipientCategoryLabels || {});
         setCardBillings(draft.cardBillings || {});
         setCardTexts(draft.cardTexts || {});
+        if (typeof draft.maskNumbers === "boolean") setMaskNumbers(draft.maskNumbers);
         toast.add({ title: "Unfinished report edits restored", description: "Your category changes are ready to continue.", type: "info" });
       }
       setDraftReady(true);
@@ -194,10 +197,10 @@ export default function CampaignCategoryCards({ campaign }) {
       return undefined;
     }
     draftSaveTimer.current = window.setTimeout(() => {
-      writeCampaignDraft(draftKey, { customCards, cardLabels, cardBillings, cardTexts }).catch(() => {});
+      writeCampaignDraft(draftKey, { customCards, cardLabels, cardBillings, cardTexts, maskNumbers }).catch(() => {});
     }, 250);
     return () => window.clearTimeout(draftSaveTimer.current);
-  }, [draftReady, draftKey, hasLocalEdits, customCards, cardLabels, cardBillings, cardTexts]);
+  }, [draftReady, draftKey, hasLocalEdits, customCards, cardLabels, cardBillings, cardTexts, maskNumbers]);
 
   // Read-only all contacts text
   const allContactsText = useMemo(() => {
@@ -496,6 +499,7 @@ export default function CampaignCategoryCards({ campaign }) {
         entries: finalEntries,
         customTabs: customCards,
         recipientCategoryLabels: cardLabels,
+        maskReportNumbers: maskNumbers,
         saveMode,
         spreadsheetRevision: savedRevision,
         spreadsheetColumns: campaign.spreadsheetColumns,
@@ -543,11 +547,12 @@ export default function CampaignCategoryCards({ campaign }) {
     <form data-tour="report-editor" id="campaign-recipient-report" className="space-y-4" onSubmit={(event) => { event.preventDefault(); if (!isSaving && !isStarting) handleSave("draft", true); }}>
       <section data-tour="report-editor-actions" className="overflow-hidden rounded-xl border border-border bg-card" aria-label="Report controls">
         <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <div className="space-y-1">
-            <h2 className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">Recipient report <span className="rounded-md bg-muted px-2 py-0.5 text-[10px] font-normal text-muted-foreground">{number(rate)} credits / recipient</span></h2>
-            <p className="text-[11px] text-muted-foreground">Paste numbers into a category to move them.</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <h2 className="text-sm font-semibold text-foreground">Recipient report</h2>
+            <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-medium text-foreground select-none"><span>{maskNumbers ? "Encrypted numbers" : "Decrypted numbers"}</span><input type="checkbox" role="switch" checked={maskNumbers} disabled={isSaving} onChange={(event) => setMaskNumbers(event.target.checked)} title="Show numbers as 98XXXXXX10 in the campaign creator's report" className="portal-toggle !mt-0" /></label>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+
             <Button type="button" variant="outline" size="sm" onClick={handleDownloadExcel} disabled={isDownloading || isSaving || isStarting || originalUploadedNumbers.length === 0}>{isDownloading ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />} Download Excel</Button>
             <Button type="button" variant="outline" size="sm" onClick={() => setCreateCategoryModalOpen(true)} disabled={isSaving}><Plus className="size-3.5" /> Add category</Button>
             {campaign.status === "pending" && <Button type="button" variant="outline" size="sm" onClick={handleStartCampaign} disabled={isStarting || isSaving}>{isStarting ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />} Start campaign</Button>}
@@ -584,8 +589,8 @@ export default function CampaignCategoryCards({ campaign }) {
               <div className="flex items-center gap-1"><Button type="button" variant="ghost" size="xs" onClick={() => handleCopyText(card.key, text, card.label)} disabled={!text.trim()} aria-label={"Copy " + title + " for Excel"}>{copiedCard === card.key ? <Check className="size-3" /> : <Copy className="size-3" />}{copiedCard === card.key ? "Copied" : "Copy"}</Button>{isCustom && <Button type="button" variant="ghost" size="icon-xs" onClick={() => handleDeleteCategory(card.key, card.label)} disabled={isSaving} aria-label={"Delete " + title} className="text-muted-foreground hover:text-destructive"><Trash2 className="size-3.5" /></Button>}</div>
             </div>
             <div className="space-y-3 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2"><label htmlFor={"numbers-" + card.key} className="text-[11px] text-muted-foreground">Phone numbers</label><select aria-label={"Credit treatment for " + title} value={stat.billing} onChange={() => handleToggleCardBilling(card.key)} disabled={isSaving} className={"h-7 rounded-md border bg-background px-2 text-[11px] outline-none focus-visible:ring-2 focus-visible:ring-ring/30 " + (isRefund ? "border-emerald-200 text-emerald-700 dark:border-emerald-800 dark:text-emerald-300" : "border-input text-foreground")}><option value="keep">Keep charged</option><option value="refund">Refund credits</option></select></div>
-              <textarea id={"numbers-" + card.key} rows={5} value={text} onChange={(event) => handleCardTextChange(card.key, event.target.value)} disabled={isSaving} spellCheck={false} autoCorrect="off" autoCapitalize="none" placeholder="Type or paste numbers, one per line" className="block h-36 min-h-28 max-h-64 w-full resize-y overflow-y-auto rounded-lg border border-input bg-background px-3 py-2 font-mono text-xs leading-6 text-foreground outline-none transition-colors placeholder:font-sans placeholder:text-muted-foreground/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 disabled:opacity-60" />
+              <div className="flex flex-wrap items-center justify-between gap-2"><label htmlFor={"numbers-" + card.key} className="text-[11px] text-muted-foreground">Phone numbers</label><Select value={stat.billing} items={[{ value: "keep", label: "Keep charged" }, { value: "refund", label: "Refund credits" }]} onValueChange={(nextValue) => { if (nextValue && nextValue !== stat.billing) handleToggleCardBilling(card.key); }} disabled={isSaving}><SelectTrigger aria-label={"Credit treatment for " + title} size="sm" className={"h-8 min-w-34 rounded-lg px-2.5 text-[11px] font-medium shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/20 " + (isRefund ? "border-emerald-200 text-emerald-700 dark:border-emerald-800 dark:text-emerald-300" : "border-input text-foreground")}><SelectValue /></SelectTrigger><SelectContent align="end" alignItemWithTrigger={false}><SelectItem value="keep" className="text-xs">Keep charged</SelectItem><SelectItem value="refund" className="text-xs">Refund credits</SelectItem></SelectContent></Select></div>
+              <textarea data-slot="textarea" id={"numbers-" + card.key} rows={5} value={text} onChange={(event) => handleCardTextChange(card.key, event.target.value)} disabled={isSaving} spellCheck={false} autoCorrect="off" autoCapitalize="none" placeholder="Type or paste numbers, one per line" className="block h-36 min-h-28 max-h-64 w-full resize-y overflow-y-auto rounded-lg border border-input bg-background px-3 py-2 font-mono text-xs leading-6 text-foreground outline-none transition-colors placeholder:font-sans placeholder:text-muted-foreground/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 disabled:opacity-60" />
             </div>
           </section>;
         })}

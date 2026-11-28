@@ -5,7 +5,7 @@
 .admin-portal { min-height: 100svh; background: var(--background); color: var(--foreground); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
 .admin-portal *, .portal-account-menu * { box-sizing: border-box; }
 .admin-portal :where(button, input, select) { font: inherit; }
-.admin-portal :where(button, a, input:not([data-slot="input"]), select, summary):focus-visible,
+.admin-portal :where(button:not([data-slot="select-trigger"]), a, input:not([data-slot="input"]), summary):focus-visible,
 [data-sidebar="sidebar"]:has(.portal-brand) a:focus-visible { outline: 2px solid var(--brand-ring, var(--primary)); outline-offset: 3px; }
 .admin-portal :where(button, a) { -webkit-tap-highlight-color: transparent; }
 .admin-portal :where(button, select, summary):not(:disabled) { cursor: pointer; }
