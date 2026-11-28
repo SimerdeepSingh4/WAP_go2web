@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, Eye, EyeOff, LoaderCircle } from "lucide-react";
 import { DEFAULT_BRANDING, useBranding } from "@/features/branding/context/branding-context";
 import { useAuth } from "../hooks/useAuth";
@@ -38,6 +38,10 @@ export default function LoginPage({ onLogin, panelName: propPanelName }) {
   const [forgotError, setForgotError] = useState("");
 
   const { login, isLoggingIn } = useAuth();
+
+  useEffect(() => {
+    if (errorMsg) errorRef.current?.focus();
+  }, [errorMsg]);
 
   function returnToSignIn() {
     setIsForgotPassword(false);
@@ -89,13 +93,11 @@ export default function LoginPage({ onLogin, panelName: propPanelName }) {
         }
       } else {
         setErrorMsg(data?.message || "Invalid credentials.");
-        requestAnimationFrame(() => errorRef.current?.focus());
       }
     } catch (err) {
       setErrorMsg(
         err.message || "Unable to sign in. Check your details and try again."
       );
-      requestAnimationFrame(() => errorRef.current?.focus());
     }
   }
 

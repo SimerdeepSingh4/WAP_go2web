@@ -1,0 +1,43 @@
+.login-page {
+  grid-template: "brand" "form" / minmax(0, 23.75rem);
+  place-content: center;
+  gap: 2rem;
+  padding: clamp(2rem, 4vw, 4rem) clamp(1.5rem, 6vw, 5rem);
+}
+
+.login-page__brand {
+  grid-area: brand;
+}
+
+.login-page__form {
+  grid-area: form;
+  align-self: center;
+}
+
+.login-page__intro {
+  display: none;
+  grid-area: intro;
+}
+
+@media (min-width: 56rem) and (min-height: 32rem) {
+  .login-page {
+    grid-template:
+      "brand form"
+      "intro form"
+      "artwork form" / minmax(0, 34rem) minmax(0, 23.75rem);
+    gap: clamp(1.25rem, 3dvh, 2rem) clamp(3rem, 8vw, 8rem);
+    background-image: linear-gradient(105deg, var(--muted), transparent 67%);
+  }
+
+  .login-page__intro {
+    display: block;
+  }
+
+  .login-page::after {
+    grid-area: artwork;
+    width: min(100%, 32rem, 66dvh);
+    aspect-ratio: 3 / 2;
+    background: url("../../../assets/login-campaign-hero.webp") center / contain no-repeat;
+    content: "";
+  }
+}
