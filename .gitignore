@@ -25,4 +25,7 @@ payment_proofs_private/
 *.njsproj
 *.sln
 *.sw?
+
+/credit-system-plan.md
+/credit-system-remaining-tasks.md
     
