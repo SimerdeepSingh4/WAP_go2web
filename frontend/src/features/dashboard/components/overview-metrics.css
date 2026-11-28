@@ -153,6 +153,7 @@ html[data-custom-kpi] .overview-metric-card[data-brand-slot] {
 }
 .overview-metric-content {
   display: flex;
+  width: 100%;
   min-width: 0;
   min-height: 154px;
   height: 100%;
@@ -162,6 +163,7 @@ html[data-custom-kpi] .overview-metric-card[data-brand-slot] {
   border-radius: inherit;
   color: inherit;
   text-decoration: none;
+  container-type: inline-size;
 }
 .overview-metric-content:focus-visible { outline: 2px solid var(--metric-text); outline-offset: -5px; }
 .overview-metric-heading {
@@ -195,9 +197,13 @@ a.overview-metric-content:hover .overview-metric-icon svg { transform: translate
   font-size: clamp(32px, 2.8vw, 42px);
   font-weight: 500;
   line-height: 1.08;
-  letter-spacing: -1.6px;
+  letter-spacing: -0.035em;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
+}
+.overview-metric-value[data-numeric="true"] {
+  white-space: nowrap;
+  font-size: clamp(14px, calc(100cqi / (max(var(--metric-chars, 6), 5) * 0.65)), var(--metric-max-size, 42px));
 }
 .overview-metric-value[data-size="text"] { font-size: 22px; line-height: 1.3; letter-spacing: -.5px; }
 .overview-metric-value-suffix { font-size: 14px; font-weight: 400; letter-spacing: normal; margin-inline-start: 6px; }
@@ -260,7 +266,7 @@ a.overview-metric-content:hover .overview-metric-icon svg { transform: translate
 }
 .overview-metric-skeleton { display: block; width: 60%; height: 1em; border-radius: 6px; background: currentColor; opacity: .15; animation: overview-metric-pulse 1.5s ease-in-out infinite; }
 .overview-metrics-compact .overview-metric-content { min-height: 130px; padding: 14px; }
-.overview-metrics-compact .overview-metric-value { font-size: 30px; }
+.overview-metrics-compact .overview-metric-value { --metric-max-size: 30px; font-size: 30px; }
 @keyframes overview-metric-pulse { 50% { opacity: .07; } }
 @media (max-width: 1200px) { .overview-metrics { grid-template-columns: repeat(min(var(--overview-columns, 4), 2), minmax(0, 1fr)); } }
 @media (max-width: 640px) {
@@ -270,7 +276,7 @@ a.overview-metric-content:hover .overview-metric-icon svg { transform: translate
   .overview-metric-heading { gap: 7px; font-size: 12px; }
   .overview-metric-icon { width: 25px; height: 25px; flex-basis: 25px; }
   .overview-metric-icon svg { width: 14px; height: 14px; }
-  .overview-metric-value { font-size: 32px; letter-spacing: -1.2px; }
+  .overview-metric-value { --metric-max-size: 32px; font-size: 32px; letter-spacing: -0.035em; }
   .overview-metric-value[data-size="text"] { font-size: 19px; }
   .overview-metric-sub-value { font-size: 24px; letter-spacing: -0.8px; }
   .overview-metric-sub-value .overview-metric-value-suffix { font-size: 11px; }

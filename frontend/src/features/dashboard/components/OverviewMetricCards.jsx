@@ -6,6 +6,9 @@ import "./overview-metrics.css";
 export function OverviewMetricCard({ label, value, caption, icon: Icon, path, accent = false, tone, loading, valueSize, signDisplay, valueSuffix, className = "", metrics, brandSlot }) {
   // Navigation gets an arrow; informational cards retain their metric icon.
   const Indicator = path ? ArrowUpRight : Icon;
+  const numericChars = !valueSuffix && typeof value === "number" && Number.isFinite(value)
+    ? new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2, signDisplay }).format(value).length
+    : null;
   const content = <>
     <div className="overview-metric-heading">
       <span>{label}</span>
@@ -34,7 +37,13 @@ export function OverviewMetricCard({ label, value, caption, icon: Icon, path, ac
         ))}
       </div>
     ) : (
-      <p className="overview-metric-value" data-size={valueSize} aria-busy={loading || undefined}>
+      <p
+        className="overview-metric-value"
+        data-size={valueSize}
+        data-numeric={numericChars ? "true" : undefined}
+        style={numericChars ? { "--metric-chars": numericChars } : undefined}
+        aria-busy={loading || undefined}
+      >
         {loading ? <span role="status" className="overview-metric-skeleton"><span className="sr-only">Loading {label}</span></span> : value == null || (typeof value === "number" && !Number.isFinite(value)) ? "—" : typeof value === "number" ? <AnimatedMetricValue value={value} signDisplay={signDisplay} /> : value}
         {!loading && value != null && valueSuffix && <span className="overview-metric-value-suffix"> {valueSuffix}</span>}
       </p>

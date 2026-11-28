@@ -6,7 +6,7 @@ import transactionModel from "../models/transaction.model.js";
 import contactModel from "../models/contact.model.js";
 import groupModel from "../models/group.model.js";
 import templateModel from "../models/template.model.js";
-import { LEGACY_CREDITS, categoryBalances } from "../helpers/credit-categories.js";
+import { categoryBalances } from "../helpers/credit-categories.js";
 
 /**
  * GET /api/dashboard/stats
@@ -56,7 +56,7 @@ export const getDashboardStats = async (req, res) => {
                     },
                 ]),
                 transactionModel.aggregate([
-                    { $match: { ...LEGACY_CREDITS, fromUser: null, type: "ALLOCATE" } },
+                    { $match: { fromUser: null, type: "ALLOCATE" } },
                     { $group: { _id: null, total: { $sum: "$amount" } } },
                 ]),
                 campaignModel.countDocuments(),
@@ -155,7 +155,7 @@ export const getDashboardStats = async (req, res) => {
                     userModel.find({ resellerId: userId }).select("_id status"),
                     walletModel.findOne({ userId }),
                     transactionModel.aggregate([
-                        { $match: { ...LEGACY_CREDITS, fromUser: userId, type: "ALLOCATE" } },
+                        { $match: { fromUser: userId, type: "ALLOCATE" } },
                         { $group: { _id: null, total: { $sum: "$amount" } } },
                     ]),
                     walletModel.aggregate([
@@ -163,13 +163,12 @@ export const getDashboardStats = async (req, res) => {
                         { $group: { _id: null, total: { $sum: "$balance" } } },
                     ]),
                     transactionModel.aggregate([
-                        { $match: { ...LEGACY_CREDITS, toUser: userId, type: "ALLOCATE" } },
+                        { $match: { toUser: userId, type: "ALLOCATE" } },
                         { $group: { _id: null, total: { $sum: "$amount" } } },
                     ]),
                     transactionModel.aggregate([
                         {
                             $match: {
-                                ...LEGACY_CREDITS,
                                 toUser: userId,
                                 type: "ALLOCATE",
                                 createdAt: { $gte: startOfMonth },
