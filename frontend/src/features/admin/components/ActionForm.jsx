@@ -12,7 +12,7 @@ import { Field, FilterSelect, FormError } from "../../dashboard/components/share
 import ActionReview, { ActionFormProgress, actionReviewLabel } from "@/features/dashboard/components/ActionReview";
 import { readCampaignDraft, removeCampaignDraft, writeCampaignDraft } from "@/features/campaigns/lib/draftStorage";
 
-export default function ActionForm({ title, description, action, successMessage, fields, initialValues, validate, payload, review, onClose, submitLabel = "Confirm changes", draftKey }) {
+export default function ActionForm({ title, description, action, successMessage, fields, initialValues, validate, payload, review, onClose, submitLabel = "Confirm changes", draftKey, role }) {
   const submitting = useRef(false);
   const pendingCredentials = useRef(null);
   const draftSaveTimer = useRef(null);
@@ -22,6 +22,7 @@ export default function ActionForm({ title, description, action, successMessage,
   const [reviewing, setReviewing] = useState(false);
   const [errors, setErrors] = useState({});
   const [error, setError] = useState("");
+  const entityName = role || (title?.toLowerCase().includes("reseller") ? "Reseller" : title?.toLowerCase().includes("user") ? "User" : "Account");
   const mutation = useAdminMutation(action, successMessage, async (data) => {
     if (draftKey) await removeCampaignDraft(draftKey).catch(() => {});
     if (pendingCredentials.current) {
@@ -95,9 +96,9 @@ export default function ActionForm({ title, description, action, successMessage,
   const isAccountForm = ["createAccount", "updateAccount"].includes(action) && fields.some(field => field.key === "username");
   function renderField(field) {
     if (field.type === "checkbox") {
-      return <label key={field.key} className="flex items-start gap-3 rounded-md border p-3 text-sm">
-        <input id={`admin-${field.key}`} type="checkbox" checked={Boolean(values[field.key])} onChange={(e) => change(field.key, e.target.checked)} className="mt-0.5 size-4 accent-primary" />
-        <span className="min-w-0"><span className="block font-medium">{field.label}</span>{field.hint && <span className="mt-1 block text-xs text-muted-foreground">{field.hint}</span>}</span>
+      return <label key={field.key} className="flex cursor-pointer items-start gap-3 self-start rounded-lg border border-input p-3 text-sm transition-colors hover:bg-muted/30">
+        <input id={`admin-${field.key}`} type="checkbox" checked={Boolean(values[field.key])} onChange={(e) => change(field.key, e.target.checked)} className="mt-0.5 size-4 shrink-0 accent-primary" />
+        <span className="min-w-0"><span className="block text-xs font-semibold text-foreground">{field.label}</span>{field.hint && <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{field.hint}</span>}</span>
       </label>;
     }
     const Control = isAccountForm && field.type === "password" ? AccountCreationPassword : Input;
@@ -135,10 +136,10 @@ export default function ActionForm({ title, description, action, successMessage,
     <form onSubmit={submit} noValidate className={isAccountForm ? "account-create-form" : "action-dialog-form"}>
       <div className={isAccountForm ? "account-create-body" : "action-dialog-body"}>
       <ActionFormProgress reviewing={reviewing} />
-      {reviewing ? <ActionReview action={action} values={values}>{review(values)}</ActionReview> : (isAccountForm ? <AccountCreationFields fields={fields} renderField={renderField} /> : fields.map(renderField))}
+      {reviewing ? <ActionReview action={action} values={values}>{review(values)}</ActionReview> : (isAccountForm ? <AccountCreationFields fields={fields} renderField={renderField} role={entityName} /> : fields.map(renderField))}
       <FormError message={error || mutation.error?.message} />
       </div>
-      <div className={isAccountForm ? "account-create-footer" : "action-dialog-footer"}>{isAccountForm && <span>{action === "createAccount" ? "Review the details before creating the account." : "Review your changes before saving."}</span>}<div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="outline" disabled={mutation.isPending} onClick={() => reviewing ? setReviewing(false) : onClose()}>{reviewing ? "Edit details" : "Cancel"}</Button><Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? "Saving…" : reviewing ? submitLabel : isAccountForm ? "Review account" : actionReviewLabel(action)}</Button></div></div>
+      <div className={isAccountForm ? "account-create-footer" : "action-dialog-footer"}>{isAccountForm && <span>{action === "createAccount" ? `Review the details before creating the ${entityName.toLowerCase()}.` : "Review your changes before saving."}</span>}<div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="outline" disabled={mutation.isPending} onClick={() => reviewing ? setReviewing(false) : onClose()}>{reviewing ? "Edit details" : "Cancel"}</Button><Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? "Saving…" : reviewing ? submitLabel : isAccountForm ? `Review ${entityName.toLowerCase()}` : actionReviewLabel(action)}</Button></div></div>
     </form>
   </DialogContent></Dialog>;
 }

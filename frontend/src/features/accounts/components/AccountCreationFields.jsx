@@ -4,10 +4,11 @@ import { Input } from "@/components/ui/input";
 import { generateTemporaryPassword } from "../lib/accountCredentials";
 import "./account-creation.css";
 
-export function AccountCreationFields({ fields, renderField }) {
+export function AccountCreationFields({ fields, renderField, role = "Account" }) {
   const identity = new Set(["username", "email", "companyName", "phone"]);
+  const displayRole = role === "Account" ? "Account" : role;
   return <div className="account-create-sections">{[
-    { title: "Account details", description: "Who this account belongs to", icon: UserRound, fields: fields.filter(field => identity.has(field.key)) },
+    { title: `${displayRole} details`, description: `Who this ${displayRole.toLowerCase()} belongs to`, icon: UserRound, fields: fields.filter(field => identity.has(field.key)) },
     { title: "Access & billing", description: "Set sign-in details, pricing and ownership", icon: ShieldCheck, fields: fields.filter(field => !identity.has(field.key)) },
   ].filter(section => section.fields.length).map(({ title, description, icon: Icon, fields: sectionFields }) => <section className="account-create-section" key={title}>
     <div className="account-create-section-heading"><span><Icon aria-hidden="true" /></span><div><h3>{title}</h3><p>{description}</p></div></div>

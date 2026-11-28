@@ -54,7 +54,7 @@ function UserDetail({ account, onClose, onAction }) {
       <SheetContent className="account-profile-sheet w-full overflow-y-auto sm:max-w-md">
         <SheetHeader>
           <SheetTitle>{account.username}</SheetTitle>
-          <SheetDescription>Client user account profile & wallet</SheetDescription>
+          <SheetDescription>Client user profile & wallet</SheetDescription>
         </SheetHeader>
 
         <div className="detail-sheet-body space-y-5">
@@ -65,9 +65,9 @@ function UserDetail({ account, onClose, onAction }) {
             )}
           </div>
 
-          <div className="detail-sheet-profile"><div className="flex min-w-0 items-center gap-3"><UserAvatar user={account} className="size-14" /><div className="min-w-0"><p className="text-sm font-semibold">{account.username}</p><p className="mt-1 text-xs text-muted-foreground">{account.companyName || "User account"}</p></div></div></div>
+          <div className="detail-sheet-profile"><div className="flex min-w-0 items-center gap-3"><UserAvatar user={account} className="size-14" /><div className="min-w-0"><p className="text-sm font-semibold">{account.username}</p><p className="mt-1 text-xs text-muted-foreground">{account.companyName || "User"}</p></div></div></div>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h3 className="text-sm font-semibold">Account details</h3>
+            <h3 className="text-sm font-semibold">User details</h3>
             <Button type="button" variant="outline" size="sm" className="account-profile-edit" disabled={signedInUser?.isPreview} onClick={() => { onClose(); onAction("editAccount", account); }}>
               <Pencil className="size-3.5" aria-hidden="true" />Edit details
             </Button>
@@ -79,7 +79,7 @@ function UserDetail({ account, onClose, onAction }) {
               ["Phone", account.phone || "Not provided"],
               ["Role", account.role || "User"],
               ["Campaign upload limits", accountUploadSummary(account, uploadLimits.defaults)],
-              ["Account expiry", account.expiresAt ? `${dateTime(account.expiresAt)}${account.isExpired ? " (Expired)" : ""}` : "No expiry"],
+              ["User expiry", account.expiresAt ? `${dateTime(account.expiresAt)}${account.isExpired ? " (Expired)" : ""}` : "No expiry"],
               ["Created", dateTime(account.createdAt)],
             ].map(([label, value]) => (
               <div key={label} className="border-b pb-2">
@@ -105,7 +105,7 @@ function UserDetail({ account, onClose, onAction }) {
 
           {/* Quick Actions */}
           <div className="detail-sheet-actions space-y-2.5">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Account Actions</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">User Actions</p>
             <div className="flex flex-col gap-2">
               <Button
                 variant="outline"
@@ -167,8 +167,8 @@ export default function ResellerUsers() {
     setDetail(null);
     setParams((previous) => { const next = new URLSearchParams(previous); next.delete("account"); return next; }, { replace: true });
   }
-  const removeAccount = useResellerMutation("deleteAccount", "User account removed", () => setModal(null));
-  const statusUpdate = useResellerMutation("accountAccess", "Account status updated", () => setModal(null));
+  const removeAccount = useResellerMutation("deleteAccount", "User removed", () => setModal(null));
+  const statusUpdate = useResellerMutation("accountAccess", "User status updated", () => setModal(null));
   function selectStatus(account, nextStatus) {
     statusUpdate.reset();
     setModal({ type: "status", account, nextStatus });
@@ -203,7 +203,7 @@ export default function ResellerUsers() {
     },
     {
       key: "name",
-      label: "Account",
+      label: "User",
       sort: (a) => a.username,
       render: (a) => (
         <div className="min-w-0">
@@ -225,7 +225,7 @@ export default function ResellerUsers() {
     },
     {
       key: "accountExpiry",
-      label: "Account expiry",
+      label: "User expiry",
       render: (a) => (
         <span className={a.isExpired ? "text-xs font-medium text-destructive" : "text-xs text-muted-foreground"}>
           {a.expiresAt ? dateTime(a.expiresAt) : "No expiry"}
@@ -259,7 +259,7 @@ export default function ResellerUsers() {
           <RowActionsMenu
             name={a.username}
             actions={[
-              { label: "Account details", icon: Eye, onClick: () => setDetail(a) },
+              { label: "Details", icon: Eye, onClick: () => setDetail(a) },
               { label: "Manage access & expiry", icon: Lock, disabled: isPreview, onClick: () => setModal({ type: "accountAccess", account: a }) },
               { label: "Purchase rates", icon: Pencil, disabled: isPreview, onClick: () => setModal({ type: "rate", account: a }) },
               { label: "Allocate credits", icon: Wallet, disabled: isPreview, onClick: () => setModal({ type: "allocate", account: a }) },
@@ -277,7 +277,7 @@ export default function ResellerUsers() {
       <PageHeading
         inlineMobile
         title="Users"
-        description="Find users, allocate credits, and manage account access."
+        description="Find users, allocate credits, and manage user access."
         action={
           <Button
             data-tour="reseller-add-user"
@@ -299,7 +299,7 @@ export default function ResellerUsers() {
             onChange={(value) => update("search", value)}
           />
           <FilterSelect
-            label="Account status"
+            label="User status"
             value={status}
             onChange={(value) => update("status", value)}
             options={[
@@ -336,13 +336,13 @@ export default function ResellerUsers() {
       <QueryState
         query={query}
         empty={!accounts.length}
-        emptyTitle="No user accounts yet"
-        emptyDescription="Use Add user to create your first client user account."
+        emptyTitle="No users yet"
+        emptyDescription="Use Add user to create your first client user."
         emptyAction={<Button disabled={signedInUser?.isPreview} onClick={() => setModal({ type: "create" })}>Add user</Button>}
       >
         <DataTable
           key={`users-${search}-${status}`}
-          caption="Client user accounts"
+          caption="Client users"
           className="account-list-table account-list-table-managed account-card-list"
           rows={rows}
           emptyTitle="No users match your filters"
@@ -372,7 +372,7 @@ export default function ResellerUsers() {
               <AlertDialogTitle>Delete {modal.account.username}?</AlertDialogTitle>
               <AlertDialogDescription>
                 <strong className="block mb-2 text-foreground break-words">{modal.account.username}</strong>
-                This user account and its wallet will be permanently deleted. Campaign and credit history will be retained for audit.
+                This user and their wallet will be permanently deleted. Campaign and credit history will be retained for audit.
               </AlertDialogDescription>
             </AlertDialogHeader>
             {removeAccount.error && <p className="text-sm text-destructive">{removeAccount.error.message}</p>}
@@ -396,16 +396,17 @@ export default function ResellerUsers() {
       {modal?.type === "create" && (
         <ResellerActionForm
           title="Add user"
-          description="Create a client user under your reseller account. Credits can be allocated from your balance after creation."
+          description="Create a client user under your reseller account.."
           action="createAccount"
-          successMessage="User account created successfully"
+          role="User"
+          successMessage="User created successfully"
           onClose={() => setModal(null)}
           initialValues={{ username: "", email: "", phone: "", companyName: "", password: "", expiresAt: "" }}
           fields={[
-            { key: "username", label: "Username / Company", required: true, maxLength: 100 },
+            { key: "username", label: "User name", required: true, maxLength: 100 },
             { key: "email", label: "Email address", type: "email", required: true },
-            { key: "companyName", label: "Company name (optional)", maxLength: 150 },
-            { key: "phone", label: "Phone number (optional)", type: "tel", maxLength: 40, hint: "Include the country code, e.g. +919876543210." },
+            { key: "companyName", label: "Company name", required: true, maxLength: 150 },
+            { key: "phone", label: "Phone number", required: true, type: "tel", maxLength: 40, hint: "Include the country code, e.g. +919876543210." },
             {
               key: "password",
               label: "Initial password",
@@ -415,9 +416,9 @@ export default function ResellerUsers() {
             },
             {
               key: "expiresAt",
-              label: "Account expiry date (optional)",
+              label: "User expiry date (optional)",
               type: "date",
-              hint: "The account remains active through this date. Leave blank for no expiry.",
+              hint: "The user remains active through this date. Leave blank for no expiry.",
             },
           ]}
           validate={(v) =>
@@ -444,7 +445,7 @@ export default function ResellerUsers() {
               </p>
             </>
           )}
-          submitLabel="Create account"
+          submitLabel="Create user"
         />
       )}
 
@@ -454,10 +455,11 @@ export default function ResellerUsers() {
 
       {modal?.type === "editAccount" && (
         <ResellerActionForm
-          title="Edit user account"
-          description="Update the account name, email, password, or expiry date. Leave the password blank to keep it unchanged."
+          title="Edit user"
+          description="Update the user name, email, password, or expiry date. Leave the password blank to keep it unchanged."
           action="updateAccount"
-          successMessage="User account updated successfully"
+          role="User"
+          successMessage="User updated successfully"
           onClose={() => setModal(null)}
           initialValues={{
             username: modal.account.username || "",
@@ -468,12 +470,12 @@ export default function ResellerUsers() {
             expiresAt: modal.account.expiresAt ? new Date(modal.account.expiresAt).toISOString().slice(0, 10) : "",
           }}
           fields={[
-            { key: "username", label: "Username / Company", required: true, maxLength: 100 },
+            { key: "username", label: "User name", required: true, maxLength: 100 },
             { key: "email", label: "Email address", type: "email", required: true },
-            { key: "companyName", label: "Company name (optional)", maxLength: 150 },
-            { key: "phone", label: "Phone number (optional)", type: "tel", maxLength: 40, hint: "Include the country code, e.g. +919876543210." },
+            { key: "companyName", label: "Company name", required: true, maxLength: 150 },
+            { key: "phone", label: "Phone number", required: true, type: "tel", maxLength: 40, hint: "Include the country code, e.g. +919876543210." },
             { key: "password", label: "New password (optional)", type: "password", hint: "Leave blank to keep the current password. If set, use at least 8 characters." },
-            { key: "expiresAt", label: "Account expiry date (optional)", type: "date", hint: "Leave blank for no expiry." },
+            { key: "expiresAt", label: "User expiry date (optional)", type: "date", hint: "Leave blank for no expiry." },
           ]}
           validate={(values) => values.password && values.password.trim().length < 8 ? "The new password must contain at least 8 characters." : ""}
           payload={(values) => ({
@@ -493,16 +495,17 @@ export default function ResellerUsers() {
               <p className="text-xs">Expiry: <strong>{values.expiresAt || "No expiry"}</strong></p>
             </>
           )}
-          submitLabel="Save account"
+          submitLabel="Save user"
         />
       )}
 
       {modal?.type === "accountAccess" && (
         <ResellerActionForm
-          title="Manage account access"
-          description={`Set ${modal.account.username}'s account status and expiry date. Blocked and expired accounts keep read-only dashboard access.`}
+          title="Manage user access"
+          description={`Set ${modal.account.username}'s user status and expiry date. Blocked and expired users keep read-only dashboard access.`}
           action="accountAccess"
-          successMessage="Account access updated successfully"
+          role="User"
+          successMessage="User access updated successfully"
           onClose={() => setModal(null)}
           initialValues={{
             status: modal.account.status === "expired" || (modal.account.isExpired && modal.account.status === "active") ? "expired" : modal.account.status || "active",
@@ -510,9 +513,9 @@ export default function ResellerUsers() {
             expiresAt: modal.account.expiresAt ? new Date(modal.account.expiresAt).toISOString().slice(0, 10) : "",
           }}
           fields={[
-            { key: "status", label: "Account status", options: [{ value: "active", label: "Active" }, { value: "blocked", label: "Blocked" }, { value: "expired", label: "Expired" }] },
-            { key: "accessReason", label: "Reason shown to this account (optional)", type: "textarea", maxLength: 1000, hint: "The account holder can view this reason." },
-            { key: "expiresAt", label: "Account expiry date (optional)", type: "date", hint: "The account remains active through this date. Leave blank for no expiry." },
+            { key: "status", label: "User status", options: [{ value: "active", label: "Active" }, { value: "blocked", label: "Blocked" }, { value: "expired", label: "Expired" }] },
+            { key: "accessReason", label: "Reason shown to this user (optional)", type: "textarea", maxLength: 1000, hint: "The user can view this reason." },
+            { key: "expiresAt", label: "User expiry date (optional)", type: "date", hint: "The user remains active through this date. Leave blank for no expiry." },
           ]}
           payload={(values) => ({ id: modal.account._id, status: values.status, expiresAt: values.expiresAt || null, accessReason: (values.accessReason || "").trim() })}
           review={(values) => (
@@ -523,7 +526,7 @@ export default function ResellerUsers() {
               <p>Expiry: <strong>{values.expiresAt || "No expiry"}</strong></p>
             </>
           )}
-          submitLabel="Save account access"
+          submitLabel="Save user access"
         />
       )}
 

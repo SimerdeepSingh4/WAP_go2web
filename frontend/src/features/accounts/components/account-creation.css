@@ -16,9 +16,10 @@
 .account-create-field-grid > div { min-width:0; }
 .account-create-field-grid [data-slot="label"] { display:flex; flex-wrap:wrap; gap:6px; font-size:12px; line-height:1.5; font-weight:550; }
 .account-create-optional { color:var(--muted-foreground); font-size:10px; font-weight:400; }
-.account-create-field-grid input,.account-create-field-grid .account-picker-trigger { width:100%; min-width:0; min-height:42px; font-size:13px; }
+.account-create-field-grid input:not([type="checkbox"]):not([type="radio"]),.account-create-field-grid .account-picker-trigger { width:100%; min-width:0; min-height:42px; font-size:13px; }
 .account-create-field-grid p { font-size:11px; line-height:1.6; color:var(--muted-foreground); }
-.account-create-field-grid input:focus-visible { box-shadow:0 0 0 2px color-mix(in srgb,var(--ring) 20%,transparent); }
+.account-create-field-grid input:not([type="checkbox"]):not([type="radio"]):focus-visible,
+.account-create-field-grid textarea:focus-visible { outline:none; box-shadow:0 0 0 2px color-mix(in srgb,var(--ring) 20%,transparent); }
 .account-create-password { position:relative; }
 .account-create-password input { padding-right:126px; }
 .account-create-password-actions { position:absolute; top:4px; right:4px; bottom:4px; display:flex; align-items:center; gap:2px; }
@@ -40,7 +41,7 @@
  .account-create-dialog [data-slot="dialog-title"] { font-size:19px; }
  .account-create-body { padding:20px; }
  .account-create-field-grid { grid-template-columns:minmax(0,1fr); gap:16px; }
- .account-create-field-grid input { font-size:16px; min-height:44px; }
+ .account-create-field-grid input:not([type="checkbox"]):not([type="radio"]) { font-size:16px; min-height:44px; }
  .account-create-footer { padding:14px 20px; gap:10px; flex-wrap:wrap; }
  .account-create-footer > span { max-width:none; }
  .account-create-footer > div { width:100%; }

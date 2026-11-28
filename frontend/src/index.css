@@ -183,7 +183,7 @@
   --chart-crosshair: var(--muted-foreground);
   --chart-tooltip-foreground: var(--foreground);
 }
-.admin-portal :where(a, button, input, textarea):focus-visible {
+.admin-portal :where(a, button, input:not([data-slot="input"]), textarea:not([data-slot="textarea"])):focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 3px;
 }

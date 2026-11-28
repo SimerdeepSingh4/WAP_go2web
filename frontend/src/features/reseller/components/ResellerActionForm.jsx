@@ -11,7 +11,7 @@ import { useResellerMutation } from "../hooks/useReseller";
 import { Field, FilterSelect, FormError } from "@/features/dashboard/components/shared";
 import ActionReview, { ActionFormProgress, actionReviewLabel } from "@/features/dashboard/components/ActionReview";
 
-export default function ResellerActionForm({ title, description, action, successMessage, fields, initialValues, validate, payload, review, onClose, submitLabel = "Confirm changes" }) {
+export default function ResellerActionForm({ title, description, action, successMessage, fields, initialValues, validate, payload, review, onClose, submitLabel = "Confirm changes", role = "User" }) {
   const submitting = useRef(false);
   const pendingCredentials = useRef(null);
   const [values, setValues] = useState(initialValues);
@@ -98,10 +98,10 @@ export default function ResellerActionForm({ title, description, action, success
     <form onSubmit={submit} noValidate className={isAccountForm ? "account-create-form" : "action-dialog-form"}>
       <div className={isAccountForm ? "account-create-body" : "action-dialog-body"}>
       <ActionFormProgress reviewing={reviewing} />
-      {reviewing ? <ActionReview action={action} values={values}>{review(values)}</ActionReview> : (isAccountForm ? <AccountCreationFields fields={fields} renderField={renderField} /> : fields.map(renderField))}
+      {reviewing ? <ActionReview action={action} values={values}>{review(values)}</ActionReview> : (isAccountForm ? <AccountCreationFields fields={fields} renderField={renderField} role={role} /> : fields.map(renderField))}
       <FormError message={error || mutation.error?.message} />
       </div>
-      <div className={isAccountForm ? "account-create-footer" : "action-dialog-footer"}>{isAccountForm && <span>{action === "createAccount" ? "Review the details before creating the account." : "Review your changes before saving."}</span>}<div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="outline" disabled={mutation.isPending} onClick={() => reviewing ? setReviewing(false) : onClose()}>{reviewing ? "Edit details" : "Cancel"}</Button><Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? "Saving…" : reviewing ? submitLabel : isAccountForm ? "Review account" : actionReviewLabel(action)}</Button></div></div>
+      <div className={isAccountForm ? "account-create-footer" : "action-dialog-footer"}>{isAccountForm && <span>{action === "createAccount" ? `Review the details before creating the ${role.toLowerCase()}.` : "Review your changes before saving."}</span>}<div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="outline" disabled={mutation.isPending} onClick={() => reviewing ? setReviewing(false) : onClose()}>{reviewing ? "Edit details" : "Cancel"}</Button><Button type="submit" disabled={mutation.isPending}>{mutation.isPending ? "Saving…" : reviewing ? submitLabel : isAccountForm ? `Review ${role.toLowerCase()}` : actionReviewLabel(action)}</Button></div></div>
     </form>
   </DialogContent></Dialog>;
 }

@@ -283,7 +283,7 @@ function AccountDetail({ account, onClose, onAction }) {
               </div>
 
               <div className="grid grid-cols-2 items-start gap-3 py-2.5">
-                <dt>Account expiry</dt>
+                <dt>{account.role} expiry</dt>
                 <dd>
                   <span className={account.isExpired ? "font-semibold text-destructive flex items-center gap-1" : "font-medium text-foreground"}>
                     {account.expiresAt ? dateTime(account.expiresAt) : "No expiry"}
@@ -292,7 +292,7 @@ function AccountDetail({ account, onClose, onAction }) {
                 </dd>
               </div>
 
-              <div className="grid grid-cols-2 items-start gap-3 py-2.5">
+              {/* <div className="grid grid-cols-2 items-start gap-3 py-2.5">
                 <dt>Assigned reseller</dt>
                 <dd>
                   {account.resellerId?.username ? (
@@ -306,7 +306,7 @@ function AccountDetail({ account, onClose, onAction }) {
                     <span className="text-muted-foreground">—</span>
                   )}
                 </dd>
-              </div>
+              </div> */}
 
               <div className="grid grid-cols-2 items-start gap-3 py-2.5">
                 <dt>Upload limits</dt>
@@ -384,11 +384,10 @@ function AccountDetail({ account, onClose, onAction }) {
               <QueryState query={reconcile}>
                 {reconcile.data && (
                   <div
-                    className={`space-y-3 rounded-xl border p-3 text-xs ${
-                      reconcile.data.report?.isReconciled
-                        ? "border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[color:var(--status-success-text)]"
-                        : "border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] text-[color:var(--status-danger-text)]"
-                    }`}
+                    className={`space-y-3 rounded-xl border p-3 text-xs ${reconcile.data.report?.isReconciled
+                      ? "border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[color:var(--status-success-text)]"
+                      : "border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] text-[color:var(--status-danger-text)]"
+                      }`}
                   >
                     <div className="flex items-center gap-2 font-semibold">
                       {reconcile.data.report?.isReconciled ? (
@@ -451,7 +450,7 @@ const accountMenuItems = [
   { type: "accountAccess", label: "Access & expiry", icon: Lock, needsData: true },
   { type: "rate", label: "Purchase rates", icon: Pencil },
   { type: "mediaLimits", label: "Upload limits", icon: Upload, needsData: true },
-  { type: "detail", label: "Account details", icon: Eye },
+  { type: "detail", label: "Details", icon: Eye },
 ];
 
 export default function Accounts({ role }) {
@@ -478,7 +477,7 @@ export default function Accounts({ role }) {
     mutationFn: ({ id }) => startFullAccessImpersonation(id),
     onSuccess: async (data, { targetWindow }) => {
       if (targetWindow.closed) {
-        await exitFullAccessImpersonation(data.token).catch(() => {});
+        await exitFullAccessImpersonation(data.token).catch(() => { });
         return;
       }
       targetWindow.postMessage({ type: "FULL_ACCESS_SESSION", token: data.token }, window.location.origin);
@@ -578,14 +577,14 @@ export default function Accounts({ role }) {
       sort: (a) => a.username,
       render: (a) => (
         <div className="min-w-0">
-        <button
-          title={`Open profile for ${a.username}`}
-          className="max-w-48 truncate text-left font-medium underline decoration-muted-foreground/50 underline-offset-2 text-foreground block"
-          onClick={() => setDetail(a)}
-        >
-          {a.username}
-        </button>
-        <span className="account-name-secondary" title={a.email}>{a.email}</span>
+          <button
+            title={`Open profile for ${a.username}`}
+            className="max-w-48 truncate text-left font-medium underline decoration-muted-foreground/50 underline-offset-2 text-foreground block"
+            onClick={() => setDetail(a)}
+          >
+            {a.username}
+          </button>
+          <span className="account-name-secondary" title={a.email}>{a.email}</span>
         </div>
       ),
     },
@@ -596,37 +595,37 @@ export default function Accounts({ role }) {
     },
     ...(role === "User"
       ? [
-          {
-            key: "reseller",
-            label: "Reseller",
-            sort: (a) => a.resellerId?.username || "Super Admin",
-            render: (a) =>
-              a.resellerId?.username ? (
-                <span className="text-xs font-medium">{a.resellerId.username}</span>
-              ) : (
-                <Badge variant="secondary" className="gap-1 font-medium text-xs">
-                  <ShieldCheck className="size-3 text-primary" />
-                  Super Admin
-                </Badge>
-              ),
-          },
-        ]
+        {
+          key: "reseller",
+          label: "Reseller",
+          sort: (a) => a.resellerId?.username || "Super Admin",
+          render: (a) =>
+            a.resellerId?.username ? (
+              <span className="text-xs font-medium">{a.resellerId.username}</span>
+            ) : (
+              <Badge variant="secondary" className="gap-1 font-medium text-xs">
+                <ShieldCheck className="size-3 text-primary" />
+                Super Admin
+              </Badge>
+            ),
+        },
+      ]
       : [
-          {
-            key: "users",
-            label: "Assigned users",
-            render: (a) =>
-              number(accounts.filter((u) => u.role === "User" && (u.resellerId?._id || u.resellerId) === a._id).length),
-          },
-          {
-            key: "status",
-            label: "Status",
-            render: (a) => <AccountStatusMenu account={a} disabled={statusUpdate.isPending} onSelect={nextStatus => selectStatus(a, nextStatus)} />,
-          },
-        ]),
+        {
+          key: "users",
+          label: "Assigned users",
+          render: (a) =>
+            number(accounts.filter((u) => u.role === "User" && (u.resellerId?._id || u.resellerId) === a._id).length),
+        },
+        {
+          key: "status",
+          label: "Status",
+          render: (a) => <AccountStatusMenu account={a} disabled={statusUpdate.isPending} onSelect={nextStatus => selectStatus(a, nextStatus)} />,
+        },
+      ]),
     {
       key: "accountExpiry",
-      label: "Account expiry",
+      label: `${role} expiry`,
       render: (a) => (
         <span className={a.isExpired ? "text-xs font-medium text-destructive" : "text-xs text-muted-foreground"}>
           {a.expiresAt ? dateTime(a.expiresAt) : "No expiry"}
@@ -636,19 +635,19 @@ export default function Accounts({ role }) {
     },
     ...(role === "User"
       ? [
-          {
-            key: "status",
-            label: "Status",
-            render: (a) => <AccountStatusMenu account={a} disabled={statusUpdate.isPending} onSelect={nextStatus => selectStatus(a, nextStatus)} />,
-          },
-        ]
+        {
+          key: "status",
+          label: "Status",
+          render: (a) => <AccountStatusMenu account={a} disabled={statusUpdate.isPending} onSelect={nextStatus => selectStatus(a, nextStatus)} />,
+        },
+      ]
       : [
-          {
-            key: "whiteLabel",
-            label: "White-Label",
-            render: (a) => <WhiteLabelAccessMenu account={a} onSelect={intent => setModal({ type: "whiteLabel", account: a, intent })} />,
-          },
-        ]),
+        {
+          key: "whiteLabel",
+          label: "White-Label",
+          render: (a) => <WhiteLabelAccessMenu account={a} onSelect={intent => setModal({ type: "whiteLabel", account: a, intent })} />,
+        },
+      ]),
     {
       key: "actions",
       label: <span className="sr-only">Actions</span>,
@@ -737,7 +736,7 @@ export default function Accounts({ role }) {
           <div className="flex flex-wrap items-center gap-2.5">
             <SearchBox label="Search name or email..." value={search} onChange={(value) => update("search", value)} />
             <FilterSelect
-              label="Account status"
+              label={`${role} status`}
               value={status}
               onChange={(value) => update("status", value)}
               options={[
@@ -750,30 +749,30 @@ export default function Accounts({ role }) {
           </div>
         </div>
 
-      <QueryState
-        query={query}
-        empty={!accounts.some((a) => a.role === role)}
-        emptyTitle={`No ${role.toLowerCase()} accounts yet`}
-        emptyDescription={`Use Add ${role.toLowerCase()} to create the first account.`}
-        emptyAction={<Button onClick={() => setModal({ type: "create" })}>Add {role.toLowerCase()}</Button>}
-      >
-        <DataTable
-          key={`${role}-${search}-${status}`}
-          caption={`${role} accounts`}
-          className={`account-list-table account-card-list ${role === "Reseller" ? "account-list-table-resellers" : ""}`}
-          rows={rows}
-          emptyTitle={`No ${role.toLowerCase()} accounts match your filters`}
-          emptyAction={<ClearFiltersButton />}
-          columns={columns}
-          mobile={{
-            primary: "name",
-            secondary: "email",
-            featured: role === "Reseller"
-              ? ["status", "whiteLabel", "users", "accountExpiry"]
-              : ["status", "accountExpiry", "reseller"],
-          }}
-        />
-      </QueryState>
+        <QueryState
+          query={query}
+          empty={!accounts.some((a) => a.role === role)}
+          emptyTitle={`No ${role.toLowerCase()}s yet`}
+          emptyDescription={`Use Add ${role.toLowerCase()} to create the first ${role.toLowerCase()}.`}
+          emptyAction={<Button onClick={() => setModal({ type: "create" })}>Add {role.toLowerCase()}</Button>}
+        >
+          <DataTable
+            key={`${role}-${search}-${status}`}
+            caption={`${role} accounts`}
+            className={`account-list-table account-card-list ${role === "Reseller" ? "account-list-table-resellers" : ""}`}
+            rows={rows}
+            emptyTitle={`No ${role.toLowerCase()} accounts match your filters`}
+            emptyAction={<ClearFiltersButton />}
+            columns={columns}
+            mobile={{
+              primary: "name",
+              secondary: "email",
+              featured: role === "Reseller"
+                ? ["status", "whiteLabel", "users", "accountExpiry"]
+                : ["status", "accountExpiry", "reseller"],
+            }}
+          />
+        </QueryState>
       </section>
 
       {detail && <AccountDetail account={detail} onClose={closeDetail} onAction={(type, account, nextStatus) => type === "status" ? selectStatus(account, nextStatus) : setModal({ type, account })} />}
@@ -813,21 +812,22 @@ export default function Accounts({ role }) {
 
       {modal?.type === "create" && (
         <ActionForm
+          role={role}
           title={`Add ${role.toLowerCase()}`}
           description={
             role === "User"
-              ? "Create a user account. You can allocate credits directly to this user after creation."
-              : "Create a reseller account. Credits can be allocated after creation."
+              ? "Create a user account."
+              : "Create a reseller account."
           }
           action="createAccount"
-          successMessage={`${role} account created`}
+          successMessage={`${role} created successfully`}
           onClose={() => setModal(null)}
           initialValues={{ username: "", email: "", phone: "", companyName: "", password: "", dailyCampaignLimit: "", resellerId: "", expiresAt: "", allowCreditReclaim: false }}
           fields={[
-            { key: "username", label: "Account name", required: true, maxLength: 100 },
+            { key: "username", label: `${role} name`, required: true, maxLength: 100 },
             { key: "email", label: "Email", type: "email", required: true },
-            { key: "companyName", label: "Company name (optional)", maxLength: 150 },
-            { key: "phone", label: "Phone number (optional)", type: "tel", maxLength: 40, hint: "Include the country code, e.g. +919876543210." },
+            { key: "companyName", label: "Company name", required: true, maxLength: 150 },
+            { key: "phone", label: "Phone number", required: true, type: "tel", maxLength: 40, hint: "Include the country code, e.g. +919876543210." },
             { key: "password", label: "Initial password", type: "password", required: true, hint: "Use at least 8 characters." },
             {
               key: "dailyCampaignLimit",
@@ -839,28 +839,28 @@ export default function Accounts({ role }) {
             },
             {
               key: "expiresAt",
-              label: "Account expiry date (optional)",
+              label: `${role} expiry date (optional)`,
               type: "date",
-              hint: "The account remains active through this date. Leave blank for no expiry.",
+              hint: `The ${role.toLowerCase()} remains active through this date. Leave blank for no expiry.`,
             },
-            ...(role === "User"
-              ? [
-                  {
-                    key: "resellerId",
-                    label: "Assigned reseller (optional)",
-                    options: [{ value: "", label: "Direct (Managed by Admin)" }, ...resellers.map((a) => ({ value: a._id, label: a.username }))],
-                  },
-                ]
-              : []),
+            // ...(role === "User"
+            //   ? [
+            //     {
+            //       key: "resellerId",
+            //       label: "Assigned reseller (optional)",
+            //       options: [{ value: "", label: "Direct (Managed by Admin)" }, ...resellers.map((a) => ({ value: a._id, label: a.username }))],
+            //     },
+            //   ]
+            //   : []),
             ...(role === "Reseller"
               ? [
-                  {
-                    key: "allowCreditReclaim",
-                    label: "Allow credit reclaim",
-                    type: "checkbox",
-                    hint: "Allow this reseller to reclaim unused credits from their client users back to their reseller wallet.",
-                  },
-                ]
+                {
+                  key: "allowCreditReclaim",
+                  label: "Allow credit reclaim",
+                  type: "checkbox",
+                  hint: "Allow this reseller to reclaim unused credits from their client users back to their reseller wallet.",
+                },
+              ]
               : []),
           ]}
           validate={(v) => (v.password.trim().length < 8 ? "The initial password must contain at least 8 characters." : "")}
@@ -873,7 +873,7 @@ export default function Accounts({ role }) {
             role,
             dailyCampaignLimit: v.dailyCampaignLimit ? Number(v.dailyCampaignLimit) : null,
             expiresAt: v.expiresAt || null,
-            ...(role === "User" && v.resellerId ? { resellerId: v.resellerId } : {}),
+            // ...(role === "User" && v.resellerId ? { resellerId: v.resellerId } : {}),
             ...(role === "Reseller" ? { featureAccess: { reclaimCredit: v.allowCreditReclaim } } : {}),
           })}
           review={(v) => (
@@ -883,20 +883,21 @@ export default function Accounts({ role }) {
               <p>Role: {role}</p>
               <p>Daily limit: {v.dailyCampaignLimit ? `${v.dailyCampaignLimit} campaigns / day (Custom)` : "Platform default"}</p>
               <p>Expiry: {v.expiresAt || "No expiry"}</p>
-              {role === "User" && <p>Reseller: {resellers.find((a) => a._id === v.resellerId)?.username || "Direct (None)"}</p>}
+              {/* {role === "User" && <p>Reseller: {resellers.find((a) => a._id === v.resellerId)?.username || "Direct (None)"}</p>} */}
               {role === "Reseller" && <p>Credit reclaim: <strong>{v.allowCreditReclaim ? "Allowed" : "Not allowed"}</strong></p>}
             </>
           )}
-          submitLabel="Create account"
+          submitLabel={`Create ${role.toLowerCase()}`}
         />
       )}
 
-            {modal?.type === "edit" && (
+      {modal?.type === "edit" && (
         <ActionForm
-          title={`Edit ${role.toLowerCase()} account`}
+          role={role}
+          title={`Edit ${role.toLowerCase()}`}
           description={`Update details or access expiry for ${modal.account.username}.`}
           action="updateAccount"
-          successMessage="Account updated successfully"
+          successMessage={`${role} updated successfully`}
           onClose={() => setModal(null)}
           initialValues={{
             username: modal.account.username || "",
@@ -909,10 +910,10 @@ export default function Accounts({ role }) {
             expiresAt: modal.account.expiresAt ? new Date(modal.account.expiresAt).toISOString().slice(0, 10) : "",
           }}
           fields={[
-            { key: "username", label: "Account name", required: true, maxLength: 100 },
+            { key: "username", label: `${role} name`, required: true, maxLength: 100 },
             { key: "email", label: "Email", type: "email", required: true },
-            { key: "companyName", label: "Company name (optional)", maxLength: 150 },
-            { key: "phone", label: "Phone number (optional)", type: "tel", maxLength: 40, hint: "Include the country code, e.g. +919876543210." },
+            { key: "companyName", label: "Company name", required: true, maxLength: 150 },
+            { key: "phone", label: "Phone number", required: true, type: "tel", maxLength: 40, hint: "Include the country code, e.g. +919876543210." },
             { key: "password", label: "New password (optional)", type: "password", hint: "Leave blank to keep existing password. If setting new, min 8 characters." },
             {
               key: "dailyCampaignLimit",
@@ -924,7 +925,7 @@ export default function Accounts({ role }) {
             },
             {
               key: "status",
-              label: "Account status",
+              label: `${role} status`,
               options: [
                 { value: "active", label: "Active" },
                 { value: "blocked", label: "Blocked" },
@@ -933,9 +934,9 @@ export default function Accounts({ role }) {
             },
             {
               key: "expiresAt",
-              label: "Account expiry date (optional)",
+              label: `${role} expiry date (optional)`,
               type: "date",
-              hint: "The account remains active through this date. Leave blank for no expiry.",
+              hint: `The ${role.toLowerCase()} remains active through this date. Leave blank for no expiry.`,
             },
           ]}
           validate={(v) => (v.password && v.password.trim().length > 0 && v.password.trim().length < 8 ? "New password must be at least 8 characters." : "")}
@@ -1017,10 +1018,11 @@ export default function Accounts({ role }) {
 
       {modal?.type === "accountAccess" && (
         <ActionForm
-          title="Manage account access"
-          description={`Set ${modal.account.username}'s account status and expiry date. Blocked and expired accounts keep read-only dashboard access.`}
+          role={role}
+          title={`Manage ${role.toLowerCase()} access`}
+          description={`Set ${modal.account.username}'s ${role.toLowerCase()} status and expiry date. Blocked and expired accounts keep read-only dashboard access.`}
           action="accountAccess"
-          successMessage="Account access updated"
+          successMessage={`${role} access updated`}
           onClose={() => setModal(null)}
           initialValues={{
             status: modal.account.status === "expired" || (modal.account.isExpired && modal.account.status === "active") ? "expired" : modal.account.status || "active",
@@ -1033,9 +1035,9 @@ export default function Accounts({ role }) {
             allowCreditReclaim: modal.account.featureAccess?.reclaimCredit === true,
           }}
           fields={[
-            { key: "status", label: "Account status", options: [{ value: "active", label: "Active" }, { value: "blocked", label: "Blocked" }, { value: "expired", label: "Expired" }] },
-            { key: "accessReason", label: "Reason shown to this account (optional)", type: "textarea", maxLength: 1000, hint: "Explain why access is blocked or expired. The account holder can view this reason." },
-            { key: "expiresAt", label: "Account expiry date (optional)", type: "date", hint: "The account remains active through this date. Leave blank for no expiry." },
+            { key: "status", label: `${role} status`, options: [{ value: "active", label: "Active" }, { value: "blocked", label: "Blocked" }, { value: "expired", label: "Expired" }] },
+            { key: "accessReason", label: `Reason shown to this ${role.toLowerCase()} (optional)`, type: "textarea", maxLength: 1000, hint: `Explain why access is blocked or expired. The ${role.toLowerCase()} can view this reason.` },
+            { key: "expiresAt", label: `${role} expiry date (optional)`, type: "date", hint: `The ${role.toLowerCase()} remains active through this date. Leave blank for no expiry.` },
             {
               key: "dailyCampaignLimit",
               label: "Daily campaign limit (optional)",
@@ -1045,9 +1047,9 @@ export default function Accounts({ role }) {
               hint: "Max campaigns per day. Leave blank for platform default.",
             },
             ...(role === "User" || role === "Reseller" ? [
-              { key: "allowCampaignDp", label: "Share profile DP in campaigns", type: "checkbox", hint: "Allow this account's profile DP (from settings) to be shared in campaigns. If disabled, DP upload is blocked and existing DP is removed." },
-              { key: "allowCampaignNumber", label: "Campaign number", type: "checkbox", hint: "Allow this account to add an optional contact number to a campaign." },
-              { key: "allowCampaignLink", label: "Campaign link", type: "checkbox", hint: "Show an optional link field when this account creates a campaign." },
+              { key: "allowCampaignDp", label: "Share profile DP in campaigns", type: "checkbox", hint: `Allow this ${role.toLowerCase()}'s profile DP (from settings) to be shared in campaigns. If disabled, DP upload is blocked and existing DP is removed.` },
+              { key: "allowCampaignNumber", label: "Campaign number", type: "checkbox", hint: `Allow this ${role.toLowerCase()} to add an optional contact number to a campaign.` },
+              { key: "allowCampaignLink", label: "Campaign link", type: "checkbox", hint: `Show an optional link field when this ${role.toLowerCase()} creates a campaign.` },
             ] : []),
             ...(role === "Reseller" ? [
               { key: "allowCreditReclaim", label: "Reclaim credits from client users", type: "checkbox", hint: "Allow this reseller to reclaim unused credits from their client users back to their reseller wallet." },
@@ -1059,12 +1061,14 @@ export default function Accounts({ role }) {
             accessReason: (values.accessReason || "").trim(),
             expiresAt: values.expiresAt || null,
             dailyCampaignLimit: values.dailyCampaignLimit ? Number(values.dailyCampaignLimit) : null,
-            ...((role === "User" || role === "Reseller") ? { featureAccess: {
-              campaignDp: values.allowCampaignDp,
-              campaignNumber: values.allowCampaignNumber,
-              campaignLink: values.allowCampaignLink,
-              ...(role === "Reseller" ? { reclaimCredit: values.allowCreditReclaim } : {}),
-            } } : {}),
+            ...((role === "User" || role === "Reseller") ? {
+              featureAccess: {
+                campaignDp: values.allowCampaignDp,
+                campaignNumber: values.allowCampaignNumber,
+                campaignLink: values.allowCampaignLink,
+                ...(role === "Reseller" ? { reclaimCredit: values.allowCreditReclaim } : {}),
+              }
+            } : {}),
           })}
           review={(values) => (
             <>
@@ -1079,7 +1083,7 @@ export default function Accounts({ role }) {
               {role === "Reseller" && <p>Reclaim credits: <strong>{values.allowCreditReclaim ? "Allowed" : "Not allowed"}</strong></p>}
             </>
           )}
-          submitLabel="Save account access"
+          submitLabel={`Save ${role.toLowerCase()} access`}
         />
       )}
 

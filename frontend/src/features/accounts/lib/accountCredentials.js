@@ -49,10 +49,11 @@ export function buildWhatsAppShareUrl(phone, text) {
 }
 
 export const accountCreationPlaceholders = {
-  username: "e.g. Alex Morgan",
-  email: "name@company.com",
-  companyName: "e.g. Northstar Media",
-  phone: "+91 98765 43210",
-  password: "At least 8 characters",
-  ratePerMsg: "e.g. 1.00",
+  username: "Enter name",
+  email: "Enter email",
+  companyName: "Enter company name",
+  phone: "Enter phone number",
+  password: "Enter password",
+  dailyCampaignLimit: "Enter daily limit",
+  ratePerMsg: "Enter rate",
 };
